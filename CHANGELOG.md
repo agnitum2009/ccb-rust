@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v6.0.18 (2026-04-28)
+
+### Gemini Hook Empty-Reply Guard
+
+- **Empty Gemini Hook Replies No Longer Burn Jobs**: managed Gemini `AfterAgent` hooks that fire with an empty reply now downgrade to `incomplete` instead of terminalizing as a false exact completion
+- **Exact Hook Polling Becomes Safer**: Gemini exact-hook polling now ignores `completed` hook artifacts with no reply text, allowing observed session-stability or timeout reliability paths to converge the request instead of accepting a blank terminal result
+- **Regression Coverage Added**: targeted tests now lock the empty-reply guard at both the finish-hook artifact writer and Gemini execution-service polling layers
+
 ## v6.0.17 (2026-04-28)
 
 ### Gemini Custom Endpoint Env Propagation

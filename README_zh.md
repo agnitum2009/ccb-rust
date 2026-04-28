@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.0.17-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.0.18-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -98,6 +98,15 @@ cmd; writer:codex, reviewer:claude; qa:gemini(worktree)
 历史说明：下面较旧的发布记录里仍可能出现 `askd`、旧 flag 或已移除命令。这些内容仅作为 changelog 历史保留，不代表当前 CLI 入口。
 
 <details open>
+<summary><b>v6.0.18</b> - Gemini Hook 空回复保护</summary>
+
+- **Gemini 空 Hook 回复不再误烧掉任务**：managed Gemini 的 `AfterAgent` hook 如果在空回复下触发，现在会降级成 `incomplete`，不再被当作错误的 exact completion 直接终结任务
+- **Exact Hook 轮询更保守**：Gemini exact-hook 轮询现在会忽略没有回复文本的 `completed` hook artifact，让 observed session-stability 或 timeout reliability 路径继续收口，而不是接受空白终态
+- **补齐回归覆盖**：新增针对 finish-hook artifact 写入层与 Gemini execution-service 轮询层的空回复保护测试，锁住这条回归路径
+
+</details>
+
+<details>
 <summary><b>v6.0.17</b> - Gemini 自定义端点环境变量透传修复</summary>
 
 - **Gemini 端点覆盖恢复**：managed Gemini 启动现在会端到端保留 `GOOGLE_GEMINI_BASE_URL`，使走自定义 endpoint 或代理的 Gemini CLI 不再悄悄回退到 Google 默认生产 API 地址
