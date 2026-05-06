@@ -320,19 +320,20 @@ def test_socket_server_timeout_after_shutdown_does_not_run_tick(tmp_path: Path) 
     assert tick_calls == []
 
 
-def test_socket_server_propagates_worker_tick_errors(tmp_path: Path) -> None:
-    server = CcbdSocketServer(tmp_path / 'ccbd.sock')
+def test_socket_server_propagates_worker_tick_errors() -> None:
+    with tempfile.TemporaryDirectory(prefix='ccb-sock-', dir=str(Path(tempfile.gettempdir()))) as temp_dir:
+        server = CcbdSocketServer(Path(temp_dir) / 'ccbd.sock')
 
-    try:
-        with pytest.raises(RuntimeError, match='tick boom'):
-            server.serve_forever(
-                poll_interval=0.01,
-                on_tick=lambda: (_ for _ in ()).throw(RuntimeError('tick boom')),
-            )
-    finally:
-        server.shutdown()
+        try:
+            with pytest.raises(RuntimeError, match='tick boom'):
+                server.serve_forever(
+                    poll_interval=0.01,
+                    on_tick=lambda: (_ for _ in ()).throw(RuntimeError('tick boom')),
+                )
+        finally:
+            server.shutdown()
 
-    assert server._worker_thread is None
+        assert server._worker_thread is None
 
 
 def test_ccbd_stop_all_does_not_run_post_shutdown_heartbeat(tmp_path: Path) -> None:
