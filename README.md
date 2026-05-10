@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.1.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.2-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 **English** | [Chinese](README_zh.md)
@@ -293,6 +293,15 @@ Thanks to the [Linux.do community](https://linux.do) for testing, feedback, and 
 Historical note: older release notes below may mention `askd`, legacy flags, or removed commands. Those references are kept only as changelog history and do not redefine the current CLI surface.
 
 <details open>
+<summary><b>v6.1.2</b> - Provider Storage Boundary Hardening</summary>
+
+- **Storage Classes Made Explicit**: `ccb doctor storage` now separates authority, session state, secrets, workspaces, user content, projected config, rebuildable cache, and startup authority bundles.
+- **Safe Cleanup Added**: `ccb cleanup` refuses to run while `ccbd` or ask jobs are active, prunes only safe rebuildable provider caches, and preserves sessions, auth, and current Claude binaries.
+- **Shared Cache Guardrails Added**: future provider shared-cache paths now resolve under the effective runtime-state root with WSL drvfs safety checks and manifest creation.
+
+</details>
+
+<details>
 <summary><b>v6.1.1</b> - Ask Skill and Memory Injection Cleanup</summary>
 
 - **Ask Skill Kept as the Only Installed Skill**: Claude, Codex, and Droid/Factory installs now publish only the `ask` skill and remove older CCB helper skills such as `ping`, `pend`, `all-plan`, and `file-op`.

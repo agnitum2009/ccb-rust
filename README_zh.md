@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.1.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.2-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -291,6 +291,15 @@ ccb reinstall
 历史说明：下面较旧的发布记录里仍可能出现 `askd`、旧 flag 或已移除命令。这些内容仅作为 changelog 历史保留，不代表当前 CLI 入口。
 
 <details open>
+<summary><b>v6.1.2</b> - Provider 存储边界加固</summary>
+
+- **存储分类显式化**：`ccb doctor storage` 现在区分 authority、session state、secret、workspace、user content、projected config、rebuildable cache 和 startup authority bundle。
+- **安全清理入口落地**：`ccb cleanup` 会在 `ccbd` 或 ask job 活跃时拒绝执行，只清理安全的可重建 provider cache，并保留 session、auth 和当前 Claude binary。
+- **Shared Cache 护栏补齐**：未来 provider shared-cache 路径统一落在 effective runtime-state root 下，并加入 WSL drvfs 安全检查和 manifest 创建。
+
+</details>
+
+<details>
 <summary><b>v6.1.1</b> - Ask Skill 和记忆注入清理</summary>
 
 - **只安装 Ask Skill**：Claude、Codex 和 Droid/Factory 安装现在只发布 `ask` skill，并清理 `ping`、`pend`、`all-plan`、`file-op` 等旧 CCB helper skill。
