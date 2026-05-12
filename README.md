@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.1.7-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.8-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 **English** | [Chinese](README_zh.md)
@@ -74,9 +74,9 @@ Build project-local teams with roles, pane layout, provider state, worktree isol
 <details>
 <summary><b>Latest release highlights</b></summary>
 
-- **Codex shared memory refresh is fixed**: when `.ccb/ccb_memory.md` changes, managed Codex startup avoids stale `resume` context and loads the refreshed project memory.
-- **Ask skill submit is stricter**: Claude and Droid ask skills use heredoc-only submission and stop immediately after submit instead of polling for replies.
-- **Project memory has one anchor**: `.ccb/ccb_memory.md` is the project-wide shared memory document for every managed agent.
+- **macOS Claude login is steadier**: managed Claude homes now inherit the macOS default Keychain preference used during Claude login lookup.
+- **Auth isolation stays intact**: the Keychain preference is projected only for Darwin and is removed when Claude auth inheritance is disabled.
+- **Codex shared memory refresh remains fixed**: managed Codex startup avoids stale `resume` context after `.ccb/ccb_memory.md` changes.
 
 See [Release Notes](#release-notes) for the full history.
 
@@ -298,6 +298,14 @@ Thanks to the [Linux.do community](https://linux.do) for testing, feedback, and 
 Historical note: older release notes below may mention `askd`, legacy flags, or removed commands. Those references are kept only as changelog history and do not redefine the current CLI surface.
 
 <details open>
+<summary><b>v6.1.8</b> - macOS Claude Keychain Preference Hotfix</summary>
+
+- Managed Claude homes on macOS now inherit `Library/Preferences/com.apple.security.plist` so Claude login lookup can resolve the expected default Keychain.
+- The preference projection stays tied to auth inheritance and is removed when Claude auth inheritance is disabled.
+
+</details>
+
+<details>
 <summary><b>v6.1.7</b> - Codex Memory Freshness Hotfix</summary>
 
 - Codex now refreshes shared project memory instead of resuming stale AGENTS context after `.ccb/ccb_memory.md` changes.

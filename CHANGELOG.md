@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## v6.1.8 (2026-05-13)
+
+### macOS Claude Keychain Preference Hotfix
+
+- **Claude Keychain Preference Projection Fixed**: managed Claude homes on macOS now inherit `Library/Preferences/com.apple.security.plist`, preserving the default Keychain preference needed for Claude login lookup
+- **Auth Isolation Preserved**: the preference file is projected only on Darwin and is removed when Claude auth inheritance is disabled
+
 ## v6.1.7 (2026-05-12)
 
 ### Codex Memory Freshness Hotfix

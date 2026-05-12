@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.1.7-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.8-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -74,9 +74,9 @@
 <details>
 <summary><b>最新版本亮点</b></summary>
 
-- **Codex 共享记忆刷新已修复**：`.ccb/ccb_memory.md` 变化后，managed Codex 启动会避开旧 `resume` 上下文并加载新的项目记忆。
-- **Ask skill 提交更严格**：Claude 和 Droid ask skill 只使用 heredoc 提交，并在提交后立即结束，不再轮询回复。
-- **项目记忆只有一个锚点**：`.ccb/ccb_memory.md` 是所有 managed agent 共享的项目全局记忆文档。
+- **macOS Claude 登录更稳定**：managed Claude home 现在会继承 Claude 登录查找所需的 macOS 默认 Keychain preference。
+- **认证隔离保持不变**：Keychain preference 只在 Darwin 上投影，并会在关闭 Claude auth 继承时删除。
+- **Codex 共享记忆刷新仍保持修复**：`.ccb/ccb_memory.md` 变化后，managed Codex 会避开旧 `resume` 上下文。
 
 完整历史见 [新版本记录](#新版本记录)。
 
@@ -296,6 +296,14 @@ ccb reinstall
 历史说明：下面较旧的发布记录里仍可能出现 `askd`、旧 flag 或已移除命令。这些内容仅作为 changelog 历史保留，不代表当前 CLI 入口。
 
 <details open>
+<summary><b>v6.1.8</b> - macOS Claude Keychain Preference Hotfix</summary>
+
+- macOS managed Claude home 现在会继承 `Library/Preferences/com.apple.security.plist`，让 Claude 登录查找能解析预期的默认 Keychain。
+- 该 preference 投影仍绑定 auth 继承；关闭 Claude auth 继承时会删除。
+
+</details>
+
+<details>
 <summary><b>v6.1.7</b> - Codex 记忆刷新 Hotfix</summary>
 
 - `.ccb/ccb_memory.md` 变化后，Codex 会刷新共享项目记忆，不再继续 resume 旧 AGENTS 上下文。
