@@ -54,6 +54,11 @@ def test_check_local_git_state_warns_before_publish_but_fails_after_publish(tmp_
     checker.check_local_git_state(repo, "published", issues, warnings)
     assert any("unpushed commits" in item for item in issues)
 
+    issues = []
+    warnings = []
+    checker.check_local_git_state(repo, "dev", issues, warnings)
+    assert any("unpushed commits" in item for item in issues)
+
 
 def test_check_local_git_state_fails_dirty_worktree_after_publish(tmp_path: Path) -> None:
     checker = _load_checker()
@@ -64,6 +69,11 @@ def test_check_local_git_state_fails_dirty_worktree_after_publish(tmp_path: Path
     warnings: list[str] = []
     checker.check_local_git_state(repo, "published", issues, warnings)
 
+    assert any("Worktree has uncommitted changes" in item for item in issues)
+
+    issues = []
+    warnings = []
+    checker.check_local_git_state(repo, "dev", issues, warnings)
     assert any("Worktree has uncommitted changes" in item for item in issues)
 
 
@@ -111,3 +121,30 @@ def test_default_branch_compare_accepts_ahead_or_identical(monkeypatch, tmp_path
     )
 
     assert not issues
+
+
+def test_dev_change_classification_flags_release_and_dev_only_paths() -> None:
+    checker = _load_checker()
+
+    assert checker.classify_dev_path("dev_tools/skills/ccb-github/SKILL.md") == "dev_tools"
+    assert checker.classify_dev_path("test/test_ccb_github_skill.py") == "verification"
+    assert checker.classify_dev_path(".github/workflows/test.yml") == "verification"
+    assert checker.classify_dev_path("docs/plan.md") == "docs"
+    assert checker.classify_dev_path("README.md") == "homepage"
+    assert checker.classify_dev_path("CHANGELOG.md") == "release_notes"
+    assert checker.classify_dev_path("lib/runtime.py") == "runtime_package"
+    assert checker.classify_dev_path("ccb") == "runtime_package"
+
+
+def test_required_dev_workflows_depend_on_branch() -> None:
+    checker = _load_checker()
+
+    assert checker.required_dev_workflows("main", "main") == {
+        "Tests",
+        "CCBD Real Platform Smoke",
+        "Cross-Platform Compatibility Test",
+    }
+    assert checker.required_dev_workflows("feature/x", "main") == {
+        "Tests",
+        "CCBD Real Platform Smoke",
+    }

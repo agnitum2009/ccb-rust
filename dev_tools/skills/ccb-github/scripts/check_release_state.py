@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -24,6 +25,22 @@ BRANCH_VALIDATION_WORKFLOWS = {
     "Tests",
     "CCBD Real Platform Smoke",
     "Cross-Platform Compatibility Test",
+}
+DEV_STRICT_PHASES = {"dev", "published"}
+DEV_ALWAYS_REQUIRED_WORKFLOWS = {
+    "Tests",
+    "CCBD Real Platform Smoke",
+}
+DEV_DEFAULT_BRANCH_WORKFLOWS = {
+    "Cross-Platform Compatibility Test",
+}
+DEV_RELEASE_TRIGGER_PATHS = {
+    "VERSION",
+    "ccb",
+}
+DEV_HOMEPAGE_PATHS = {
+    "README.md",
+    "README_zh.md",
 }
 
 
@@ -129,8 +146,8 @@ def check_local_git_state(root: Path, phase: str, issues: list[str], warnings: l
     status = git_output(root, ["status", "--porcelain"])
     if status:
         message = "Worktree has uncommitted changes"
-        fix = "commit or intentionally discard local changes before tagging or reporting a finished release"
-        if phase == "published":
+        fix = "commit or intentionally discard local changes before reporting a final dev or release result"
+        if phase in DEV_STRICT_PHASES:
             fail(issues, message, fix=fix)
         else:
             warn(warnings, f"{message}; {fix}")
@@ -144,7 +161,7 @@ def check_local_git_state(root: Path, phase: str, issues: list[str], warnings: l
     if not upstream:
         message = f"Current branch {branch} has no upstream"
         fix = f"push it with upstream tracking: git push -u origin {branch}"
-        if phase == "published":
+        if phase in DEV_STRICT_PHASES:
             fail(issues, message, fix=fix)
         else:
             warn(warnings, f"{message}; {fix}")
@@ -159,7 +176,7 @@ def check_local_git_state(root: Path, phase: str, issues: list[str], warnings: l
     if merge_base == remote:
         message = f"Current branch {branch} has unpushed commits relative to {upstream}"
         fix = f"push the branch before continuing: git push"
-        if phase == "published":
+        if phase in DEV_STRICT_PHASES:
             fail(issues, message, fix=fix)
         else:
             warn(warnings, f"{message}; {fix}")
@@ -168,10 +185,64 @@ def check_local_git_state(root: Path, phase: str, issues: list[str], warnings: l
     else:
         message = f"Current branch {branch} has diverged from {upstream}"
         fix = "reconcile the branch with its upstream before publishing"
-        if phase == "published":
+        if phase in DEV_STRICT_PHASES:
             fail(issues, message, fix=fix)
         else:
             warn(warnings, f"{message}; {fix}")
+
+
+def dev_changed_paths(root: Path) -> list[str]:
+    paths: set[str] = set()
+    for cmd in (
+        ["diff", "--name-only"],
+        ["diff", "--cached", "--name-only"],
+    ):
+        output = git_output(root, cmd)
+        if output:
+            paths.update(item.strip() for item in output.splitlines() if item.strip())
+
+    upstream = git_output(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+    if upstream:
+        output = git_output(root, ["diff", "--name-only", f"{upstream}...HEAD"])
+        if output:
+            paths.update(item.strip() for item in output.splitlines() if item.strip())
+    return sorted(paths)
+
+
+def classify_dev_path(path: str) -> str:
+    if path.startswith("dev_tools/"):
+        return "dev_tools"
+    if path.startswith("test/") or path.startswith(".github/workflows/"):
+        return "verification"
+    if path.startswith("docs/"):
+        return "docs"
+    if path in DEV_HOMEPAGE_PATHS:
+        return "homepage"
+    if path == "CHANGELOG.md":
+        return "release_notes"
+    if path in DEV_RELEASE_TRIGGER_PATHS or path.startswith("lib/") or path.startswith("bin/") or path.startswith("scripts/"):
+        return "runtime_package"
+    return "other"
+
+
+def check_dev_change_set(root: Path, warnings: list[str]) -> None:
+    paths = dev_changed_paths(root)
+    if not paths:
+        warn(warnings, "No local/branch delta found relative to upstream; dev check is validating git/GitHub state only")
+        return
+    categories: dict[str, int] = {}
+    for path in paths:
+        categories[classify_dev_path(path)] = categories.get(classify_dev_path(path), 0) + 1
+    summary = ", ".join(f"{name}={count}" for name, count in sorted(categories.items()))
+    warn(warnings, f"Development change classification: {summary}")
+    if "runtime_package" in categories:
+        warn(warnings, "Runtime/package files changed; decide whether this should become a versioned release before calling the work complete")
+    if "homepage" in categories:
+        warn(warnings, "Homepage README files changed; push/merge to the default branch before expecting GitHub's homepage to update")
+    if "release_notes" in categories:
+        warn(warnings, "CHANGELOG changed; if this is a public package change, use prepare/published release phases")
+    if set(categories).issubset({"dev_tools", "verification", "docs"}):
+        warn(warnings, "Change set appears development-only; a release tag is usually not needed")
 
 
 def check_git_tag(root: Path, version: str, phase: str, issues: list[str], warnings: list[str]) -> None:
@@ -481,14 +552,152 @@ def check_default_branch_contains_release(
         )
 
 
-def check_github(root: Path, version: str, repo: str, issues: list[str], warnings: list[str]) -> None:
+def gh_auth_is_ready(root: Path, issues: list[str]) -> bool:
     auth = run(["gh", "auth", "status", "--hostname", "github.com"], root)
     if auth.returncode != 0:
         fail(
             issues,
             "GitHub CLI is not authenticated",
-            fix="run gh auth login, then rerun the published release check",
+            fix="run gh auth login, then rerun the GitHub state check",
         )
+        return False
+    return True
+
+
+def repo_default_branch(root: Path, repo: str, warnings: list[str]) -> str:
+    repo_view = run(["gh", "repo", "view", repo, "--json", "defaultBranchRef"], root)
+    if repo_view.returncode != 0:
+        warn(warnings, f"Could not read GitHub default branch: {repo_view.stderr.strip()}")
+        return ""
+    try:
+        payload = json.loads(repo_view.stdout)
+    except json.JSONDecodeError as exc:
+        warn(warnings, f"Could not parse gh repo JSON: {exc}")
+        return ""
+    return (payload.get("defaultBranchRef") or {}).get("name") or ""
+
+
+def read_github_runs(root: Path, repo: str, limit: int = 50) -> list[dict[str, object]] | None:
+    runs = run(
+        [
+            "gh",
+            "run",
+            "list",
+            "--repo",
+            repo,
+            "--limit",
+            str(limit),
+            "--json",
+            "name,status,conclusion,headBranch,event,databaseId,url,headSha",
+        ],
+        root,
+    )
+    if runs.returncode != 0:
+        return None
+    try:
+        return json.loads(runs.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def required_dev_workflows(branch: str, default_branch: str) -> set[str]:
+    required = set(DEV_ALWAYS_REQUIRED_WORKFLOWS)
+    if branch in {default_branch, "main", "dev"}:
+        required.update(DEV_DEFAULT_BRANCH_WORKFLOWS)
+    return required
+
+
+def check_dev_branch_workflows(
+    *,
+    root: Path,
+    repo: str,
+    wait_seconds: int,
+    poll_interval: int,
+    issues: list[str],
+    warnings: list[str],
+) -> None:
+    if not gh_auth_is_ready(root, issues):
+        return
+
+    branch = git_output(root, ["branch", "--show-current"]) or ""
+    head = git_output(root, ["rev-parse", "HEAD"]) or ""
+    upstream_head = git_output(root, ["rev-parse", "@{u}"]) or ""
+    if not branch or not head:
+        warn(warnings, "Could not determine current branch/head; GitHub workflow state was not checked")
+        return
+    if upstream_head and head != upstream_head:
+        warn(warnings, "Current HEAD is not pushed to upstream; GitHub workflow state for this commit cannot be complete yet")
+        return
+
+    default_branch = repo_default_branch(root, repo, warnings)
+    required = required_dev_workflows(branch, default_branch)
+    if "Cross-Platform Compatibility Test" not in required:
+        warn(warnings, f"Cross-Platform Compatibility Test is not required for branch {branch!r}; it only runs on main/dev, PRs, or manual dispatch")
+
+    deadline = time.monotonic() + max(wait_seconds, 0)
+    latest_by_name: dict[str, dict[str, object]] = {}
+    while True:
+        run_payload = read_github_runs(root, repo)
+        if run_payload is None:
+            warn(warnings, "Could not read GitHub Actions runs for dev workflow check")
+            return
+        latest_by_name = {}
+        for item in run_payload:
+            if item.get("headSha") != head:
+                continue
+            name = str(item.get("name") or "")
+            if name in required and name not in latest_by_name:
+                latest_by_name[name] = item
+
+        all_done = True
+        for workflow_name in required:
+            item = latest_by_name.get(workflow_name)
+            if not item or item.get("status") != "completed":
+                all_done = False
+                break
+        if all_done or wait_seconds <= 0 or time.monotonic() >= deadline:
+            break
+        time.sleep(max(poll_interval, 1))
+
+    for workflow_name in sorted(required):
+        item = latest_by_name.get(workflow_name)
+        if not item:
+            fail(
+                issues,
+                f"No GitHub Actions run found for current commit {head[:12]}: {workflow_name}",
+                fix="push the branch and wait for GitHub Actions, or confirm this workflow is intentionally not triggered",
+            )
+            continue
+        if item.get("status") != "completed" or item.get("conclusion") != "success":
+            fail(
+                issues,
+                f"GitHub Actions {workflow_name} for current commit is {item.get('status')}/{item.get('conclusion')}: {item.get('url')}",
+                fix=f"wait for the run to complete or fix/rerun it; use --wait-seconds to let the checker wait automatically",
+            )
+
+
+def check_dev_state(
+    *,
+    root: Path,
+    repo: str,
+    wait_seconds: int,
+    poll_interval: int,
+    issues: list[str],
+    warnings: list[str],
+) -> None:
+    check_dev_change_set(root, warnings)
+    check_dev_branch_workflows(
+        root=root,
+        repo=repo,
+        wait_seconds=wait_seconds,
+        poll_interval=poll_interval,
+        issues=issues,
+        warnings=warnings,
+    )
+
+
+def check_github(root: Path, version: str, repo: str, issues: list[str], warnings: list[str]) -> None:
+    if not gh_auth_is_ready(root, issues):
         return
 
     release = run(["gh", "release", "view", version, "--repo", repo, "--json", "tagName,url,assets,isDraft"], root)
@@ -659,7 +868,9 @@ def main() -> int:
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--repo", default=None, help="GitHub repo, e.g. SeemSeam/claude_codex_bridge")
     parser.add_argument("--version", default=None, help="Release version, with or without leading v")
-    parser.add_argument("--phase", choices=("prepare", "published"), default="prepare")
+    parser.add_argument("--phase", choices=("dev", "prepare", "published"), default="prepare")
+    parser.add_argument("--wait-seconds", type=int, default=0, help="wait this many seconds for dev GitHub workflows")
+    parser.add_argument("--poll-interval", type=int, default=30, help="poll interval in seconds when waiting for workflows")
     args = parser.parse_args()
 
     root = repo_root(args.repo_root)
@@ -671,8 +882,19 @@ def main() -> int:
     warnings: list[str] = []
 
     check_local_git_state(root, args.phase, issues, warnings)
-    check_local_files(root, version, repo, issues, warnings)
-    check_git_tag(root, version, args.phase, issues, warnings)
+    if args.phase == "dev":
+        check_dev_state(
+            root=root,
+            repo=repo,
+            wait_seconds=args.wait_seconds,
+            poll_interval=args.poll_interval,
+            issues=issues,
+            warnings=warnings,
+        )
+    else:
+        check_local_files(root, version, repo, issues, warnings)
+        check_git_tag(root, version, args.phase, issues, warnings)
+
     if args.phase == "published":
         check_github(root, version, repo, issues, warnings)
 

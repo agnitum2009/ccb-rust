@@ -43,6 +43,14 @@ python "$CHECKER" --phase published --repo SeemSeam/claude_codex_bridge
 
 The checker is read-only. It catches mechanical drift, but still manually inspect the top of `README.md` and `README_zh.md` because stale "What's New" prose can be semantically wrong even when version numbers are correct.
 
+Use `--phase dev` for ordinary CCB development or maintainer tooling changes that are not intended to create a package release:
+
+```bash
+python "$CHECKER" --phase dev --repo SeemSeam/claude_codex_bridge --wait-seconds 900
+```
+
+`--phase dev` checks that the worktree is clean, the branch is pushed, the current commit's required GitHub workflows are green, and the change set is classified as development-only vs package/release-impacting.
+
 `--phase published` checks both release state and homepage state: GitHub latest release, release assets, `SHA256SUMS`, release workflows, branch validation workflows, and README/README_zh as rendered from the repository default branch.
 
 ## Decision Tree
@@ -51,7 +59,27 @@ The checker is read-only. It catches mechanical drift, but still manually inspec
 - After pushing a tag or creating a release: run `--phase published`; fix every FAIL before reporting success.
 - After an interruption: run both phases, then follow the recovery runbook below from the first failing state.
 - During README-only maintenance: still run `--phase prepare` so version badges, release notes, install URLs, and memory wording stay aligned.
+- During normal development: run `--phase dev --wait-seconds 900` after commit/push; if it reports runtime/package changes, decide whether a real release is needed.
 - When the user asks for the final published result, include commit, push, merge-to-main when needed, GitHub Actions verification, Release assets verification, and homepage README verification.
+
+## Development Version Management
+
+Use this for CCB development changes, including `dev_tools`, tests, docs, CI, and maintainer workflows.
+
+1. Classify the change:
+   - `dev_tools/`, tests, docs, and CI-only checks usually do not require a package release.
+   - `lib/`, `ccb`, `bin/`, installer scripts, release build scripts, `VERSION`, README release notes, or `CHANGELOG.md` may affect users and must be considered for release.
+2. Run targeted tests first, then the smallest broad check that matches the risk.
+3. Commit the development change.
+4. Push the branch.
+5. Run:
+   ```bash
+   python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase dev --repo SeemSeam/claude_codex_bridge --wait-seconds 900
+   ```
+6. If `--phase dev` reports runtime/package changes and the user wants a published package, switch to the Release Preparation Checklist and Publish Sequence.
+7. If the change is development-only, do not create a tag or GitHub Release.
+
+`--phase dev` is intentionally strict: uncommitted changes, unpushed commits, or red/in-progress required workflows mean the development result is not final yet.
 
 ## Release Preparation Checklist
 

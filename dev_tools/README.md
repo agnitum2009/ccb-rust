@@ -31,6 +31,7 @@ ln -sfn "$PWD/dev_tools/skills/ccb-github" "${CODEX_HOME:-$HOME/.codex}/skills/c
 The `ccb-github` checker can also be run directly from the repo root:
 
 ```bash
+python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase dev --wait-seconds 900
 python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase prepare
 python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase published
 ```
