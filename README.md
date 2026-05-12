@@ -75,10 +75,10 @@ Build project-local teams with roles, pane layout, provider state, worktree isol
 <summary><b>Latest release highlights</b></summary>
 
 - **Tmux startup is hardened**: layout panes now start with a silent placeholder immediately, avoiding fast-exiting shell races during startup.
-- **Ask stays fast under real load**: submit receipts stay bounded even while provider work, mailbox refresh, and background maintenance continue asynchronously.
-- **ccbd lifecycle stabilization**: stop-all, shutdown, restart, and background supervision no longer revive stopped runtimes or regress terminal jobs through stale maintenance work.
-- **Observer commands are explicitly weak**: `pend`, `watch`, `queue`, and `inbox` render as non-authoritative snapshots; use `ccb ask wait <job_id>` for terminal truth.
-- **Linux/macOS/WSL real-platform validation expanded**: release validation now includes real tmux ccbd/ask smoke, communication matrix, soak, and fastpath stress coverage with stub providers.
+- **First-start pane races are fixed**: ccbd start now blocks heartbeat maintenance from mutating tmux panes while the launch layout is still being built.
+- **Project memory has one anchor**: `.ccb/ccb_memory.md` is the project-wide shared memory document for every managed agent.
+- **Claude macOS login inheritance is current**: managed Claude startup checks the `Claude Code-credentials` Keychain service before older service names.
+- **Release checks are stricter**: README, changelog, GitHub Release assets, Actions status, and SHA256SUMS are now audited through maintainer tooling.
 
 See [Release Notes](#release-notes) for the full history.
 
@@ -209,7 +209,7 @@ ccb reinstall           # Clean then reinstall ccb
    Use this path when `ccb` and your agent CLIs run in the same Unix-like shell.
 
 ```bash
-git clone https://github.com/bfly123/claude_codex_bridge.git
+git clone https://github.com/SeemSeam/claude_codex_bridge.git
 cd claude_codex_bridge
 ./install.sh install
 ```
@@ -218,7 +218,7 @@ cd claude_codex_bridge
    Use this path when your agent CLIs run natively on Windows.
 
 ```powershell
-git clone https://github.com/bfly123/claude_codex_bridge.git
+git clone https://github.com/SeemSeam/claude_codex_bridge.git
 cd claude_codex_bridge
 powershell -ExecutionPolicy Bypass -File .\install.ps1 install
 ```
@@ -235,6 +235,10 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 install
 </details>
 
 Install note: the commands above install from a git checkout today. After that, run `ccb update` to download the latest stable GitHub release asset and complete the managed release upgrade automatically.
+
+## Development Tools
+
+Maintainer-only release and repository tools live under `dev_tools/`. They are versioned in git but excluded from official release artifacts.
 
 ## How to Use
 

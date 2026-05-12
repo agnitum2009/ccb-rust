@@ -75,10 +75,10 @@
 <summary><b>最新版本亮点</b></summary>
 
 - **Tmux 启动更稳**：布局 pane 创建时立即启动静默 placeholder，避免 fast-exiting shell 导致启动 split race。
-- **Ask 在真实负载下保持快速**：provider 执行、mailbox refresh 和后台维护继续异步推进，submit receipt 仍保持有界。
-- **ccbd 生命周期稳定化**：stop-all、shutdown、restart 和后台 supervision 不再通过 stale maintenance 把 stopped runtime 或 terminal job 拉回去。
-- **Observer 命令明确弱化**：`pend`、`watch`、`queue`、`inbox` 都是非权威快照；终态判断请使用 `ccb ask wait <job_id>`。
-- **Linux/macOS/WSL 真实平台验证扩展**：发布验证加入真实 tmux ccbd/ask smoke、通讯矩阵、soak 和 fastpath stress。
+- **首次启动 pane 竞争已修复**：ccbd start 会阻止 heartbeat maintenance 在 layout/launch 过程中改动 tmux pane。
+- **项目记忆只有一个锚点**：`.ccb/ccb_memory.md` 是所有 managed agent 共享的项目全局记忆文档。
+- **Claude macOS 登录继承更新**：managed Claude 启动会优先读取当前 `Claude Code-credentials` Keychain service。
+- **发布检查更严格**：README、changelog、GitHub Release 资产、Actions 状态和 SHA256SUMS 都纳入维护工具审计。
 
 完整历史见 [新版本记录](#新版本记录)。
 
@@ -209,7 +209,7 @@ ccb reinstall           # 清理后重新安装
    当 `ccb` 和你的 agent CLI 运行在同一个类 Unix shell 里时，使用这条路径。
 
 ```bash
-git clone https://github.com/bfly123/claude_codex_bridge.git
+git clone https://github.com/SeemSeam/claude_codex_bridge.git
 cd claude_codex_bridge
 ./install.sh install
 ```
@@ -218,7 +218,7 @@ cd claude_codex_bridge
    当你的 agent CLI 原生运行在 Windows 时，使用这条路径。
 
 ```powershell
-git clone https://github.com/bfly123/claude_codex_bridge.git
+git clone https://github.com/SeemSeam/claude_codex_bridge.git
 cd claude_codex_bridge
 powershell -ExecutionPolicy Bypass -File .\install.ps1 install
 ```
@@ -235,6 +235,10 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 install
 </details>
 
 安装说明：上面的命令目前是从 git checkout 安装。安装后运行 `ccb update`，CCB 会下载最新稳定 GitHub release 包，并自动完成托管 release 升级。
+
+## 开发工具
+
+维护者专用的 release 和仓库管理工具放在 `dev_tools/`。这些工具进入 git 管理，但不会打进官方 release 包。
 
 ## 如何使用
 
