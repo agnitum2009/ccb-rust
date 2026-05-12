@@ -14,6 +14,9 @@ maintenance work only.
 Current tools:
 
 - `skills/ccb-github/`: local Codex skill for release and GitHub surface audits.
+  The skill may guide the agent through commit, push, default-branch merge,
+  tag, release, workflow, and artifact verification steps. Its bundled checker
+  remains read-only.
 
 ## Using Local Skills
 

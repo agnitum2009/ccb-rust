@@ -125,6 +125,55 @@ def git_output(root: Path, cmd: list[str]) -> str | None:
     return proc.stdout.strip()
 
 
+def check_local_git_state(root: Path, phase: str, issues: list[str], warnings: list[str]) -> None:
+    status = git_output(root, ["status", "--porcelain"])
+    if status:
+        message = "Worktree has uncommitted changes"
+        fix = "commit or intentionally discard local changes before tagging or reporting a finished release"
+        if phase == "published":
+            fail(issues, message, fix=fix)
+        else:
+            warn(warnings, f"{message}; {fix}")
+
+    branch = git_output(root, ["branch", "--show-current"])
+    if not branch:
+        warn(warnings, "Detached HEAD; branch push/merge state cannot be checked")
+        return
+
+    upstream = git_output(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+    if not upstream:
+        message = f"Current branch {branch} has no upstream"
+        fix = f"push it with upstream tracking: git push -u origin {branch}"
+        if phase == "published":
+            fail(issues, message, fix=fix)
+        else:
+            warn(warnings, f"{message}; {fix}")
+        return
+
+    local = git_output(root, ["rev-parse", "HEAD"])
+    remote = git_output(root, ["rev-parse", "@{u}"])
+    merge_base = git_output(root, ["merge-base", "HEAD", "@{u}"])
+    if not local or not remote or not merge_base or local == remote:
+        return
+
+    if merge_base == remote:
+        message = f"Current branch {branch} has unpushed commits relative to {upstream}"
+        fix = f"push the branch before continuing: git push"
+        if phase == "published":
+            fail(issues, message, fix=fix)
+        else:
+            warn(warnings, f"{message}; {fix}")
+    elif merge_base == local:
+        warn(warnings, f"Current branch {branch} is behind {upstream}; pull/rebase before release work if this is unexpected")
+    else:
+        message = f"Current branch {branch} has diverged from {upstream}"
+        fix = "reconcile the branch with its upstream before publishing"
+        if phase == "published":
+            fail(issues, message, fix=fix)
+        else:
+            warn(warnings, f"{message}; {fix}")
+
+
 def check_git_tag(root: Path, version: str, phase: str, issues: list[str], warnings: list[str]) -> None:
     local_commit = git_output(root, ["rev-list", "-n", "1", version])
     if phase == "prepare":
@@ -394,6 +443,44 @@ def check_sha256sums(root: Path, version: str, repo: str, issues: list[str], war
             warn(warnings, f"SHA256SUMS contains unexpected extra asset checksum(s): {', '.join(extra)}")
 
 
+def check_default_branch_contains_release(
+    *,
+    root: Path,
+    version: str,
+    repo: str,
+    default_branch: str,
+    issues: list[str],
+    warnings: list[str],
+) -> None:
+    if not default_branch:
+        warn(warnings, "Could not determine GitHub default branch; default-branch containment was not checked")
+        return
+    compare = run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo}/compare/{version}...{default_branch}",
+            "--jq",
+            ".status",
+        ],
+        root,
+    )
+    if compare.returncode != 0:
+        fail(
+            issues,
+            f"Could not compare release tag {version} with default branch {default_branch}",
+            fix="confirm the tag exists on GitHub, then merge the release commit into the default branch if needed",
+        )
+        return
+    status = compare.stdout.strip()
+    if status not in {"identical", "ahead"}:
+        fail(
+            issues,
+            f"GitHub default branch {default_branch} does not contain release tag {version} (compare status: {status or 'unknown'})",
+            fix=f"merge the release commit/tag into {default_branch} and push; GitHub homepage README only renders from the default branch",
+        )
+
+
 def check_github(root: Path, version: str, repo: str, issues: list[str], warnings: list[str]) -> None:
     auth = run(["gh", "auth", "status", "--hostname", "github.com"], root)
     if auth.returncode != 0:
@@ -452,6 +539,15 @@ def check_github(root: Path, version: str, repo: str, issues: list[str], warning
             description = repo_payload.get("description") or ""
             if "Claude, Codex & Gemini" in description and "OpenCode" not in description:
                 warn(warnings, "GitHub description may be stale: it mentions Claude/Codex/Gemini but not newer supported providers")
+
+    check_default_branch_contains_release(
+        root=root,
+        version=version,
+        repo=repo,
+        default_branch=default_branch,
+        issues=issues,
+        warnings=warnings,
+    )
 
     check_remote_homepage(
         root=root,
@@ -574,6 +670,7 @@ def main() -> int:
     issues: list[str] = []
     warnings: list[str] = []
 
+    check_local_git_state(root, args.phase, issues, warnings)
     check_local_files(root, version, repo, issues, warnings)
     check_git_tag(root, version, args.phase, issues, warnings)
     if args.phase == "published":

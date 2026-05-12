@@ -1,4 +1,4 @@
 interface:
   display_name: "CCB GitHub Release Maintainer"
   short_description: "Audit CCB release docs and GitHub state"
-  default_prompt: "Use $ccb-github before tagging or after publishing a CCB release; run the checker and follow the recovery runbook for every FAIL."
+  default_prompt: "Use $ccb-github to edit, commit, push, merge to main when needed, tag/release when requested, and run the release checker until the GitHub-facing result is verified."

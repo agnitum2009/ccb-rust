@@ -13,6 +13,23 @@ GitHub's repository homepage renders README from the default branch, not from th
 
 Use repository `SeemSeam/claude_codex_bridge` unless the user explicitly gives a different repo.
 
+## Execution Contract
+
+When the user asks for a final release or homepage result, do the git/GitHub work instead of only describing it:
+
+1. Make the file edits.
+2. Run the local checks.
+3. Commit the changes.
+4. Push the working branch.
+5. Merge to the default branch when README/GitHub homepage state must change.
+6. Push the default branch.
+7. Create/push the release tag when package contents changed and the user asked for a release.
+8. Create or update the GitHub Release page.
+9. Wait for required GitHub Actions and release assets.
+10. Run the published checker and report the result.
+
+Keep the checker read-only. Git writes, GitHub Release writes, workflow reruns, and tag operations are explicit agent actions done in the sequence above, not hidden inside the checker.
+
 ## Quick Audit
 
 From the CCB repo root, run the bundled checker before and after release work:
@@ -131,6 +148,8 @@ Use this order:
 
 The current workflow expects the Release page to exist before uploading assets. If `Release Artifacts` fails with `release not found`, create the Release and rerun the workflow.
 
+The published checker must pass after this sequence. It verifies local push state, tag presence, GitHub latest release, release assets, `SHA256SUMS`, default-branch README, and whether the default branch contains the release tag.
+
 ## Recovery Runbook
 
 Use the checker output first; each FAIL includes a suggested fix. Common cases:
@@ -166,6 +185,8 @@ Do not call the release complete if any of these are true:
 - README or README_zh still shows an old current version or stale current-release highlights.
 - `VERSION`, `ccb`, changelog, badges, or release notes disagree.
 - The release tag is missing, points to the wrong commit, or differs between local and origin.
+- The default branch does not contain the release tag when the GitHub homepage should represent that release.
+- The working branch has unpushed release commits.
 - GitHub latest release does not point to the new tag after publish.
 - Required release assets are missing.
 - `SHA256SUMS` does not contain checksum entries for every required tarball asset.
