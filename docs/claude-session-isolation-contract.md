@@ -171,6 +171,12 @@ When `ccb` starts a managed Claude agent:
 - when source-home auth inheritance is enabled and the source Claude settings
   still provide auth env keys, startup must refresh those source auth values
   into the managed home on each managed launch
+- when API inheritance is enabled and no agent/provider profile explicitly sets
+  `ANTHROPIC_BASE_URL`, startup must prefer the source-home
+  `~/.claude/settings.json` route over a caller-shell `ANTHROPIC_BASE_URL`;
+  tools such as `ccswitch` update the source settings file and must take effect
+  after a managed Claude restart, while shell environment values are only a
+  fallback when the source settings do not define a route
 - when source-home auth inheritance is enabled but the source Claude settings no
   longer provide auth env keys, startup must preserve compatible managed-local
   Claude auth state already written inside the managed home instead of blanking

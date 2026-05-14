@@ -81,10 +81,13 @@ def reconcile_base_url(
 
 
 def inherited_base_url_value(*, env: dict[str, str], claude_user_base_url_fn) -> str:
+    settings_base_url = str(claude_user_base_url_fn() or "").strip()
+    if settings_base_url:
+        return settings_base_url
     env_base_url = str(env.get("ANTHROPIC_BASE_URL") or "").strip()
     if env_base_url:
         return env_base_url
-    return str(claude_user_base_url_fn() or "").strip()
+    return ""
 
 
 def ensure_unset(parts: list[str], key: str) -> None:

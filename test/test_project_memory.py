@@ -34,10 +34,13 @@ def test_ensure_project_memory_creates_template_and_seed(tmp_path: Path) -> None
     assert memory_path.is_file()
     text = memory_path.read_text(encoding='utf-8')
     assert 'This project is managed by CCB as a visible multi-agent workspace.' in text
-    assert 'ccb -h' in text
+    assert 'Use CCB `ask` as a fire-and-forget handoff channel.' in text
+    assert 'command ask "$TARGET"' in text
+    assert 'Do not wait for the reply' in text
+    assert 'ccb -h' not in text
     seed = json.loads(seed_metadata_path(project_root).read_text(encoding='utf-8'))
     assert seed['record_type'] == 'ccb_project_memory_seed'
-    assert seed['template_version'] == 1
+    assert seed['template_version'] == 2
     assert seed['memory_path'] == str(memory_path)
     assert seed['sha256'] == result.sha256
 
@@ -135,8 +138,13 @@ def test_materialize_runtime_memory_bundle_writes_generated_bundle(tmp_path: Pat
     assert '<!-- ccb-memory-bundle schema_version=1' in text
     assert 'provider: claude' in text
     assert f'workspace_path: {workspace.resolve()}' in text
+    assert '## CCB Runtime Coordination Rules' in text
+    assert 'submit-only handoff path' in text
+    assert 'do not wait for the reply or poll status' in text
+    assert '`ccb pend`' in text
     assert '## CCB Shared Project Memory' in text
     assert 'shared ask rules' in text
+    assert text.index('## CCB Runtime Coordination Rules') < text.index('## CCB Shared Project Memory')
     assert '## Provider-Native Project Memory' in text
     assert 'claude project rules' in text
     assert '## Agent Private Memory' in text

@@ -26,6 +26,16 @@ def test_build_claude_env_prefix_uses_settings_base_url_when_inheritable() -> No
     assert result == "export ANTHROPIC_BASE_URL=https://api.example.test"
 
 
+def test_build_claude_env_prefix_prefers_settings_base_url_over_ambient_env() -> None:
+    result = build_claude_env_prefix(
+        env={"ANTHROPIC_BASE_URL": "https://old-shell.example.test"},
+        should_drop_base_url_fn=lambda value: False,
+        claude_user_base_url_fn=lambda: "https://ccswitch.example.test",
+    )
+
+    assert result == "export ANTHROPIC_BASE_URL=https://ccswitch.example.test"
+
+
 def test_write_claude_settings_overlay_returns_none_without_agent_settings(tmp_path) -> None:
     assert write_claude_settings_overlay(tmp_path, profile=None) is None
 

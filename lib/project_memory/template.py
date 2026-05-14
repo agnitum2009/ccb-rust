@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-TEMPLATE_VERSION = 1
+TEMPLATE_VERSION = 2
 
 DEFAULT_PROJECT_MEMORY = """# CCB Project Memory
 
@@ -17,14 +17,25 @@ This project is managed by CCB as a visible multi-agent workspace.
 
 ## Ask Communication
 
-Use one of these forms when available:
+Use CCB `ask` as a fire-and-forget handoff channel.
+
+Preferred provider form, when slash commands are available:
 
 ```text
 /ask <agent> <message>
-ask <agent> "<message>"
 ```
 
-For CCB CLI help, run `ccb -h`.
+Shell fallback:
+
+```bash
+command ask "$TARGET" <<'EOF'
+$MESSAGE
+EOF
+```
+
+After submitting, stop. Do not wait for the reply, poll status, or run observer
+commands such as `pend`, `watch`, or `ping` unless the user explicitly asks for
+diagnostics.
 """
 
 __all__ = ['DEFAULT_PROJECT_MEMORY', 'TEMPLATE_VERSION']
