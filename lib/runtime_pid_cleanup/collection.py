@@ -38,8 +38,9 @@ def collect_project_process_candidates(
     current_pid: int | None = None,
 ) -> dict[int, list[Path]]:
     current_pid = int(current_pid or os.getpid())
-    ccb_root = project_root.expanduser() / '.ccb'
-    markers = _project_runtime_markers(project_root, ccb_root=ccb_root)
+    layout = PathLayout(project_root)
+    ccb_root = layout.ccb_dir
+    markers = _project_runtime_markers(project_root, ccb_root=ccb_root, layout=layout)
     if not markers:
         return {}
     candidates: dict[int, list[Path]] = {}
@@ -53,6 +54,9 @@ def collect_project_process_candidates(
             continue
         cmdline = str(read_proc_cmdline_fn(pid) or '').strip()
         matched_markers = tuple(marker for marker in markers if str(marker) in cmdline)
+        control_plane_marker = _control_plane_marker(project_root, cmdline=cmdline, layout=layout)
+        if control_plane_marker is not None and control_plane_marker not in matched_markers:
+            matched_markers = (*matched_markers, control_plane_marker)
         if not matched_markers:
             continue
         candidates.setdefault(pid, []).extend(matched_markers)
@@ -69,8 +73,8 @@ def _load_helper_manifest_best_effort(path: Path):
         return None
 
 
-def _project_runtime_markers(project_root: Path, *, ccb_root: Path) -> tuple[Path, ...]:
-    layout = PathLayout(project_root)
+def _project_runtime_markers(project_root: Path, *, ccb_root: Path, layout: PathLayout | None = None) -> tuple[Path, ...]:
+    layout = layout or PathLayout(project_root)
     markers: list[Path] = [ccb_root]
     if layout.runtime_state_placement.root_kind == 'relocated':
         for path in (layout.runtime_state_root / 'agents', layout.runtime_state_root / 'ccbd'):
@@ -85,6 +89,7 @@ def collect_project_authority_pid_candidates(project_root: Path) -> dict[int, li
     for path, keys in (
         (layout.ccbd_lease_path, ('ccbd_pid', 'keeper_pid')),
         (layout.ccbd_keeper_path, ('keeper_pid',)),
+        (layout.ccbd_lifecycle_path, ('owner_pid', 'keeper_pid')),
     ):
         payload = _load_json_object(path)
         if payload is None:
@@ -103,3 +108,33 @@ def _load_json_object(path: Path) -> dict | None:
     except Exception:
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def _control_plane_marker(project_root: Path, *, cmdline: str, layout: PathLayout) -> Path | None:
+    if not cmdline:
+        return None
+    if 'ccbd/main.py' not in cmdline and 'ccbd/keeper_main.py' not in cmdline:
+        return None
+    if not _cmdline_has_project_arg(cmdline, project_root):
+        return None
+    return layout.ccbd_dir
+
+
+def _cmdline_has_project_arg(cmdline: str, project_root: Path) -> bool:
+    expected = _resolved_project_text(project_root)
+    tokens = cmdline.split()
+    for index, token in enumerate(tokens):
+        if token == '--project' and index + 1 < len(tokens):
+            if _resolved_project_text(tokens[index + 1]) == expected:
+                return True
+        if token.startswith('--project='):
+            if _resolved_project_text(token.split('=', 1)[1]) == expected:
+                return True
+    return False
+
+
+def _resolved_project_text(value) -> str:
+    try:
+        return str(Path(value).expanduser().resolve())
+    except Exception:
+        return str(Path(value).expanduser().absolute())

@@ -5,6 +5,7 @@ from .dispatcher_runtime import (
     build_last_restore_report,
     cancel_job,
     cancel_with_decision,
+    cleanup_stale_execution_states,
     complete_job,
     get_job,
     latest_for_agent,
@@ -103,6 +104,7 @@ class JobDispatcher(DispatcherRuntimeStateMixin, DispatcherFacadeMixin):
             last_restore_generated_at=None,
         )
         self._rebuild_state()
+        cleanup_stale_execution_states(self)
 
     def submit(self, request: MessageEnvelope) -> SubmitReceipt:
         return submit_jobs(self, request)

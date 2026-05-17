@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v6.1.21 (2026-05-17)
+
+### Kill And Restart Cleanup Hotfix
+
+- **Forced Kill Finalization Survives Client Disconnects**: `ccb kill -f` now still queues daemon finalization when the requesting pane disappears before the socket response is written.
+- **Project-Scoped Kill Cleanup Hardened**: kill cleanup preserves full tmux socket paths, reads lifecycle owner/keeper PID authority, and scopes process fallback matching to CCB control-plane commands for the same project.
+- **Stale Execution Residue Cleared**: ccbd startup and late provider updates now clear execution files for cancelled, completed, or missing jobs so `doctor` no longer reports stale work as active or recoverable authority.
+- **Startup/Kill Contract Updated**: documents the shutdown finalizer, project-scoped process cleanup, tmux socket path, and stale execution-state cleanup requirements.
+
 ## v6.1.20 (2026-05-16)
 
 ### Claude Active Version Cache Release

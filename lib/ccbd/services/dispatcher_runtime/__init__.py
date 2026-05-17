@@ -3,6 +3,7 @@ from __future__ import annotations
 from .cancellation import cancel_job, cancel_with_decision
 from .completion import apply_tracker_view, build_terminal_state, merge_terminal_decision
 from .context import build_job_runtime_context, build_runtime_context
+from .execution_cleanup import cleanup_stale_execution_states
 from .finalization import complete_job
 from .lifecycle import resubmit_message, retry_attempt, submit_jobs, tick_jobs
 from .polling import poll_completion_updates
@@ -36,6 +37,7 @@ __all__ = [
     'build_watch_payload',
     'cancel_job',
     'cancel_with_decision',
+    'cleanup_stale_execution_states',
     'get_job',
     'latest_for_agent',
     'merge_terminal_decision',

@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.1.20-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.21-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 **English** | [Chinese](README_zh.md)
@@ -74,10 +74,10 @@ Build project-local teams with roles, pane layout, provider state, worktree isol
 <details>
 <summary><b>Latest release highlights</b></summary>
 
-- **Managed Claude follows your active Claude Code version**: CCB now detects the source-home `~/.local/bin/claude` symlink and uses that active version inside managed Claude homes.
-- **Claude binaries are still cached safely**: the active source version is copied into the CCB provider cache, and managed `.local/bin/claude` points at the cached copy.
-- **Shared-cache fallback remains intact**: when the standard source-home active-version layout is missing, CCB keeps the existing shared-cache routing behavior.
-- **Startup routing applies the preference automatically**: Claude provider workspace preparation passes the source home into binary-cache routing during managed startup.
+- **Forced kill finalization is reliable**: `ccb kill -f` now still runs daemon cleanup even when the issuing pane disappears before the socket response is written.
+- **Project kill cleanup is more tightly scoped**: tmux socket paths, lifecycle owner/keeper pids, and control-plane fallback matching now stay bound to the current project.
+- **Restart clears stale execution residue**: cancelled, completed, or missing jobs no longer leave provider execution files that `doctor` reports as active or recoverable work.
+- **Shutdown contracts are documented**: startup and kill cleanup requirements now cover finalizer queuing, scoped process cleanup, tmux socket paths, and stale execution-state removal.
 
 See [Release Notes](#release-notes) for the full history.
 
@@ -306,6 +306,16 @@ Thanks to the [Linux.do community](https://linux.do) for testing, feedback, and 
 Historical note: older release notes below may mention `askd`, legacy flags, or removed commands. Those references are kept only as changelog history and do not redefine the current CLI surface.
 
 <details open>
+<summary><b>v6.1.21</b> - Kill And Restart Cleanup Hotfix</summary>
+
+- Keeps `ccb kill -f` finalization queued even if the client pane is destroyed before the daemon can write the socket response.
+- Preserves full tmux socket paths and lifecycle owner/keeper pid authority during project-scoped kill cleanup.
+- Narrows process fallback matching to CCB control-plane commands for the same `--project`, avoiding broad project-root matches.
+- Clears stale provider execution files at ccbd startup and when late updates arrive for terminal or missing jobs.
+
+</details>
+
+<details>
 <summary><b>v6.1.20</b> - Claude Active Version Cache Release</summary>
 
 - Detects the source home's active Claude Code symlink under `~/.local/bin/claude` and prefers that version for managed Claude startup.

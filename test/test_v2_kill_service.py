@@ -11,6 +11,7 @@ from ccbd.lifecycle_report_store import CcbdShutdownReportStore
 from ccbd.models import LeaseHealth
 from ccbd.services.start_policy import CcbdStartPolicy, CcbdStartPolicyStore
 from cli.context import CliContextBuilder
+from cli.services.kill_runtime.agent_cleanup import collect_candidate_tmux_sockets, prepare_local_shutdown
 from cli.services.kill_runtime.remote import await_remote_shutdown
 import cli.services.daemon as daemon_service
 from cli.services.daemon import CcbdServiceError
@@ -539,7 +540,57 @@ def test_kill_project_uses_current_tmux_socket_when_binding_missing(tmp_path: Pa
 
     kill_project(context, command)
 
-    assert seen['active_panes_by_socket'] == {'ccb': ()}
+    assert seen['active_panes_by_socket'] == {'/tmp/tmux-1000/ccb': ()}
+
+
+def test_collect_candidate_tmux_sockets_preserves_tmux_socket_path(monkeypatch) -> None:
+    monkeypatch.delenv('CCB_TMUX_SOCKET', raising=False)
+    monkeypatch.delenv('CCB_TMUX_SOCKET_PATH', raising=False)
+    monkeypatch.setenv('TMUX', '/tmp/ccb project/tmux.sock,123,0')
+
+    assert collect_candidate_tmux_sockets() == {'/tmp/ccb project/tmux.sock'}
+
+
+def test_prepare_local_shutdown_captures_runtime_tmux_socket_path(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo-kill-runtime-socket-path'
+    (project_root / '.ccb').mkdir(parents=True, exist_ok=True)
+    (project_root / '.ccb' / 'ccb.config').write_text('demo:codex\n', encoding='utf-8')
+    bootstrap_project(project_root)
+    context = CliContextBuilder().build(
+        ParsedKillCommand(project=None, force=False),
+        cwd=project_root,
+        bootstrap_if_missing=False,
+    )
+    AgentRuntimeStore(context.paths).save(
+        AgentRuntime(
+            agent_name='demo',
+            state=AgentState.IDLE,
+            pid=None,
+            started_at='2026-04-01T00:00:00Z',
+            last_seen_at='2026-04-01T00:00:00Z',
+            runtime_ref='tmux:%1',
+            session_ref=None,
+            workspace_path=str(context.paths.workspace_path('demo')),
+            project_id=context.project.project_id,
+            backend_type='pane-backed',
+            queue_depth=0,
+            socket_path=str(context.paths.ccbd_socket_path),
+            health='healthy',
+            tmux_socket_path='/tmp/ccb project/tmux.sock',
+        )
+    )
+    monkeypatch.delenv('TMUX', raising=False)
+    monkeypatch.delenv('CCB_TMUX_SOCKET', raising=False)
+    monkeypatch.delenv('CCB_TMUX_SOCKET_PATH', raising=False)
+
+    preparation = prepare_local_shutdown(
+        context,
+        force=False,
+        collect_agent_pid_candidates_fn=lambda **kwargs: {},
+        collect_project_authority_pid_candidates_fn=lambda _project_root: {},
+    )
+
+    assert '/tmp/ccb project/tmux.sock' in preparation.tmux_sockets
 
 
 def test_kill_project_terminates_runtime_pid_files(tmp_path: Path, monkeypatch) -> None:

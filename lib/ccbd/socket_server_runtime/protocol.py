@@ -36,12 +36,9 @@ def handle_connection(server, conn) -> str | None:
     try:
         conn.sendall((json.dumps(response.to_record(), ensure_ascii=False) + '\n').encode('utf-8'))
     except OSError:
+        _queue_after_response_action(server, after_response_action)
         return getattr(request, 'op', None)
-    if after_response_action is not None:
-        try:
-            server.queue_after_response_action(after_response_action)
-        except Exception:
-            pass
+    _queue_after_response_action(server, after_response_action)
     return getattr(request, 'op', None)
 
 
@@ -55,6 +52,15 @@ def _recv_request_line(conn) -> bytes:
         if len(raw) > _MAX_REQUEST_BYTES:
             raise ValueError('ccbd request exceeds maximum size')
     return raw
+
+
+def _queue_after_response_action(server, action) -> None:
+    if action is None:
+        return
+    try:
+        server.queue_after_response_action(action)
+    except Exception:
+        pass
 
 
 __all__ = ['handle_connection']

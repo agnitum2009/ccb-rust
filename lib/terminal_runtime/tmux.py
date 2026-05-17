@@ -38,6 +38,18 @@ def socket_name_from_tmux_env(value: str | None) -> str | None:
     return normalize_socket_name(Path(socket_path).name)
 
 
+def socket_ref_from_tmux_env(value: str | None) -> str | None:
+    text = (value or "").strip()
+    if not text:
+        return None
+    socket_path = text.split(",", 1)[0].strip()
+    if not socket_path:
+        return None
+    if "/" in socket_path or "\\" in socket_path:
+        return str(Path(socket_path).expanduser())
+    return normalize_socket_name(socket_path)
+
+
 def looks_like_pane_id(value: str) -> bool:
     return (value or "").strip().startswith("%")
 

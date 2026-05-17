@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from completion.tracker import CompletionTrackerView
 
+from .execution_cleanup import finish_stale_execution_update
 from .records import append_event, get_job
 
 
@@ -12,7 +13,7 @@ def poll_completion_updates(dispatcher) -> tuple:
     completed_ids: set[str] = set()
     for update in dispatcher._execution_service.poll():
         current = get_job(dispatcher, update.job_id)
-        if _skip_update(dispatcher, current):
+        if _skip_update(dispatcher, current, update.job_id):
             continue
         tracked = _ingest_update_items(dispatcher, current, update)
         decision = _resolve_update_decision(dispatcher, update, tracked)
@@ -25,8 +26,11 @@ def poll_completion_updates(dispatcher) -> tuple:
     return tuple(completed)
 
 
-def _skip_update(dispatcher, current) -> bool:
-    return current is None or current.status in dispatcher._terminal_event_by_status
+def _skip_update(dispatcher, current, job_id: str) -> bool:
+    if current is not None and current.status not in dispatcher._terminal_event_by_status:
+        return False
+    finish_stale_execution_update(dispatcher, job_id)
+    return True
 
 
 def _ingest_update_items(dispatcher, current, update) -> CompletionTrackerView | None:

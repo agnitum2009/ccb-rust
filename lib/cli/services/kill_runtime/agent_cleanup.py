@@ -7,7 +7,7 @@ from pathlib import Path
 from agents.config_loader import load_project_config
 from agents.models import AgentState
 from agents.store import AgentRuntimeStore
-from terminal_runtime.tmux import normalize_socket_name, socket_name_from_tmux_env
+from terminal_runtime.tmux import normalize_socket_name, socket_ref_from_tmux_env
 
 
 @dataclass(frozen=True)
@@ -67,8 +67,9 @@ def prepare_local_shutdown(
 def collect_candidate_tmux_sockets() -> set[str | None]:
     sockets: set[str | None] = set()
     for value in (
+        os.environ.get("CCB_TMUX_SOCKET_PATH"),
         normalize_socket_name(os.environ.get("CCB_TMUX_SOCKET")),
-        socket_name_from_tmux_env(os.environ.get("TMUX")),
+        socket_ref_from_tmux_env(os.environ.get("TMUX")),
     ):
         if value is not None:
             sockets.add(value)
@@ -101,8 +102,9 @@ def _capture_runtime_tmux_socket(tmux_sockets: set[str | None], runtime) -> None
         return
     if not str(runtime.runtime_ref or "").startswith("tmux:"):
         return
-    if getattr(runtime, "tmux_socket_path", None) is not None:
-        return
+    socket_path = str(getattr(runtime, "tmux_socket_path", "") or "").strip()
+    if socket_path:
+        tmux_sockets.add(socket_path)
     socket_name = normalize_socket_name(runtime.tmux_socket_name)
     if socket_name is not None:
         tmux_sockets.add(socket_name)

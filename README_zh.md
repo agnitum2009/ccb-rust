@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.1.20-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.1.21-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -74,10 +74,10 @@
 <details>
 <summary><b>最新版本亮点</b></summary>
 
-- **Managed Claude 会跟随系统当前 Claude Code 版本**：CCB 现在会识别 source home 的 `~/.local/bin/claude` symlink，并在 managed Claude home 中使用该 active version。
-- **Claude binary 仍通过缓存安全复用**：source active version 会复制到 CCB provider cache，managed `.local/bin/claude` 指向缓存副本。
-- **Shared-cache fallback 保持不变**：source active-version 布局不可用时，继续使用原有 shared-cache 路由行为。
-- **启动阶段自动应用该偏好**：Claude provider workspace prepare 会把 source home 传入 binary-cache routing。
+- **强制 kill finalization 更可靠**：即使命令所在 pane 在 socket response 写回前消失，`ccb kill -f` 仍会执行 daemon cleanup。
+- **项目级 kill cleanup 更严格收敛**：tmux socket path、lifecycle owner/keeper pid 和 control-plane fallback 匹配都绑定到当前项目。
+- **重启会清理 stale execution residue**：cancelled、completed 或 missing jobs 不再留下被 `doctor` 视为 active/recoverable 的 provider execution 文件。
+- **Shutdown 契约已补齐**：startup/kill cleanup 文档覆盖 finalizer queue、scoped process cleanup、tmux socket path 和 stale execution-state removal。
 
 完整历史见 [新版本记录](#新版本记录)。
 
@@ -297,6 +297,16 @@ ccb reinstall
 历史说明：下面较旧的发布记录里仍可能出现 `askd`、旧 flag 或已移除命令。这些内容仅作为 changelog 历史保留，不代表当前 CLI 入口。
 
 <details open>
+<summary><b>v6.1.21</b> - Kill And Restart Cleanup Hotfix</summary>
+
+- 即使命令 pane 在 socket response 写回前被关闭，`ccb kill -f` 仍会继续排队并执行 finalization。
+- 项目级 kill cleanup 会保留完整 tmux socket path，并读取 lifecycle owner/keeper pid authority。
+- process fallback 只匹配同一个 `--project` 的 CCB control-plane 命令，避免按 project root 过宽匹配。
+- ccbd startup 和 terminal/missing job 的 late update 会清理 stale provider execution 文件。
+
+</details>
+
+<details>
 <summary><b>v6.1.20</b> - Claude Active Version Cache Release</summary>
 
 - 识别 source home 下 `~/.local/bin/claude` 指向的 Claude Code active version，并优先用于 managed Claude 启动。
