@@ -1,0 +1,4 @@
+interface:
+  display_name: "CCB Config"
+  short_description: "Design and edit CCB agent teams"
+  default_prompt: "Use $ccb_config to design or update this project's .ccb/ccb.config and agent memories from my workflow description."

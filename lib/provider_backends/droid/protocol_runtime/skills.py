@@ -15,7 +15,8 @@ def load_droid_skills() -> str:
         _SKILL_CACHE = ""
         return _SKILL_CACHE
 
-    skills_dir = Path(__file__).resolve().parents[2] / "droid_skills"
+    repo_root = Path(__file__).resolve().parents[3]
+    skills_dir = repo_root / "inherit_skills" / "droid_skills"
     if not skills_dir.is_dir():
         _SKILL_CACHE = ""
         return _SKILL_CACHE

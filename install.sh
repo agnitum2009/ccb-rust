@@ -677,6 +677,12 @@ resolve_install_asset_root() {
   fi
 }
 
+resolve_inherit_skills_root() {
+  local asset_root
+  asset_root="$(resolve_install_asset_root)"
+  echo "$asset_root/inherit_skills"
+}
+
 read_simple_json_string_field() {
   local file="$1"
   local key="$2"
@@ -1372,9 +1378,9 @@ install_skill_entry() {
 }
 
 install_claude_skills() {
-  local asset_root
-  asset_root="$(resolve_install_asset_root)"
-  local skills_src="$asset_root/claude_skills"
+  local skills_root
+  skills_root="$(resolve_inherit_skills_root)"
+  local skills_src="$skills_root/claude_skills"
   local skills_dst="$HOME/.claude/skills"
 
   if [[ ! -d "$skills_src" ]]; then
@@ -1392,12 +1398,11 @@ install_claude_skills() {
     fi
   done
 
-  echo "Installing Claude ask skill (bash SKILL.md template)..."
+  echo "Installing inherited Claude skills (bash SKILL.md template)..."
   for skill_dir in "$skills_src"/*/; do
     [[ -d "$skill_dir" ]] || continue
     local skill_name
     skill_name=$(basename "$skill_dir")
-    [[ "$skill_name" == "ask" ]] || continue
 
     if [[ ! -f "$skill_dir/SKILL.md.bash" && ! -f "$skill_dir/SKILL.md" ]]; then
       continue
@@ -1413,9 +1418,9 @@ install_claude_skills() {
 }
 
 install_codex_skills() {
-  local asset_root
-  asset_root="$(resolve_install_asset_root)"
-  local skills_src="$asset_root/codex_skills"
+  local skills_root
+  skills_root="$(resolve_inherit_skills_root)"
+  local skills_src="$skills_root/codex_skills"
   local skills_dst="${CODEX_HOME:-$HOME/.codex}/skills"
 
   if [[ ! -d "$skills_src" ]]; then
@@ -1433,12 +1438,11 @@ install_codex_skills() {
     fi
   done
 
-  echo "Installing Codex ask skill (bash SKILL.md template)..."
+  echo "Installing inherited Codex skills (bash SKILL.md template)..."
   for skill_dir in "$skills_src"/*/; do
     [[ -d "$skill_dir" ]] || continue
     local skill_name
     skill_name=$(basename "$skill_dir")
-    [[ "$skill_name" == "ask" ]] || continue
 
     if [[ ! -f "$skill_dir/SKILL.md.bash" && ! -f "$skill_dir/SKILL.md" ]]; then
       continue
@@ -1453,9 +1457,9 @@ install_codex_skills() {
 }
 
 install_droid_skills() {
-  local asset_root
-  asset_root="$(resolve_install_asset_root)"
-  local skills_src="$asset_root/droid_skills"
+  local skills_root
+  skills_root="$(resolve_inherit_skills_root)"
+  local skills_src="$skills_root/droid_skills"
   local skills_dst="${FACTORY_HOME:-$HOME/.factory}/skills"
 
   if [[ ! -d "$skills_src" ]]; then
@@ -2408,7 +2412,7 @@ except Exception:
 
 uninstall_claude_skills() {
   local skills_dst="$HOME/.claude/skills"
-  local ccb_skills="ask ping pend autonew all-plan docs tp tr file-op review continue"
+  local ccb_skills="ask ccb_config ping pend autonew all-plan docs tp tr file-op review continue"
 
   if [[ ! -d "$skills_dst" ]]; then
     return
@@ -2425,7 +2429,7 @@ uninstall_claude_skills() {
 
 uninstall_codex_skills() {
   local skills_dst="${CODEX_HOME:-$HOME/.codex}/skills"
-  local ccb_skills="ask ping pend autonew all-plan file-op"
+  local ccb_skills="ask ccb_config ping pend autonew all-plan file-op"
 
   if [[ ! -d "$skills_dst" ]]; then
     return

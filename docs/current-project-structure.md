@@ -736,8 +736,9 @@ Meaning:
 
 ### Still co-located but not part of the clean core
 
-- `claude_skills/`, `codex_skills/`, `droid_skills/`
-  provider-specific prompt/skill assets
+- `inherit_skills/`
+  provider-specific prompt/skill assets installed by CCB and inherited by
+  managed provider homes
 - `bin/`
   legacy provider wrappers plus current helper scripts
 - `mcp/ccb-delegation/`

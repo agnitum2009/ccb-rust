@@ -317,7 +317,7 @@ function Install-Native {
     New-Item -ItemType Directory -Path $binDir -Force | Out-Null
   }
 
-  $items = @("ccb", "lib", "bin", "commands", "mcp", "droid_skills")
+  $items = @("ccb", "lib", "bin", "commands", "mcp", "inherit_skills")
   foreach ($item in $items) {
     $src = Join-Path $repoRoot $item
     $dst = Join-Path $InstallPrefix $item
@@ -512,7 +512,7 @@ function Cleanup-LegacyFiles {
 }
 
 function Install-CodexSkills {
-  $skillsSrc = Join-Path $repoRoot "codex_skills"
+  $skillsSrc = Join-Path (Join-Path $repoRoot "inherit_skills") "codex_skills"
   $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
   $skillsDst = Join-Path $codexHome "skills"
 
@@ -533,8 +533,8 @@ function Install-CodexSkills {
     }
   }
 
-  Write-Host "Installing Codex ask skill (PowerShell SKILL.md template)..."
-  Get-ChildItem -Path $skillsSrc -Directory | Where-Object { $_.Name -eq "ask" } | ForEach-Object {
+  Write-Host "Installing inherited Codex skills (PowerShell SKILL.md template)..."
+  Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
     $skillName = $_.Name
     $srcDir = $_.FullName
     $dstDir = Join-Path $skillsDst $skillName
@@ -568,7 +568,7 @@ function Install-CodexSkills {
 }
 
 function Install-DroidSkills {
-  $skillsSrc = Join-Path $repoRoot "droid_skills"
+  $skillsSrc = Join-Path (Join-Path $repoRoot "inherit_skills") "droid_skills"
   $factoryHome = if ($env:FACTORY_HOME) { $env:FACTORY_HOME } else { Join-Path $env:USERPROFILE ".factory" }
   $skillsDst = Join-Path $factoryHome "skills"
 
@@ -670,7 +670,7 @@ function Install-ClaudeConfig {
 
   # Install skills
   $skillsDir = Join-Path $claudeDir "skills"
-  $srcSkills = Join-Path $repoRoot "claude_skills"
+  $srcSkills = Join-Path (Join-Path $repoRoot "inherit_skills") "claude_skills"
   if (Test-Path $srcSkills) {
     if (-not (Test-Path $skillsDir)) {
       New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
@@ -685,8 +685,8 @@ function Install-ClaudeConfig {
       }
     }
 
-    Write-Host "Installing Claude ask skill (PowerShell SKILL.md template)..."
-    Get-ChildItem -Path $srcSkills -Directory | Where-Object { $_.Name -eq "ask" } | ForEach-Object {
+    Write-Host "Installing inherited Claude skills (PowerShell SKILL.md template)..."
+    Get-ChildItem -Path $srcSkills -Directory | ForEach-Object {
       $skillName = $_.Name
       $srcDir = $_.FullName
       $dstDir = Join-Path $skillsDir $skillName
@@ -810,7 +810,7 @@ function Uninstall-Native {
 
   # 3. Remove Claude skills
   $claudeSkillsDir = Join-Path $env:USERPROFILE ".claude\skills"
-  $ccbSkills = @("ask", "ping", "pend", "autonew", "all-plan", "docs", "tp", "tr", "file-op", "review", "continue")
+  $ccbSkills = @("ask", "ccb_config", "ping", "pend", "autonew", "all-plan", "docs", "tp", "tr", "file-op", "review", "continue")
   if (Test-Path $claudeSkillsDir) {
     Write-Host "Removing CCB Claude skills..."
     foreach ($skill in $ccbSkills) {

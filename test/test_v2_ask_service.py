@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import StringIO
 from pathlib import Path
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -144,9 +145,10 @@ def test_message_with_reply_guidance_appends_compact_default() -> None:
     body = message_with_reply_guidance('review the diff', message_type='ask')
 
     assert body.startswith('review the diff\n\nCCB reply guidance:')
-    assert 'shortest reply that still preserves the key information' in body
-    assert 'CCB nested ask routing:' in body
-    assert 'ask --callback' in body
+    assert 'Answer directly and concisely.' in body
+    assert 'Include only relevant conclusions' in body
+    assert 'CCB nested ask routing:' not in body
+    assert 'ask --callback' not in body
     assert 'no more than' not in body
 
 
@@ -154,9 +156,9 @@ def test_message_with_reply_guidance_appends_explicit_compact_guidance() -> None
     body = message_with_reply_guidance('review the diff', message_type='ask', compact=True)
 
     assert body.startswith('review the diff\n\nCCB reply guidance:')
-    assert 'Actively distill the reply' in body
-    assert 'do not use a fixed length target' in body
-    assert 'Lead with the answer' in body
+    assert 'Distill aggressively and lead with the answer.' in body
+    assert 'Keep only details needed for this ask.' in body
+    assert 'Omit empty sections' in body
 
 
 def test_message_with_reply_guidance_respects_explicit_output_requirements() -> None:
@@ -170,20 +172,35 @@ def test_message_with_reply_guidance_respects_explicit_output_requirements() -> 
 
 def test_message_with_reply_guidance_respects_chinese_explicit_output_requirements() -> None:
     body = message_with_reply_guidance(
-        '请完整输出测试日志，不要总结。',
+        '\u8bf7\u5b8c\u6574\u8f93\u51fa\u6d4b\u8bd5\u65e5\u5fd7\uff0c\u4e0d\u8981\u603b\u7ed3\u3002',
         message_type='ask',
         compact=True,
     )
 
-    assert body == '请完整输出测试日志，不要总结。'
+    assert body == '\u8bf7\u5b8c\u6574\u8f93\u51fa\u6d4b\u8bd5\u65e5\u5fd7\uff0c\u4e0d\u8981\u603b\u7ed3\u3002'
+
+
+def test_message_with_reply_guidance_respects_additional_english_output_requirements() -> None:
+    body = message_with_reply_guidance(
+        'Run the audit. Include everything and leave nothing out.',
+        message_type='ask',
+        compact=True,
+    )
+
+    assert body == 'Run the audit. Include everything and leave nothing out.'
 
 
 def test_message_with_reply_guidance_uses_silent_hint_for_silenced_asks() -> None:
     body = message_with_reply_guidance('run smoke test', message_type='ask', silence_on_success=True)
 
-    assert 'silent-on-success delivery' in body
-    assert 'shortest useful success/failure status' in body
-    assert 'CCB nested ask routing:' in body
+    assert 'Silent-on-success requested.' in body
+    assert 'Reply with the shortest useful status.' in body
+    assert 'CCB nested ask routing:' not in body
+
+
+def test_ask_guidance_source_has_no_literal_chinese_characters() -> None:
+    source = Path('lib/cli/services/ask_runtime/submission.py').read_text(encoding='utf-8')
+    assert re.search(r'[\u4e00-\u9fff]', source) is None
 
 
 def test_message_with_reply_guidance_skips_non_ask_modes() -> None:

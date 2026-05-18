@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v6.2.1 (2026-05-18)
+
+### Inherited CCB Config Skill Release
+
+- **Inherited `ccb_config` Skill Added**: Claude and Codex installs now inherit a `ccb_config` skill for designing `.ccb/ccb.config`, choosing roles/providers/worktree layout, and updating shared plus per-agent CCB memory.
+- **Inherited Skill Layout Consolidated**: CCB-owned inherited skills now live under `inherit_skills/`; optional `useful_tools/` remain user-installable tools and are not inherited by default.
+- **Ask Guidance Simplified**: injected ask reply guidance is shorter, English-only in source text, skips nested-routing instructions in every ask body, and recognizes more explicit-output requests.
+- **Project Memory Wording Simplified**: generated project/runtime memory now uses shorter submit-once guidance while keeping callback and silence routing rules available where they belong.
+- **Config Memory Routing Clarified**: `ccb_config` memory patterns prefer direct owner-to-next-owner callback handoffs and separate root work packages for parallel chains, without claiming single-task multi-callback fan-in.
+
 ## v6.2.0 (2026-05-17)
 
 ### Callback Ask Chain Release

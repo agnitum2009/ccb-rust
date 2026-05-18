@@ -138,26 +138,18 @@ communication.
 ````md
 # CCB Project Memory
 
-This project is managed by CCB as a visible multi-agent workspace.
+This project uses CCB for visible multi-agent collaboration.
 
-## Agent Awareness
+## Collaboration
 
 - You are one agent in a CCB-managed project team.
-- Other configured agents may be available in the same project.
-- When work should be handled, reviewed, or cross-checked by another visible
-  project agent, use CCB `ask`.
-- Prefer CCB `ask` over provider-native hidden subagents for project-level
-  collaboration.
-- When delegating, include the goal, relevant files, current assumptions, and
-  expected output.
-- When replying to another agent, be concrete: include findings, changed files,
-  blockers, and verification results.
+- Use CCB `ask` for project-level collaboration with configured agents.
+- Delegate with the goal, scope/files, assumptions, expected output, and verification needs.
+- Reply concisely with findings, changes, verification, blockers, and risks when relevant.
 
 ## Ask Communication
 
-Use CCB `ask` as an asynchronous handoff channel.
-
-Preferred provider form, when slash commands are available:
+Preferred form:
 
 ```text
 /ask <agent> <message>
@@ -171,15 +163,9 @@ $MESSAGE
 EOF
 ```
 
-After submitting, stop. Do not wait for the reply, poll status, or run
-observer commands such as `pend`, `watch`, or `ping` unless the user explicitly
-asks for diagnostics.
-
-When this agent is already handling an active CCB ask task and delegates work
-needed to finish that same task, use `ask --callback` so the child result
-returns as a continuation task. Use `ask --silence` only for independent work
-whose result is not needed by the active task. Plain nested `ask` from an active
-task is rejected by CCB.
+- Submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
+- During an active CCB ask task, use `ask --callback` when a child result is needed to finish; use `ask --silence` only for independent no-result-needed work.
+- Plain nested `ask` from an active task is rejected by CCB.
 ````
 
 ## Memory Bundle Model

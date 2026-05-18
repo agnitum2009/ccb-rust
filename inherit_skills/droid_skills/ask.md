@@ -1,13 +1,7 @@
----
-name: ask
-description: Send a request to a CCB agent with `ask`.
-metadata:
-  short-description: Ask agent
----
-
 Use this only for `/ask <target> <message...>`.
 
-- `TARGET` = first token; `MESSAGE` = raw remainder, forwarded verbatim.
+- `TARGET` = first token; `MESSAGE` = raw remainder sent as the task body.
+- `ask` may append reply guidance unless the message already contains explicit output requirements.
 - `TARGET=all` broadcasts.
 - Plain `ask` injects concise-reply guidance while still delivering the full reply body.
 - Use `--compact` when the caller wants an actively distilled answer, such as review findings, status, risks, blockers, or next actions.
@@ -16,14 +10,30 @@ Use this only for `/ask <target> <message...>`.
 - Plain nested `ask` from an active CCB task is rejected; choose `--callback` for needed results or `--silence` for independent no-result-needed work.
 - Do not manually append output-policy text; `ask` injects reply guidance.
 
-PowerShell equivalent of the heredoc form. Always pipe a single-quoted here-string (`@'...'@`) to `FilePath "ask"` on stdin - the heredoc form is the only allowed form.
+Always send `MESSAGE` through the `<<'EOF' ... EOF` heredoc below. No other form is allowed.
 
-```powershell
-@'
+```bash
+command ask "$TARGET" <<'EOF'
 $MESSAGE
-'@ | & { Start-Process -NoNewWindow -FilePath "ask" -ArgumentList @("$TARGET") -RedirectStandardInput $input }
+EOF
 ```
 
-Use `-ArgumentList @("--compact", "$TARGET")` for compact replies, `-ArgumentList @("--silence", "$TARGET")` for silent-on-success delivery, and `-ArgumentList @("--callback", "$TARGET")` for callback continuations.
+```bash
+command ask --compact "$TARGET" <<'EOF'
+$MESSAGE
+EOF
+```
+
+```bash
+command ask --silence "$TARGET" <<'EOF'
+$MESSAGE
+EOF
+```
+
+```bash
+command ask --callback "$TARGET" <<'EOF'
+$MESSAGE
+EOF
+```
 
 After the command returns, immediately end the turn. Do not wait for a reply, do not run `pend` / `ping` / `watch`, do not poll, do not add commentary. For `--callback`, report only that delegation was submitted; the final result belongs in the later continuation task.

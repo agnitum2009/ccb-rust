@@ -33,15 +33,15 @@ def test_ensure_project_memory_creates_template_and_seed(tmp_path: Path) -> None
     memory_path = project_memory_path(project_root)
     assert memory_path.is_file()
     text = memory_path.read_text(encoding='utf-8')
-    assert 'This project is managed by CCB as a visible multi-agent workspace.' in text
-    assert 'Use CCB `ask` as an asynchronous handoff channel.' in text
+    assert 'This project uses CCB for visible multi-agent collaboration.' in text
+    assert 'Use CCB `ask` for project-level collaboration with configured agents.' in text
     assert 'Plain nested `ask` from an active task is' in text
     assert 'command ask "$TARGET"' in text
-    assert 'Do not wait for the reply' in text
+    assert 'Do not wait, poll, or run `pend`/`watch`/`ping`' in text
     assert 'ccb -h' not in text
     seed = json.loads(seed_metadata_path(project_root).read_text(encoding='utf-8'))
     assert seed['record_type'] == 'ccb_project_memory_seed'
-    assert seed['template_version'] == 3
+    assert seed['template_version'] == 4
     assert seed['memory_path'] == str(memory_path)
     assert seed['sha256'] == result.sha256
 
@@ -73,7 +73,7 @@ def test_ensure_project_memory_ignores_legacy_root_memory(tmp_path: Path) -> Non
     assert result.created is True
     assert result.seed_written is True
     text = memory_path.read_text(encoding='utf-8')
-    assert 'This project is managed by CCB as a visible multi-agent workspace.' in text
+    assert 'This project uses CCB for visible multi-agent collaboration.' in text
     assert 'legacy shared memory' not in text
     assert legacy_path.read_text(encoding='utf-8') == 'legacy shared memory\n'
 
@@ -140,9 +140,9 @@ def test_materialize_runtime_memory_bundle_writes_generated_bundle(tmp_path: Pat
     assert 'provider: claude' in text
     assert f'workspace_path: {workspace.resolve()}' in text
     assert '## CCB Runtime Coordination Rules' in text
-    assert 'submit-only handoff path' in text
-    assert 'do not wait for the reply or poll status' in text
-    assert '`ccb pend`' in text
+    assert 'CCB `ask` is submit-only' in text
+    assert 'Do not wait, poll, or run `pend`/`watch`/`ping`' in text
+    assert 'use `ask --callback` when a child result is needed' in text
     assert '## CCB Shared Project Memory' in text
     assert 'shared ask rules' in text
     assert text.index('## CCB Runtime Coordination Rules') < text.index('## CCB Shared Project Memory')

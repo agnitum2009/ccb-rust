@@ -7,7 +7,9 @@ metadata:
 
 Use this only for `/ask <target> <message...>`.
 
-- `TARGET` = first token; `MESSAGE` = raw remainder, forwarded verbatim.
+- `TARGET` = first token after `/ask`.
+- `MESSAGE` = exact raw remainder sent as the task body.
+- `ask` may append reply guidance unless the message already contains explicit output requirements.
 - `TARGET=all` broadcasts.
 - Plain `ask` injects concise-reply guidance while still delivering the full reply body.
 - Use `--compact` when the caller wants an actively distilled answer, such as review findings, status, risks, blockers, or next actions.

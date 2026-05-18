@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.2.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.2.1-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -74,10 +74,10 @@
 <details>
 <summary><b>最新版本亮点</b></summary>
 
-- **支持 callback ask 链式调用**：正在处理 CCB 任务的 agent 可用 `ccb ask --callback <agent>` 委派必须等待结果的子任务。
-- **Nested ask 路由变为显式规则**：active CCB task 内 plain nested `ask` 会被拒绝；需要结果用 `--callback`，独立无需结果的工作用 `--silence`。
-- **Callback 路由可持久恢复**：CCB 会记录 callback edge，把子任务结果作为 continuation task 交回父 agent，并修复重启窗口里的漏交 continuation。
-- **Ask skill 已补齐工作流说明**：Claude、Codex 和 Droid ask skill 现在记录 callback 委派和提交后停止的规则。
+- **新增继承式 `ccb_config` skill**：Claude 和 Codex 安装现在会继承 CCB 自带的配置设计 skill，用于设计 `.ccb/ccb.config` 和团队记忆。
+- **继承式 skill 统一到 `inherit_skills/`**：CCB 自带 skill 自动继承，`useful_tools/` 保持为用户按需安装的可选工具。
+- **Ask guidance 更短**：CCB 注入简洁英文回复指引，不再给每个 ask body 重复 nested-routing 说明，并识别更多显式完整输出要求。
+- **记忆路由更清晰**：`ccb_config` 角色记忆示例强调 owner-to-next-owner 直接交接，以及并行链路使用独立 root work package。
 
 完整历史见 [新版本记录](#新版本记录)。
 
@@ -102,6 +102,25 @@ tmux 复制粘贴：鼠标左键拖拽即可复制，`Ctrl+Shift+V` 粘贴。
 `ccb` 的行为由 `.ccb/ccb.config` 控制。它是项目级、用户自己维护的配置文件；如果不存在，CCB 会使用代码内置默认配置，不会自动写入新文件。
 
 `.ccb/ccb_memory.md` 是项目全局记忆文档。
+
+<details>
+<summary><b>配置设计 Skill</b></summary>
+
+当你希望 agent 帮你设计或更新 CCB 团队，而不是手写配置时，可以使用 `ccb_config`。它会被 Claude 和 Codex 安装继承，重点维护三个用户可编辑文件：
+
+- `.ccb/ccb.config`：团队、provider、pane layout 和 worktree 策略
+- `.ccb/ccb_memory.md`：项目级共享工作流记忆
+- `.ccb/agents/<agent>/memory.md`：每个 agent 的角色记忆
+
+在支持 skill 的 provider 里可以这样调用：
+
+```text
+$ccb_config 为一个 Python library 设计团队：一个 coordinator、两个 worktree 实现 agent、一个 reviewer。
+```
+
+这个 skill 会帮助选择 agent 名称、provider、`inplace` / `git-worktree`、compact layout 语法，以及哪些说明应写入共享记忆或 per-agent memory。它会验证 `.ccb/ccb.config` 是当前配置 authority，并在文件修改完成后提醒你重启 CCB。
+
+</details>
 
 <details>
 <summary><b>布局</b></summary>
@@ -311,6 +330,16 @@ ccb reinstall
 历史说明：下面较旧的发布记录里仍可能出现 `askd`、旧 flag 或已移除命令。这些内容仅作为 changelog 历史保留，不代表当前 CLI 入口。
 
 <details open>
+<summary><b>v6.2.1</b> - Inherited CCB Config Skill Release</summary>
+
+- 新增继承式 Claude / Codex `ccb_config` skill，用于设计 `.ccb/ccb.config`、选择 agent 角色/provider/worktree layout，并更新共享和 per-agent memory。
+- 将 CCB 自带继承式 skill 统一放到 `inherit_skills/`，同时保持 `useful_tools/` 为用户按需安装的可选工具，不默认继承。
+- 缩短 ask reply guidance，不再在每个 ask body 注入 nested-routing 说明，注入源文本保持英文，并扩展显式完整输出识别。
+- 简化 project/runtime memory wording，并更新 `ccb_config` memory-routing 示例，强调直接 callback 交接和独立 root work package。
+
+</details>
+
+<details>
 <summary><b>v6.2.0</b> - Callback Ask Chain Release</summary>
 
 - 新增 `ccb ask --callback <agent>`，让 active agent 可委派子任务，并在之后以 continuation task 接收子任务结果。

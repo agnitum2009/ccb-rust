@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.2.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-6.2.1-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 **English** | [Chinese](README_zh.md)
@@ -74,10 +74,10 @@ Build project-local teams with roles, pane layout, provider state, worktree isol
 <details>
 <summary><b>Latest release highlights</b></summary>
 
-- **Callback ask chains are supported**: active agents can use `ccb ask --callback <agent>` when a child result is needed before replying to the original caller.
-- **Nested ask routing is explicit**: plain nested `ask` from an active CCB task is rejected; use `--callback` for needed results or `--silence` for independent no-result-needed work.
-- **Callback routing is durable**: CCB records callback edges, resumes the parent as a continuation task, and repairs crash windows before submitting missed continuations.
-- **Ask skills explain the workflow**: Claude, Codex, and Droid ask skills now document callback delegation and stop-after-submit behavior.
+- **Inherited `ccb_config` skill added**: Claude and Codex installs now include a CCB-owned skill for designing `.ccb/ccb.config` and team memory.
+- **Inherited skills moved under `inherit_skills/`**: CCB-owned skills are inherited automatically, while optional `useful_tools/` remain user-installable.
+- **Ask guidance is shorter**: CCB injects concise English reply guidance, avoids repeating nested-routing instructions in every ask body, and recognizes more explicit-output requests.
+- **Memory routing is clearer**: `ccb_config` role memory favors direct owner-to-next-owner handoffs and separate root work packages for parallel chains.
 
 See [Release Notes](#release-notes) for the full history.
 
@@ -102,6 +102,25 @@ Tmux copy/paste: drag with the left mouse button to copy, and use `Ctrl+Shift+V`
 `ccb` is controlled by `.ccb/ccb.config`. This file is project-local and user-authored; if it is missing, CCB uses the built-in default without writing a new config file.
 
 `.ccb/ccb_memory.md` is the project-wide shared memory document.
+
+<details>
+<summary><b>Config Design Skill</b></summary>
+
+Use `ccb_config` when you want an agent to design or update the CCB team instead of editing config by hand. It is inherited by Claude and Codex installs and focuses on three user-authored files:
+
+- `.ccb/ccb.config` for the team, provider choices, pane layout, and worktree policy
+- `.ccb/ccb_memory.md` for shared project workflow guidance
+- `.ccb/agents/<agent>/memory.md` for per-agent role guidance
+
+Invoke it from a supported provider skill surface, for example:
+
+```text
+$ccb_config Design a team for a Python library with one coordinator, two worktree implementation agents, and one reviewer.
+```
+
+The skill helps choose agent names, providers, `inplace` versus `git-worktree`, compact layout syntax, and whether role instructions belong in shared or per-agent memory. It validates that `.ccb/ccb.config` is the active authority and tells you to restart CCB after file changes are complete.
+
+</details>
 
 <details>
 <summary><b>Layout</b></summary>
@@ -186,7 +205,7 @@ CCB v6 currently supports `ccb update` on Linux, macOS, and WSL. A major upgrade
 If you installed from a git checkout with `./install.sh install`, that install now runs in source dev mode:
 
 - Global `ccb` and `ask` link back to the checkout instead of using a copied snapshot
-- CCB-owned skills and helper scripts also follow the live source tree
+- CCB-owned inherited skills under `inherit_skills/` and helper scripts also follow the live source tree
 - Source installs do not participate in startup auto-update prompts
 - Stay on the source/dev track with `git pull` or by switching commits, then rerun `./install.sh install`
 - Or run `ccb update` to install the latest stable release and repoint global `ccb` links to the managed release install
@@ -320,6 +339,16 @@ Thanks to the [Linux.do community](https://linux.do) for testing, feedback, and 
 Historical note: older release notes below may mention `askd`, legacy flags, or removed commands. Those references are kept only as changelog history and do not redefine the current CLI surface.
 
 <details open>
+<summary><b>v6.2.1</b> - Inherited CCB Config Skill Release</summary>
+
+- Adds inherited Claude and Codex `ccb_config` skills for designing `.ccb/ccb.config`, choosing agent roles/providers/worktree layout, and updating shared plus per-agent memory.
+- Moves CCB-owned inherited skills under `inherit_skills/` while keeping optional `useful_tools/` user-installable rather than inherited.
+- Shortens injected ask reply guidance, removes nested-routing text from every ask body, keeps injected source text English-only, and expands explicit-output detection.
+- Simplifies project/runtime memory wording and updates `ccb_config` memory-routing examples for direct callback handoffs and separate root work packages.
+
+</details>
+
+<details>
 <summary><b>v6.2.0</b> - Callback Ask Chain Release</summary>
 
 - Adds `ccb ask --callback <agent>` so active agents can delegate work and receive the child result later as a continuation task.
@@ -981,7 +1010,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full details.
 
 - **Zombie Cleanup**: `ccb kill -f` now cleans up orphaned tmux sessions globally (sessions whose parent process has exited)
 - **Mounted Skill**: Optimized to use `pgrep` for daemon detection (~4x faster), extracted to standalone `ccb-mounted` script
-- **Droid Skills**: Added full skill set (cask/gask/lask/oask + ping/pend variants) to `droid_skills/`
+- **Droid Skills**: Added full skill set (cask/gask/lask/oask + ping/pend variants) to the provider skill assets
 - **Install**: Added `install_droid_skills()` to install Droid skills to `~/.droid/skills/`
 
 </details>
@@ -1110,7 +1139,7 @@ Highlights:
 ### v5.0.6
 - **Zombie Cleanup**: `ccb kill -f` cleans up orphaned tmux sessions globally
 - **Mounted Skill**: Optimized with `pgrep`, extracted to `ccb-mounted` script
-- **Droid Skills**: Full skill set added to `droid_skills/`
+- **Droid Skills**: Full skill set added to the provider skill assets
 
 ### v5.0.5
 - **Droid**: Add delegation tools (`ccb_ask_*` and `cask/gask/lask/oask`) plus `ccb droid setup-delegation` for MCP install

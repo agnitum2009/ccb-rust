@@ -63,7 +63,11 @@ def test_source_dev_install_links_live_bin_and_ask_skill_asset(tmp_path: Path) -
 
     ask_skill_md = tmp_path / "codex-home" / "skills" / "ask" / "SKILL.md"
     assert ask_skill_md.is_symlink()
-    assert ask_skill_md.resolve() == REPO_ROOT / "codex_skills" / "ask" / "SKILL.md"
+    assert ask_skill_md.resolve() == REPO_ROOT / "inherit_skills" / "codex_skills" / "ask" / "SKILL.md"
+
+    ccb_config_skill_md = tmp_path / "codex-home" / "skills" / "ccb_config" / "SKILL.md"
+    assert ccb_config_skill_md.is_symlink()
+    assert ccb_config_skill_md.resolve() == REPO_ROOT / "inherit_skills" / "codex_skills" / "ccb_config" / "SKILL.md"
 
     skills_dir = tmp_path / "codex-home" / "skills"
     assert not (skills_dir / "all-plan").exists()

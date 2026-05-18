@@ -1625,8 +1625,8 @@ def test_materialize_codex_home_config_writes_project_memory_bundle(tmp_path: Pa
     assert '# CCB Managed Agent Memory' in text
     assert 'provider: codex' in text
     assert '## CCB Runtime Coordination Rules' in text
-    assert 'submit-only handoff path' in text
-    assert 'do not wait for the reply or poll status' in text
+    assert 'CCB `ask` is submit-only' in text
+    assert 'Do not wait, poll, or run `pend`/`watch`/`ping`' in text
     assert text.index('## CCB Runtime Coordination Rules') < text.index('## CCB Shared Project Memory')
     assert '## Provider User Memory' in text
     assert 'user codex memory' in text

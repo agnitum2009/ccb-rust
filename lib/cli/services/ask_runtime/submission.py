@@ -9,27 +9,19 @@ from mailbox_runtime.targets import NON_AGENT_ACTORS, normalize_actor_name
 from .models import AskSummary
 
 _DEFAULT_REPLY_GUIDANCE = """CCB reply guidance:
-- Choose the shortest reply that still preserves the key information needed for this ask.
-- Keep conclusions, blockers, risks, evidence, and next actions when they are relevant.
-- For simple status checks, prefer a short status answer.
-- Avoid full logs, raw output, and broad background unless the ask explicitly requires them."""
-
-_NESTED_ASK_GUIDANCE = (
-    'CCB nested ask routing: inside an active CCB task, use `ask --callback` when a child result is needed, '
-    '`ask --silence` for independent no-result-needed work, and never plain nested `ask`.'
-)
+- Answer directly and concisely.
+- Include only relevant conclusions, blockers, risks, evidence, and next actions.
+- Avoid raw logs and background unless explicitly requested."""
 
 _COMPACT_REPLY_GUIDANCE = """CCB reply guidance:
-- Actively distill the reply while preserving the key information needed for this ask.
-- Decide the right compression level from the request context; do not use a fixed length target.
-- Lead with the answer and omit empty or report-style sections.
-- Keep blockers, decisions, risks, evidence, changed files, verification, and next actions only when they matter.
-- Avoid background, raw logs, and repeated context unless they are essential to understand the result."""
+- Distill aggressively and lead with the answer.
+- Keep only details needed for this ask.
+- Omit empty sections, raw logs, repeated context, and background unless essential."""
 
 _SILENT_REPLY_GUIDANCE = """CCB reply guidance:
-- The caller requested silent-on-success delivery.
-- Prefer the shortest useful success/failure status.
-- Include details only when they are needed to explain a failure, blocker, or required next action."""
+- Silent-on-success requested.
+- Reply with the shortest useful status.
+- Include details only for failures, blockers, or required next actions."""
 
 _GUIDANCE_MARKER = 'CCB reply guidance:'
 _EXPLICIT_OUTPUT_HINTS = (
@@ -40,23 +32,28 @@ _EXPLICIT_OUTPUT_HINTS = (
     'only reply',
     'reply only',
     'full report',
+    'full output',
     'detailed report',
+    'complete output',
+    'include everything',
+    'all details',
+    'leave nothing out',
     'verbatim',
     'do not summarize',
     'do not abbreviate',
-    '完整输出',
-    '不要总结',
-    '不要压缩',
-    '不要精简',
-    '不要省略',
-    '逐字返回',
-    '逐字',
-    '原样返回',
-    '保留原文',
-    '完整日志',
-    '完整报告',
-    '详细报告',
-    '全文',
+    '\u5b8c\u6574\u8f93\u51fa',
+    '\u4e0d\u8981\u603b\u7ed3',
+    '\u4e0d\u8981\u538b\u7f29',
+    '\u4e0d\u8981\u7cbe\u7b80',
+    '\u4e0d\u8981\u7701\u7565',
+    '\u9010\u5b57\u8fd4\u56de',
+    '\u9010\u5b57',
+    '\u539f\u6837\u8fd4\u56de',
+    '\u4fdd\u7559\u539f\u6587',
+    '\u5b8c\u6574\u65e5\u5fd7',
+    '\u5b8c\u6574\u62a5\u544a',
+    '\u8be6\u7ec6\u62a5\u544a',
+    '\u5168\u6587',
 )
 
 
@@ -123,7 +120,7 @@ def message_with_reply_guidance(
         guidance = _COMPACT_REPLY_GUIDANCE
     else:
         guidance = _DEFAULT_REPLY_GUIDANCE
-    return f'{str(message).rstrip()}\n\n{guidance}\n\n{_NESTED_ASK_GUIDANCE}'
+    return f'{str(message).rstrip()}\n\n{guidance}'
 
 
 def _has_explicit_output_guidance(message: str) -> bool:

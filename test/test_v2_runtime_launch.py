@@ -2590,7 +2590,7 @@ def test_claude_workspace_preparation_refreshes_managed_home_projection(monkeypa
     claude_memory_v1 = (managed_claude_dir / 'CLAUDE.md').read_text(encoding='utf-8')
     assert '# CCB Managed Agent Memory' in claude_memory_v1
     assert 'claude-md-v1' in claude_memory_v1
-    assert 'This project is managed by CCB as a visible multi-agent workspace.' in _project_memory_path(
+    assert 'This project uses CCB for visible multi-agent collaboration.' in _project_memory_path(
         project_root
     ).read_text(encoding='utf-8')
 
