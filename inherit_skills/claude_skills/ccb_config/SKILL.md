@@ -13,7 +13,7 @@ Use this skill to design and edit a CCB-managed project team. The usual output i
 2. Read the current `.ccb/ccb.config`, `.ccb/ccb_memory.md`, and relevant `.ccb/agents/<agent>/memory.md` files before proposing changes.
 3. If the user's project goal and workflow are not already clear, ask a short clarification question before designing the team.
 4. After the basic workflow is clear, propose one complete config with sensible defaults and ask for confirmation or adjustments.
-5. Prefer compact or hybrid config. Use rich TOML only when compact/hybrid cannot express the requested behavior.
+5. Prefer compact or hybrid config for single-window teams. Use rich TOML `windows` topology when the user wants named tmux windows, sidebar tuning, or agents spread across windows.
 6. Edit only user-authored authority files:
    - `.ccb/ccb.config`
    - `.ccb/ccb_memory.md`
@@ -89,7 +89,7 @@ Only ask additional questions when a safe default does not exist, for example:
 
 ## Defaults
 
-- Keep `cmd` enabled unless the user explicitly disables it.
+- Keep `cmd` enabled in compact/hybrid config unless the user explicitly disables it. Do not include `cmd` in rich `windows` topology; users can create manual shell panes outside CCB.
 - Use `main` as the coordinator for planning, progress, and delegation.
 - Use one worker for small projects or serial workflows.
 - Use 3 implementation workers when the user wants parallel execution but does not specify a worker count.
@@ -110,6 +110,9 @@ Key points:
 - `;` creates horizontal columns from left to right.
 - `,` creates vertical rows within a column from top to bottom.
 - In compact/hybrid config, the first compact block owns layout, default agents, cmd, provider, and workspace mode.
+- Rich `windows` topology owns named managed tmux windows, `entry_window`, and optional `ui.sidebar` settings. Do not mix `windows` with `layout`, `cmd_enabled`, or `default_agents`.
+- In `windows` topology, every leaf must still be `agent:provider` or `agent:provider(worktree)`, every agent appears in exactly one window, and `cmd` is not supported.
+- Sidebar settings are available only with `windows` topology. `ui.sidebar.mode` is `every_window` or `off`, `width` is a positive integer or percentage string, and `bottom_height` is a non-negative integer.
 - Hybrid TOML overlay may only add fields for agents already declared in the compact header and must not redefine `provider` or `workspace_mode`.
 - `agent:provider(worktree)` maps to `workspace_mode = "git-worktree"`.
 - `git-worktree` requires the project root to be a git repository; CCB must not silently fall back to copying.
@@ -166,8 +169,9 @@ After editing `~/.ccb/ccb.config` as the user-level default, validate from a tem
 Also check:
 
 - agent names are valid and not reserved;
-- every configured default agent appears exactly once in the layout;
-- `cmd` is first when enabled;
+- every configured default agent appears exactly once in compact/hybrid layout, or every configured agent appears exactly once across `windows`;
+- `cmd` is first when enabled in compact/hybrid config, and absent from rich `windows` topology;
+- `entry_window`, when present, references an existing configured window;
 - compact/hybrid worktree markers are present on the compact line, not in overlay;
 - validation reports the intended `source_kind` and a non-empty `source_path`;
 - no secrets were added unless the user explicitly provided them;

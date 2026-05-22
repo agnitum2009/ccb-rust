@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.3.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.0.0-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 **English** | [Chinese](README_zh.md)
@@ -74,9 +74,9 @@ Build project-local teams with roles, pane layout, provider state, worktree isol
 <details>
 <summary><b>Latest release highlights</b></summary>
 
-- **Callback roots show the real final reply**: delegated callback root jobs report `callback_pending` while the child chain is running, then `ask get` and `watch` show the final message-bureau reply after continuation.
-- **Observer commands are diagnostics-only**: ask skills and help surfaces now state that `ask get`, `pend`, `watch`, and `ping` are explicit debugging tools, not normal ask workflow steps.
-- **Long CCB text is artifact-backed**: oversized ask bodies, terminal replies, notices, and callback continuation text are stored as bounded UTF-8 artifacts with previews and diagnostics bundle coverage.
+- **Native project sidebar**: managed tmux windows now get a CCB-native sidebar with window/agent status, stable cross-window focus, mouse navigation, and comms recovery actions.
+- **Window topology config**: `.ccb/ccb.config` can define named managed windows plus sidebar settings, while missing config still falls back to the built-in three-agent `main` layout.
+- **Release-ready helper packaging**: official artifacts embed the real `ccb-agent-sidebar` binary so normal installs do not depend on a local Rust toolchain.
 
 See [Release Notes](#release-notes) for the full history.
 
@@ -117,7 +117,7 @@ Invoke it from a supported provider skill surface, for example:
 $ccb_config Design a team for a Python library with one coordinator, two worktree implementation agents, and one reviewer.
 ```
 
-The skill helps choose agent names, providers, `inplace` versus `git-worktree`, compact layout syntax, and whether role instructions belong in shared or per-agent memory. It validates which config layer is active and tells you to restart CCB after file changes are complete.
+The skill helps choose agent names, providers, `inplace` versus `git-worktree`, compact layout syntax or named window/sidebar topology, and whether role instructions belong in shared or per-agent memory. It validates which config layer is active and tells you to restart CCB after file changes are complete.
 
 </details>
 
@@ -338,12 +338,13 @@ Thanks to the [Linux.do community](https://linux.do) for testing, feedback, and 
 Historical note: older release notes below may mention `askd`, legacy flags, or removed commands. Those references are kept only as changelog history and do not redefine the current CLI surface.
 
 <details open>
-<summary><b>v6.3.0</b> - Native Sidebar Control Release</summary>
+<summary><b>v7.0.0</b> - Native Sidebar Control Release</summary>
 
 - Adds the native Rust `ccb-agent-sidebar` helper with per-window project view, fixed gray sidebar identity, colored agent status symbols, and mouse/keyboard focus switching.
 - Adds window/sidebar topology support while keeping the default no-config layout as one `main` window with `agent1`, `agent2`, and `agent3`.
 - Adds comms retry, cancel, and clear actions through ccbd-owned RPCs, with recoverability metadata in `project_view`.
 - Carries tmux window names and ids through runtime attach, startup results, `ps`, project view, and pane identity for stable cross-window focus.
+- Builds and embeds the real sidebar helper in release artifacts and blocks comms recovery while ccbd is stopping.
 
 </details>
 

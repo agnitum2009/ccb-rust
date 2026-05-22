@@ -12,6 +12,10 @@ if [[ ! -x "$SOURCE_BIN" ]]; then
   echo "ERROR: missing executable $SOURCE_BIN" >&2
   exit 1
 fi
+if grep -q 'CCB_AGENT_SIDEBAR_WRAPPER' "$SOURCE_BIN" 2>/dev/null; then
+  echo "ERROR: $SOURCE_BIN is the source wrapper; run bin/build-ccb-agent-sidebar first" >&2
+  exit 1
+fi
 
 rm -rf "$STAGE_DIR" "$OUT_TAR" "$OUT_SHA"
 mkdir -p "$STAGE_DIR/bin"

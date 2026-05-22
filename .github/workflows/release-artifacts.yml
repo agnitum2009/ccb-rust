@@ -6,7 +6,7 @@ on:
       tag:
         description: "Release tag to build and upload"
         required: true
-        default: "v6.1.2"
+        default: "v7.0.0"
   push:
     tags:
       - "v*"
@@ -45,6 +45,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build release artifact
         shell: bash

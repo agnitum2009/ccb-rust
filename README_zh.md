@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-6.3.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.0.0-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -74,9 +74,9 @@
 <details>
 <summary><b>最新版本亮点</b></summary>
 
-- **Callback root 能看到最终回复**：委派式 callback root job 等待子链路时显示 `callback_pending`，continuation 完成后 `ask get` 和 `watch` 会显示最终 message-bureau reply。
-- **Observer 命令仅用于诊断**：ask skill 和帮助界面会明确 `ask get`、`pend`、`watch`、`ping` 是调试工具，不是普通 ask 工作流步骤。
-- **长文本改为 artifact 支撑**：超长 ask body、终态回复、notice 和 callback continuation 文本会保存为有预览的 UTF-8 artifact，并进入诊断 bundle。
+- **原生项目侧边栏**：managed tmux window 会自动带上 CCB 原生 sidebar，显示 window/agent 状态、跨 window focus、鼠标导航和 comms 恢复操作。
+- **Window topology 配置**：`.ccb/ccb.config` 可以定义命名 managed windows 和 sidebar 设置；没有配置时仍回退到内置三个 agent 的 `main` 布局。
+- **发布包内置 helper**：正式 release artifact 会嵌入真实 `ccb-agent-sidebar` 二进制，普通安装不依赖本机 Rust toolchain。
 
 完整历史见 [新版本记录](#新版本记录)。
 
@@ -117,7 +117,7 @@ tmux 复制粘贴：鼠标左键拖拽即可复制，`Ctrl+Shift+V` 粘贴。
 $ccb_config 为一个 Python library 设计团队：一个 coordinator、两个 worktree 实现 agent、一个 reviewer。
 ```
 
-这个 skill 会帮助选择 agent 名称、provider、`inplace` / `git-worktree`、compact layout 语法，以及哪些说明应写入共享记忆或 per-agent memory。它会验证当前生效的配置层，并在文件修改完成后提醒你重启 CCB。
+这个 skill 会帮助选择 agent 名称、provider、`inplace` / `git-worktree`、compact layout 语法或命名 window/sidebar topology，以及哪些说明应写入共享记忆或 per-agent memory。它会验证当前生效的配置层，并在文件修改完成后提醒你重启 CCB。
 
 </details>
 
@@ -329,12 +329,13 @@ ccb reinstall
 历史说明：下面较旧的发布记录里仍可能出现 `askd`、旧 flag 或已移除命令。这些内容仅作为 changelog 历史保留，不代表当前 CLI 入口。
 
 <details open>
-<summary><b>v6.3.0</b> - Native Sidebar Control Release</summary>
+<summary><b>v7.0.0</b> - Native Sidebar Control Release</summary>
 
 - 新增 Rust `ccb-agent-sidebar` 原生侧边栏 helper，支持每个 window 的 project view、固定灰色侧边栏身份、彩色 agent 状态符号，以及鼠标/键盘 focus 切换。
 - 新增 window/sidebar topology 支持，同时保留无配置时默认一个 `main` window，包含 `agent1`、`agent2`、`agent3`。
 - 新增 comms retry、cancel、clear 操作，统一通过 ccbd RPC 执行，并在 `project_view` 中提供可恢复状态元数据。
 - runtime attach、startup results、`ps`、project view、pane identity 现在携带 tmux window name/id，让跨 window focus 更稳定。
+- release artifact 现在会构建并嵌入真实 sidebar helper，并在 ccbd stopping 阶段拒绝 comms recovery。
 
 </details>
 

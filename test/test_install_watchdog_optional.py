@@ -230,7 +230,15 @@ def test_release_managed_venv_wraps_installed_python_entrypoints(tmp_path: Path)
         PY
         cp "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/autonew"
         cp "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/ctx-transfer"
-        chmod +x "$CODEX_INSTALL_PREFIX/ccb" "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/autonew" "$CODEX_INSTALL_PREFIX/bin/ctx-transfer"
+        cat > "$CODEX_INSTALL_PREFIX/bin/build-ccb-agent-sidebar" <<'SH'
+        #!/usr/bin/env bash
+        echo build-sidebar
+        SH
+        cat > "$CODEX_INSTALL_PREFIX/bin/ccb-agent-sidebar" <<'SH'
+        #!/usr/bin/env bash
+        echo sidebar
+        SH
+        chmod +x "$CODEX_INSTALL_PREFIX/ccb" "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/autonew" "$CODEX_INSTALL_PREFIX/bin/ctx-transfer" "$CODEX_INSTALL_PREFIX/bin/build-ccb-agent-sidebar" "$CODEX_INSTALL_PREFIX/bin/ccb-agent-sidebar"
         CCB_SOURCE_KIND=release
         CCB_USE_MANAGED_VENV=1
         CCB_INSTALL_WATCHDOG=0
@@ -272,7 +280,15 @@ def test_release_managed_venv_wrapper_uses_absolute_target_path(tmp_path: Path) 
         PY
         cp "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/autonew"
         cp "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/ctx-transfer"
-        chmod +x "$CODEX_INSTALL_PREFIX/ccb" "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/autonew" "$CODEX_INSTALL_PREFIX/bin/ctx-transfer"
+        cat > "$CODEX_INSTALL_PREFIX/bin/build-ccb-agent-sidebar" <<'SH'
+        #!/usr/bin/env bash
+        echo build-sidebar
+        SH
+        cat > "$CODEX_INSTALL_PREFIX/bin/ccb-agent-sidebar" <<'SH'
+        #!/usr/bin/env bash
+        echo sidebar
+        SH
+        chmod +x "$CODEX_INSTALL_PREFIX/ccb" "$CODEX_INSTALL_PREFIX/bin/ask" "$CODEX_INSTALL_PREFIX/bin/autonew" "$CODEX_INSTALL_PREFIX/bin/ctx-transfer" "$CODEX_INSTALL_PREFIX/bin/build-ccb-agent-sidebar" "$CODEX_INSTALL_PREFIX/bin/ccb-agent-sidebar"
         CCB_SOURCE_KIND=release
         CCB_USE_MANAGED_VENV=1
         CCB_INSTALL_WATCHDOG=0

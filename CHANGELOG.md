@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## v6.3.0 (2026-05-22)
+## v7.0.0 (2026-05-22)
 
 ### Native Sidebar Control Release
 
@@ -11,6 +11,7 @@
 - **Comms Recovery Added**: the sidebar and ccbd now expose comms retry, cancel, and clear flows through ccbd-owned RPCs with project-view recoverability metadata and shared dismissed-row state.
 - **Window-Aware Runtime Metadata Added**: runtime attach, startup results, `ps`, project view, and tmux identity now carry window names/ids so focus and sidebar state remain stable across tmux windows.
 - **Reset History Inheritance Added**: `ccb -n` now clears runtime/mail/pane residue while preserving `.ccb/ccb.config`, project memory, and same-name managed provider-state/session history.
+- **Release Packaging Hardened**: release artifacts now build and embed the real `ccb-agent-sidebar` helper instead of shipping the source wrapper, and comms recovery is rejected while ccbd is stopping.
 
 ## v6.2.9 (2026-05-22)
 

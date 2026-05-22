@@ -89,6 +89,8 @@ def test_ccbd_client_dynamic_attach_endpoint_builds_payload(monkeypatch, tmp_pat
                 'pane_title_marker': None,
                 'pane_state': None,
                 'tmux_socket_name': None,
+                'tmux_window_name': None,
+                'tmux_window_id': None,
                 'session_file': None,
                 'session_id': None,
                 'lifecycle_state': None,

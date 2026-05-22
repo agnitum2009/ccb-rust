@@ -60,6 +60,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install pytest
         run: |
           python -m pip install --upgrade pip
@@ -111,6 +114,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install pytest
         run: |

@@ -104,7 +104,36 @@ Hybrid overlay rules:
 
 ## Rich TOML
 
-Use rich TOML only when compact/hybrid cannot express the request, for example explicit `workspace_mode = "copy"`:
+Use rich TOML when compact/hybrid cannot express the request, especially named managed windows, sidebar settings, or explicit `workspace_mode = "copy"`.
+
+Named windows topology:
+
+```toml
+version = 2
+entry_window = "main"
+
+[ui.sidebar]
+mode = "every_window"
+width = "15%"
+bottom_height = 20
+
+[windows]
+main = "main:codex, reviewer:claude"
+build = "worker1:codex(worktree), worker2:codex(worktree)"
+```
+
+Rules for `windows` topology:
+
+- `windows` keys are managed tmux window names.
+- window values use the same layout operators and `agent:provider` leaves as compact config.
+- `cmd` is not supported inside `windows`; manual shell panes are outside CCB config and are not shown in the sidebar.
+- Do not set `layout`, `cmd_enabled`, or `default_agents` together with `windows`.
+- every configured agent must appear in exactly one window.
+- `entry_window` is optional and defaults to the first configured window.
+- `[ui.sidebar]` is optional and defaults to `mode = "every_window"`, `width = "15%"`, `bottom_height = 20`.
+- set `mode = "off"` to disable projected sidebar panes.
+
+Classic rich TOML with top-level `layout` is still available for fields that compact/hybrid cannot express, for example explicit `workspace_mode = "copy"`:
 
 ```toml
 version = 2

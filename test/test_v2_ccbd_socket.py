@@ -673,6 +673,9 @@ def test_ccbd_socket_rejects_mutating_requests_while_lifecycle_stopping(tmp_path
             )
         )
 
+    with pytest.raises(CcbdClientError, match='lifecycle_stopping'):
+        client.comms_recover('job-stuck')
+
     client.shutdown()
     thread.join(timeout=2)
     assert not thread.is_alive()

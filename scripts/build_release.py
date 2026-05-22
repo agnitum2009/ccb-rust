@@ -84,6 +84,7 @@ def main_for_target(target_platform: str) -> int:
         allow_dirty=args.allow_dirty,
         generated_paths=(output_dir, stage_root, artifact_path, sha_path),
     )
+    build_sidebar_helper_for_release(artifact_root)
     patch_ccb_metadata(artifact_root / "ccb", version=version, commit=commit, date=commit_date)
 
     build_info = {
@@ -259,6 +260,31 @@ def export_release_tree(
     copy_repo_tree(repo_root, destination, generated_paths=generated_paths)
 
 
+def build_sidebar_helper_for_release(artifact_root: Path) -> None:
+    crate_dir = artifact_root / "tools" / "ccb-agent-sidebar"
+    source_bin = crate_dir / "target" / "release" / "ccb-agent-sidebar"
+    output_bin = artifact_root / "bin" / "ccb-agent-sidebar"
+    if not (crate_dir / "Cargo.toml").is_file():
+        return
+    result = subprocess.run(
+        ["cargo", "build", "--release", "--manifest-path", str(crate_dir / "Cargo.toml")],
+        cwd=artifact_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"failed to build ccb-agent-sidebar for release: {details or result.returncode}")
+    if not source_bin.is_file():
+        raise RuntimeError(f"sidebar build did not produce expected binary: {source_bin}")
+    output_bin.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_bin, output_bin)
+    output_bin.chmod(0o755)
+    shutil.rmtree(crate_dir / "target", ignore_errors=True)
+
+
 def is_git_checkout(repo_root: Path) -> bool:
     return (repo_root / ".git").exists()
 
@@ -386,6 +412,7 @@ def utc_now() -> str:
 __all__ = [
     "DEFAULT_OUTPUT_DIR",
     "EXCLUDES",
+    "build_sidebar_helper_for_release",
     "copy_repo_tree",
     "create_tarball",
     "dirty_worktree_entries",

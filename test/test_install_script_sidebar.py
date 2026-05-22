@@ -37,6 +37,7 @@ def test_sidebar_package_script_stages_release_artifact() -> None:
 
     assert 'ARTIFACT_NAME="${CCB_AGENT_SIDEBAR_ARTIFACT_NAME:-ccb-agent-sidebar-linux-x86_64}"' in text
     assert 'STAGE_DIR="$REPO_ROOT/dist/$ARTIFACT_NAME"' in text
+    assert 'CCB_AGENT_SIDEBAR_WRAPPER' in text
     assert 'tar -C "$REPO_ROOT/dist" -czf "$OUT_TAR" "$ARTIFACT_NAME"' in text
     assert 'sha256sum "$OUT_TAR" > "$OUT_SHA"' in text
 
@@ -131,6 +132,31 @@ def test_sidebar_package_script_executes_artifact_dry_run(tmp_path: Path) -> Non
     )
     assert listing.returncode == 0, listing.stderr
     assert 'ccb-agent-sidebar-linux-x86_64/bin/ccb-agent-sidebar' in listing.stdout
+
+
+def test_sidebar_package_script_rejects_source_wrapper(tmp_path: Path) -> None:
+    repo = tmp_path / 'repo'
+    bin_dir = repo / 'bin'
+    bin_dir.mkdir(parents=True)
+    source_bin = bin_dir / 'ccb-agent-sidebar'
+    source_bin.write_text('#!/usr/bin/env bash\n# CCB_AGENT_SIDEBAR_WRAPPER\n', encoding='utf-8')
+    source_bin.chmod(0o755)
+    script = bin_dir / 'package-ccb-agent-sidebar-release'
+    script.write_text(Path('bin/package-ccb-agent-sidebar-release').read_text(encoding='utf-8'), encoding='utf-8')
+    script.chmod(0o755)
+
+    proc = subprocess.run(
+        [str(script)],
+        cwd=repo,
+        env={**os.environ, 'PATH': '/usr/bin:/bin'},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode != 0
+    assert 'source wrapper' in proc.stderr
 
 
 def test_install_script_prefers_prebuilt_sidebar_binary(tmp_path: Path) -> None:

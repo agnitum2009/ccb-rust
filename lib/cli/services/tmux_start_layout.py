@@ -23,6 +23,7 @@ def prepare_tmux_start_layout(
     tmux_backend=None,
     root_pane_id: str | None = None,
     layout_plan: ProjectLayoutPlan | None = None,
+    window_name: str | None = None,
 ) -> TmuxStartLayout:
     if not targets:
         return TmuxStartLayout(cmd_pane_id=None, agent_panes={})
@@ -47,6 +48,7 @@ def prepare_tmux_start_layout(
                 project_id=context.project.project_id,
                 is_cmd=True,
                 slot_key='cmd',
+                window_name=window_name,
             )
             return
         agent_panes[item] = pane_id
@@ -58,6 +60,7 @@ def prepare_tmux_start_layout(
             project_id=context.project.project_id,
             order_index=style_index_by_agent[item],
             slot_key=item,
+            window_name=window_name,
         )
 
     _materialize_layout(
@@ -125,6 +128,7 @@ def _label_pane(
     order_index: int | None = None,
     is_cmd: bool = False,
     slot_key: str | None = None,
+    window_name: str | None = None,
 ) -> None:
     apply_ccb_pane_identity(
         backend,
@@ -135,6 +139,7 @@ def _label_pane(
         order_index=order_index,
         is_cmd=is_cmd,
         slot_key=slot_key,
+        window_name=window_name,
     )
 
 

@@ -7,7 +7,7 @@ from provider_backends.pane_log_support.session import compute_session_key_for_p
 
 from .model import CodexProjectSession
 from .pathing import find_project_session_file, read_json, write_back
-from .follow_policy import codex_home_path, codex_session_root_path
+from .follow_policy import codex_session_root_path
 
 
 def load_project_session(work_dir: Path, instance: str | None = None) -> CodexProjectSession | None:
@@ -32,7 +32,7 @@ def _migrate_legacy_codex_layout(data: dict[str, object]) -> bool:
     session_root = codex_session_root_path(data)
     if session_root is None:
         return False
-    codex_home = codex_home_path(data)
+    codex_home = _normalize_path(data.get("codex_home"))
     target_home = _target_home_for_layout(codex_home=codex_home, session_root=session_root)
     target_root = target_home / "sessions"
     _migrate_root_tree(session_root, target_root)
