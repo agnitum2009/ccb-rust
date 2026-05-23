@@ -10,6 +10,7 @@ from ccbd.models import MountState
 from ccbd.project_focus.tmux import backend_for_namespace
 from ccbd.services.dispatcher_runtime import comms_recoverability_for_job
 from ccbd.system import parse_utc_timestamp, utc_now
+from message_bureau import CallbackEdgeState
 
 from .activity import (
     AgentActivityFacts,
@@ -83,6 +84,7 @@ def build_project_view(deps: ProjectViewDependencies, *, generated_at: str) -> d
     window_by_agent = _window_by_agent(deps.config)
     active_jobs = _active_jobs_by_agent(deps.dispatcher)
     queued_jobs = _queued_jobs_by_agent(deps.dispatcher)
+    callback_waits = _callback_waits_by_parent_agent(deps.dispatcher)
 
     agents = [
         _agent_view(
@@ -94,6 +96,9 @@ def build_project_view(deps: ProjectViewDependencies, *, generated_at: str) -> d
             generated_at=generated_at,
             active=focus.get('active_agent') == agent_name,
             namespace=namespace,
+            active_job=active_jobs.get(agent_name),
+            queued_jobs=queued_jobs.get(agent_name, ()),
+            callback_wait=callback_waits.get(agent_name),
         )
         for order, agent_name in enumerate(_agent_order(deps.config))
     ]
@@ -129,10 +134,16 @@ def _agent_view(
     namespace_mounted: bool,
     generated_at: str,
     namespace,
+    active_job,
+    queued_jobs: tuple,
+    callback_wait,
     active: bool = False,
 ) -> dict[str, object]:
     spec = deps.config.agents[agent_name]
     runtime = deps.registry.get(agent_name)
+    job = _top_activity_job(active_job=active_job, queued_jobs=queued_jobs)
+    queue_depth = len(queued_jobs) + (1 if _is_top_activity_job(active_job) else 0)
+    callback_child_agent = _callback_child_agent(callback_wait)
     activity = resolve_agent_activity(
         AgentActivityFacts(
             namespace_mounted=namespace_mounted,
@@ -147,6 +158,14 @@ def _agent_view(
                 namespace=namespace,
                 pane_id=getattr(runtime, 'pane_id', None) if runtime is not None else None,
             ),
+            current_job_status=job.status.value if job is not None else None,
+            current_job_id=job.job_id if job is not None else None,
+            current_job_updated_at=job.updated_at if job is not None else None,
+            queue_depth=queue_depth,
+            callback_waiting_state=callback_wait.state.value if callback_wait is not None else None,
+            callback_child_job_id=callback_wait.child_job_id if callback_wait is not None else None,
+            callback_child_agent=callback_child_agent,
+            callback_updated_at=callback_wait.updated_at if callback_wait is not None else None,
         ),
         now=generated_at,
     )
@@ -157,13 +176,54 @@ def _agent_view(
         'order': order,
         'pane_id': getattr(runtime, 'pane_id', None) if runtime is not None else None,
         'active': bool(active),
+        'queue_depth': queue_depth,
         **activity.to_record(),
+        'callback_waiting_child_job_id': callback_wait.child_job_id if callback_wait is not None else None,
+        'callback_waiting_child_agent': callback_child_agent,
+        'callback_waiting_state': callback_wait.state.value if callback_wait is not None else None,
         'runtime_state': _runtime_state(runtime),
         'runtime_health': getattr(runtime, 'health', None) if runtime is not None else None,
         'reconcile_state': getattr(runtime, 'reconcile_state', None) if runtime is not None else None,
         'workspace_path': getattr(runtime, 'workspace_path', None) if runtime is not None else None,
     }
     return record
+
+
+def _top_activity_job(*, active_job, queued_jobs: tuple):
+    if _is_top_activity_job(active_job):
+        return active_job
+    for job in queued_jobs:
+        if _is_top_activity_job(job):
+            return job
+    return None
+
+
+def _is_top_activity_job(job) -> bool:
+    return job is not None and job.status in {JobStatus.ACCEPTED, JobStatus.QUEUED, JobStatus.RUNNING}
+
+
+def _callback_waits_by_parent_agent(dispatcher) -> dict[str, object]:
+    bureau = getattr(dispatcher, '_message_bureau', None)
+    if bureau is None:
+        return {}
+    result: dict[str, object] = {}
+    for edge in bureau.pending_callback_edges():
+        if edge.state not in {CallbackEdgeState.PENDING, CallbackEdgeState.CHILD_COMPLETED}:
+            continue
+        parent_agent = str(edge.parent_agent or '').strip()
+        if not parent_agent:
+            continue
+        current = result.get(parent_agent)
+        if current is None or str(edge.updated_at or '') >= str(getattr(current, 'updated_at', '') or ''):
+            result[parent_agent] = edge
+    return result
+
+
+def _callback_child_agent(edge) -> str | None:
+    if edge is None:
+        return None
+    value = str((edge.diagnostics or {}).get('child_agent') or '').strip()
+    return value or None
 
 
 def _ccbd_view(lease) -> dict[str, object]:

@@ -2,7 +2,13 @@
 set -euo pipefail
 
 # CCB_AGENT_SIDEBAR_WRAPPER
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" == /* ]] || SOURCE="$DIR/$SOURCE"
+done
+REPO_ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 TARGET_BIN="$REPO_ROOT/tools/ccb-agent-sidebar/target/release/ccb-agent-sidebar"
 
 if [[ -x "$TARGET_BIN" ]]; then

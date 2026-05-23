@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-7.0.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.0.2-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 **English** | [Chinese](README_zh.md)
@@ -74,9 +74,10 @@ Build project-local teams with roles, pane layout, provider state, worktree isol
 <details>
 <summary><b>Latest release highlights</b></summary>
 
-- **Sidebar release packaging hotfix**: sidebar artifact checksums now work on Linux and macOS by falling back from `sha256sum` to `shasum -a 256` or `python3`.
-- **Native project sidebar**: top agent rows reflect real provider pane/runtime activity, while the bottom Comms section stays focused on CCB ask/job tracking and recovery.
-- **Window topology config**: `version = 2` `[windows]` configs mount multiple named tmux windows with sidebars, while legacy compact/hybrid configs remain one business window and keep `cmd` semantics.
+- **Codex trust prompt fixed**: managed Codex homes now trust the project root and active workspace path, and auto-permission startup uses Codex native approval/sandbox flags.
+- **Sidebar binaries run on older Linux hosts**: Linux release and standalone sidebar assets are built on Ubuntu 22.04, avoiding the newer glibc dependency that broke some v7.0.1 installs.
+- **Sidebar install recovery hardened**: installers verify existing/prebuilt `ccb-agent-sidebar` with a smoke test, rebuild locally when needed, and source wrappers resolve symlinks correctly.
+- **Sidebar activity refined**: top agent rows now better distinguish queued/running/stale jobs, callback waits, and provider background terminal activity.
 
 See [Release Notes](#release-notes) for the full history.
 
@@ -352,6 +353,17 @@ Thanks to the [Linux.do community](https://linux.do) for testing, feedback, and 
 Historical note: older release notes below may mention `askd`, legacy flags, or removed commands. Those references are kept only as changelog history and do not redefine the current CLI surface.
 
 <details open>
+<summary><b>v7.0.2</b> - Codex Trust And Sidebar Compatibility Hotfix</summary>
+
+- Fixes Codex managed home directory-trust prompts by writing trusted project/workspace entries and using native auto-permission flags.
+- Builds Linux release/sidebar helper assets on Ubuntu 22.04 for broader glibc compatibility.
+- Verifies and rebuilds `ccb-agent-sidebar` during install when an existing or prebuilt helper cannot run on the host.
+- Resolves source sidebar wrapper symlinks before locating the repo target binary.
+- Refines sidebar activity and width handling for active jobs, callback waits, provider background work, and multi-agent grids.
+
+</details>
+
+<details>
 <summary><b>v7.0.1</b> - Sidebar Release Packaging Hotfix</summary>
 
 - Fixes sidebar artifact checksum generation on macOS by using `sha256sum`, `shasum -a 256`, or `python3`, restoring GitHub Tests for the v7 release line.

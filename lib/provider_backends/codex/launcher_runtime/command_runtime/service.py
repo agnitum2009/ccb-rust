@@ -88,12 +88,10 @@ def _codex_args(command, spec, runtime_dir: Path, *, profile, provider_start_par
     if command.auto_permission:
         codex_args.extend(
             [
-                '-c',
-                'trust_level="trusted"',
-                '-c',
-                'approval_policy="never"',
-                '-c',
-                'sandbox_mode="danger-full-access"',
+                '--ask-for-approval',
+                'never',
+                '--sandbox',
+                'danger-full-access',
             ]
         )
     codex_args.extend(spec.startup_args)

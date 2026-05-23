@@ -30,6 +30,8 @@ from ccbd.services.mount import MountManager
 from ccbd.services.project_namespace import ProjectNamespaceController
 from ccbd.services.project_namespace_state import ProjectNamespaceState, ProjectNamespaceStateStore
 from ccbd.services.registry import AgentRegistry
+from completion.models import CompletionConfidence, CompletionDecision, CompletionStatus
+from message_bureau import CallbackEdgeStore, CallbackEdgeState
 from message_bureau.models import AttemptRecord, AttemptState, ReplyRecord, ReplyTerminalStatus
 from project.ids import compute_project_id
 from storage.paths import PathLayout
@@ -253,6 +255,23 @@ def _record_reply_for_source(dispatcher: JobDispatcher, source: JobRecord, *, re
     )
 
 
+def _decision(*, reply: str = 'done', status: CompletionStatus = CompletionStatus.COMPLETED) -> CompletionDecision:
+    return CompletionDecision(
+        terminal=True,
+        status=status,
+        reason='task_complete' if status is CompletionStatus.COMPLETED else status.value,
+        confidence=CompletionConfidence.EXACT,
+        reply=reply,
+        anchor_seen=True,
+        reply_started=True,
+        reply_stable=True,
+        provider_turn_ref='turn-1',
+        source_cursor=None,
+        finished_at=NOW,
+        diagnostics={},
+    )
+
+
 def test_project_view_returns_minimal_windows_agents_and_comms(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo'
     project_root.mkdir()
@@ -301,9 +320,16 @@ def test_project_view_returns_minimal_windows_agents_and_comms(tmp_path: Path) -
     assert [window['name'] for window in view['windows']] == ['main', 'ops']
     assert view['windows'][0]['agents'] == ['agent1', 'agent2']
     assert [agent['name'] for agent in view['agents']] == ['agent1', 'agent2', 'agent3']
-    assert view['agents'][0]['activity_state'] == 'idle'
-    assert 'current_job_id' not in view['agents'][0]
-    assert view['agents'][2]['activity_state'] == 'idle'
+    assert view['agents'][0]['activity_state'] == 'active'
+    assert view['agents'][0]['activity_source'] == 'ccb_job'
+    assert view['agents'][0]['activity_reason'] == 'job_running'
+    assert view['agents'][0]['current_job_id'] == 'job_running_1234'
+    assert view['agents'][0]['queue_depth'] == 1
+    assert view['agents'][2]['activity_state'] == 'pending'
+    assert view['agents'][2]['activity_source'] == 'ccb_job'
+    assert view['agents'][2]['activity_reason'] == 'job_queued'
+    assert view['agents'][2]['current_job_id'] == 'job_queued_5678'
+    assert view['agents'][2]['queue_depth'] == 1
     assert [item['id'] for item in view['comms']] == ['job_running_1234', 'job_queued_5678']
     assert view['comms'][0]['sender'] == 'agent2'
     assert view['comms'][0]['target'] == 'agent1'
@@ -466,6 +492,80 @@ def test_project_view_terminal_comms_do_not_mark_agent_failed(tmp_path: Path) ->
     assert 'current_job_id' not in agent3
     assert view['comms'][0]['id'] == cancelled.job_id
     assert view['comms'][0]['status'] == 'cancelled'
+
+
+def test_project_view_marks_callback_parent_waiting_for_child(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-callback-waiting-agent'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config()
+    registry = AgentRegistry(layout, config)
+    for agent_name in config.agents:
+        registry.upsert(_runtime(agent_name, project_id=project_id))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    mount_manager.mark_mounted(project_id=project_id, pid=123, socket_path=layout.ccbd_socket_path, generation=1, started_at=NOW)
+    dispatcher = JobDispatcher(layout, config, registry, clock=lambda: NOW)
+
+    parent_job_id = dispatcher.submit(
+        MessageEnvelope(
+            project_id=project_id,
+            to_agent='agent1',
+            from_actor='user',
+            body='root task',
+            task_id='task-callback-wait',
+            reply_to=None,
+            message_type='ask',
+            delivery_scope=DeliveryScope.SINGLE,
+        )
+    ).jobs[0].job_id
+    dispatcher.tick()
+    child_job_id = dispatcher.submit(
+        MessageEnvelope(
+            project_id=project_id,
+            to_agent='agent2',
+            from_actor='agent1',
+            body='child task',
+            task_id='task-callback-wait',
+            reply_to=None,
+            message_type='ask',
+            delivery_scope=DeliveryScope.SINGLE,
+            route_options={'mode': 'callback'},
+        )
+    ).jobs[0].job_id
+    edge = CallbackEdgeStore(layout).get_latest_for_child_job(child_job_id)
+    assert edge is not None
+    assert edge.state is CallbackEdgeState.PENDING
+    dispatcher.tick()
+    dispatcher.complete(parent_job_id, _decision(reply='delegated to child'))
+
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=dispatcher,
+            clock=lambda: NOW,
+        )
+    )
+
+    view = service.build_response()['view']
+    agent1 = next(agent for agent in view['agents'] if agent['name'] == 'agent1')
+    agent2 = next(agent for agent in view['agents'] if agent['name'] == 'agent2')
+
+    assert agent1['activity_state'] == 'pending'
+    assert agent1['activity_source'] == 'callback'
+    assert agent1['activity_reason'] == 'callback_waiting_child'
+    assert agent1['callback_waiting_child_job_id'] == child_job_id
+    assert agent1['callback_waiting_child_agent'] == 'agent2'
+    assert agent1['callback_waiting_state'] == 'pending'
+    assert agent2['activity_state'] == 'active'
+    assert agent2['activity_source'] == 'ccb_job'
+    assert agent2['activity_reason'] == 'job_running'
+    assert agent2['current_job_id'] == child_job_id
 
 
 def test_project_view_comms_collapses_retry_attempts_by_message(tmp_path: Path) -> None:
@@ -854,7 +954,10 @@ def test_project_view_sequence_changes_when_content_changes(tmp_path: Path) -> N
     assert first['cache']['sequence'] == 1
     assert second['cache']['sequence'] == 2
     assert first['view']['agents'][0]['activity_state'] == 'idle'
-    assert second['view']['agents'][0]['activity_state'] == 'idle'
+    assert second['view']['agents'][0]['activity_state'] == 'active'
+    assert second['view']['agents'][0]['activity_source'] == 'ccb_job'
+    assert second['view']['agents'][0]['activity_reason'] == 'job_running'
+    assert second['view']['agents'][0]['current_job_id'] == 'job_running_1234'
     assert [item['id'] for item in second['view']['comms']] == ['job_running_1234']
 
 
@@ -1156,9 +1259,10 @@ def test_project_view_marks_running_job_idle_after_provider_prompt_reappears(tmp
     agent3 = next(agent for agent in view['agents'] if agent['name'] == 'agent3')
     comm = view['comms'][0]
 
-    assert agent3['activity_state'] == 'idle'
-    assert agent3['activity_source'] == 'pane_liveness'
-    assert agent3['activity_reason'] == 'pane_alive'
+    assert agent3['activity_state'] == 'pending'
+    assert agent3['activity_source'] == 'provider_prompt'
+    assert agent3['activity_reason'] == 'provider_prompt_idle'
+    assert agent3['current_job_id'] == job.job_id
     assert comm['id'] == job.job_id
     assert comm['business_status'] == 'blocked'
     assert comm['status_label'] == 'stuck'
@@ -1218,9 +1322,10 @@ def test_project_view_does_not_mark_fresh_running_prompt_idle_as_recoverable(tmp
     agent3 = next(agent for agent in view['agents'] if agent['name'] == 'agent3')
     comm = view['comms'][0]
 
-    assert agent3['activity_state'] == 'idle'
-    assert agent3['activity_source'] == 'pane_liveness'
-    assert agent3['activity_reason'] == 'pane_alive'
+    assert agent3['activity_state'] == 'active'
+    assert agent3['activity_source'] == 'ccb_job'
+    assert agent3['activity_reason'] == 'job_running'
+    assert agent3['current_job_id'] == job.job_id
     assert comm['id'] == job.job_id
     assert comm['business_status'] == 'replying'
     assert comm['status_label'] == 'work'
@@ -1301,31 +1406,47 @@ def test_activity_resolver_core_states() -> None:
             runtime_state='idle',
             pane_id='%1',
             pane_state='alive',
+            current_job_status='queued',
+            current_job_id='job_queued',
+            current_job_updated_at=NOW,
         ),
         now=NOW,
     )
-    assert queued.state == 'idle'
+    assert queued.state == 'pending'
+    assert queued.source == 'ccb_job'
+    assert queued.reason == 'job_queued'
+    assert queued.current_job_id == 'job_queued'
     running = resolve_agent_activity(
         AgentActivityFacts(
             namespace_mounted=True,
             runtime_state='idle',
             pane_id='%1',
             pane_state='alive',
+            current_job_status='running',
+            current_job_id='job_running',
+            current_job_updated_at=NOW,
         ),
         now=NOW,
     )
-    assert running.state == 'idle'
+    assert running.state == 'active'
+    assert running.source == 'ccb_job'
+    assert running.reason == 'job_running'
+    assert running.current_job_id == 'job_running'
     stale = resolve_agent_activity(
         AgentActivityFacts(
             namespace_mounted=True,
             runtime_state='idle',
             pane_id='%1',
             pane_state='alive',
+            current_job_status='running',
+            current_job_id='job_stale',
+            current_job_updated_at='2026-05-20T11:57:00Z',
         ),
         now=NOW,
     )
-    assert stale.state == 'idle'
-    assert stale.reason == 'pane_alive'
+    assert stale.state == 'pending'
+    assert stale.source == 'ccb_job'
+    assert stale.reason == 'job_running_stale'
     assert resolve_agent_activity(
         AgentActivityFacts(namespace_mounted=True, pane_id='%1', pane_state='missing', reconcile_state='recovering'),
         now=NOW,
@@ -1334,6 +1455,26 @@ def test_activity_resolver_core_states() -> None:
         AgentActivityFacts(namespace_mounted=True, pane_id='%1', pane_state='missing'),
         now=NOW,
     ).reason == 'pane_missing_unowned'
+
+
+def test_activity_resolver_ignores_terminal_job_status_for_top_activity() -> None:
+    activity = resolve_agent_activity(
+        AgentActivityFacts(
+            namespace_mounted=True,
+            runtime_state='idle',
+            pane_id='%1',
+            pane_state='alive',
+            current_job_status='failed',
+            current_job_id='job_failed',
+            current_job_updated_at=NOW,
+        ),
+        now=NOW,
+    )
+
+    assert activity.state == 'idle'
+    assert activity.source == 'pane_liveness'
+    assert activity.reason == 'pane_alive'
+    assert activity.current_job_id is None
 
 
 def test_activity_resolver_provider_prompt() -> None:
@@ -1431,6 +1572,7 @@ def test_activity_resolver_does_not_use_job_state_without_provider_working_signa
     )
 
     assert activity.state == 'idle'
+    assert activity.source == 'pane_liveness'
     assert activity.reason == 'pane_alive'
 
 
@@ -1492,6 +1634,29 @@ def test_activity_resolver_provider_working_pane() -> None:
             pane_id='%1',
             pane_state='alive',
             pane_text='Working (28s • esc to interrupt)',
+        ),
+        now=NOW,
+    )
+
+    assert activity.state == 'active'
+    assert activity.source == 'provider_pane'
+    assert activity.reason == 'provider_working'
+
+
+def test_activity_resolver_provider_background_terminal_running_after_prompt() -> None:
+    activity = resolve_agent_activity(
+        AgentActivityFacts(
+            namespace_mounted=True,
+            runtime_state='idle',
+            pane_id='%1',
+            pane_state='alive',
+            pane_text=(
+                '• Working (20s • esc to interrupt) · 1 background terminal running · /ps to view · /stop to close\n'
+                '\n'
+                '› Use /skills to list available skills\n'
+                '\n'
+                '  gpt-5.5 medium · ~/yunwei/test_ccb2\n'
+            ),
         ),
         now=NOW,
     )

@@ -1505,6 +1505,32 @@ is_sidebar_wrapper() {
   [[ -f "$path" ]] && grep -q 'CCB_AGENT_SIDEBAR_WRAPPER' "$path" 2>/dev/null
 }
 
+sidebar_helper_runs_on_this_host() {
+  local binary="$1"
+  [[ -x "$binary" ]] || return 1
+  "$binary" --help >/dev/null 2>&1
+  case "$?" in
+    0|2) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+install_prebuilt_sidebar_helper() {
+  local binary="$1"
+  local target="$2"
+  if ! sidebar_helper_runs_on_this_host "$binary"; then
+    return 1
+  fi
+  cp -f "$binary" "$target"
+  chmod +x "$target" 2>/dev/null || true
+  if ! sidebar_helper_runs_on_this_host "$target"; then
+    rm -f "$target"
+    return 1
+  fi
+  echo "Installed prebuilt ccb-agent-sidebar"
+  return 0
+}
+
 build_sidebar_helper_if_possible() {
   local asset_root crate_dir binary target
   asset_root="$(resolve_install_asset_root)"
@@ -1532,14 +1558,11 @@ build_sidebar_helper_if_possible() {
   fi
 
   mkdir -p "$asset_root/bin"
-  if [[ -x "$target" ]] && ! is_sidebar_wrapper "$target"; then
+  if [[ -x "$target" ]] && ! is_sidebar_wrapper "$target" && sidebar_helper_runs_on_this_host "$target"; then
     return
   fi
 
-  if [[ -x "$binary" ]]; then
-    cp -f "$binary" "$target"
-    chmod +x "$target" 2>/dev/null || true
-    echo "Installed prebuilt ccb-agent-sidebar"
+  if [[ -x "$binary" ]] && install_prebuilt_sidebar_helper "$binary" "$target"; then
     return
   fi
 
@@ -1548,8 +1571,11 @@ build_sidebar_helper_if_possible() {
     if cargo build --release --manifest-path "$crate_dir/Cargo.toml" >/dev/null 2>&1 && [[ -x "$binary" ]]; then
       cp -f "$binary" "$target"
       chmod +x "$target" 2>/dev/null || true
-      echo "Built ccb-agent-sidebar"
-      return
+      if sidebar_helper_runs_on_this_host "$target"; then
+        echo "Built ccb-agent-sidebar"
+        return
+      fi
+      rm -f "$target"
     fi
   fi
 

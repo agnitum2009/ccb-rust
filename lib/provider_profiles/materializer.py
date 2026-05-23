@@ -47,7 +47,6 @@ def materialize_provider_profile(
     spec: 'AgentSpec',
     workspace_path: Path,
 ) -> ResolvedProviderProfile:
-    del workspace_path
     validate_provider_runtime_home_policy(spec)
     runtime_dir = layout.agent_provider_runtime_dir(spec.name, spec.provider)
     runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -60,6 +59,7 @@ def materialize_provider_profile(
             spec=spec,
             profile_spec=profile_spec,
             profile_root=profile_root,
+            workspace_path=workspace_path,
         )
     elif spec.provider == 'claude':
         profile = _materialize_claude_profile(
@@ -155,6 +155,7 @@ def _materialize_codex_profile(
     spec: 'AgentSpec',
     profile_spec: ProviderProfileSpec,
     profile_root: Path,
+    workspace_path: Path,
 ) -> ResolvedProviderProfile:
     runtime_home = _effective_provider_runtime_home(layout=layout, spec=spec)
     if not _codex_profile_uses_explicit_runtime_home(profile_spec):
@@ -169,6 +170,8 @@ def _materialize_codex_profile(
     materialize_codex_home_config(
         runtime_home,
         profile=profile_spec,
+        project_root=layout.project_root,
+        workspace_path=workspace_path,
         shared_cache_root=layout.shared_cache_dir,
     )
 

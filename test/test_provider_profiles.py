@@ -173,6 +173,26 @@ def test_materialize_codex_profile_disables_external_migration_prompt(tmp_path: 
     assert 'external_migration = true' not in config_text
 
 
+def test_materialize_codex_profile_marks_project_and_workspace_trusted(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo'
+    workspace_path = tmp_path / 'repo-worktree'
+    source_home = tmp_path / 'system-codex-home'
+    source_home.mkdir(parents=True, exist_ok=True)
+    workspace_path.mkdir(parents=True, exist_ok=True)
+    (source_home / 'config.toml').write_text('model = "gpt-5.5"\n', encoding='utf-8')
+    monkeypatch.setenv('CODEX_HOME', str(source_home))
+
+    profile = materialize_provider_profile(
+        layout=PathLayout(project_root),
+        spec=_spec('agent1', provider_profile=ProviderProfileSpec(mode='isolated')),
+        workspace_path=workspace_path,
+    )
+
+    config = tomllib.loads((Path(profile.runtime_home or '') / 'config.toml').read_text(encoding='utf-8'))
+    assert config['projects'][str(project_root.resolve())]['trust_level'] == 'trusted'
+    assert config['projects'][str(workspace_path.resolve())]['trust_level'] == 'trusted'
+
+
 def test_materialize_codex_profile_preserves_inline_table_arrays(
     tmp_path: Path,
     monkeypatch,
@@ -279,6 +299,7 @@ def test_materialize_codex_profile_disables_external_migration_without_toml_read
     assert 'external_migration = true' not in config_text
     assert '[projects."/tmp/demo"]' in config_text
     assert 'trust_level = "trusted"' in config_text
+    assert f'[projects."{project_root.resolve()}"]' in config_text
 
 
 def test_materialize_codex_profile_merges_final_features_without_toml_reader(

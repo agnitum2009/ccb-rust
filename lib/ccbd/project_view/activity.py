@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ccbd.system import parse_utc_timestamp
+
 ACTIVITY_ACTIVE = 'active'
 ACTIVITY_PENDING = 'pending'
 ACTIVITY_IDLE = 'idle'
@@ -28,9 +30,16 @@ _PROVIDER_ACTIVE_MARKERS = (
     'running...',
     'running…',
 )
+_PROVIDER_BACKGROUND_ACTIVE_MARKERS = (
+    'background terminal running',
+    'background terminals running',
+)
 _PROVIDER_IDLE_PROMPTS = ('❯', '›')
 _PROVIDER_WORKING_TAIL_LINES = 12
 PROVIDER_INPUT_STUCK_AFTER_S = 30.0
+JOB_RUNNING_STALE_AFTER_S = 120.0
+_PENDING_JOB_STATUSES = frozenset({'accepted', 'queued'})
+_WAITING_CALLBACK_STATES = frozenset({'pending', 'child_completed'})
 
 
 @dataclass(frozen=True)
@@ -43,6 +52,14 @@ class AgentActivityFacts:
     pane_id: str | None = None
     pane_state: str | None = None
     pane_text: str | None = None
+    current_job_status: str | None = None
+    current_job_id: str | None = None
+    current_job_updated_at: str | None = None
+    queue_depth: int = 0
+    callback_waiting_state: str | None = None
+    callback_child_job_id: str | None = None
+    callback_child_agent: str | None = None
+    callback_updated_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +68,7 @@ class AgentActivity:
     source: str
     reason: str
     last_progress_at: str | None = None
+    current_job_id: str | None = None
 
     @property
     def symbol(self) -> str:
@@ -61,7 +79,7 @@ class AgentActivity:
         return ACTIVITY_PRESENTATION[self.state][1]
 
     def to_record(self) -> dict[str, object]:
-        return {
+        record: dict[str, object] = {
             'activity_state': self.state,
             'activity_symbol': self.symbol,
             'activity_color': self.color,
@@ -69,18 +87,24 @@ class AgentActivity:
             'activity_reason': self.reason,
             'last_progress_at': self.last_progress_at,
         }
+        if self.current_job_id:
+            record['current_job_id'] = self.current_job_id
+        return record
 
 
 def resolve_agent_activity(
     facts: AgentActivityFacts,
     *,
     now: str,
+    provider_input_stuck_after_s: float = PROVIDER_INPUT_STUCK_AFTER_S,
+    job_running_stale_after_s: float = JOB_RUNNING_STALE_AFTER_S,
 ) -> AgentActivity:
-    del now
     runtime_state = _clean(facts.runtime_state)
     runtime_health = _clean(facts.runtime_health)
     reconcile_state = _clean(facts.reconcile_state)
     desired_state = _clean(facts.desired_state)
+    job_status = _clean(facts.current_job_status)
+    callback_state = _clean(facts.callback_waiting_state)
 
     if not facts.namespace_mounted:
         return AgentActivity(ACTIVITY_OFFLINE, 'namespace', 'namespace_unmounted')
@@ -98,6 +122,74 @@ def resolve_agent_activity(
         reason = 'pane_missing_recovering' if _pane_missing(facts) else 'reconcile_active'
         return AgentActivity(ACTIVITY_PENDING, 'reconcile', reason)
 
+    if job_status in _PENDING_JOB_STATUSES:
+        return AgentActivity(
+            ACTIVITY_PENDING,
+            'ccb_job',
+            'job_queued',
+            last_progress_at=facts.current_job_updated_at,
+            current_job_id=facts.current_job_id,
+        )
+
+    if job_status == 'running':
+        if _provider_working(facts.pane_text):
+            return AgentActivity(
+                ACTIVITY_ACTIVE,
+                'provider_pane',
+                'provider_working',
+                last_progress_at=facts.current_job_updated_at,
+                current_job_id=facts.current_job_id,
+            )
+        age_s = _age_seconds(now, facts.current_job_updated_at)
+        if (
+            age_s is not None
+            and age_s >= provider_input_stuck_after_s
+            and provider_prompt_idle_after_request(facts.pane_text, facts.current_job_id)
+        ):
+            return AgentActivity(
+                ACTIVITY_PENDING,
+                'provider_prompt',
+                'provider_prompt_idle',
+                last_progress_at=facts.current_job_updated_at,
+                current_job_id=facts.current_job_id,
+            )
+        if (
+            age_s is not None
+            and age_s >= provider_input_stuck_after_s
+            and provider_prompt_input_stuck(facts.pane_text, facts.current_job_id)
+        ):
+            return AgentActivity(
+                ACTIVITY_PENDING,
+                'provider_prompt',
+                'provider_prompt_input_stuck',
+                last_progress_at=facts.current_job_updated_at,
+                current_job_id=facts.current_job_id,
+            )
+        if age_s is not None and age_s >= job_running_stale_after_s:
+            return AgentActivity(
+                ACTIVITY_PENDING,
+                'ccb_job',
+                'job_running_stale',
+                last_progress_at=facts.current_job_updated_at,
+                current_job_id=facts.current_job_id,
+            )
+        return AgentActivity(
+            ACTIVITY_ACTIVE,
+            'ccb_job',
+            'job_running',
+            last_progress_at=facts.current_job_updated_at,
+            current_job_id=facts.current_job_id,
+        )
+
+    if callback_state in _WAITING_CALLBACK_STATES:
+        reason = 'callback_child_completed' if callback_state == 'child_completed' else 'callback_waiting_child'
+        return AgentActivity(
+            ACTIVITY_PENDING,
+            'callback',
+            reason,
+            last_progress_at=facts.callback_updated_at,
+        )
+
     if _provider_working(facts.pane_text):
         return AgentActivity(ACTIVITY_ACTIVE, 'provider_pane', 'provider_working')
     if _provider_tail_idle_prompt(facts.pane_text):
@@ -112,9 +204,18 @@ def resolve_agent_activity(
     if runtime_state == 'idle':
         return AgentActivity(ACTIVITY_IDLE, 'pane_liveness', 'pane_alive')
     if runtime_state == 'busy':
-        return AgentActivity(ACTIVITY_PENDING, 'runtime_health', 'runtime_busy_unverified')
+        return AgentActivity(ACTIVITY_IDLE, 'pane_liveness', 'pane_alive')
 
     return AgentActivity(ACTIVITY_PENDING, 'runtime_health', 'runtime_unknown')
+
+
+def _age_seconds(now: str, timestamp: str | None) -> float | None:
+    if not timestamp:
+        return None
+    try:
+        return (parse_utc_timestamp(now) - parse_utc_timestamp(timestamp)).total_seconds()
+    except Exception:
+        return None
 
 
 def _clean(value: object) -> str:
@@ -146,6 +247,8 @@ def _provider_working(pane_text: str | None) -> bool:
     normalized = _provider_recent_text(pane_text)
     if not normalized:
         return False
+    if any(marker in normalized for marker in _PROVIDER_BACKGROUND_ACTIVE_MARKERS):
+        return True
     if 'running...' in normalized or 'running…' in normalized:
         return True
     if 'esc to interrupt' in normalized:
@@ -270,6 +373,7 @@ __all__ = [
     'ACTIVITY_PRESENTATION',
     'AgentActivity',
     'AgentActivityFacts',
+    'JOB_RUNNING_STALE_AFTER_S',
     'PROVIDER_INPUT_STUCK_AFTER_S',
     'provider_prompt_idle',
     'provider_prompt_idle_after_request',

@@ -234,7 +234,7 @@ def _materialize_sidebar(
         context.backend,
         target=root_pane,
         direction='right',
-        percent=_sidebar_percent(sidebar.width),
+        percent=_user_pane_percent_for_sidebar(sidebar.width),
         project_root=controller._layout.project_root,
         timeout_s=timeout_s,
     )
@@ -416,6 +416,10 @@ def _sidebar_percent(width: object) -> int:
     except Exception:
         return 15
     return max(1, min(90, value))
+
+
+def _user_pane_percent_for_sidebar(width: object) -> int:
+    return max(10, min(99, 100 - _sidebar_percent(width)))
 
 
 def _respawn_sidebar(backend, pane_id: str, launch_args: tuple[str, ...], *, cwd: str) -> None:

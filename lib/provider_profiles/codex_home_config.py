@@ -73,19 +73,31 @@ def materialize_codex_home_config(
     authority = codex_api_authority(profile)
 
     if authority is not None:
-        _write_codex_api_authority_config(target_config, authority, source_config=source_config)
+        _write_codex_api_authority_config(
+            target_config,
+            authority,
+            source_config=source_config,
+            project_root=project_root,
+            workspace_path=workspace_path,
+        )
     elif _inherits_config(profile) and _inherits_api(profile) and _source_config_valid(source_config):
         if source_config.is_file():
             payload = _read_source_config_payload(source_config)
             if payload:
-                _write_managed_codex_config(target_config, payload)
+                _write_managed_codex_config(
+                    target_config,
+                    payload,
+                    project_root=project_root,
+                    workspace_path=workspace_path,
+                )
             else:
                 _sync_file(source_config, target_config)
                 _append_managed_codex_feature_overrides(target_config)
+                _append_managed_codex_project_trust(target_config, project_root=project_root, workspace_path=workspace_path)
         else:
-            _write_managed_config_stub(target_config)
+            _write_managed_config_stub(target_config, project_root=project_root, workspace_path=workspace_path)
     else:
-        _write_managed_config_stub(target_config)
+        _write_managed_config_stub(target_config, project_root=project_root, workspace_path=workspace_path)
 
     _materialize_auth_file(
         source_home / 'auth.json',
@@ -194,20 +206,38 @@ def _explicit_api_key(profile) -> str:
     return _profile_env(profile).get('OPENAI_API_KEY', '')
 
 
-def _write_codex_api_authority_config(target: Path, authority: CodexApiAuthority, *, source_config: Path) -> None:
+def _write_codex_api_authority_config(
+    target: Path,
+    authority: CodexApiAuthority,
+    *,
+    source_config: Path,
+    project_root: Path | None,
+    workspace_path: Path | None,
+) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = _managed_codex_config_payload(source_config, authority=authority)
+    _trust_managed_codex_project_paths(payload, project_root=project_root, workspace_path=workspace_path)
     target.write_text(_render_toml_document(payload), encoding='utf-8')
 
 
-def _write_managed_config_stub(target: Path) -> None:
+def _write_managed_config_stub(target: Path, *, project_root: Path | None, workspace_path: Path | None) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text('# ccb agent-local codex config\n', encoding='utf-8')
+    payload: dict[str, object] = {}
+    _trust_managed_codex_project_paths(payload, project_root=project_root, workspace_path=workspace_path)
+    rendered = _render_toml_document(payload) if payload else '# ccb agent-local codex config\n'
+    target.write_text(rendered, encoding='utf-8')
 
 
-def _write_managed_codex_config(target: Path, payload: dict[str, object]) -> None:
+def _write_managed_codex_config(
+    target: Path,
+    payload: dict[str, object],
+    *,
+    project_root: Path | None,
+    workspace_path: Path | None,
+) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     sanitized = _disable_interactive_migration_features(payload)
+    _trust_managed_codex_project_paths(sanitized, project_root=project_root, workspace_path=workspace_path)
     target.write_text(_render_toml_document(sanitized), encoding='utf-8')
 
 
@@ -219,6 +249,19 @@ def _append_managed_codex_feature_overrides(target: Path) -> None:
     except Exception:
         return
     target.write_text(_merge_managed_codex_feature_overrides(text), encoding='utf-8')
+
+
+def _append_managed_codex_project_trust(target: Path, *, project_root: Path | None, workspace_path: Path | None) -> None:
+    if not target.is_file():
+        return
+    try:
+        text = target.read_text(encoding='utf-8')
+    except Exception:
+        return
+    target.write_text(
+        _merge_managed_codex_project_trust(text, project_root=project_root, workspace_path=workspace_path),
+        encoding='utf-8',
+    )
 
 
 def _merge_managed_codex_feature_overrides(text: str) -> str:
@@ -243,6 +286,83 @@ def _merge_managed_codex_feature_overrides(text: str) -> str:
     section_lines[insert_at:insert_at] = override_lines
     merged_lines = [*lines[: features_index + 1], *section_lines, *lines[section_end:]]
     return '\n'.join(merged_lines).rstrip() + '\n'
+
+
+def _trust_managed_codex_project_paths(
+    payload: dict[str, object],
+    *,
+    project_root: Path | None,
+    workspace_path: Path | None,
+) -> None:
+    paths = _managed_codex_trusted_paths(project_root=project_root, workspace_path=workspace_path)
+    if not paths:
+        return
+    raw_projects = payload.get('projects')
+    projects = raw_projects if isinstance(raw_projects, dict) else {}
+    if projects is not raw_projects:
+        payload['projects'] = projects
+    for path in paths:
+        raw_project = projects.get(path)
+        project = raw_project if isinstance(raw_project, dict) else {}
+        if project is not raw_project:
+            projects[path] = project
+        project['trust_level'] = 'trusted'
+
+
+def _merge_managed_codex_project_trust(
+    text: str,
+    *,
+    project_root: Path | None,
+    workspace_path: Path | None,
+) -> str:
+    paths = _managed_codex_trusted_paths(project_root=project_root, workspace_path=workspace_path)
+    if not paths:
+        return text
+    lines = text.splitlines()
+    for path in paths:
+        lines = _merge_managed_codex_single_project_trust(lines, path)
+    return '\n'.join(lines).rstrip() + '\n'
+
+
+def _merge_managed_codex_single_project_trust(lines: list[str], project_path: str) -> list[str]:
+    header = f'[projects.{json.dumps(project_path)}]'
+    project_index = _find_toml_table_index(lines, f'projects.{json.dumps(project_path)}')
+    if project_index is None:
+        return [*lines, '', header, 'trust_level = "trusted"']
+
+    section_end = _toml_table_end(lines, project_index + 1)
+    section_lines = [
+        line
+        for line in lines[project_index + 1 : section_end]
+        if _toml_key_name(line) != 'trust_level'
+    ]
+    insert_at = len(section_lines)
+    while insert_at > 0 and not section_lines[insert_at - 1].strip():
+        insert_at -= 1
+    section_lines[insert_at:insert_at] = ['trust_level = "trusted"']
+    return [*lines[: project_index + 1], *section_lines, *lines[section_end:]]
+
+
+def _managed_codex_trusted_paths(*, project_root: Path | None, workspace_path: Path | None) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for candidate in (project_root, workspace_path):
+        if candidate is None:
+            continue
+        trusted = _trusted_project_path(candidate)
+        if not trusted or trusted in seen:
+            continue
+        normalized.append(trusted)
+        seen.add(trusted)
+    return tuple(normalized)
+
+
+def _trusted_project_path(path: Path) -> str:
+    expanded = Path(path).expanduser()
+    try:
+        return str(expanded.resolve())
+    except Exception:
+        return str(expanded)
 
 
 def _find_toml_table_index(lines: list[str], table_name: str) -> int | None:

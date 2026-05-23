@@ -1562,6 +1562,23 @@ def test_codex_launcher_build_start_cmd_includes_agent_model_shortcut(monkeypatc
     assert 'codex -c disable_paste_burst=true -m gpt-5 --search' in cmd
 
 
+def test_codex_launcher_build_start_cmd_uses_native_auto_permission_flags(monkeypatch, tmp_path: Path) -> None:
+    runtime_dir = tmp_path / 'runtime-codex-auto-permission'
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.delenv('CODEX_HOME', raising=False)
+
+    spec = _spec('agent1')
+    command = ParsedStartCommand(project=None, agent_names=('agent1',), restore=False, auto_permission=True)
+
+    cmd = _codex_start_cmd(command, spec, runtime_dir, 'sess-auto-permission')
+
+    assert '--ask-for-approval never' in cmd
+    assert '--sandbox danger-full-access' in cmd
+    assert 'trust_level=' not in cmd
+    assert 'approval_policy=' not in cmd
+    assert 'sandbox_mode=' not in cmd
+
+
 def test_codex_launcher_build_start_cmd_uses_agent_scoped_resume_session(monkeypatch, tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-codex-resume'
     runtime_dir = project_root / '.ccb' / 'agents' / 'agent1' / 'provider-runtime' / 'codex'

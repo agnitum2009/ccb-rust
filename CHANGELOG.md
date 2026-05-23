@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v7.0.2 (2026-05-23)
+
+### Codex Trust And Sidebar Compatibility Hotfix
+
+- **Codex Managed Trust Fixed**: managed Codex homes now trust both the project root and active workspace path through `[projects."..."] trust_level = "trusted"`, and auto-permission startup uses native `--ask-for-approval never --sandbox danger-full-access` flags instead of an invalid top-level trust override.
+- **Linux Sidebar Assets Made More Compatible**: release artifact and standalone sidebar helper workflows now build Linux binaries on Ubuntu 22.04 so published helpers do not require newer `GLIBC_2.39` hosts.
+- **Sidebar Install Recovery Hardened**: installers smoke-test existing and prebuilt `ccb-agent-sidebar` binaries before trusting them, rebuild locally with cargo when needed, and source wrappers now resolve symlinks before locating the repo target binary.
+- **Sidebar Activity And Layout Follow-Up**: project sidebar status now reflects active, queued, stale, callback-waiting, and provider-background activity more accurately, while sidebar width handling preserves the agent grid area.
+
 ## v7.0.1 (2026-05-23)
 
 ### Sidebar Release Packaging Hotfix

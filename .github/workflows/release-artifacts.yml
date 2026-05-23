@@ -6,7 +6,7 @@ on:
       tag:
         description: "Release tag to build and upload"
         required: true
-        default: "v7.0.1"
+        default: "v7.0.2"
   push:
     tags:
       - "v*"
@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - platform: linux
-            os: ubuntu-latest
+            os: ubuntu-22.04
             script: scripts/build_linux_release.py
             artifact: ccb-linux-x86_64.tar.gz
           - platform: macos

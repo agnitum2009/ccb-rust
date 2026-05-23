@@ -12,7 +12,7 @@ permissions:
 jobs:
   linux-x86_64:
     name: Linux x86_64 sidebar helper
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout

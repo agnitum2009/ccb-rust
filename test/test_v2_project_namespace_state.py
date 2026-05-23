@@ -63,6 +63,7 @@ class _FakeTmuxBackend:
     session_options: dict[str, dict[str, str]] = field(default_factory=dict)
     window_options: dict[str, dict[str, str]] = field(default_factory=dict)
     hooks: dict[str, dict[str, str]] = field(default_factory=dict)
+    split_calls: list[tuple[str, str, int]] = field(default_factory=list)
     tmux_calls: list[tuple[list[str], bool]] = field(default_factory=list)
     window_visibility_lag: dict[str, int] = field(default_factory=dict)
     pane_visibility_lag: dict[str, int] = field(default_factory=dict)
@@ -100,7 +101,8 @@ class _FakeTmuxBackend:
         cmd: str | None = None,
         cwd: str | None = None,
     ) -> str:
-        del direction, percent, cmd, cwd
+        del cmd, cwd
+        self.split_calls.append((parent_pane_id, direction, percent))
         for windows in self.sessions.values():
             for record in windows:
                 panes = record['panes']
@@ -385,6 +387,8 @@ bottom_height = 20
     assert backend.pane_options['%2']['@ccb_slot'] == 'agent1'
     assert backend.pane_options['%4']['@ccb_slot'] == 'agent2'
     assert backend.pane_options['%5']['@ccb_slot'] == 'agent3'
+    assert ('%1', 'right', 85) in backend.split_calls
+    assert ('%3', 'right', 85) in backend.split_calls
     assert controller._last_materialized_agent_panes == {
         'agent1': '%2',
         'agent2': '%4',
@@ -398,6 +402,54 @@ bottom_height = 20
     ]['pane-border-status'] == 'top'
     assert 'pane-border-format' in backend.window_options[f'{layout.ccbd_tmux_session_name}:main']
     assert 'pane-border-format' in backend.window_options[f'{layout.ccbd_tmux_session_name}:review']
+
+
+def test_project_namespace_sidebar_width_preserves_agent_grid_area(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-topology-grid'
+    (project_root / '.ccb').mkdir(parents=True)
+    (project_root / '.ccb' / 'ccb.config').write_text(
+        """version = 2
+entry_window = "main"
+
+[windows]
+main = "agent1:codex, agent2:codex; agent3:codex, agent4:claude"
+
+[ui.sidebar]
+mode = "every_window"
+width = "15%"
+bottom_height = 20
+""",
+        encoding='utf-8',
+    )
+    config = load_project_config(project_root).config
+    layout = PathLayout(project_root)
+    backend = _FakeTmuxBackend()
+    controller = ProjectNamespaceController(
+        layout,
+        'proj-topology-grid',
+        clock=lambda: '2026-04-03T02:18:00Z',
+        backend_factory=lambda socket_path=None: backend,
+    )
+
+    controller.ensure(
+        topology_plan=build_namespace_topology_plan(
+            config,
+            ccbd_socket_path=str(layout.ccbd_socket_path),
+            project_root=str(project_root),
+        )
+    )
+
+    assert backend.pane_options['%1']['@ccb_role'] == 'sidebar'
+    assert backend.pane_options['%2']['@ccb_slot'] == 'agent1'
+    assert backend.pane_options['%4']['@ccb_slot'] == 'agent2'
+    assert backend.pane_options['%3']['@ccb_slot'] == 'agent3'
+    assert backend.pane_options['%5']['@ccb_slot'] == 'agent4'
+    assert backend.split_calls == [
+        ('%1', 'right', 85),
+        ('%2', 'right', 50),
+        ('%2', 'bottom', 50),
+        ('%3', 'bottom', 50),
+    ]
 
 
 def test_project_namespace_controller_refreshes_topology_ui_for_existing_session(tmp_path: Path) -> None:

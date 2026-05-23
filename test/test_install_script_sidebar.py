@@ -20,6 +20,7 @@ def test_sidebar_bin_wrapper_is_source_install_fallback() -> None:
     text = Path('bin/ccb-agent-sidebar').read_text(encoding='utf-8')
 
     assert 'CCB_AGENT_SIDEBAR_WRAPPER' in text
+    assert 'while [[ -L "$SOURCE" ]]' in text
     assert 'tools/ccb-agent-sidebar/target/release/ccb-agent-sidebar' in text
     assert 'while :; do sleep 3600; done' in text
 
@@ -208,6 +209,77 @@ build_sidebar_helper_if_possible
     assert out_bin.read_text(encoding='utf-8') == target_bin.read_text(encoding='utf-8')
 
 
+def test_install_script_rebuilds_sidebar_when_installed_binary_is_not_runnable(tmp_path: Path) -> None:
+    install_prefix = tmp_path / 'install'
+    crate_dir = install_prefix / 'tools' / 'ccb-agent-sidebar'
+    target_bin = crate_dir / 'target' / 'release' / 'ccb-agent-sidebar'
+    out_bin = install_prefix / 'bin' / 'ccb-agent-sidebar'
+    fake_bin = tmp_path / 'fake-bin'
+    crate_dir.mkdir(parents=True)
+    target_bin.parent.mkdir(parents=True)
+    out_bin.parent.mkdir(parents=True)
+    fake_bin.mkdir()
+    (crate_dir / 'Cargo.toml').write_text('[package]\nname = "ccb-agent-sidebar"\nversion = "0.0.0"\n', encoding='utf-8')
+    target_bin.write_text('#!/usr/bin/env bash\nexit 139\n', encoding='utf-8')
+    target_bin.chmod(0o755)
+    out_bin.write_text('#!/usr/bin/env bash\nexit 139\n', encoding='utf-8')
+    out_bin.chmod(0o755)
+    fake_cargo = fake_bin / 'cargo'
+    fake_cargo.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+manifest=""
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == "--manifest-path" ]]; then
+    shift
+    manifest="$1"
+  fi
+  shift || true
+done
+crate_dir="$(cd "$(dirname "$manifest")" && pwd)"
+mkdir -p "$crate_dir/target/release"
+cat > "$crate_dir/target/release/ccb-agent-sidebar" <<'BIN'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "--help" ]]; then
+  echo usage >&2
+  exit 2
+fi
+echo rebuilt-sidebar
+BIN
+chmod +x "$crate_dir/target/release/ccb-agent-sidebar"
+""",
+        encoding='utf-8',
+    )
+    fake_cargo.chmod(0o755)
+    harness = tmp_path / 'harness.sh'
+    install_text = Path('install.sh').read_text(encoding='utf-8')
+    install_body = install_text.rsplit('main "$@"', 1)[0]
+    harness.write_text(
+        f"""#!/usr/bin/env bash
+set -euo pipefail
+export CODEX_INSTALL_PREFIX={install_prefix}
+export CODEX_BIN_DIR={tmp_path / 'bin'}
+{install_body}
+build_sidebar_helper_if_possible
+""",
+        encoding='utf-8',
+    )
+    harness.chmod(0o755)
+
+    proc = subprocess.run(
+        [str(harness)],
+        env={**os.environ, 'PATH': f'{fake_bin}:/usr/bin:/bin'},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert 'Built ccb-agent-sidebar' in proc.stdout
+    assert 'rebuilt-sidebar' in out_bin.read_text(encoding='utf-8')
+
+
 def test_install_copy_excludes_rust_target_directory() -> None:
     text = Path('install.sh').read_text(encoding='utf-8')
 
@@ -227,6 +299,7 @@ def test_sidebar_release_workflow_publishes_linux_artifact() -> None:
     text = Path('.github/workflows/release-sidebar.yml').read_text(encoding='utf-8')
 
     assert 'name: Release Sidebar Helper' in text
+    assert 'runs-on: ubuntu-22.04' in text
     assert 'workflow_dispatch:' in text
     assert 'tags:' in text
     assert 'cargo test --manifest-path tools/ccb-agent-sidebar/Cargo.toml' in text
@@ -240,5 +313,6 @@ def test_sidebar_release_workflow_publishes_linux_artifact() -> None:
 def test_release_artifacts_workflow_sets_up_rust_for_sidebar_build() -> None:
     text = Path('.github/workflows/release-artifacts.yml').read_text(encoding='utf-8')
 
-    assert 'default: "v7.0.1"' in text
+    assert 'default: "v7.0.2"' in text
+    assert 'os: ubuntu-22.04' in text
     assert 'uses: dtolnay/rust-toolchain@stable' in text
