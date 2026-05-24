@@ -1711,6 +1711,53 @@ def test_macos_keychain_services_keep_current_credentials_first_when_custom_oaut
     )
 
 
+def test_macos_keychain_services_prioritize_explicit_override(monkeypatch) -> None:
+    monkeypatch.setenv('CCB_KEYCHAIN_SERVICE_OVERRIDE', 'Claude Code-credentials-account-a')
+    monkeypatch.setenv('CLAUDE_CODE_CUSTOM_OAUTH_URL', 'https://oauth.example.test')
+
+    assert claude_home_runtime._macos_keychain_services() == (
+        'Claude Code-credentials-account-a',
+        'Claude Code-credentials',
+        'Claude Code-custom-oauth',
+        'Claude Code',
+    )
+
+
+def test_materialize_claude_home_config_reads_explicit_macos_keychain_override(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source_home = tmp_path / 'system-home'
+    target_home = tmp_path / 'managed-home'
+    source_home.mkdir(parents=True, exist_ok=True)
+    calls: list[list[str]] = []
+
+    class Result:
+        def __init__(self, returncode: int, stdout: str = '') -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = ''
+
+    def fake_run(argv, **_kwargs):
+        calls.append([str(part) for part in argv])
+        service = calls[-1][calls[-1].index('-s') + 1]
+        if service == 'Claude Code-credentials-account-a':
+            return Result(0, json.dumps({'claudeAiOauth': {'refreshToken': 'override-refresh-token'}}))
+        return Result(44)
+
+    monkeypatch.setattr(claude_home_runtime.platform, 'system', lambda: 'Darwin')
+    monkeypatch.setattr(claude_home_runtime.shutil, 'which', lambda name: '/usr/bin/security')
+    monkeypatch.setattr(claude_home_runtime.subprocess, 'run', fake_run)
+    monkeypatch.setenv('USER', 'mac-user')
+    monkeypatch.setenv('CCB_KEYCHAIN_SERVICE_OVERRIDE', 'Claude Code-credentials-account-a')
+
+    layout = materialize_claude_home_config(target_home, source_home=source_home)
+
+    payload = json.loads(layout.credentials_path.read_text(encoding='utf-8'))
+    assert payload['claudeAiOauth']['refreshToken'] == 'override-refresh-token'
+    assert calls[0][calls[0].index('-s') + 1] == 'Claude Code-credentials-account-a'
+
+
 def test_materialize_claude_home_config_preserves_runtime_hooks_and_permissions(tmp_path: Path) -> None:
     source_home = tmp_path / 'system-home'
     target_home = tmp_path / 'managed-home'

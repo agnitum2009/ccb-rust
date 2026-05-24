@@ -21,6 +21,14 @@ def test_control_plane_env_keeps_provider_api_env(monkeypatch) -> None:
     assert env['GOOGLE_GEMINI_BASE_URL'] == 'https://chatapi.onechats.ai'
 
 
+def test_control_plane_env_keeps_claude_keychain_override(monkeypatch) -> None:
+    monkeypatch.setenv('CCB_KEYCHAIN_SERVICE_OVERRIDE', 'Claude Code-credentials-account-a')
+
+    env = control_plane_env()
+
+    assert env['CCB_KEYCHAIN_SERVICE_OVERRIDE'] == 'Claude Code-credentials-account-a'
+
+
 def test_control_plane_env_keeps_user_session_transport_for_cmd_shell(monkeypatch) -> None:
     monkeypatch.setenv('DISPLAY', ':0')
     monkeypatch.setenv('WAYLAND_DISPLAY', 'wayland-0')
