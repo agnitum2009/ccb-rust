@@ -10,6 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-7.0.9-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **中文** | [English](README.md)
@@ -430,7 +431,7 @@ ccb reinstall
   <img src="assets/weixin.jpg" alt="微信群" width="300">
 </div>
 
-## 版本记录
+## 新版本记录
 
 v7 线重点：
 
@@ -439,5 +440,15 @@ v7 线重点：
 - 新增 `version = 2` `[windows]` 拓扑，可按工作流分组多个 tmux window。
 - 保留 compact / hybrid 旧配置兼容，单窗口团队不需要强制迁移。
 - 加固 tmux、Ghostty、release helper、Codex trust 和 provider 会话恢复路径。
+
+<details open>
+<summary><b>v7.0.9</b> - README v7 Redesign Release</summary>
+
+- 重写 `README_zh.md`，围绕 v7 可见多 agent 工作台、任务优先上手、多 agent 方案对比、v7 界面速览、快速开始、tmux 常规操作、配置示例和安装更新流程组织内容。
+- 新增 `assets/readme_v7/` 真实 v7 终端截图，用于 README 演示。
+- 保留 README 重设计计划和辅助资料到 `docs/plantree/`。
+- 保持 v7.0.8 的 runtime、`ccb clear`、config overlay 和 sidebar 修复不变，只刷新 GitHub 面向用户的文档包。
+
+</details>
 
 完整历史请看 [CHANGELOG.md](CHANGELOG.md)。

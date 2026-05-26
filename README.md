@@ -10,6 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-7.0.9-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -430,7 +431,7 @@ Thanks to [tmux-agent-sidebar](https://github.com/hiroppy/tmux-agent-sidebar) fo
   <img src="assets/weixin.jpg" alt="WeChat group" width="300">
 </div>
 
-## Release History
+## Release Notes
 
 v7 highlights:
 
@@ -439,5 +440,15 @@ v7 highlights:
 - `version = 2` `[windows]` topology for workflow-oriented tmux window grouping.
 - Compact / hybrid config compatibility, so single-window teams do not need forced migration.
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
+
+<details open>
+<summary><b>v7.0.9</b> - README v7 Redesign Release</summary>
+
+- Rebuilds `README.md` around the v7 visible multi-agent workspace, task-first onboarding, multi-agent approach comparison, v7 UI tour, Quick Start, tmux basics, config examples, and install/update flow.
+- Adds real v7 terminal screenshots under `assets/readme_v7/` for the public README walkthrough.
+- Preserves the README redesign plan and supporting notes under `docs/plantree/`.
+- Keeps the v7.0.8 runtime, `ccb clear`, config overlay, and sidebar fixes intact while refreshing the GitHub-facing documentation package.
+
+</details>
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.

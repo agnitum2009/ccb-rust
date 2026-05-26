@@ -39,8 +39,7 @@ Date: 2026-05-25
 
 ## Current Project Config Example
 
-- [.ccb/ccb.config](../../../.ccb/ccb.config) currently uses `version = 2` with
+- The local `.ccb/ccb.config` used during planning had `version = 2` with
   multiple named windows, including a `readme` Codex agent. This is useful as a
-  local reference for v7 README examples, but public docs should use sanitized
-  examples instead of this exact project layout.
-
+  private reference for v7 README examples, but public docs should use
+  sanitized examples instead of linking to this project-local runtime file.

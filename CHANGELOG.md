@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v7.0.9 (2026-05-26)
+
+### README v7 Redesign Release
+
+- **Public README Rebuilt**: redesigns `README.md` and `README_zh.md` around the v7 visible multi-agent workspace, with task-first positioning, multi-agent approach comparison, v7 UI tour, Quick Start, tmux basics, config examples, and install/update guidance.
+- **README Visual Assets Added**: adds real v7 terminal screenshots under `assets/readme_v7/` for the English and Chinese README walkthroughs.
+- **Planning Docs Preserved**: adds `docs/plantree/` planning notes covering the README v7 redesign decisions, roadmap, baseline docs, media plan, and publication choices.
+- **Runtime Surface Preserved**: keeps the v7.0.8 runtime behavior and release fixes intact while refreshing the GitHub-facing documentation package.
+
 ## v7.0.8 (2026-05-25)
 
 ### Clear Context And Config Overlay Release
