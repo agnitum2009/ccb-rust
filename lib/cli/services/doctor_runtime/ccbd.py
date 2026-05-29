@@ -45,8 +45,30 @@ def ccbd_summary(*, local, stores: dict[str, object], errors: list[str], remote:
         'last_request_queue_wait_s': _remote_metric(remote, 'last_request_queue_wait_s'),
         'last_submit_duration_s': _remote_metric(remote, 'last_submit_duration_s'),
         'last_ping_duration_s': _remote_metric(remote, 'last_ping_duration_s'),
+        'last_handler_latency_s_by_op': _remote_mapping(remote, 'last_handler_latency_s_by_op'),
         'last_maintenance_duration_s': _remote_metric(remote, 'last_maintenance_duration_s'),
+        'last_heartbeat_duration_s': _remote_metric(remote, 'last_heartbeat_duration_s'),
+        'heartbeat_step_duration_s': _remote_mapping(remote, 'heartbeat_step_duration_s'),
+        'last_heartbeat_agents_inspected': _remote_metric(remote, 'last_heartbeat_agents_inspected'),
+        'last_heartbeat_runtime_store_writes': _remote_metric(
+            remote,
+            'last_heartbeat_runtime_store_writes',
+        ),
         'pending_maintenance_ticks': _remote_metric(remote, 'pending_maintenance_ticks'),
+        'last_project_view_response_duration_s': _remote_metric(remote, 'last_project_view_response_duration_s'),
+        'last_project_view_build_duration_s': _remote_metric(remote, 'last_project_view_build_duration_s'),
+        'project_view_cache_hits': _remote_metric(remote, 'project_view_cache_hits'),
+        'project_view_cache_misses': _remote_metric(remote, 'project_view_cache_misses'),
+        'last_project_view_tmux_command_count': _remote_metric(remote, 'last_project_view_tmux_command_count'),
+        'last_project_view_capture_pane_count': _remote_metric(remote, 'last_project_view_capture_pane_count'),
+        'last_project_view_store_scan_count': _remote_metric(remote, 'last_project_view_store_scan_count'),
+        'rss_bytes': _remote_metric(remote, 'rss_bytes'),
+        'virtual_memory_bytes': _remote_metric(remote, 'virtual_memory_bytes'),
+        'fd_count': _remote_metric(remote, 'fd_count'),
+        'thread_count': _remote_metric(remote, 'thread_count'),
+        'last_reload_duration_s': _remote_metric(remote, 'last_reload_duration_s'),
+        'last_reload_plan_class': _remote_value(remote, 'last_reload_plan_class'),
+        'last_reload_error': _remote_value(remote, 'last_reload_error'),
         'startup_id': local.startup_id,
         'startup_stage': local.startup_stage,
         'last_progress_at': local.last_progress_at,
@@ -90,6 +112,20 @@ def _remote_metric(remote: dict | None, key: str) -> float | None:
         return float(value)
     except Exception:
         return None
+
+
+def _remote_mapping(remote: dict | None, key: str) -> dict:
+    value = _remote_value(remote, key)
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _remote_value(remote: dict | None, key: str):
+    if not isinstance(remote, dict):
+        return None
+    diagnostics = remote.get('diagnostics')
+    if not isinstance(diagnostics, dict):
+        return None
+    return diagnostics.get(key)
 
 
 __all__ = ['ccbd_summary']

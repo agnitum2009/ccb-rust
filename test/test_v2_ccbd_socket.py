@@ -378,17 +378,57 @@ def test_ccbd_control_plane_metrics_record_queue_wait_and_handler_durations(tmp_
     assert app.control_plane_metrics.last_request_queue_wait_s >= 0.0
     assert app.control_plane_metrics.last_ping_duration_s is not None
     assert app.control_plane_metrics.last_ping_duration_s >= 0.0
+    assert app.control_plane_metrics.last_handler_latency_s_by_op['ping'] >= 0.0
     assert app.control_plane_metrics.last_submit_duration_s is not None
     assert app.control_plane_metrics.last_submit_duration_s >= 0.0
+    assert app.control_plane_metrics.last_handler_latency_s_by_op['submit'] >= 0.0
     assert app.control_plane_metrics.pending_maintenance_ticks in (0, 1)
 
     app.heartbeat()
     assert app.control_plane_metrics.last_maintenance_duration_s is not None
     assert app.control_plane_metrics.last_maintenance_duration_s >= 0.0
+    assert app.control_plane_metrics.last_heartbeat_duration_s is not None
+    assert app.control_plane_metrics.last_heartbeat_duration_s >= 0.0
 
     client.shutdown()
     thread.join(timeout=2)
     assert not thread.is_alive()
+
+
+def test_ccbd_heartbeat_records_step_metrics_without_background_worker(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo-heartbeat-metrics'
+    ctx = _prepare_project(project_root, _single_agent_config_text('codex', 'codex'))
+    app = CcbdApp(project_root)
+    app.lease = SimpleNamespace(generation=3)
+    app.lifecycle_store.save(
+        build_lifecycle(
+            project_id=ctx.project_id,
+            occurred_at='2026-03-18T00:00:05Z',
+            desired_state='running',
+            phase='mounted',
+            generation=3,
+            keeper_pid=app.keeper_pid,
+            owner_pid=app.pid,
+            owner_daemon_instance_id=app.daemon_instance_id,
+            config_signature=str(app.config_identity.get('config_signature') or '').strip() or None,
+            socket_path=app.paths.ccbd_socket_path,
+        )
+    )
+    monkeypatch.setattr(app.mount_manager, 'refresh_heartbeat', lambda **kwargs: app.lease)
+    monkeypatch.setattr(app.health_monitor, 'check_all', lambda: {})
+    monkeypatch.setattr(app.runtime_supervision, 'reconcile_once', lambda: {'codex': 'healthy'})
+    monkeypatch.setattr(app.dispatcher, 'reconcile_runtime_views', lambda: None)
+    monkeypatch.setattr(app.dispatcher, 'tick', lambda: ())
+    monkeypatch.setattr(app.dispatcher, 'poll_completions', lambda: ())
+    monkeypatch.setattr(app.job_heartbeat, 'tick', lambda dispatcher: ())
+
+    app.heartbeat()
+
+    assert app.control_plane_metrics.last_heartbeat_duration_s is not None
+    assert app.control_plane_metrics.heartbeat_step_duration_s['health_monitor'] >= 0.0
+    assert app.control_plane_metrics.heartbeat_step_duration_s['runtime_supervision'] >= 0.0
+    assert app.control_plane_metrics.last_heartbeat_agents_inspected == 1
+    assert app.control_plane_metrics.last_heartbeat_runtime_store_writes == 0
 
 
 def test_ccbd_socket_bad_client_does_not_block_later_ping(tmp_path: Path) -> None:

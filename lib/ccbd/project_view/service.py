@@ -61,12 +61,21 @@ class ProjectViewDependencies:
     clock: object = utc_now
     sequence_cache: ProjectViewSequenceCache | None = None
     cache_ttl_ms: int | None = None
+    metrics: object | None = None
+
+
+@dataclass
+class _ProjectViewMetricsContext:
+    tmux_command_count: int = 0
+    capture_pane_count: int = 0
+    store_scan_count: int = 0
 
 
 @dataclass
 class _ProjectViewBuildContext:
     deps: ProjectViewDependencies
     namespace: object | None
+    metrics_context: _ProjectViewMetricsContext | None = None
     backend_loaded: bool = False
     backend: object | None = None
     pane_text_by_id: dict[str, str | None] = field(default_factory=dict)
@@ -94,6 +103,8 @@ class _ProjectViewBuildContext:
         if backend is None:
             self.pane_text_by_id[pane] = None
             return None
+        if self.metrics_context is not None:
+            self.metrics_context.capture_pane_count += 1
         cp = _tmux_run_best_effort(
             backend,
             [
@@ -104,6 +115,7 @@ class _ProjectViewBuildContext:
                 '-S',
                 '-30',
             ],
+            metrics_context=self.metrics_context,
         )
         if cp is None:
             self.pane_text_by_id[pane] = None
@@ -229,15 +241,19 @@ class ProjectViewService:
     def build_response(self, *, schema_version: int = PROJECT_VIEW_SCHEMA_VERSION) -> dict[str, object]:
         if int(schema_version) != PROJECT_VIEW_SCHEMA_VERSION:
             raise ValueError(f'project_view schema_version must be {PROJECT_VIEW_SCHEMA_VERSION}')
+        response_started = monotonic()
         ttl_ms = _project_view_ttl_ms(self._deps)
         ttl_s = max(0.0, ttl_ms / 1000.0)
         now = monotonic()
         if ttl_s > 0:
             cached = self._cached_response
             if cached is not None and now < cached.expires_at:
+                _record_project_view_cache_hit(self._deps.metrics, response_started=response_started)
                 return cached.response
+        metrics_context = _ProjectViewMetricsContext()
         generated_at = self._deps.clock()
-        view = build_project_view(self._deps, generated_at=generated_at)
+        build_started = monotonic()
+        view = build_project_view(self._deps, generated_at=generated_at, metrics_context=metrics_context)
         response = {
             'view': view,
             'cache': {
@@ -251,13 +267,24 @@ class ProjectViewService:
                 response=response,
                 expires_at=monotonic() + ttl_s,
             )
+        _record_project_view_cache_miss(
+            self._deps.metrics,
+            response_started=response_started,
+            build_started=build_started,
+            context=metrics_context,
+        )
         return response
 
 
-def build_project_view(deps: ProjectViewDependencies, *, generated_at: str) -> dict[str, object]:
+def build_project_view(
+    deps: ProjectViewDependencies,
+    *,
+    generated_at: str,
+    metrics_context: _ProjectViewMetricsContext | None = None,
+) -> dict[str, object]:
     lease = deps.mount_manager.load_state()
     namespace = deps.namespace_state_store.load()
-    context = _ProjectViewBuildContext(deps=deps, namespace=namespace)
+    context = _ProjectViewBuildContext(deps=deps, namespace=namespace, metrics_context=metrics_context)
     focus = _focus_snapshot(context)
     tmux_snapshot = _tmux_snapshot(context)
     namespace_mounted = lease is not None and lease.mount_state is MountState.MOUNTED
@@ -313,6 +340,31 @@ def build_project_view(deps: ProjectViewDependencies, *, generated_at: str) -> d
 def _project_view_ttl_ms(deps: ProjectViewDependencies) -> int:
     ttl_ms = PROJECT_VIEW_TTL_MS if deps.cache_ttl_ms is None else int(deps.cache_ttl_ms)
     return max(0, ttl_ms)
+
+
+def _record_project_view_cache_hit(metrics, *, response_started: float) -> None:
+    if metrics is None:
+        return
+    metrics.project_view_cache_hits = int(getattr(metrics, 'project_view_cache_hits', 0) or 0) + 1
+    metrics.last_project_view_response_duration_s = max(0.0, monotonic() - response_started)
+
+
+def _record_project_view_cache_miss(
+    metrics,
+    *,
+    response_started: float,
+    build_started: float,
+    context: _ProjectViewMetricsContext,
+) -> None:
+    if metrics is None:
+        return
+    metrics.project_view_cache_misses = int(getattr(metrics, 'project_view_cache_misses', 0) or 0) + 1
+    finished = monotonic()
+    metrics.last_project_view_response_duration_s = max(0.0, finished - response_started)
+    metrics.last_project_view_build_duration_s = max(0.0, finished - build_started)
+    metrics.last_project_view_tmux_command_count = context.tmux_command_count
+    metrics.last_project_view_capture_pane_count = context.capture_pane_count
+    metrics.last_project_view_store_scan_count = context.store_scan_count
 
 
 def _agent_view(
@@ -527,11 +579,16 @@ def _tmux_snapshot(context: _ProjectViewBuildContext) -> dict[str, dict[str, obj
     backend = context.namespace_backend()
     if namespace is None or backend is None:
         return {}
-    windows = _tmux_windows(backend, session_name=namespace.tmux_session_name)
+    windows = _tmux_windows(
+        backend,
+        session_name=namespace.tmux_session_name,
+        metrics_context=context.metrics_context,
+    )
     sidebars = _tmux_sidebar_panes(
         backend,
         session_name=namespace.tmux_session_name,
         project_id=context.deps.project_id,
+        metrics_context=context.metrics_context,
     )
     result: dict[str, dict[str, object]] = {}
     for window_name, window_facts in windows.items():
@@ -541,7 +598,12 @@ def _tmux_snapshot(context: _ProjectViewBuildContext) -> dict[str, dict[str, obj
     return result
 
 
-def _tmux_windows(backend, *, session_name: str) -> dict[str, dict[str, object]]:
+def _tmux_windows(
+    backend,
+    *,
+    session_name: str,
+    metrics_context: _ProjectViewMetricsContext | None = None,
+) -> dict[str, dict[str, object]]:
     cp = _tmux_run_best_effort(
         backend,
         [
@@ -551,6 +613,7 @@ def _tmux_windows(backend, *, session_name: str) -> dict[str, dict[str, object]]
             '-F',
             '#{window_name}\t#{window_id}\t#{window_index}',
         ],
+        metrics_context=metrics_context,
     )
     if cp is None:
         return {}
@@ -569,7 +632,13 @@ def _tmux_windows(backend, *, session_name: str) -> dict[str, dict[str, object]]
     return result
 
 
-def _tmux_sidebar_panes(backend, *, session_name: str, project_id: str) -> dict[str, str]:
+def _tmux_sidebar_panes(
+    backend,
+    *,
+    session_name: str,
+    project_id: str,
+    metrics_context: _ProjectViewMetricsContext | None = None,
+) -> dict[str, str]:
     cp = _tmux_run_best_effort(
         backend,
         [
@@ -578,6 +647,7 @@ def _tmux_sidebar_panes(backend, *, session_name: str, project_id: str) -> dict[
             '-F',
             '#{session_name}\t#{window_name}\t#{pane_id}\t#{@ccb_project_id}\t#{@ccb_role}\t#{@ccb_sidebar_instance}\t#{@ccb_window}',
         ],
+        metrics_context=metrics_context,
     )
     if cp is None:
         return {}
@@ -600,10 +670,17 @@ def _tmux_sidebar_panes(backend, *, session_name: str, project_id: str) -> dict[
     return result
 
 
-def _tmux_run_best_effort(backend, args: list[str]):
+def _tmux_run_best_effort(
+    backend,
+    args: list[str],
+    *,
+    metrics_context: _ProjectViewMetricsContext | None = None,
+):
     runner = getattr(backend, '_tmux_run', None)
     if not callable(runner):
         return None
+    if metrics_context is not None:
+        metrics_context.tmux_command_count += 1
     try:
         cp = runner(args, capture=True, check=False, timeout=0.5)
     except Exception:
@@ -635,7 +712,12 @@ def _comms_view(
 ) -> list[dict[str, object]]:
     dispatcher = deps.dispatcher
     dismissed_comms = _dismissed_comms(deps)
-    jobs = _project_jobs(dispatcher, active_jobs=active_jobs, queued_jobs=queued_jobs)
+    jobs = _project_jobs(
+        dispatcher,
+        active_jobs=active_jobs,
+        queued_jobs=queued_jobs,
+        metrics_context=context.metrics_context,
+    )
     comms_lookup = _comms_lookup(dispatcher)
     reply_deliveries = _reply_deliveries_by_source_job_id(dispatcher, jobs, comms_lookup=comms_lookup)
     jobs = _with_reply_delivery_sources(dispatcher, jobs, reply_deliveries=reply_deliveries)
@@ -774,13 +856,19 @@ def _comm_lineage_rank(job, attempts_by_job_id: dict[str, tuple[str, int]], repl
     return (lineage_rank, retry_index, _comm_sort_key(job, reply_deliveries.get(job_id)))
 
 
-def _project_jobs(dispatcher, *, active_jobs: dict[str, object], queued_jobs: dict[str, tuple]) -> tuple[object, ...]:
+def _project_jobs(
+    dispatcher,
+    *,
+    active_jobs: dict[str, object],
+    queued_jobs: dict[str, tuple],
+    metrics_context: _ProjectViewMetricsContext | None = None,
+) -> tuple[object, ...]:
     jobs = []
     for job in active_jobs.values():
         jobs.append(job)
     for items in queued_jobs.values():
         jobs.extend(items)
-    jobs.extend(_recent_jobs(dispatcher))
+    jobs.extend(_recent_jobs(dispatcher, metrics_context=metrics_context))
     by_id = {}
     for job in jobs:
         by_id[job.job_id] = job
@@ -847,7 +935,11 @@ def _job_age_seconds(now: str, timestamp: str | None) -> float | None:
         return None
 
 
-def _recent_jobs(dispatcher) -> tuple[object, ...]:
+def _recent_jobs(
+    dispatcher,
+    *,
+    metrics_context: _ProjectViewMetricsContext | None = None,
+) -> tuple[object, ...]:
     store = getattr(dispatcher, '_job_store', None)
     config = getattr(dispatcher, '_config', None)
     agents = getattr(config, 'agents', {}) if config is not None else {}
@@ -856,6 +948,8 @@ def _recent_jobs(dispatcher) -> tuple[object, ...]:
     jobs: list[object] = []
     for agent_name in agents:
         try:
+            if metrics_context is not None:
+                metrics_context.store_scan_count += 1
             if hasattr(store, 'list_agent_tail'):
                 records = store.list_agent_tail(agent_name, limit=_RECENT_JOB_SCAN_LIMIT_PER_AGENT)
             else:
@@ -1241,6 +1335,8 @@ def _focus_snapshot(context: _ProjectViewBuildContext) -> dict[str, object]:
     if backend is None:
         return {}
     try:
+        if context.metrics_context is not None:
+            context.metrics_context.tmux_command_count += 1
         cp = backend._tmux_run(
             [
                 'display-message',

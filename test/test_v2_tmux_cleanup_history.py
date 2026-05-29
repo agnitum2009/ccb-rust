@@ -360,6 +360,7 @@ def test_doctor_summary_falls_back_to_local_ccbd_when_remote_ping_fails(tmp_path
     assert payload['ccbd']['last_submit_duration_s'] is None
     assert payload['ccbd']['last_ping_duration_s'] is None
     assert payload['ccbd']['last_maintenance_duration_s'] is None
+    assert payload['ccbd']['last_heartbeat_duration_s'] is None
     assert payload['ccbd']['pending_maintenance_ticks'] is None
     assert any(str(error).startswith('remote_ccbd_probe:') for error in payload['ccbd']['diagnostic_errors'])
 
@@ -528,6 +529,7 @@ def test_doctor_summary_skips_remote_probe_when_socket_not_connectable(tmp_path:
     assert payload['ccbd']['state'] == 'mounted'
     assert payload['ccbd']['socket_connectable'] is False
     assert payload['ccbd']['last_request_queue_wait_s'] is None
+    assert payload['ccbd']['last_heartbeat_duration_s'] is None
     assert payload['ccbd']['pending_maintenance_ticks'] is None
 
 

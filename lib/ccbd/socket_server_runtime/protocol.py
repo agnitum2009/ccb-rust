@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from time import monotonic
 
 from ccbd.api_models import RpcRequest, RpcResponse
 
@@ -27,7 +28,11 @@ def handle_connection(server, conn) -> str | None:
             if rejection:
                 response = RpcResponse.failure(rejection)
             else:
-                payload = handler(request.request)
+                started = monotonic()
+                try:
+                    payload = handler(request.request)
+                finally:
+                    _record_handler_latency(server, request.op, max(0.0, monotonic() - started))
                 if isinstance(payload, tuple) and len(payload) == 2:
                     payload, after_response_action = payload
                 response = RpcResponse.success(payload)
@@ -59,6 +64,16 @@ def _queue_after_response_action(server, action) -> None:
         return
     try:
         server.queue_after_response_action(action)
+    except Exception:
+        pass
+
+
+def _record_handler_latency(server, op: str, duration: float) -> None:
+    callback = getattr(server, '_record_handler_latency', None)
+    if not callable(callback):
+        return
+    try:
+        callback(op, duration)
     except Exception:
         pass
 

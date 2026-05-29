@@ -4,12 +4,12 @@ from pathlib import Path
 import os
 import threading
 import uuid
-from types import SimpleNamespace
 
 from agents.config_identity import project_config_identity_payload
 from agents.config_loader import load_project_config
 from agents.store import AgentRestoreStore
 from ccbd.lifecycle_report_store import CcbdShutdownReportStore, CcbdStartupReportStore
+from ccbd.metrics import ControlPlaneMetrics
 from ccbd.project_focus import ProjectFocusDependencies, ProjectFocusService
 from ccbd.project_view import ProjectViewDependencies, ProjectViewService, ProjectViewStateStore
 from ccbd.restore_report_store import CcbdRestoreReportStore
@@ -123,13 +123,7 @@ def initialize_app(app, project_root: str | Path, *, clock, pid: int | None) -> 
         app.provider_catalog,
         request_timeout_s=APP_REQUEST_TIMEOUT_S,
     )
-    app.control_plane_metrics = SimpleNamespace(
-        last_request_queue_wait_s=None,
-        last_submit_duration_s=None,
-        last_ping_duration_s=None,
-        last_maintenance_duration_s=None,
-        pending_maintenance_ticks=0,
-    )
+    app.control_plane_metrics = ControlPlaneMetrics()
     app.dispatcher = JobDispatcher(
         app.paths,
         app.config,
@@ -157,6 +151,7 @@ def initialize_app(app, project_root: str | Path, *, clock, pid: int | None) -> 
             state_store=app.project_view_state_store,
             paths=app.paths,
             clock=app.clock,
+            metrics=app.control_plane_metrics,
         )
     )
     app.project_focus_service = ProjectFocusService(
@@ -195,6 +190,10 @@ def initialize_app(app, project_root: str | Path, *, clock, pid: int | None) -> 
     app.socket_server._record_pending_maintenance_ticks = lambda value: setattr(
         app.control_plane_metrics,
         'pending_maintenance_ticks',
+        value,
+    )
+    app.socket_server._record_handler_latency = lambda op, value: app.control_plane_metrics.last_handler_latency_s_by_op.__setitem__(
+        str(op or ''),
         value,
     )
     app.socket_server.set_request_guard(lambda op: rejection_for_request(app, op))

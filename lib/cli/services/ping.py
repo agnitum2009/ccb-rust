@@ -51,6 +51,7 @@ def ping_target(context: CliContext, command: ParsedPingCommand) -> dict:
                 'last_submit_duration_s': None,
                 'last_ping_duration_s': None,
                 'last_maintenance_duration_s': None,
+                'last_heartbeat_duration_s': None,
                 'pending_maintenance_ticks': None,
             }
         return {

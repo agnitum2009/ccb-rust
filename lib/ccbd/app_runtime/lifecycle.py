@@ -93,7 +93,9 @@ def heartbeat(app):
         _record_heartbeat_failures(app, failures=failures)
         return app.lease
     finally:
-        app.control_plane_metrics.last_maintenance_duration_s = max(0.0, monotonic() - started)
+        duration = max(0.0, monotonic() - started)
+        app.control_plane_metrics.last_maintenance_duration_s = duration
+        app.control_plane_metrics.last_heartbeat_duration_s = duration
 
 
 def _begin_maintenance_tick(app) -> bool:
@@ -509,6 +511,9 @@ def _update_startup_progress(app, stage: str) -> None:
 
 def _heartbeat_failures(app) -> tuple[str, ...]:
     failures: list[str] = []
+    step_timings: dict[str, float] = {}
+    agents_inspected = 0
+    runtime_store_writes = 0
     for step_name, action in (
         ('health_monitor', app.health_monitor.check_all),
         ('runtime_supervision', app.runtime_supervision.reconcile_once),
@@ -519,11 +524,32 @@ def _heartbeat_failures(app) -> tuple[str, ...]:
     ):
         if _lifecycle_stopping(app):
             break
+        step_started = monotonic()
+        save_count_before = _runtime_store_save_count(app)
         try:
-            action()
+            result = action()
+            if step_name == 'runtime_supervision' and isinstance(result, dict):
+                agents_inspected = max(agents_inspected, len(result))
         except Exception as exc:
             failures.append(f'heartbeat:{step_name}: {type(exc).__name__}: {exc}')
+        finally:
+            step_timings[step_name] = max(0.0, monotonic() - step_started)
+            save_count_after = _runtime_store_save_count(app)
+            if save_count_before is not None and save_count_after is not None:
+                runtime_store_writes += max(0, save_count_after - save_count_before)
+    metrics = getattr(app, 'control_plane_metrics', None)
+    if metrics is not None:
+        metrics.last_heartbeat_duration_s = sum(step_timings.values())
+        metrics.heartbeat_step_duration_s = step_timings
+        metrics.last_heartbeat_agents_inspected = agents_inspected
+        metrics.last_heartbeat_runtime_store_writes = runtime_store_writes
     return tuple(failures)
+
+
+def _runtime_store_save_count(app) -> int | None:
+    store = getattr(getattr(app, 'registry', None), '_runtime_store', None)
+    value = getattr(store, 'save_count', None)
+    return value if isinstance(value, int) else None
 
 
 def _lifecycle_stopping(app) -> bool:

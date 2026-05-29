@@ -44,6 +44,7 @@ def build_ccbd_payload(
     socket_path = inspection.socket_path if hasattr(inspection, 'socket_path') else None
     if socket_path is None and inspection.lease is not None:
         socket_path = inspection.lease.socket_path
+    process_metrics = _process_metrics(control_plane_metrics)
     return {
         'project_id': project_id,
         'mount_state': _inspection_phase(inspection),
@@ -75,12 +76,74 @@ def build_ccbd_payload(
             'last_request_queue_wait_s': getattr(control_plane_metrics, 'last_request_queue_wait_s', None),
             'last_submit_duration_s': getattr(control_plane_metrics, 'last_submit_duration_s', None),
             'last_ping_duration_s': getattr(control_plane_metrics, 'last_ping_duration_s', None),
+            'last_handler_latency_s_by_op': dict(
+                getattr(control_plane_metrics, 'last_handler_latency_s_by_op', {}) or {}
+            ),
             'last_maintenance_duration_s': getattr(control_plane_metrics, 'last_maintenance_duration_s', None),
+            'last_heartbeat_duration_s': getattr(control_plane_metrics, 'last_heartbeat_duration_s', None),
+            'heartbeat_step_duration_s': dict(
+                getattr(control_plane_metrics, 'heartbeat_step_duration_s', {}) or {}
+            ),
+            'last_heartbeat_agents_inspected': getattr(
+                control_plane_metrics,
+                'last_heartbeat_agents_inspected',
+                None,
+            ),
+            'last_heartbeat_runtime_store_writes': getattr(
+                control_plane_metrics,
+                'last_heartbeat_runtime_store_writes',
+                None,
+            ),
             'pending_maintenance_ticks': getattr(control_plane_metrics, 'pending_maintenance_ticks', None),
+            'last_project_view_response_duration_s': getattr(
+                control_plane_metrics,
+                'last_project_view_response_duration_s',
+                None,
+            ),
+            'last_project_view_build_duration_s': getattr(
+                control_plane_metrics,
+                'last_project_view_build_duration_s',
+                None,
+            ),
+            'project_view_cache_hits': getattr(control_plane_metrics, 'project_view_cache_hits', None),
+            'project_view_cache_misses': getattr(control_plane_metrics, 'project_view_cache_misses', None),
+            'last_project_view_tmux_command_count': getattr(
+                control_plane_metrics,
+                'last_project_view_tmux_command_count',
+                None,
+            ),
+            'last_project_view_capture_pane_count': getattr(
+                control_plane_metrics,
+                'last_project_view_capture_pane_count',
+                None,
+            ),
+            'last_project_view_store_scan_count': getattr(
+                control_plane_metrics,
+                'last_project_view_store_scan_count',
+                None,
+            ),
+            'rss_bytes': process_metrics.get('rss_bytes'),
+            'virtual_memory_bytes': process_metrics.get('virtual_memory_bytes'),
+            'fd_count': process_metrics.get('fd_count'),
+            'thread_count': process_metrics.get('thread_count'),
+            'last_reload_duration_s': getattr(control_plane_metrics, 'last_reload_duration_s', None),
+            'last_reload_plan_class': getattr(control_plane_metrics, 'last_reload_plan_class', None),
+            'last_reload_error': getattr(control_plane_metrics, 'last_reload_error', None),
             **execution_summary,
             **restore_summary,
         },
     }
+
+
+def _process_metrics(control_plane_metrics) -> dict[str, int | None]:
+    snapshot = getattr(control_plane_metrics, 'process_snapshot', None)
+    if not callable(snapshot):
+        return {}
+    try:
+        value = snapshot()
+    except Exception:
+        return {}
+    return dict(value or {}) if isinstance(value, dict) else {}
 
 
 def _inspection_phase(inspection) -> str:

@@ -604,8 +604,27 @@ def test_render_ps_and_doctor_keep_expected_line_shapes() -> None:
             'last_request_queue_wait_s': 0.012,
             'last_submit_duration_s': 0.034,
             'last_ping_duration_s': 0.056,
+            'last_handler_latency_s_by_op': {'ping': 0.056, 'project_view': 0.067},
             'last_maintenance_duration_s': 0.078,
+            'last_heartbeat_duration_s': 0.089,
+            'heartbeat_step_duration_s': {'health_monitor': 0.001, 'runtime_supervision': 0.002},
+            'last_heartbeat_agents_inspected': 1,
+            'last_heartbeat_runtime_store_writes': 0,
             'pending_maintenance_ticks': 2.0,
+            'last_project_view_response_duration_s': 0.044,
+            'last_project_view_build_duration_s': 0.045,
+            'project_view_cache_hits': 3.0,
+            'project_view_cache_misses': 4.0,
+            'last_project_view_tmux_command_count': 5.0,
+            'last_project_view_capture_pane_count': 1.0,
+            'last_project_view_store_scan_count': 2.0,
+            'rss_bytes': 123456.0,
+            'virtual_memory_bytes': 654321.0,
+            'fd_count': 8.0,
+            'thread_count': 3.0,
+            'last_reload_duration_s': None,
+            'last_reload_plan_class': None,
+            'last_reload_error': None,
             'active_execution_count': 0,
             'recoverable_execution_count': 0,
             'nonrecoverable_execution_count': 0,
@@ -715,8 +734,24 @@ def test_render_ps_and_doctor_keep_expected_line_shapes() -> None:
     assert 'ccbd_last_request_queue_wait_s: 0.012' in doctor_lines
     assert 'ccbd_last_submit_duration_s: 0.034' in doctor_lines
     assert 'ccbd_last_ping_duration_s: 0.056' in doctor_lines
+    assert 'ccbd_last_handler_latency_s_by_op: ping=0.056,project_view=0.067' in doctor_lines
     assert 'ccbd_last_maintenance_duration_s: 0.078' in doctor_lines
+    assert 'ccbd_last_heartbeat_duration_s: 0.089' in doctor_lines
+    assert 'ccbd_heartbeat_step_duration_s: health_monitor=0.001,runtime_supervision=0.002' in doctor_lines
+    assert 'ccbd_last_heartbeat_agents_inspected: 1' in doctor_lines
+    assert 'ccbd_last_heartbeat_runtime_store_writes: 0' in doctor_lines
     assert 'ccbd_pending_maintenance_ticks: 2.0' in doctor_lines
+    assert 'ccbd_last_project_view_response_duration_s: 0.044' in doctor_lines
+    assert 'ccbd_last_project_view_build_duration_s: 0.045' in doctor_lines
+    assert 'ccbd_project_view_cache_hits: 3.0' in doctor_lines
+    assert 'ccbd_project_view_cache_misses: 4.0' in doctor_lines
+    assert 'ccbd_last_project_view_tmux_command_count: 5.0' in doctor_lines
+    assert 'ccbd_last_project_view_capture_pane_count: 1.0' in doctor_lines
+    assert 'ccbd_last_project_view_store_scan_count: 2.0' in doctor_lines
+    assert 'ccbd_rss_bytes: 123456.0' in doctor_lines
+    assert 'ccbd_virtual_memory_bytes: 654321.0' in doctor_lines
+    assert 'ccbd_fd_count: 8.0' in doctor_lines
+    assert 'ccbd_thread_count: 3.0' in doctor_lines
     assert 'ccbd_tmux_effective_socket_path: /home/demo/.local/state/ccb/projects/proj-1/ccbd/tmux.sock' in doctor_lines
     assert 'ccbd_tmux_effective_socket_path_bytes: 58' in doctor_lines
     assert 'ccbd_tmux_start_server_command: tmux -f /dev/null -S /home/demo/.local/state/ccb/projects/proj-1/ccbd/tmux.sock start-server' in doctor_lines

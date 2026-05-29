@@ -30,6 +30,7 @@ to resume across agents and sessions.
 | [readme-v7-redesign](plans/readme-v7-redesign/README.md) | In progress | Redesign public README content, screenshots, demo videos, and tmux onboarding for the v7 release line. |
 | [sidebar-tips-layout](plans/sidebar-tips-layout/README.md) | In progress | Add a three-panel sidebar layout with compact Comms and configurable tmux Tips. |
 | [sidebar-provider-activity](plans/sidebar-provider-activity/README.md) | Planning | Add provider-native activity evidence for accurate sidebar status, including Codex/Claude manual-pane state and API fault validation. |
+| [ccbd-agent-hot-reload](plans/ccbd-agent-hot-reload/README.md) | Planning | Dynamically load, unload, and later replace agents in a running daemon without breaking unrelated panes. |
 
 ## Legacy Planning Sources
 

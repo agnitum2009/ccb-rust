@@ -59,8 +59,27 @@ def render_doctor(payload: Mapping[str, object]) -> tuple[str, ...]:
         f'ccbd_last_request_queue_wait_s: {ccbd.get("last_request_queue_wait_s")}',
         f'ccbd_last_submit_duration_s: {ccbd.get("last_submit_duration_s")}',
         f'ccbd_last_ping_duration_s: {ccbd.get("last_ping_duration_s")}',
+        f'ccbd_last_handler_latency_s_by_op: {_format_mapping(ccbd.get("last_handler_latency_s_by_op"))}',
         f'ccbd_last_maintenance_duration_s: {ccbd.get("last_maintenance_duration_s")}',
+        f'ccbd_last_heartbeat_duration_s: {ccbd.get("last_heartbeat_duration_s")}',
+        f'ccbd_heartbeat_step_duration_s: {_format_mapping(ccbd.get("heartbeat_step_duration_s"))}',
+        f'ccbd_last_heartbeat_agents_inspected: {ccbd.get("last_heartbeat_agents_inspected")}',
+        f'ccbd_last_heartbeat_runtime_store_writes: {ccbd.get("last_heartbeat_runtime_store_writes")}',
         f'ccbd_pending_maintenance_ticks: {ccbd.get("pending_maintenance_ticks")}',
+        f'ccbd_last_project_view_response_duration_s: {ccbd.get("last_project_view_response_duration_s")}',
+        f'ccbd_last_project_view_build_duration_s: {ccbd.get("last_project_view_build_duration_s")}',
+        f'ccbd_project_view_cache_hits: {ccbd.get("project_view_cache_hits")}',
+        f'ccbd_project_view_cache_misses: {ccbd.get("project_view_cache_misses")}',
+        f'ccbd_last_project_view_tmux_command_count: {ccbd.get("last_project_view_tmux_command_count")}',
+        f'ccbd_last_project_view_capture_pane_count: {ccbd.get("last_project_view_capture_pane_count")}',
+        f'ccbd_last_project_view_store_scan_count: {ccbd.get("last_project_view_store_scan_count")}',
+        f'ccbd_rss_bytes: {ccbd.get("rss_bytes")}',
+        f'ccbd_virtual_memory_bytes: {ccbd.get("virtual_memory_bytes")}',
+        f'ccbd_fd_count: {ccbd.get("fd_count")}',
+        f'ccbd_thread_count: {ccbd.get("thread_count")}',
+        f'ccbd_last_reload_duration_s: {ccbd.get("last_reload_duration_s")}',
+        f'ccbd_last_reload_plan_class: {ccbd.get("last_reload_plan_class")}',
+        f'ccbd_last_reload_error: {ccbd.get("last_reload_error")}',
         f'ccbd_active_execution_count: {ccbd["active_execution_count"]}',
         f'ccbd_recoverable_execution_count: {ccbd["recoverable_execution_count"]}',
         f'ccbd_nonrecoverable_execution_count: {ccbd["nonrecoverable_execution_count"]}',
@@ -182,6 +201,12 @@ def render_doctor(payload: Mapping[str, object]) -> tuple[str, ...]:
                 f'candidate_path={agent.get("session_switch_candidate_path")}'
             )
     return tuple(lines)
+
+
+def _format_mapping(value: object) -> str:
+    if not isinstance(value, Mapping):
+        return ''
+    return ','.join(f'{key}={value[key]}' for key in sorted(value))
 
 
 def render_doctor_storage(payload: Mapping[str, object]) -> tuple[str, ...]:

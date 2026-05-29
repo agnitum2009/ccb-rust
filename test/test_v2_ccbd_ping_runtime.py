@@ -92,8 +92,29 @@ def _metrics() -> SimpleNamespace:
         last_request_queue_wait_s=0.012,
         last_submit_duration_s=0.034,
         last_ping_duration_s=0.056,
+        last_handler_latency_s_by_op={'ping': 0.056, 'project_view': 0.067},
         last_maintenance_duration_s=0.078,
+        last_heartbeat_duration_s=0.089,
+        heartbeat_step_duration_s={'health_monitor': 0.001, 'runtime_supervision': 0.002},
+        last_heartbeat_agents_inspected=1,
+        last_heartbeat_runtime_store_writes=0,
         pending_maintenance_ticks=2,
+        last_project_view_response_duration_s=0.044,
+        last_project_view_build_duration_s=0.045,
+        project_view_cache_hits=3,
+        project_view_cache_misses=4,
+        last_project_view_tmux_command_count=5,
+        last_project_view_capture_pane_count=1,
+        last_project_view_store_scan_count=2,
+        last_reload_duration_s=None,
+        last_reload_plan_class=None,
+        last_reload_error=None,
+        process_snapshot=lambda: {
+            'rss_bytes': 123456,
+            'virtual_memory_bytes': 654321,
+            'fd_count': 8,
+            'thread_count': 3,
+        },
     )
 
 
@@ -123,8 +144,30 @@ def test_build_ccbd_payload_prefers_lifecycle_phase_over_lease_mount_state() -> 
     assert payload['diagnostics']['last_request_queue_wait_s'] == 0.012
     assert payload['diagnostics']['last_submit_duration_s'] == 0.034
     assert payload['diagnostics']['last_ping_duration_s'] == 0.056
+    assert payload['diagnostics']['last_handler_latency_s_by_op'] == {'ping': 0.056, 'project_view': 0.067}
     assert payload['diagnostics']['last_maintenance_duration_s'] == 0.078
+    assert payload['diagnostics']['last_heartbeat_duration_s'] == 0.089
+    assert payload['diagnostics']['heartbeat_step_duration_s'] == {
+        'health_monitor': 0.001,
+        'runtime_supervision': 0.002,
+    }
+    assert payload['diagnostics']['last_heartbeat_agents_inspected'] == 1
+    assert payload['diagnostics']['last_heartbeat_runtime_store_writes'] == 0
     assert payload['diagnostics']['pending_maintenance_ticks'] == 2
+    assert payload['diagnostics']['last_project_view_response_duration_s'] == 0.044
+    assert payload['diagnostics']['last_project_view_build_duration_s'] == 0.045
+    assert payload['diagnostics']['project_view_cache_hits'] == 3
+    assert payload['diagnostics']['project_view_cache_misses'] == 4
+    assert payload['diagnostics']['last_project_view_tmux_command_count'] == 5
+    assert payload['diagnostics']['last_project_view_capture_pane_count'] == 1
+    assert payload['diagnostics']['last_project_view_store_scan_count'] == 2
+    assert payload['diagnostics']['rss_bytes'] == 123456
+    assert payload['diagnostics']['virtual_memory_bytes'] == 654321
+    assert payload['diagnostics']['fd_count'] == 8
+    assert payload['diagnostics']['thread_count'] == 3
+    assert payload['diagnostics']['last_reload_duration_s'] is None
+    assert payload['diagnostics']['last_reload_plan_class'] is None
+    assert payload['diagnostics']['last_reload_error'] is None
     assert payload['diagnostics']['last_failure_reason'] == 'startup_in_progress'
     assert payload['diagnostics']['startup_id'] == 'startup-123'
     assert payload['diagnostics']['startup_stage'] == 'spawn_requested'
@@ -327,6 +370,7 @@ def test_ping_target_unmounted_ccbd_includes_timing_fields(monkeypatch, tmp_path
     assert payload['last_submit_duration_s'] is None
     assert payload['last_ping_duration_s'] is None
     assert payload['last_maintenance_duration_s'] is None
+    assert payload['last_heartbeat_duration_s'] is None
     assert payload['pending_maintenance_ticks'] is None
 
 

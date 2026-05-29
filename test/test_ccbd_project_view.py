@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 from agents.models import (
     AgentRuntime,
@@ -1878,6 +1879,85 @@ def test_project_view_cache_hit_skips_tmux_calls(tmp_path: Path) -> None:
 
     assert first is second
     assert backend.calls == []
+
+
+def test_project_view_updates_build_cache_and_tmux_metrics(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-project-view-metrics'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config()
+    registry = AgentRegistry(layout, config)
+    registry.upsert(_runtime('agent3', project_id=project_id, state=AgentState.BUSY))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    mount_manager.mark_mounted(project_id=project_id, pid=123, socket_path=layout.ccbd_socket_path, generation=1, started_at=NOW)
+    ProjectNamespaceStateStore(layout).save(
+        ProjectNamespaceState(
+            project_id=project_id,
+            namespace_epoch=3,
+            tmux_socket_path=str(layout.ccbd_tmux_socket_path),
+            tmux_session_name='ccb-project-view-metrics',
+            layout_version=2,
+        )
+    )
+    old_job = _job(
+        project_id,
+        job_id='job_project_view_metrics',
+        sender='agent1',
+        target='agent3',
+        status=JobStatus.RUNNING,
+        updated_at='2026-05-20T11:57:00Z',
+    )
+    dispatcher = JobDispatcher(layout, config, registry, clock=lambda: NOW)
+    dispatcher._append_job(old_job)
+    dispatcher._state.mark_active_for(TargetKind.AGENT, 'agent3', old_job.job_id)
+    backend = _ProviderIdleWithoutAnchorBackend()
+    controller = ProjectNamespaceController(
+        layout,
+        project_id,
+        backend_factory=lambda socket_path=None: backend,
+    )
+    metrics = SimpleNamespace(
+        last_project_view_build_duration_s=None,
+        last_project_view_response_duration_s=None,
+        project_view_cache_hits=0,
+        project_view_cache_misses=0,
+        last_project_view_tmux_command_count=None,
+        last_project_view_capture_pane_count=None,
+        last_project_view_store_scan_count=None,
+    )
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=dispatcher,
+            namespace_controller=controller,
+            clock=lambda: NOW,
+            metrics=metrics,
+        )
+    )
+
+    first = service.build_response()
+    second = service.build_response()
+
+    assert first is second
+    assert metrics.project_view_cache_misses == 1
+    assert metrics.project_view_cache_hits == 1
+    assert metrics.last_project_view_build_duration_s >= 0.0
+    assert metrics.last_project_view_response_duration_s >= 0.0
+    assert metrics.last_project_view_tmux_command_count == 4
+    assert metrics.last_project_view_capture_pane_count == 1
+    assert metrics.last_project_view_store_scan_count == 3
+    service.invalidate_cache()
+    service.build_response()
+    assert metrics.project_view_cache_misses == 2
+    assert metrics.last_project_view_tmux_command_count == 4
+    assert metrics.last_project_view_capture_pane_count == 1
+    assert metrics.last_project_view_store_scan_count == 3
 
 
 class _FocusBackend:

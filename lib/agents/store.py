@@ -44,6 +44,7 @@ class AgentRuntimeStore:
     def __init__(self, layout: PathLayout, store: JsonStore | None = None) -> None:
         self._layout = layout
         self._store = store or JsonStore()
+        self.save_count = 0
 
     def load(self, agent_name: str) -> AgentRuntime | None:
         path = self._layout.agent_runtime_path(agent_name)
@@ -54,6 +55,7 @@ class AgentRuntimeStore:
     def save(self, runtime: AgentRuntime) -> Path:
         path = self._layout.agent_runtime_path(runtime.agent_name)
         self._store.save(path, runtime, serializer=lambda value: value.to_record())
+        self.save_count += 1
         return path
 
     def load_best_effort(self, agent_name: str) -> AgentRuntime | None:
