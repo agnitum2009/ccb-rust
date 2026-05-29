@@ -394,20 +394,27 @@ Current status:
   compatible and no-mutation.
 - Only `view_only_change`, append-only `add_agent`, and `add_window` can reach
   namespace patch/runtime/publish stages.
-- `no_change`, `remove_agent`, `replace_agent`, `move_agent`, and arbitrary
-  `layout_change` return blocked/failed structured output and do not publish.
+- `remove_agent` can reach namespace/runtime/publish stages only for idle
+  agents with no outstanding dispatcher work and preserved remaining order.
+- `no_change`, busy `remove_agent`, `replace_agent`, `move_agent`, and
+  arbitrary `layout_change` return blocked/failed structured output and do not
+  publish.
 - Successful publish invalidates the current project-view cache so the next
   `project_view` and `ping('ccbd')` read the newly published graph/config.
 - Apply writes and clears a bounded keeper handoff record so the pre-publish
   old-signature window is not misclassified as config drift.
+- Outside the bounded handoff proof, modern config-signature drift is treated as
+  reload pending rather than daemon incompatibility. Keeper and CLI
+  compatibility checks keep the mounted daemon alive until explicit reload
+  applies or rejects the disk config.
 - CLI rendering includes reload stage, graph versions, publish diagnostics, and
   namespace/runtime residue for failed applies.
 - Sidebar's refresh control and `r` shortcut submit the same non-dry-run reload
   request and then force a project-view refresh. This is an explicit user action,
   not a file watcher or steady-state scan.
 
-The user-path gate still does not add config watching, unload/replace,
-existing-pane kill/reflow, or provider cleanup. Daemon-pushed sidebar refresh is
-not signaled yet; diagnostics explicitly report
+The user-path gate still does not add config watching, replacement, arbitrary
+existing-pane kill/reflow, or busy-drain unload. Daemon-pushed sidebar refresh
+is not signaled yet; diagnostics explicitly report
 `sidebar_refresh_signal_sent=false` after successful publish so the remaining
 push-refresh work is visible.

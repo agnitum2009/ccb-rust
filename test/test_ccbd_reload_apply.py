@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+from agents.models import AgentState
 from agents.config_loader import load_project_config
 from ccbd.app import CcbdApp
 from ccbd.models import CcbdStartupAgentResult
@@ -11,7 +12,7 @@ from ccbd.reload_handoff import ReloadHandoffStore
 from ccbd.reload_runtime_mount import AdditiveRuntimeMountResult
 from ccbd.services.lifecycle import build_lifecycle
 from ccbd.services.project_namespace import ProjectNamespaceController
-from ccbd.services.project_namespace_runtime import NamespacePatchApplyResult
+from ccbd.services.project_namespace_runtime import NamespacePatchApplyResult, build_namespace_topology_plan
 from ccbd.services.project_namespace_state import ProjectNamespaceState, ProjectNamespaceStateStore
 from ccbd.start_flow_runtime import StartFlowSummary
 
@@ -199,13 +200,14 @@ def test_additive_reload_apply_writes_bounded_handoff_during_apply_and_clears_af
     assert ReloadHandoffStore(app.paths).load() is None
 
 
-def test_additive_reload_apply_clears_handoff_after_blocked_plan(tmp_path: Path) -> None:
+def test_additive_reload_apply_clears_handoff_after_failed_apply(tmp_path: Path) -> None:
     app = _started_app(tmp_path / 'repo-handoff-blocked', BASE_CONFIG)
     new_config = _load_config(app.project_root, REMOVE_AGENT_CONFIG)
 
     result = run_additive_reload_apply(app, new_config, current_namespace=_namespace(app))
 
-    assert result.status == 'blocked'
+    assert result.status == 'failed'
+    assert result.stage == 'namespace_patch'
     assert ReloadHandoffStore(app.paths).load() is None
 
 
@@ -279,30 +281,68 @@ def test_additive_reload_apply_add_window_materializes_tmux_window_before_mount(
     assert app.service_graph.registry.get('agent3').pane_id == '%4'
 
 
-def test_additive_reload_apply_blocks_non_additive_plan_without_building_target_graph(tmp_path: Path) -> None:
-    app = _started_app(tmp_path / 'repo-remove-blocked', BASE_CONFIG)
+def test_additive_reload_apply_remove_agent_success_unloads_then_publishes(tmp_path: Path) -> None:
+    app = _started_app(tmp_path / 'repo-remove-agent', BASE_CONFIG)
     old_graph = app.service_graph
-    old_lease = app.mount_manager.load_state().to_record()
-    old_lifecycle = app.lifecycle_store.load().to_record()
     new_config = _load_config(app.project_root, REMOVE_AGENT_CONFIG)
+    _seed_runtime(app.runtime_service, 'agent1', pane_id='%1')
+    _seed_runtime(app.runtime_service, 'agent2', pane_id='%2')
 
     result = run_additive_reload_apply(
         app,
         new_config,
         current_namespace=_namespace(app),
-        apply_namespace_patch_fn=_fail_with('plan blocked must not patch namespace'),
-        run_runtime_mount_fn=_fail_with('plan blocked must not mount runtime'),
-        publish_transaction_fn=_fail_with('plan blocked must not publish'),
+        apply_namespace_patch_fn=lambda **_kwargs: _namespace_patch_result(
+            created_panes=(),
+            agent_panes={},
+            removed_agents={'agent2': '%2'},
+            removed_panes=('%2',),
+            preserved_before={'agent1': '%1'},
+            preserved_after={'agent1': '%1'},
+        ),
+    )
+
+    assert result.status == 'published'
+    assert result.plan_class == 'remove_agent'
+    assert result.namespace_patch['removed_agents'] == {'agent2': '%2'}
+    assert result.runtime_mount['status'] == 'unloaded'
+    assert result.runtime_mount['unloaded_agents'] == ['agent2']
+    assert result.runtime_mount['runtime_authority_stopped_agents'] == ['agent2']
+    assert result.diagnostics['unload_or_replace_executed'] is True
+    assert app.service_graph is not old_graph
+    assert app.service_graph.version == 2
+    assert app.config_identity == app.service_graph.config_identity
+    assert app.service_graph.registry.list_known_agents() == ('agent1',)
+    assert old_graph.registry.get('agent2').state is AgentState.STOPPED
+    assert old_graph.registry.get('agent2').pane_id is None
+    assert app.mount_manager.load_state().config_signature == app.config_identity['config_signature']
+    assert app.lifecycle_store.load().config_signature == app.config_identity['config_signature']
+
+
+def test_additive_reload_apply_blocks_busy_remove_before_namespace_patch(tmp_path: Path) -> None:
+    app = _started_app(tmp_path / 'repo-remove-busy', BASE_CONFIG)
+    old_graph = app.service_graph
+    new_config = _load_config(app.project_root, REMOVE_AGENT_CONFIG)
+    _seed_runtime(app.runtime_service, 'agent2', pane_id='%2')
+    runtime = old_graph.registry.get('agent2')
+    assert runtime is not None
+    app.runtime_service.patch_runtime_state(runtime, state=AgentState.BUSY)
+
+    result = run_additive_reload_apply(
+        app,
+        new_config,
+        current_namespace=_namespace(app),
+        apply_namespace_patch_fn=_fail_with('busy remove must not patch namespace'),
+        run_runtime_mount_fn=_fail_with('busy remove must not mutate runtime'),
+        publish_transaction_fn=_fail_with('busy remove must not publish'),
     )
 
     assert result.status == 'blocked'
     assert result.stage == 'plan'
     assert result.plan_class == 'remove_agent'
-    assert result.diagnostics['reason'] == 'unsupported_plan_class'
+    assert result.diagnostics['reason'] == 'agent_busy'
     assert result.diagnostics['graph_published'] is False
     assert app.service_graph is old_graph
-    assert app.mount_manager.load_state().to_record() == old_lease
-    assert app.lifecycle_store.load().to_record() == old_lifecycle
 
 
 def test_additive_reload_apply_namespace_patch_failure_stops_before_runtime_and_publish(
@@ -529,10 +569,58 @@ def test_project_reload_non_dry_run_add_window_publishes_after_additive_stages(
     assert [window['name'] for window in view['view']['windows']] == ['main', 'review']
 
 
-def test_project_reload_non_dry_run_rejects_non_additive_plan_without_publish(tmp_path: Path) -> None:
+def test_project_reload_non_dry_run_remove_agent_publishes_after_unload_stages(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     app = _started_app(tmp_path / 'repo-remove-handler', BASE_CONFIG)
-    old_graph = app.service_graph
+    _seed_runtime(app.runtime_service, 'agent2', pane_id='%2')
     _project(app.project_root, REMOVE_AGENT_CONFIG)
+    monkeypatch.setattr(
+        'ccbd.reload_apply_service.apply_namespace_patch',
+        lambda *_args, **_kwargs: _namespace_patch_result(
+            created_panes=(),
+            agent_panes={},
+            removed_agents={'agent2': '%2'},
+            removed_panes=('%2',),
+            preserved_before={'agent1': '%1'},
+            preserved_after={'agent1': '%1'},
+        ),
+    )
+
+    payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
+
+    assert payload['status'] == 'published'
+    assert payload['plan_class'] == 'remove_agent'
+    assert payload['mutation_enabled'] is True
+    assert payload['namespace_patch']['removed_agents'] == {'agent2': '%2'}
+    assert payload['runtime_mount']['status'] == 'unloaded'
+    assert payload['runtime_mount']['runtime_authority_stopped_agents'] == ['agent2']
+    assert payload['diagnostics']['graph_published'] is True
+    assert payload['diagnostics']['unload_or_replace_executed'] is True
+    assert app.service_graph.version == 2
+    assert app.config_identity == app.service_graph.config_identity
+    assert app.control_plane_metrics.last_reload_plan_class == 'remove_agent'
+    assert app.control_plane_metrics.last_reload_error is None
+    ping = app.socket_server._handlers['ping']({'target': 'ccbd'})
+    assert ping['known_agents'] == ['agent1']
+
+
+def test_project_reload_non_dry_run_busy_remove_blocks_without_namespace_mutation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app = _started_app(tmp_path / 'repo-remove-busy-handler', BASE_CONFIG)
+    old_graph = app.service_graph
+    _seed_runtime(app.runtime_service, 'agent2', pane_id='%2')
+    runtime = old_graph.registry.get('agent2')
+    assert runtime is not None
+    app.runtime_service.patch_runtime_state(runtime, state=AgentState.BUSY)
+    _project(app.project_root, REMOVE_AGENT_CONFIG)
+    monkeypatch.setattr(
+        'ccbd.reload_apply_service.apply_namespace_patch',
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError('busy remove must not patch namespace')),
+    )
 
     payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
 
@@ -540,11 +628,9 @@ def test_project_reload_non_dry_run_rejects_non_additive_plan_without_publish(tm
     assert payload['stage'] == 'plan'
     assert payload['plan_class'] == 'remove_agent'
     assert payload['mutation_enabled'] is False
-    assert payload['diagnostics']['reason'] == 'unsupported_plan_class'
+    assert payload['diagnostics']['reason'] == 'agent_busy'
     assert payload['diagnostics']['graph_published'] is False
     assert app.service_graph is old_graph
-    assert app.control_plane_metrics.last_reload_plan_class == 'remove_agent'
-    assert app.control_plane_metrics.last_reload_error
 
 
 def test_project_reload_non_dry_run_namespace_failure_reports_residue_without_publish(
@@ -698,6 +784,11 @@ def _namespace_patch_result(
     created_panes: tuple[str, ...] = ('%3',),
     agent_panes: dict[str, str],
     sidebar_panes: dict[str, str] | None = None,
+    removed_windows: tuple[str, ...] = (),
+    removed_panes: tuple[str, ...] = (),
+    removed_agents: dict[str, str] | None = None,
+    preserved_before: dict[str, str] | None = None,
+    preserved_after: dict[str, str] | None = None,
 ) -> NamespacePatchApplyResult:
     return NamespacePatchApplyResult(
         status='applied',
@@ -705,8 +796,11 @@ def _namespace_patch_result(
         created_panes=created_panes,
         agent_panes=agent_panes,
         sidebar_panes=sidebar_panes or {},
-        preserved_before={'agent1': '%1', 'agent2': '%2'},
-        preserved_after={'agent1': '%1', 'agent2': '%2'},
+        removed_windows=removed_windows,
+        removed_panes=removed_panes,
+        removed_agents=removed_agents or {},
+        preserved_before=preserved_before or {'agent1': '%1', 'agent2': '%2'},
+        preserved_after=preserved_after or {'agent1': '%1', 'agent2': '%2'},
         diagnostics={
             'graph_published': False,
             'runtime_authority_written': False,

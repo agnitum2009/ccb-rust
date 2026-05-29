@@ -4,11 +4,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from ccbd.reload_patch_additive_agents import additive_agent_steps
+from ccbd.reload_patch_remove_agents import remove_agent_steps
 from ccbd.services.project_namespace_runtime import build_namespace_topology_plan
 
 
-_SUPPORTED_OPS = {'no_change', 'view_only_change', 'add_agent', 'add_window'}
-_MUTATING_OPS = {'add_agent', 'add_window'}
+_SUPPORTED_OPS = {'no_change', 'view_only_change', 'add_agent', 'add_window', 'remove_agent'}
+_MUTATING_OPS = {'add_agent', 'add_window', 'remove_agent'}
 _REQUIRED_PROOFS = (
     'project_id',
     'tmux_socket_path',
@@ -71,7 +72,11 @@ def build_namespace_patch_plan(
         additive_result = additive_agent_steps(old_topology, new_topology, step_factory=NamespacePatchStep)
         steps.extend(additive_result['steps'])
         blocked.extend(additive_result['blocked'])
+        remove_result = remove_agent_steps(old_topology, new_topology, step_factory=NamespacePatchStep)
+        steps.extend(remove_result['steps'])
+        blocked.extend(remove_result['blocked'])
         blocked.extend(_missing_additive_agent_steps(op_records, steps))
+        blocked.extend(_missing_remove_agent_steps(op_records, steps))
 
     status = 'blocked' if blocked else ('no_op' if not steps else 'planned')
     return {
@@ -112,13 +117,15 @@ def _blocked_unsupported_operations(operations: tuple[dict[str, object], ...]) -
     blocked = []
     for operation in operations:
         op = str(operation.get('op') or '').strip() or 'no_change'
+        if op == 'layout_change' and str(operation.get('change') or '') == 'remove_window':
+            continue
         if op not in _SUPPORTED_OPS:
             blocked.append(
                 {
                     'op': op,
                     'agent': operation.get('agent'),
                     'window': operation.get('window'),
-                    'reason': 'Phase 5 namespace patch planner only supports view-only and additive operations',
+                    'reason': 'namespace patch planner supports view-only, additive, and idle remove_agent operations',
                 }
             )
     return blocked
@@ -228,6 +235,26 @@ def _missing_additive_agent_steps(
     ]
 
 
+def _missing_remove_agent_steps(
+    operations: tuple[dict[str, object], ...],
+    steps: list[NamespacePatchStep],
+) -> list[dict[str, object]]:
+    expected = {
+        str(item.get('agent') or '').strip()
+        for item in operations
+        if str(item.get('op') or '') == 'remove_agent' and str(item.get('agent') or '').strip()
+    }
+    planned = {str(step.agent) for step in steps if step.action == 'kill_agent_pane' and step.agent}
+    return [
+        {
+            'op': 'remove_agent',
+            'agent': agent_name,
+            'reason': 'remove_agent operation was not covered by a namespace pane removal step',
+        }
+        for agent_name in sorted(expected - planned)
+    ]
+
+
 def _preserved_agents(old_topology, new_topology) -> list[str]:
     old_agents = {
         str(agent_name)
@@ -244,7 +271,7 @@ def _preserved_agents(old_topology, new_topology) -> list[str]:
 
 def _warnings_for_status(status: str) -> list[str]:
     if status == 'planned':
-        return ['Phase 5 only plans additive namespace patches; mutating apply is deferred.']
+        return ['Namespace patch apply is explicit and only supports additive or idle remove_agent operations.']
     if status == 'blocked':
         return ['Namespace patch plan is blocked; reload must remain dry-run/rejected.']
     return []

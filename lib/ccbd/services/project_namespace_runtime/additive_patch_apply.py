@@ -9,6 +9,7 @@ from .additive_patch_namespace import ready_namespace_or_blocked
 from .additive_patch_preservation import assert_preserved_agent_panes, snapshot_preserved_agent_panes
 from .additive_patch_validation import unsupported_additive_patch_reason
 from .additive_patch_windows import WindowPatchResult, create_new_windows
+from .remove_patch_agents import remove_agent_panes
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,9 @@ class NamespacePatchApplyResult:
     created_panes: tuple[str, ...] = ()
     agent_panes: dict[str, str] = field(default_factory=dict)
     sidebar_panes: dict[str, str] = field(default_factory=dict)
+    removed_windows: tuple[str, ...] = ()
+    removed_panes: tuple[str, ...] = ()
+    removed_agents: dict[str, str] = field(default_factory=dict)
     preserved_before: dict[str, str] = field(default_factory=dict)
     preserved_after: dict[str, str] = field(default_factory=dict)
     partial: bool = False
@@ -31,6 +35,9 @@ class NamespacePatchApplyResult:
             'created_panes': list(self.created_panes),
             'agent_panes': dict(self.agent_panes),
             'sidebar_panes': dict(self.sidebar_panes),
+            'removed_windows': list(self.removed_windows),
+            'removed_panes': list(self.removed_panes),
+            'removed_agents': dict(self.removed_agents),
             'preserved_before': dict(self.preserved_before),
             'preserved_after': dict(self.preserved_after),
             'partial': bool(self.partial),
@@ -40,6 +47,23 @@ class NamespacePatchApplyResult:
 
 
 def apply_additive_patch(
+    controller,
+    *,
+    patch_plan: dict[str, object],
+    old_topology,
+    new_topology,
+    timeout_s: float | None = None,
+) -> NamespacePatchApplyResult:
+    return apply_reload_patch(
+        controller,
+        patch_plan=patch_plan,
+        old_topology=old_topology,
+        new_topology=new_topology,
+        timeout_s=timeout_s,
+    )
+
+
+def apply_reload_patch(
     controller,
     *,
     patch_plan: dict[str, object],
@@ -61,7 +85,10 @@ def apply_additive_patch(
 
     context = SimpleNamespace(backend=backend)
     preserved_agents = tuple(str(item) for item in tuple((patch_plan or {}).get('preserved_agents') or ()))
-    preserved_before = snapshot_preserved_agent_panes(controller, context, topology_plan=old_topology, agents=preserved_agents)
+    removed_agents = _patch_plan_removed_agents(patch_plan)
+    tracked_agents = tuple(dict.fromkeys((*preserved_agents, *removed_agents)))
+    tracked_before = snapshot_preserved_agent_panes(controller, context, topology_plan=old_topology, agents=tracked_agents)
+    preserved_before = _select_agents(tracked_before, preserved_agents)
     state = WindowPatchResult()
     mutation_error = _apply_mutations(
         controller,
@@ -69,7 +96,7 @@ def apply_additive_patch(
         current=current,
         old_topology=old_topology,
         new_topology=new_topology,
-        preserved_before=preserved_before,
+        preserved_before=tracked_before,
         state=state,
         timeout_s=timeout_s,
     )
@@ -115,6 +142,16 @@ def _apply_mutations(
                 timeout_s=timeout_s,
             )
         )
+        remove_agent_panes(
+            controller,
+            backend,
+            old_topology=old_topology,
+            new_topology=new_topology,
+            existing_agent_panes=preserved_before,
+            current=current,
+            result=state,
+            timeout_s=timeout_s,
+        )
     except Exception as exc:
         return exc
     return None
@@ -145,10 +182,17 @@ def _failure_result(
         created_panes=tuple(state.created_panes),
         agent_panes=state.agent_panes,
         sidebar_panes=state.sidebar_panes,
+        removed_windows=tuple(state.removed_windows),
+        removed_panes=tuple(state.removed_panes),
+        removed_agents=state.removed_agents,
         preserved_before=preserved_before,
         preserved_after=preserved_after,
-        partial=bool(state.created_windows or state.created_panes),
-        rollback_actions=tuple(f'created_pane:{pane}' for pane in state.created_panes),
+        partial=bool(state.created_windows or state.created_panes or state.removed_windows or state.removed_panes),
+        rollback_actions=(
+            tuple(f'created_pane:{pane}' for pane in state.created_panes)
+            + tuple(f'removed_pane:{pane}' for pane in state.removed_panes)
+            + tuple(f'removed_window:{window}' for window in state.removed_windows)
+        ),
         diagnostics={
             'reason': reason,
             'error_type': type(exc).__name__,
@@ -171,11 +215,14 @@ def _applied_result(
         created_panes=tuple(state.created_panes),
         agent_panes=state.agent_panes,
         sidebar_panes=state.sidebar_panes,
+        removed_windows=tuple(state.removed_windows),
+        removed_panes=tuple(state.removed_panes),
+        removed_agents=state.removed_agents,
         preserved_before=preserved_before,
         preserved_after=preserved_after,
         partial=False,
         diagnostics={
-            'supported_operations': ['add_window', 'add_agent'],
+            'supported_operations': ['add_window', 'add_agent', 'remove_agent'],
             'namespace_state_written': False,
             'graph_published': False,
             'runtime_authority_written': False,
@@ -197,4 +244,21 @@ def _blocked(reason: str, message: str) -> NamespacePatchApplyResult:
     )
 
 
-__all__ = ['NamespacePatchApplyResult', 'apply_additive_patch']
+def _patch_plan_removed_agents(patch_plan: dict[str, object]) -> tuple[str, ...]:
+    agents = []
+    for step in tuple((patch_plan or {}).get('steps') or ()):
+        if not isinstance(step, dict):
+            continue
+        if str(step.get('action') or '') != 'kill_agent_pane':
+            continue
+        agent_name = str(step.get('agent') or '').strip()
+        if agent_name:
+            agents.append(agent_name)
+    return tuple(dict.fromkeys(agents))
+
+
+def _select_agents(panes: dict[str, str], agents: tuple[str, ...]) -> dict[str, str]:
+    return {agent: panes[agent] for agent in agents if agent in panes}
+
+
+__all__ = ['NamespacePatchApplyResult', 'apply_additive_patch', 'apply_reload_patch']

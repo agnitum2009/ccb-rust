@@ -34,7 +34,8 @@ Date: 2026-05-29
     `create_agent_pane` steps for the new window only;
   - view-only plans only project-view/sidebar refresh intent, not tmux
     namespace mutation;
-  - remove/replace/move/layout plans are blocked for non-dry-run mutation;
+  - `remove_agent` plans `kill_agent_pane` steps for idle unload; replace,
+    move, and arbitrary layout changes remain blocked for non-dry-run mutation;
   - additive planning requires verified project id, tmux socket, session,
     namespace epoch, window, role, slot key, and `managed_by=ccbd` proof before
     future apply;
@@ -111,8 +112,11 @@ Date: 2026-05-29
     additive apply orchestrator;
   - non-dry-run `view_only_change`, append-only `add_agent`, and `add_window`
     succeed in focused tests;
-  - `no_change`, `remove_agent`, `replace_agent`, `move_agent`, and arbitrary
-    `layout_change` are rejected or blocked without graph publish;
+  - `no_change`, `replace_agent`, `move_agent`, and arbitrary `layout_change`
+    are rejected or blocked without graph publish;
+  - idle `remove_agent` kills only the removed agent pane, stops that runtime
+    authority/helper, and publishes the new graph;
+  - busy or outstanding `remove_agent` blocks before namespace mutation;
   - namespace patch, runtime mount, and publish transaction failures return
     stage-specific diagnostics and residue while keeping the old graph/config
     visible;
@@ -161,7 +165,8 @@ Date: 2026-05-29
 - Existing agent removed from `[windows]`:
   - Phase 3 dry-run reports `remove_agent`;
   - idle unload retires runtime and removes only the target pane;
-  - busy unload enters bounded draining or returns a stable rejection;
+  - busy unload returns a stable rejection before pane kill; bounded draining is
+    a follow-up;
   - existing unrelated processes are not killed by reload.
 - Existing agent provider/workspace/model/key/url change after replacement is
   enabled:
@@ -180,7 +185,10 @@ Date: 2026-05-29
   - keeper `daemon_matches_project_config()` returns true after reload;
   - during apply, keeper tolerates the exact target-disk/old-daemon signature
     handoff only for a fresh matching live holder;
-  - expired or wrong-holder handoff records do not bypass drift detection.
+  - expired or wrong-holder handoff records do not bypass handoff trust;
+  - saving `.ccb/ccb.config` before explicit reload does not make keeper or CLI
+    compatibility restart a modern mounted daemon. The old daemon signature is
+    a reload-pending state until `ccb reload` applies or rejects the change.
 - Project view/sidebar:
   - successful reload invalidates cache;
   - next `project_view` includes new agents/windows;
@@ -215,6 +223,8 @@ Date: 2026-05-29
     should report `add_agent` and no new pane should appear;
   - edit config to add a new window; dry-run should report `add_window` and no
     tmux window should appear;
+  - edit config to remove an idle agent; dry-run should report `remove_agent`
+    with a `kill_agent_pane` namespace step and no pane should disappear;
   - edit an existing agent provider/workspace/model/key/url; dry-run should
     report `replace_agent` and leave the running pane untouched;
   - delete or move an existing agent; dry-run should report `remove_agent` or
@@ -236,15 +246,22 @@ Date: 2026-05-29
   - start a project with two windows and four agents;
   - start a long-running/manual task in `agent2`;
   - edit `.ccb/ccb.config` to add `agent5` to an existing window;
+  - wait at least one keeper poll and verify generation/pane ids did not
+    change before running reload;
   - run `ccb reload`;
   - verify via tmux screenshot that `agent2` remains in the same pane and
     continues running, `agent5` appears in a new managed pane, sidebar shows
     `agent5`, and no global refresh/restart occurred;
   - repeat by adding a new window with one new agent;
+  - after the added agent is idle, remove it from `.ccb/ccb.config`, run
+    `ccb reload`, and verify only that agent pane disappears, `ccb ping ccbd`
+    no longer lists it, and old pane ids for the remaining agents are
+    unchanged;
+  - submit a real `ask` to a remaining agent after unload and confirm ccbd still
+    routes through the same mounted daemon;
   - try changing `agent2` provider/workspace/model while it is running; reload
     must refuse without killing the pane;
-  - try deleting a running agent; reload must refuse or mark pending removal
-    without killing the pane;
+  - try deleting a running agent; reload must refuse without killing the pane;
   - run `ccb reload --dry-run` before each mutating manual test and verify it
     reports the same planned operation that the mutating command later
     executes;

@@ -95,10 +95,16 @@ def _reload_residue_line(residue: Mapping[str, object]) -> str:
         'created_panes',
         'agent_panes',
         'sidebar_panes',
+        'removed_windows',
+        'removed_panes',
+        'removed_agents',
         'rollback_actions',
         'requested_agents',
         'mounted_agents',
         'runtime_authority_written_agents',
+        'unloaded_agents',
+        'runtime_authority_stopped_agents',
+        'helper_terminated_agents',
     ):
         if key in residue:
             fields.append(f'{key}={_render_value(residue.get(key))}')

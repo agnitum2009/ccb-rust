@@ -7,8 +7,8 @@ Date: 2026-05-29
 - Confirmed current daemon initialization loads `.ccb/ccb.config` once and
   injects the resulting object into registry, supervisor, supervision,
   completion tracking, dispatcher, project view, and project focus services.
-- Confirmed current keeper behavior treats config signature drift as a daemon
-  restart trigger.
+- Confirmed the old keeper/CLI compatibility behavior treated config signature
+  drift as a daemon restart trigger.
 - Confirmed current namespace topology check escalates missing windows,
   changed agent pane membership, and missing sidebar panes into namespace
   recreation.
@@ -82,13 +82,28 @@ Date: 2026-05-29
   non-dry-run reload path, then refresh project view after the response. This
   lets edited configs materialize new tmux panes/windows without adding a
   background config watcher.
+- Enabled the first Phase 7 idle unload path for explicit `ccb reload`:
+  deleting an agent from `[windows]` plans `remove_agent`, blocks before tmux
+  mutation when that agent is busy or has outstanding dispatcher work, kills
+  only the target managed pane, stops that agent runtime authority/helper, then
+  publishes the new service graph through the existing lease/lifecycle
+  transaction. Replacement, moves, arbitrary layout reshapes, and background
+  config watching remain deferred.
+- Changed keeper and CLI daemon compatibility checks so modern
+  config-signature drift is treated as a reload-pending state instead of a
+  restart trigger. Saving `.ccb/ccb.config` no longer interrupts the mounted
+  daemon; explicit `ccb reload` or sidebar reload owns materializing the new
+  panes/windows.
 
 ## In Progress
 
-- Phase 6b additive mutating reload remains in progress for manual hardening:
-  accepted user-path classes and sidebar-initiated reload are implemented, while
-  daemon-pushed sidebar refresh is not signaled and unload/replace/move/layout
-  remain blocked.
+- Phase 6/7 explicit mutating reload remains in manual hardening: accepted
+  user-path classes and sidebar-initiated reload are implemented for view-only,
+  append-only add-agent/add-window, and idle remove-agent. Daemon-pushed
+  sidebar refresh is not signaled; busy draining, replacement, moves, arbitrary
+  layout reshapes, and background config watching remain deferred. The current
+  hardening target is real `test_ccb2` validation that save-edit-reload does
+  not restart other agents.
 
 ## Next
 
@@ -97,7 +112,7 @@ Date: 2026-05-29
    screenshots for unchanged old panes and newly-mounted agents.
 2. Add a lightweight daemon-pushed sidebar refresh signal if needed after manual
    validation; avoid polling or steady-state scans.
-3. Expose dynamic unload for idle and bounded-draining agents.
+3. Add bounded draining follow-up for busy unload instead of stable rejection.
 4. Expose replacement only after unload semantics are safe; busy replacement
    remains pending with explicit bounds.
 

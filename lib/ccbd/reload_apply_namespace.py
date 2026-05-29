@@ -74,7 +74,7 @@ def _custom_namespace_patch(
 
 def _controller_namespace_patch(app, patch_plan, old_topology, new_topology):
     try:
-        return app.project_namespace.apply_additive_patch(
+        return app.project_namespace.apply_reload_patch(
             patch_plan=patch_plan,
             old_topology=old_topology,
             new_topology=new_topology,

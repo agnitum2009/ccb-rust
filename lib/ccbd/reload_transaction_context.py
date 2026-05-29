@@ -50,7 +50,7 @@ def pre_publish_blocker(
             + (namespace_status or 'unknown'),
         )
     runtime_status = str(getattr(runtime_mount_result, 'status', '') or '')
-    if runtime_status not in {'mounted', 'noop'}:
+    if runtime_status not in {'mounted', 'noop', 'unloaded'}:
         return (
             'runtime_mount_not_ready',
             'runtime mounts must succeed before publish, found '

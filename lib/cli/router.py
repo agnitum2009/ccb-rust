@@ -326,12 +326,12 @@ _COMMAND_HELP = {
         usage: ccb reload [--dry-run]
 
         Reload:
-          ccb reload             Apply only safe additive changes: view-only, append-only add_agent, or add_window.
+          ccb reload             Apply safe explicit changes: view-only, append-only add_agent/add_window, or idle remove_agent.
           ccb reload --dry-run   Ask the mounted daemon to validate `.ccb/ccb.config` and return a no-mutation reload plan.
 
-        Phase 6b boundary:
-          - remove_agent, replace_agent, move_agent, and arbitrary layout changes are rejected.
-          - No config watch is started; unload/replace and kill/reflow of existing panes are not implemented.
+        Explicit reload boundary:
+          - Busy remove_agent, replace_agent, move_agent, and arbitrary layout changes are rejected.
+          - No config watch is started; replace and full kill/reflow of existing panes are not implemented.
           - Non-dry-run output includes stage, plan_class, graph version, diagnostics, and any residue.
     """,
 }

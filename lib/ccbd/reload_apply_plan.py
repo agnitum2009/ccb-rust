@@ -7,8 +7,8 @@ from ccbd.reload_apply_results import not_published_diagnostics
 from ccbd.reload_transaction_records import graph_signature
 
 
-_ALLOWED_PLAN_CLASSES = frozenset({'view_only_change', 'add_agent', 'add_window'})
-_ALLOWED_OPERATIONS = frozenset({'view_only_change', 'add_agent', 'add_window'})
+_ALLOWED_PLAN_CLASSES = frozenset({'view_only_change', 'add_agent', 'add_window', 'remove_agent'})
+_ALLOWED_OPERATIONS = frozenset({'view_only_change', 'add_agent', 'add_window', 'remove_agent', 'layout_change'})
 
 
 def plan_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
@@ -19,7 +19,7 @@ def plan_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
         return (
             'unsupported_plan_class',
             'additive reload apply only accepts view_only_change, '
-            'add_agent, and add_window',
+            'add_agent, add_window, and idle remove_agent',
         )
     operation_blocker = _operation_blocker(plan)
     if operation_blocker is not None:
@@ -29,7 +29,7 @@ def plan_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
             'plan_not_future_safe',
             'dry-run plan is not future-safe for additive apply',
         )
-    if plan_class in {'add_agent', 'add_window'}:
+    if plan_class in {'add_agent', 'add_window', 'remove_agent'}:
         return _namespace_patch_blocker(plan)
     return None
 
@@ -71,8 +71,14 @@ def _operation_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
 
 def unsupported_operations(plan: dict[str, object]) -> tuple[str, ...]:
     operations = tuple(dict(item) for item in tuple(plan.get('operations') or ()))
-    names = {_operation_name(item) for item in operations}
-    return tuple(sorted(name for name in names if name not in _ALLOWED_OPERATIONS))
+    unsupported: set[str] = set()
+    for item in operations:
+        name = _operation_name(item)
+        if name == 'layout_change' and str(item.get('change') or '') == 'remove_window':
+            continue
+        if name not in _ALLOWED_OPERATIONS:
+            unsupported.add(name)
+    return tuple(sorted(unsupported))
 
 
 def _operation_name(item: dict[str, object]) -> str:

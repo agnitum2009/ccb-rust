@@ -75,6 +75,7 @@ def published_result(
     lease,
     lifecycle,
 ) -> ReloadPublishTransactionResult:
+    runtime_diagnostics = dict((runtime_mount or {}).get('diagnostics') or {})
     return ReloadPublishTransactionResult(
         status='published',
         published_graph_version=getattr(new_graph, 'version', None),
@@ -90,7 +91,7 @@ def published_result(
             'graph_published': True,
             'lease_or_lifecycle_written': True,
             'config_watch_started': False,
-            'unload_or_replace_executed': False,
+            'unload_or_replace_executed': bool(runtime_diagnostics.get('unload_or_replace_executed', False)),
         },
     )
 

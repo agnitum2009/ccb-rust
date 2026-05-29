@@ -93,6 +93,15 @@ class _PatchFakeBackend:
         del cwd, remain_on_exit
         self.respawn_calls.append((pane_id, cmd))
 
+    def kill_pane(self, pane_id: str) -> None:
+        self.tmux_calls.append(('kill-pane', '-t', pane_id))
+        for windows in self.sessions.values():
+            for record in windows:
+                panes = record['panes']
+                if pane_id in panes:
+                    panes.remove(pane_id)
+        self.pane_options.pop(pane_id, None)
+
     def set_pane_title(self, pane_id: str, title: str) -> None:
         self.pane_titles[pane_id] = title
 
@@ -127,6 +136,13 @@ class _PatchFakeBackend:
             record = self._window(session_name, window_ref)
             panes = list(record['panes']) if record is not None else []
             return SimpleNamespace(returncode=0, stdout='\n'.join(str(item) for item in panes), stderr='')
+        if len(args) >= 3 and args[:2] == ['kill-window', '-t']:
+            session_name, _, window_ref = args[2].partition(':')
+            windows = self.sessions.get(session_name, [])
+            self.sessions[session_name] = [
+                record for record in windows if record['name'] != window_ref and record['id'] != window_ref
+            ]
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
         raise AssertionError(f'unexpected tmux command in additive patch test: {args}')
 
     def _window(self, session_name: str, window_ref: str) -> dict[str, object] | None:
@@ -338,6 +354,42 @@ def test_apply_append_add_agent_creates_only_new_agent_pane(tmp_path: Path, monk
     assert result.diagnostics['graph_published'] is False
     assert result.diagnostics['runtime_authority_written'] is False
     assert result.diagnostics['lease_or_lifecycle_written'] is False
+
+
+def test_apply_remove_agent_kills_only_removed_agent_pane(tmp_path: Path, monkeypatch) -> None:
+    current = _load_config(tmp_path / 'current-remove-agent', BASE_CONFIG)
+    new = _load_config(
+        tmp_path / 'new-remove-agent',
+        BASE_CONFIG.replace('agent1:codex, agent2:claude', 'agent1:codex'),
+    )
+    layout = PathLayout(_project(tmp_path / 'repo-remove-agent', BASE_CONFIG))
+    backend = _PatchFakeBackend(socket_path=str(layout.ccbd_tmux_socket_path))
+    backend.add_window(layout.ccbd_tmux_session_name, 'main')
+    backend.sessions[layout.ccbd_tmux_session_name][0]['panes'].append('%2')
+    backend.pane_counter = 2
+    _seed_agent_pane(backend, '%1', project_id='proj-1', window='main', agent='agent1')
+    _seed_agent_pane(backend, '%2', project_id='proj-1', window='main', agent='agent2')
+    _store_namespace(layout, project_id='proj-1')
+    controller = ProjectNamespaceController(layout, 'proj-1', backend_factory=lambda socket_path=None: backend)
+    _forbid_recreate_paths(monkeypatch)
+    plan = build_reload_dry_run_plan(current, new, project_id='proj-1', current_namespace=controller.load())
+
+    result = controller.apply_reload_patch(
+        patch_plan=plan['namespace_patch_plan'],
+        old_topology=build_namespace_topology_plan(current),
+        new_topology=build_namespace_topology_plan(new),
+        timeout_s=0.0,
+    )
+
+    assert result.status == 'applied'
+    assert result.removed_agents == {'agent2': '%2'}
+    assert result.removed_panes == ('%2',)
+    assert result.preserved_before == {'agent1': '%1'}
+    assert result.preserved_after == {'agent1': '%1'}
+    assert backend.tmux_calls[-1] == ('kill-pane', '-t', '%2')
+    assert backend.sessions[layout.ccbd_tmux_session_name][0]['panes'] == ['%1']
+    assert '%2' not in backend.pane_options
+    assert backend.pane_options['%1']['@ccb_slot'] == 'agent1'
 
 
 def test_apply_trailing_add_agent_creates_new_agent_pane(tmp_path: Path, monkeypatch) -> None:

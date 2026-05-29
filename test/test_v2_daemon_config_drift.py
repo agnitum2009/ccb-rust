@@ -83,7 +83,7 @@ def _repeat_last_inspection(inspections):
     return _inspect
 
 
-def test_daemon_matches_project_config_uses_signature_not_only_agent_names(tmp_path: Path) -> None:
+def test_daemon_matches_project_config_treats_signature_drift_as_reload_pending(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-signature'
     ctx = _context(project_root, 'agent1:codex\n')
     old_signature = project_config_identity_payload(load_project_config(project_root).config)['config_signature']
@@ -99,7 +99,59 @@ def test_daemon_matches_project_config_uses_signature_not_only_agent_names(tmp_p
                 'config_signature': old_signature,
             }
 
-    assert daemon_service._daemon_matches_project_config(ctx, FakeClient()) is False
+    assert daemon_service._daemon_matches_project_config(ctx, FakeClient()) is True
+
+
+def test_connect_compatible_daemon_accepts_reload_pending_config_drift(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / 'repo-reload-pending'
+    ctx = _context(project_root, 'agent1:codex\n')
+    old_signature = project_config_identity_payload(load_project_config(project_root).config)['config_signature']
+    _write(project_root / '.ccb' / 'ccb.config', 'agent1:codex, agent2:codex\n')
+    ctx = _context(project_root, 'agent1:codex, agent2:codex\n')
+    inspection = _inspection(
+        ctx,
+        health=LeaseHealth.HEALTHY,
+        socket_connectable=True,
+        pid_alive=True,
+        heartbeat_fresh=True,
+        reason='healthy',
+        config_signature=str(old_signature),
+    )
+    captured: list[float | None] = []
+    shutdown_calls: list[str] = []
+
+    class FakeClient:
+        def __init__(self, socket_path, *, timeout_s=None) -> None:
+            del socket_path
+            captured.append(timeout_s)
+
+        def ping(self, target: str = 'ccbd') -> dict:
+            assert target == 'ccbd'
+            return {
+                'known_agents': ['agent1'],
+                'config_signature': old_signature,
+            }
+
+    monkeypatch.setattr(daemon_service, 'CcbdClient', FakeClient)
+    monkeypatch.setattr(
+        daemon_service,
+        '_shutdown_incompatible_daemon',
+        lambda context, client: shutdown_calls.append('shutdown'),
+    )
+
+    handle = daemon_service._connect_compatible_daemon(
+        ctx,
+        inspection,
+        restart_on_mismatch=True,
+    )
+
+    assert handle is not None
+    assert handle.started is False
+    assert captured == [daemon_service.CONTROL_PLANE_RPC_TIMEOUT_S, None]
+    assert shutdown_calls == []
 
 
 def test_connect_compatible_daemon_skips_probe_when_lease_signature_matches(
@@ -140,97 +192,50 @@ def test_connect_compatible_daemon_skips_probe_when_lease_signature_matches(
     assert captured == [None]
 
 
-def test_ensure_daemon_started_restarts_healthy_daemon_on_config_drift(monkeypatch, tmp_path: Path) -> None:
+def test_ensure_daemon_started_keeps_healthy_daemon_on_reload_pending_config_drift(monkeypatch, tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-drift'
     ctx = _context(project_root, 'agent1:codex,agent2:codex,agent3:claude\n')
-    expected = project_config_identity_payload(load_project_config(project_root).config)
-
-    inspections = iter(
-        [
-            _inspection(
-                ctx,
-                health=LeaseHealth.HEALTHY,
-                socket_connectable=True,
-                pid_alive=True,
-                heartbeat_fresh=True,
-                reason='healthy',
-            ),
-            _inspection(
-                ctx,
-                health=LeaseHealth.UNMOUNTED,
-                socket_connectable=False,
-                pid_alive=False,
-                heartbeat_fresh=False,
-                mount_state=MountState.UNMOUNTED,
-                reason='lease_unmounted',
-            ),
-            _inspection(
-                ctx,
-                health=LeaseHealth.UNMOUNTED,
-                socket_connectable=False,
-                pid_alive=False,
-                heartbeat_fresh=False,
-                mount_state=MountState.UNMOUNTED,
-                reason='lease_unmounted',
-            ),
-            _inspection(
-                ctx,
-                health=LeaseHealth.HEALTHY,
-                socket_connectable=True,
-                pid_alive=True,
-                heartbeat_fresh=True,
-                reason='healthy',
-            ),
-        ]
+    inspection = _inspection(
+        ctx,
+        health=LeaseHealth.HEALTHY,
+        socket_connectable=True,
+        pid_alive=True,
+        heartbeat_fresh=True,
+        reason='healthy',
+        config_signature='old-signature',
     )
 
     shutdown_calls: list[str] = []
     keeper_calls: list[Path] = []
     running_intents: list[str] = []
-    probe_payloads = iter(
-        [
-            {
-                'known_agents': ['codex', 'claude', 'gemini'],
-                'config_signature': 'old-signature',
-            },
-            {
-                'known_agents': list(expected['known_agents']),
-                'config_signature': expected['config_signature'],
-            },
-        ]
-    )
-    current_payload = {
-        'known_agents': ['codex', 'claude', 'gemini'],
-        'config_signature': 'old-signature',
-    }
 
     class FakeClient:
         def __init__(self, socket_path, *, timeout_s=None) -> None:
-            del socket_path
-            if timeout_s == daemon_service.CONTROL_PLANE_RPC_TIMEOUT_S:
-                current_payload.update(next(probe_payloads))
-            self._payload = dict(current_payload)
+            del socket_path, timeout_s
 
         def ping(self, target: str = 'ccbd') -> dict:
             assert target == 'ccbd'
-            return dict(self._payload)
+            return {
+                'known_agents': ['codex', 'claude', 'gemini'],
+                'config_signature': 'old-signature',
+            }
 
         def stop_all(self, *, force: bool = False) -> dict:
             assert force is False
-            shutdown_calls.append(str(self._payload.get('config_signature') or ''))
+            shutdown_calls.append('stop_all')
             return {'ok': True}
 
-    monkeypatch.setattr(daemon_service, 'inspect_daemon', _repeat_last_inspection(inspections))
+    monkeypatch.setattr(daemon_service, 'inspect_daemon', lambda context: (None, None, inspection))
     monkeypatch.setattr(daemon_service, 'CcbdClient', FakeClient)
     monkeypatch.setattr(daemon_service, '_record_running_intent', lambda context: running_intents.append(context.project.project_id))
     monkeypatch.setattr(daemon_service, '_ensure_keeper_started', lambda context: keeper_calls.append(context.project.project_root) or False)
 
     handle = daemon_service.ensure_daemon_started(ctx)
 
-    assert handle.started is True
-    assert shutdown_calls == ['old-signature']
+    assert handle.started is False
+    assert shutdown_calls == []
     assert running_intents == [ctx.project.project_id]
-    assert keeper_calls
+    assert keeper_calls == [ctx.project.project_root]
 
 
 def test_connect_compatible_daemon_does_not_shutdown_on_transient_ping_timeout(

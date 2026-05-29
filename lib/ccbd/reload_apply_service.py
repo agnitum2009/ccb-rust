@@ -20,6 +20,7 @@ from ccbd.reload_apply_stages import (
 )
 from ccbd.reload_handoff import begin_reload_handoff, clear_reload_handoff
 from ccbd.reload_plan import build_reload_dry_run_plan
+from ccbd.reload_runtime_unload import pre_namespace_unload_blocker
 
 
 def run_additive_reload_apply(
@@ -81,6 +82,8 @@ def _run_locked(
     namespace, namespace_diagnostics = current_namespace_for_apply(app, current_namespace)
     plan = _dry_run_plan(app, old_graph, new_config, namespace)
     blocker = plan_blocker(plan)
+    if blocker is None:
+        blocker = pre_namespace_unload_blocker(app, old_graph, plan)
     if blocker is not None:
         return plan_blocked_result(
             old_graph,
@@ -105,6 +108,7 @@ def _run_locked(
         runtime_mount = run_runtime_mount(
             app,
             target_graph,
+            old_graph=old_graph,
             namespace=namespace,
             namespace_patch=namespace_patch,
             run_runtime_mount_fn=run_runtime_mount_fn,

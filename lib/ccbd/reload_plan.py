@@ -316,10 +316,25 @@ def _select_plan_class(operations: list[dict[str, object]]) -> str:
 def _future_safe_to_apply(plan_class: str, operations: list[dict[str, object]]) -> bool:
     if plan_class in {'no_change', 'view_only_change'}:
         return True
-    unsafe_ops = {'remove_agent', 'replace_agent', 'move_agent', 'layout_change'}
+    if plan_class == 'remove_agent':
+        return _remove_agent_operations_are_safe(operations)
+    unsafe_ops = {'replace_agent', 'move_agent', 'layout_change'}
     if any(str(item.get('op') or '') in unsafe_ops for item in operations):
         return False
     return plan_class in {'add_agent', 'add_window'}
+
+
+def _remove_agent_operations_are_safe(operations: list[dict[str, object]]) -> bool:
+    if not operations:
+        return False
+    for item in operations:
+        op = str(item.get('op') or '')
+        if op == 'remove_agent':
+            continue
+        if op == 'layout_change' and str(item.get('change') or '') == 'remove_window':
+            continue
+        return False
+    return any(str(item.get('op') or '') == 'remove_agent' for item in operations)
 
 
 def _plan_payload(

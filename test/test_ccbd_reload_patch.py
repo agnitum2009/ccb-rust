@@ -202,7 +202,6 @@ comms_limit = 5
 @pytest.mark.parametrize(
     ('new_text', 'expected_class', 'blocked_ops'),
     [
-        (BASE_CONFIG.replace('agent1:codex, agent2:claude', 'agent1:codex'), 'remove_agent', {'remove_agent'}),
         (BASE_CONFIG.replace('agent2:claude', 'agent2:codex'), 'replace_agent', {'replace_agent'}),
         (
             BASE_CONFIG.replace('agent1:codex, agent2:claude', 'agent2:claude, agent1:codex'),
@@ -248,6 +247,40 @@ def test_namespace_patch_plan_blocks_non_additive_mutations(
     assert blocked_ops <= {item['op'] for item in plan['namespace_patch_plan']['blocked_operations']}
     assert plan['safe_to_apply'] is False
     assert plan['mutation_enabled'] is False
+
+
+def test_namespace_patch_plan_remove_agent_kills_only_removed_agent_pane(tmp_path: Path) -> None:
+    current = _load_config(tmp_path / 'current-remove', BASE_CONFIG)
+    new = _load_config(
+        tmp_path / 'new-remove',
+        BASE_CONFIG.replace('agent1:codex, agent2:claude', 'agent1:codex'),
+    )
+
+    plan = build_reload_dry_run_plan(
+        current,
+        new,
+        project_id='proj-1',
+        current_namespace=_namespace('proj-1'),
+    )
+
+    patch = plan['namespace_patch_plan']
+
+    assert plan['plan_class'] == 'remove_agent'
+    assert plan['future_safe_to_apply'] is True
+    assert patch['status'] == 'planned'
+    assert patch['preserved_agents'] == ['agent1']
+    assert patch['blocked_operations'] == []
+    assert patch['steps'] == [
+        {
+            'action': 'kill_agent_pane',
+            'window': 'main',
+            'agent': 'agent2',
+            'role': 'agent',
+            'slot_key': 'agent2',
+            'managed_by': 'ccbd',
+            'reason': 'agent exists only in current published config',
+        }
+    ]
 
 
 def test_namespace_patch_plan_blocks_additive_when_namespace_scope_unverified(tmp_path: Path) -> None:

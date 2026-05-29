@@ -278,10 +278,11 @@ Phase 6b first-step status:
   unchanged; signature writes are rolled back to the old config signature on
   post-write failures when the current holder/generation still match.
 - Added `run_additive_reload_apply(...)` as the internal end-to-end
-  orchestrator. It reads the current graph, builds the dry-run plan, accepts only
-  `view_only_change`, append-only `add_agent`, and `add_window`, builds the
-  target service graph without publishing it, then runs namespace patch, runtime
-  mount, and signature/publish transaction in that order.
+  orchestrator. It reads the current graph, builds the dry-run plan, accepts
+  `view_only_change`, append-only `add_agent`, `add_window`, and idle
+  `remove_agent`, builds the target service graph without publishing it, then
+  runs namespace patch, runtime mount/unload, and signature/publish transaction
+  in that order.
 - The orchestrator runs under the existing app maintenance lock so heartbeat
   reconciliation does not race the staged apply. Ordinary handler graph reads
   still use the already-published graph and are not put behind a request-path
@@ -294,10 +295,11 @@ Phase 6b first-step status:
   orchestrator, but only the accepted additive classes may publish.
 - `ccb reload --dry-run` remains no-mutation and keeps the same planning
   payload shape.
-- Non-additive `remove_agent`, `replace_agent`, `move_agent`, and arbitrary
-  `layout_change` still block at plan stage with no graph publish, no runtime
-  authority writes, no lease/lifecycle signature writes, and no tmux unload or
-  reflow.
+- `remove_agent` is accepted only for idle/no-outstanding agents and only when
+  remaining agent order is preserved. Busy or outstanding targets block before
+  namespace mutation. `replace_agent`, `move_agent`, and arbitrary
+  `layout_change` still block with no graph publish, no runtime authority
+  writes, no lease/lifecycle signature writes, and no tmux reflow.
 - CLI non-dry-run output includes apply stage, plan class, graph versions,
   diagnostics, and namespace/runtime residue. Handler diagnostics mark
   `project_view_cache_invalidated=true` after successful publish and
@@ -309,6 +311,12 @@ Phase 6b first-step status:
   tolerate the specific window where disk config has the target signature and
   daemon ping still reports the old graph signature; holder, daemon instance,
   generation, project id, and age must match.
+- Outside that handoff proof, a modern mounted daemon whose ping includes a
+  config signature is still considered the current project daemon when the
+  signature differs from disk config. The mismatch means `reload pending`, not
+  `restart incompatible daemon`; keeper and CLI compatibility checks must keep
+  it alive so explicit reload can apply the delta without interrupting existing
+  agents.
 - Sidebar's refresh control and `r` shortcut call
   `project_reload_config(dry_run=false)` and then force a project-view refresh,
   so edited configs can materialize additive tmux panes/windows through the same
@@ -353,12 +361,30 @@ Rollback:
 
 Goal: expose safe unload after bounded drain is proven.
 
+Implementation status:
+
+- Explicit `ccb reload` now accepts the first idle unload slice. Removing an
+  agent from `[windows]` plans a `kill_agent_pane` namespace patch step.
+- Before killing any pane, the apply path checks dispatcher outstanding work
+  and runtime `BUSY` state for every removed agent. If a target is active, the
+  reload is blocked at plan stage and existing panes remain untouched.
+- For idle targets, namespace patch kills only the target managed pane and
+  proves preserved agent panes are unchanged before/after mutation.
+- Runtime unload terminates that agent's provider helper manifest when present,
+  writes stopped runtime authority through the existing registry path, and
+  publishes the target graph through the existing lease/lifecycle signature
+  transaction.
+- Removing an entire managed window is limited to windows whose agents are all
+  removed; replacement, cross-window movement, arbitrary layout reshaping, and
+  forced/bounded busy draining remain deferred.
+
 Deliverables:
 
-- Enable deletion from `[windows]` to plan and execute unload.
+- Enable deletion from `[windows]` to plan and execute idle unload.
 - Retire runtime authority through explicit authority writes.
-- Remove managed pane only after runtime is idle, completed, cancelled, timed
-  out, or force-approved.
+- Remove managed pane only after runtime is idle/no-outstanding. Completed,
+  cancelled, timed out, force-approved, or bounded-draining unload remains a
+  follow-up.
 - Preserve `.ccb/agents/<agent>` history as residue/audit data, not configured
   authority.
 

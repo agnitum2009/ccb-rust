@@ -184,11 +184,17 @@ def daemon_matches_project_config(app) -> bool:
     actual_signature = str(payload.get('config_signature') or '').strip()
     if actual_signature:
         expected_signature = str(expected['config_signature'])
-        return actual_signature == expected_signature or reload_handoff_allows_signature_mismatch(
+        if actual_signature == expected_signature:
+            return True
+        if reload_handoff_allows_signature_mismatch(
             app,
             expected_config_signature=expected_signature,
             actual_config_signature=actual_signature,
-        )
+        ):
+            return True
+        # A mounted daemon with an older service graph is still the active
+        # project daemon. Explicit `ccb reload` owns applying disk config drift.
+        return True
     known_agents = payload.get('known_agents')
     if not isinstance(known_agents, list):
         return False

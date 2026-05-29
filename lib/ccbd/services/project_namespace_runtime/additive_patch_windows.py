@@ -17,6 +17,9 @@ class WindowPatchResult:
     created_panes: list[str] = field(default_factory=list)
     agent_panes: dict[str, str] = field(default_factory=dict)
     sidebar_panes: dict[str, str] = field(default_factory=dict)
+    removed_windows: list[str] = field(default_factory=list)
+    removed_panes: list[str] = field(default_factory=list)
+    removed_agents: dict[str, str] = field(default_factory=dict)
 
 
 def create_new_windows(

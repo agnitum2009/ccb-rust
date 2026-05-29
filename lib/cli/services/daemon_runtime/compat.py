@@ -16,7 +16,12 @@ def daemon_matches_project_config(context, client) -> bool:
     payload = client.ping('ccbd')
     actual_signature = str(payload.get('config_signature') or '').strip()
     if actual_signature:
-        return actual_signature == expected['config_signature']
+        if actual_signature == expected['config_signature']:
+            return True
+        # Config drift is a reload-pending state for the mounted project
+        # daemon. Explicit `ccb reload` applies the new disk config without
+        # forcing a daemon restart or interrupting existing agents.
+        return True
     known_agents = payload.get('known_agents')
     if not isinstance(known_agents, list):
         return False

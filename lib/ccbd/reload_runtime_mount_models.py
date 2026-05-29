@@ -9,6 +9,9 @@ class AdditiveRuntimeMountResult:
     requested_agents: tuple[str, ...] = ()
     mounted_agents: tuple[str, ...] = ()
     runtime_authority_written_agents: tuple[str, ...] = ()
+    unloaded_agents: tuple[str, ...] = ()
+    runtime_authority_stopped_agents: tuple[str, ...] = ()
+    helper_terminated_agents: tuple[str, ...] = ()
     preserved_runtime_unchanged_agents: tuple[str, ...] = ()
     partial: bool = False
     summary: dict[str, object] | None = None
@@ -22,6 +25,11 @@ class AdditiveRuntimeMountResult:
             'runtime_authority_written_agents': list(
                 self.runtime_authority_written_agents
             ),
+            'unloaded_agents': list(self.unloaded_agents),
+            'runtime_authority_stopped_agents': list(
+                self.runtime_authority_stopped_agents
+            ),
+            'helper_terminated_agents': list(self.helper_terminated_agents),
             'preserved_runtime_unchanged_agents': list(
                 self.preserved_runtime_unchanged_agents
             ),
@@ -117,6 +125,31 @@ def mounted_result(
     )
 
 
+def unloaded_result(
+    *,
+    requested_agents: tuple[str, ...],
+    unloaded_agents: tuple[str, ...],
+    stopped_agents: tuple[str, ...],
+    helper_terminated_agents: tuple[str, ...],
+    preserved_agents: tuple[str, ...],
+) -> AdditiveRuntimeMountResult:
+    return AdditiveRuntimeMountResult(
+        status='unloaded',
+        requested_agents=requested_agents,
+        unloaded_agents=unloaded_agents,
+        runtime_authority_stopped_agents=stopped_agents,
+        helper_terminated_agents=helper_terminated_agents,
+        preserved_runtime_unchanged_agents=preserved_agents,
+        partial=False,
+        diagnostics={
+            'reason': None,
+            'runtime_authority_scope': 'removed_agents_only',
+            'unload_or_replace_executed': bool(unloaded_agents or stopped_agents),
+            **_no_publish_diagnostics(),
+        },
+    )
+
+
 def _no_publish_diagnostics() -> dict[str, object]:
     return {
         'graph_published': False,
@@ -132,4 +165,5 @@ __all__ = [
     'failed_mount_result',
     'mounted_result',
     'noop_mount_result',
+    'unloaded_result',
 ]

@@ -869,11 +869,11 @@ Path:
 
 Required purpose:
 
-- give the project keeper a bounded grace window during explicit additive
-  reload, when `.ccb/ccb.config` already contains the target signature but the
-  mounted daemon may still report the old service-graph signature
-- prevent the keeper from treating that short, intentional handoff as daemon
-  drift and requesting shutdown
+- record explicit additive reload ownership while `.ccb/ccb.config` already
+  contains the target signature but the mounted daemon may still report the old
+  service-graph signature
+- prove that an accepted reload transaction is still being handled by the same
+  mounted daemon holder
 
 Minimum content:
 
@@ -889,17 +889,21 @@ Write semantics:
 
 - this file is not backend lifecycle authority, lease authority, runtime
   authority, namespace authority, or a config-watch trigger
+- a modern mounted daemon with a config-signature mismatch is treated as
+  `reload pending`, not as daemon incompatibility. Keeper and CLI compatibility
+  checks must leave the daemon running so explicit `ccb reload` or sidebar
+  reload can apply the changed config without interrupting existing agents.
 - the `ccb reload` CLI may write it immediately before submitting the explicit
   non-dry-run RPC, and the daemon may overwrite it inside the accepted apply
   transaction after the plan is accepted; both writers use the same holder and
   signature checks, only write when target and current config signatures
   differ, and clear in `finally`
-- keeper may accept a signature mismatch only when the handoff is fresh, the
-  target signature matches disk config, the old signature matches daemon ping,
-  and the current lease holder pid, daemon instance, generation, socket, and
-  liveness evidence match the handoff record
-- stale, mismatched, unreadable, or missing handoff records must fail closed and
-  keep the normal keeper drift handling
+- handoff acceptance still requires freshness, matching project id, matching
+  target signature, matching old daemon signature, and matching current lease
+  holder pid, daemon instance, generation, socket, and liveness evidence
+- stale, mismatched, unreadable, or missing handoff records must fail closed for
+  handoff trust, but must not by themselves trigger daemon restart while the
+  modern daemon remains mounted and connectable
 
 ### 7.10 Diagnostics Bundle
 

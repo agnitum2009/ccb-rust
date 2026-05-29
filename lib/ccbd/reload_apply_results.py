@@ -44,6 +44,9 @@ def namespace_residue(namespace_patch) -> dict[str, object]:
         'created_panes': list(patch_record.get('created_panes') or ()),
         'agent_panes': dict(patch_record.get('agent_panes') or {}),
         'sidebar_panes': dict(patch_record.get('sidebar_panes') or {}),
+        'removed_windows': list(patch_record.get('removed_windows') or ()),
+        'removed_panes': list(patch_record.get('removed_panes') or ()),
+        'removed_agents': dict(patch_record.get('removed_agents') or {}),
         'rollback_actions': list(patch_record.get('rollback_actions') or ()),
     }
 
@@ -56,6 +59,13 @@ def runtime_residue(runtime_mount) -> dict[str, object]:
         'mounted_agents': list(mount_record.get('mounted_agents') or ()),
         'runtime_authority_written_agents': list(
             mount_record.get('runtime_authority_written_agents') or ()
+        ),
+        'unloaded_agents': list(mount_record.get('unloaded_agents') or ()),
+        'runtime_authority_stopped_agents': list(
+            mount_record.get('runtime_authority_stopped_agents') or ()
+        ),
+        'helper_terminated_agents': list(
+            mount_record.get('helper_terminated_agents') or ()
         ),
     }
 

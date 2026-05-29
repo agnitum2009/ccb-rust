@@ -27,6 +27,8 @@ def append_agent_plan_for_window(old_window, new_window) -> tuple[AppendAgentPla
     new_agents = window_agent_names(new_window)
     if old_agents == new_agents:
         return ()
+    if len(new_agents) < len(old_agents):
+        return ()
     if tuple(new_agents[: len(old_agents)]) != old_agents:
         return None
     append_plan = rightmost_leaf_append_plan(old_window, new_window)

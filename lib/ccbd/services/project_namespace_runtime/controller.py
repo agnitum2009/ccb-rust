@@ -9,7 +9,7 @@ from .backend import build_backend, session_root_pane, session_window_target, wi
 from .controller_state import ProjectNamespaceControllerState, ProjectNamespaceControllerStateMixin
 from .destroy import destroy_project_namespace
 from .ensure import ensure_project_namespace
-from .additive_patch import apply_additive_patch
+from .additive_patch import apply_additive_patch, apply_reload_patch
 from .models import ProjectNamespace
 from .reflow import reflow_project_workspace
 from .records import namespace_from_state
@@ -97,6 +97,22 @@ class ProjectNamespaceController(ProjectNamespaceControllerStateMixin):
         timeout_s: float | None = None,
     ):
         return apply_additive_patch(
+            self,
+            patch_plan=patch_plan,
+            old_topology=old_topology,
+            new_topology=new_topology,
+            timeout_s=timeout_s,
+        )
+
+    def apply_reload_patch(
+        self,
+        *,
+        patch_plan: dict[str, object],
+        old_topology,
+        new_topology,
+        timeout_s: float | None = None,
+    ):
+        return apply_reload_patch(
             self,
             patch_plan=patch_plan,
             old_topology=old_topology,

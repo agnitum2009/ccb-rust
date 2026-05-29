@@ -26,6 +26,8 @@ def _steps_for_window(window_name: str, old_window, new_window, *, step_factory)
     new_agents = window_agent_names(new_window)
     if old_agents == new_agents:
         return {'steps': [], 'blocked': []}
+    if len(new_agents) < len(old_agents):
+        return {'steps': [], 'blocked': []}
     if tuple(new_agents[: len(old_agents)]) != old_agents:
         return {'steps': [], 'blocked': [_blocked_append(window_name, 'Phase 5 additive patch only supports appending new agents after existing panes')]}
     append_plan = append_agent_plan_for_window(old_window, new_window)
