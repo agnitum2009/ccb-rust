@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.0.11-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.1.0-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **中文** | [English](README.md)
@@ -447,7 +447,7 @@ v7 线重点：
 - 加固 tmux、Ghostty、release helper、Codex trust 和 provider 会话恢复路径。
 
 <details open>
-<summary><b>v7.0.12</b> - Dynamic Reload Release</summary>
+<summary><b>v7.1.0</b> - Dynamic Reload Release</summary>
 
 - 新增 `.ccb/ccb.config` 显式热加载：`ccb reload --dry-run` 预览计划，`ccb reload` 应用支持的变更。
 - 可以在当前 ccbd daemon 下动态挂载追加的 agent 和新增 window，不打断无关 pane。

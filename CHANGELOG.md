@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v7.1.0 (2026-05-30)
+
+### Dynamic Reload Release
+
+- **Config Reload Preview Added**: after editing `.ccb/ccb.config`, use `ccb reload --dry-run` to preview the daemon-side plan before changing tmux state.
+- **Dynamic Reload Apply Added**: `ccb reload` can dynamically add agents, add windows, unload idle agents, and remove idle windows under the existing `ccbd` daemon without restarting unrelated panes.
+- **Busy Changes Fail Closed**: busy/unsafe unloads, provider replacements, agent moves, and arbitrary reshapes are rejected without killing existing panes.
+- **Reload-Pending Diagnostics Added**: config signature drift is surfaced as reload-pending state so users can explicitly review and apply safe changes instead of relying on daemon restart behavior.
+
 ## v7.0.11 (2026-05-28)
 
 ### Provider Activity And Sidebar Focus Release

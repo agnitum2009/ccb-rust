@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.0.11-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.1.0-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -450,7 +450,7 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
-<summary><b>v7.0.12</b> - Dynamic Reload Release</summary>
+<summary><b>v7.1.0</b> - Dynamic Reload Release</summary>
 
 - Adds explicit hot reload for `.ccb/ccb.config`: use `ccb reload --dry-run` to preview and `ccb reload` to apply supported changes.
 - Dynamically mounts append-only agents and new windows under the existing ccbd daemon without interrupting unrelated panes.
