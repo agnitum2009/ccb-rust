@@ -123,9 +123,7 @@ width = "15%"
 bottom_height = 20
 
 [ui.sidebar.view]
-agents_height = "50%"
-comms_height = "15%"
-tips_height = "35%"
+agents_height = "33%"
 comms_limit = 5
 comms_compact = true
 tips_enabled = true
@@ -160,15 +158,9 @@ Rules:
 - Do not combine windows topology with `default_agents`, `layout`, or `cmd_enabled`.
 - `entry_window` is optional; it defaults to the first window.
 - `[ui.sidebar]` is optional. Defaults are `mode = "every_window"`, `width = "15%"`, and `bottom_height = 20`.
-- `[ui.sidebar.view]` is optional and UI-only. `agents_height`, `comms_height`,
-  and `tips_height` control the Tree/Agent, Comms, and Tips panel heights.
-  The default split is `50%`, `15%`, and `35%`. Each value accepts either a
-  positive integer row count or a percentage string.
 - Agent leaves provide default provider and workspace mode. Same-name `[agents.<name>]` tables are overlays; they may override fields such as `workspace_mode`, and the provider there must match the provider in `[windows]` if it is repeated.
 - `[agents.<name>]` tables for names no longer present in `[windows]` are ignored as stale overlay residue.
-- `[ui.sidebar.view]` is optional and UI-only. It can tune the sidebar Tree/Agent,
-  Comms, and Tips panel heights, Comms visible row count/compactness, and short
-  Tips text without changing the managed window topology.
+- `[ui.sidebar.view]` is optional and UI-only. It can tune sidebar tree height, Comms visible row count/compactness, and short Tips text without changing the managed window topology.
 
 ## Migrating Old Configs To Windows
 

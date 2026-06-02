@@ -183,6 +183,22 @@ Contract:
 - Each `[windows]` value uses the compact layout grammar, but `cmd` is not supported in windows topology.
 - Every agent leaf in `[windows]` must declare a provider.
 - Each configured agent is an agent leaf referenced by `[windows]` and must appear in exactly one window layout.
+- `[tool_windows.<name>]` may declare a managed non-agent tmux window such as
+  Neovim. Tool windows are part of managed topology but not part of the
+  configured agent set.
+- A tool window requires `command`, may set `label`, and defaults
+  `show_in_sidebar = true`.
+- `command` affects managed tmux topology and explicit reload planning.
+  `label` and `show_in_sidebar` are project-view presentation fields; changing
+  them must not recreate the tool pane or change the provider runtime set.
+- Tool window names use the same grammar as `[windows]` names and must not
+  duplicate an agent window name.
+- Tool windows do not declare providers, workspace modes, restore policies,
+  model/API shortcuts, provider profiles, or agent overlays.
+- Tool windows must not appear in `ccb ask` targets, provider runtime
+  authority, dispatcher queues, completion tracking, Comms, or provider
+  activity status.
+- `entry_window` may reference either an agent window or a tool window.
 - Windows topology must not be combined with legacy `default_agents`, `layout`, or `cmd_enabled` fields.
 - `entry_window` is optional and defaults to the first declared window.
 - `[ui.sidebar]` is valid only with windows topology. Defaults are `mode = "every_window"`, `width = "15%"`, and `bottom_height = 20`; `width` accepts either a positive integer column count or a percentage string.
@@ -192,7 +208,29 @@ Contract:
 - If a hot-loaded `[ui.sidebar.view]` parse fails, `project_view.namespace.sidebar.view_error` reports the config error and the sidebar displays a `config ✕` warning while retaining the daemon's last valid view config.
 - Agent leaves in `[windows]` provide default `provider` and default `workspace_mode` (`agent:provider` means `inplace`; `agent:provider(worktree)` means `git-worktree`).
 - `[agents.<name>]` tables are overlays for names referenced by `[windows]`. They may provide any agent-local override, including `workspace_mode`; if they repeat `provider`, it must match the provider declared in `[windows]`.
+- `[agents.<name>].role` may bind a configured agent to a reusable Role Pack
+  such as `ccb.archi`. The role id is stable package identity; the agent name
+  remains the project-local ask target. Role ids must use publisher-qualified
+  form such as `ccb.archi` or `seemseam.archi`.
+- Role binding is not topology authority by itself. An agent with a role still
+  must be referenced by `[windows]` to become configured and mounted.
+- Role assets are projected into managed provider homes as rebuildable role
+  assets. Provider sessions, auth, runtime authority, mailbox state, and agent
+  private memory must remain agent/project scoped.
 - `[agents.<name>]` tables for names no longer referenced by `[windows]` are ignored as stale overlay residue and must not become configured agents or block startup.
+
+Example managed tool window:
+
+```toml
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+```
+
+The CCB-managed `ccb-nvim` command uses isolated Neovim/LazyVim XDG paths and
+must not modify the user's default `~/.config/nvim`, Neovim data/cache/state
+directories, or global tmux configuration. tmux compatibility settings for tool
+windows must remain project/session/window scoped.
 
 ### 4.2 Agent API Shortcut
 

@@ -14,6 +14,7 @@ from agents.models import (
     RestoreMode,
     RuntimeMode,
     WindowSpec,
+    ToolWindowSpec,
     WorkspaceMode,
 )
 from ccbd.api_models import DeliveryScope, JobRecord, JobStatus, MessageEnvelope, TargetKind
@@ -100,6 +101,20 @@ def _config() -> ProjectConfig:
             WindowSpec(name='main', order=0, layout_spec='agent1:codex, agent2:claude', agent_names=('agent1', 'agent2')),
             WindowSpec(name='ops', order=1, layout_spec='agent3:codex', agent_names=('agent3',)),
         ),
+        entry_window='main',
+    )
+
+
+def _config_with_tool_window() -> ProjectConfig:
+    base = _config()
+    return ProjectConfig(
+        version=2,
+        default_agents=base.default_agents,
+        agents=base.agents,
+        cmd_enabled=False,
+        layout_spec=base.layout_spec,
+        windows=base.windows,
+        tool_windows=(ToolWindowSpec(name='neovim', order=0, command='ccb-nvim'),),
         entry_window='main',
     )
 
@@ -851,6 +866,40 @@ def test_project_view_returns_minimal_windows_agents_and_comms(tmp_path: Path) -
     assert [item['id'] for item in view['comms']] == ['job_running_1234', 'job_queued_5678']
     assert view['comms'][0]['sender'] == 'agent2'
     assert view['comms'][0]['target'] == 'agent1'
+
+
+def test_project_view_includes_tool_window_without_agent_row(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-tool-view'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config_with_tool_window()
+    registry = AgentRegistry(layout, config)
+    for agent_name in config.agents:
+        registry.upsert(_runtime(agent_name, project_id=project_id))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=JobDispatcher(layout, config, registry, clock=lambda: NOW),
+            clock=lambda: NOW,
+        )
+    )
+
+    view = service.build_response()['view']
+
+    assert [window['name'] for window in view['windows']] == ['main', 'ops', 'neovim']
+    tool = view['windows'][2]
+    assert tool['kind'] == 'tool'
+    assert tool['label'] == 'neovim'
+    assert tool['show_in_sidebar'] is True
+    assert tool['agents'] == []
+    assert [agent['name'] for agent in view['agents']] == ['agent1', 'agent2', 'agent3']
 
 
 def test_project_view_hot_reloads_sidebar_view_config(tmp_path: Path) -> None:

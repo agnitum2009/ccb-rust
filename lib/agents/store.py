@@ -109,6 +109,7 @@ def _agent_spec_from_record(record: dict) -> AgentSpec:
         branch_template=record.get('branch_template'),
         labels=tuple(record.get('labels', [])),
         description=record.get('description'),
+        role=record.get('role'),
         watch_paths=tuple(record.get('watch_paths', [])),
     )
 

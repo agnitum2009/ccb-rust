@@ -91,6 +91,16 @@ def print_start_help(*, file=None) -> None:
 
             Management:
               ccb version | ccb update | ccb uninstall | ccb reinstall
+
+            Tools:
+              ccb tools doctor neovim
+              ccb tools install neovim
+
+            Roles:
+              ccb roles list
+              ccb roles install ccb.archi
+              ccb roles update ccb.archi
+              ccb roles add ccb.archi:codex
             """
         ).strip(),
         file=file,
@@ -333,6 +343,25 @@ _COMMAND_HELP = {
           - Busy remove_agent, replace_agent, move_agent, and arbitrary layout changes are rejected.
           - No config watch is started; replace and full kill/reflow of existing panes are not implemented.
           - Non-dry-run output includes stage, plan_class, graph version, diagnostics, and any residue.
+    """,
+    "tools": """
+        usage: ccb tools <doctor|install|update> neovim
+
+        Managed tool provisioning:
+          ccb tools doctor neovim   Inspect the CCB-managed Neovim/LazyVim profile.
+          ccb tools install neovim  Prepare isolated ccb-nvim wrapper/profile.
+          ccb tools update neovim   Refresh the managed profile wrapper.
+    """,
+    "roles": """
+        usage: ccb roles <list|show|install|update|add|doctor> ...
+
+        Role Pack management:
+          ccb roles list
+          ccb roles show ccb.archi
+          ccb roles install ccb.archi
+          ccb roles update ccb.archi
+          ccb roles add ccb.archi:codex
+          ccb roles doctor ccb.archi
     """,
 }
 

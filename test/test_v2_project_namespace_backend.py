@@ -124,6 +124,8 @@ def test_prepare_server_then_create_session_and_server_policy_retry_transient_tm
     assert backend.calls.count(('set-option', '-g', 'destroy-unattached', 'off')) == 2
     assert backend.calls.count(('set-option', '-g', 'mouse', 'on')) == 1
     assert backend.calls.count(('set-option', '-g', 'set-clipboard', 'on')) == 1
+    assert backend.calls.count(('set-option', '-g', 'focus-events', 'on')) == 1
+    assert backend.calls.count(('set-option', '-g', 'escape-time', '10')) == 1
     assert backend.calls.count(('set-window-option', '-g', 'mode-keys', 'vi')) == 1
     assert backend.calls.count(('bind-key', '-T', 'copy-mode-vi', 'v', 'send-keys', '-X', 'begin-selection')) == 1
     assert ('bind-key', '-T', 'copy-mode-vi', 'y', 'send-keys', '-X', 'copy-selection-and-cancel') not in backend.calls
@@ -186,10 +188,14 @@ def test_prepare_server_does_not_require_server_policy_before_session_exists(mon
     assert ('set-option', '-g', 'destroy-unattached', 'off') not in backend.calls[:2]
     assert ('set-option', '-g', 'mouse', 'on') not in backend.calls[:2]
     assert ('set-option', '-g', 'set-clipboard', 'on') not in backend.calls[:2]
+    assert ('set-option', '-g', 'focus-events', 'on') not in backend.calls[:2]
+    assert ('set-option', '-g', 'escape-time', '10') not in backend.calls[:2]
     expected_policy_calls = [
         ('set-option', '-g', 'destroy-unattached', 'off'),
         ('set-option', '-g', 'mouse', 'on'),
         ('set-option', '-g', 'set-clipboard', 'on'),
+        ('set-option', '-g', 'focus-events', 'on'),
+        ('set-option', '-g', 'escape-time', '10'),
         ('set-option', '-g', 'update-environment', 'DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR WSL_DISTRO_NAME WSL_INTEROP SSH_AUTH_SOCK SSH_CONNECTION'),
         ('set-window-option', '-g', 'mode-keys', 'vi'),
         ('bind-key', '-T', 'copy-mode-vi', 'v', 'send-keys', '-X', 'begin-selection'),
@@ -390,10 +396,12 @@ def test_ensure_server_policy_accepts_fast_probe_timeout(monkeypatch) -> None:
 
     ensure_server_policy(backend, timeout_s=0.0)
 
-    assert backend.calls[:4] == [
+    assert backend.calls[:6] == [
         ('set-option', '-g', 'destroy-unattached', 'off'),
         ('set-option', '-g', 'mouse', 'on'),
         ('set-option', '-g', 'set-clipboard', 'on'),
+        ('set-option', '-g', 'focus-events', 'on'),
+        ('set-option', '-g', 'escape-time', '10'),
         ('set-option', '-g', 'update-environment', 'DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR WSL_DISTRO_NAME WSL_INTEROP SSH_AUTH_SOCK SSH_CONNECTION'),
     ]
     assert (

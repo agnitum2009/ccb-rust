@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from agents.models import AgentSpec, PermissionMode, ProjectConfig, QueuePolicy, RestoreMode, RuntimeMode, WindowSpec, WorkspaceMode
+from agents.models import AgentSpec, PermissionMode, ProjectConfig, QueuePolicy, RestoreMode, RuntimeMode, ToolWindowSpec, WindowSpec, WorkspaceMode
 from ccbd.project_focus import ProjectFocusDependencies, ProjectFocusError, ProjectFocusService
 from ccbd.services.project_namespace import ProjectNamespaceController
 from ccbd.services.project_namespace_state import ProjectNamespaceState, ProjectNamespaceStateStore
@@ -37,6 +37,22 @@ def _config() -> ProjectConfig:
             WindowSpec(name='main', order=0, layout_spec='agent1:codex', agent_names=('agent1',)),
             WindowSpec(name='ops', order=1, layout_spec='agent2:claude', agent_names=('agent2',)),
         ),
+        entry_window='main',
+    )
+
+
+def _config_with_tool_window() -> ProjectConfig:
+    return ProjectConfig(
+        version=2,
+        default_agents=('agent1', 'agent2'),
+        agents={'agent1': _spec('agent1'), 'agent2': _spec('agent2', 'claude')},
+        cmd_enabled=False,
+        layout_spec='agent1:codex',
+        windows=(
+            WindowSpec(name='main', order=0, layout_spec='agent1:codex', agent_names=('agent1',)),
+            WindowSpec(name='ops', order=1, layout_spec='agent2:claude', agent_names=('agent2',)),
+        ),
+        tool_windows=(ToolWindowSpec(name='neovim', order=0, command='ccb-nvim'),),
         entry_window='main',
     )
 
@@ -120,6 +136,7 @@ def _service(
     *,
     epoch: int = 4,
     project_view_service: object | None = None,
+    config: ProjectConfig | None = None,
 ) -> ProjectFocusService:
     project_root = tmp_path / 'repo'
     project_root.mkdir()
@@ -141,7 +158,7 @@ def _service(
     return ProjectFocusService(
         ProjectFocusDependencies(
             project_id='proj-1',
-            config=_config(),
+            config=config or _config(),
             namespace_controller=controller,
             project_view_service=project_view_service,
         )
@@ -184,6 +201,26 @@ def test_project_focus_window_focuses_first_configured_agent_when_available(tmp_
     assert backend.calls == [
         ['select-window', '-t', 'ccb-test:main'],
         ['select-pane', '-t', '%1'],
+        ['display-message', '-p', '-t', '%3', '#{session_name}'],
+        ['display-message', '-p', '-t', '%4', '#{session_name}'],
+        ['display-message', '-p', '-t', '%5', '#{session_name}'],
+        ['send-keys', '-t', '%3', '-l', 'r'],
+        ['send-keys', '-t', '%4', '-l', 'r'],
+    ]
+
+
+def test_project_focus_tool_window_selects_window_without_agent_pane_lookup(tmp_path: Path) -> None:
+    backend = _FakeTmuxBackend()
+    service = _service(tmp_path, backend, config=_config_with_tool_window())
+
+    result = service.focus_window(window='neovim')
+
+    assert result['focused'] is True
+    assert result['kind'] == 'window'
+    assert result['window'] == 'neovim'
+    assert result['agent'] is None
+    assert backend.calls == [
+        ['select-window', '-t', 'ccb-test:neovim'],
         ['display-message', '-p', '-t', '%3', '#{session_name}'],
         ['display-message', '-p', '-t', '%4', '#{session_name}'],
         ['display-message', '-p', '-t', '%5', '#{session_name}'],

@@ -26,12 +26,18 @@ class NamespaceWindowPlan:
     user_layout: str
     realized_layout: str
     agent_names: tuple[str, ...]
+    kind: str = 'agents'
+    label: str | None = None
+    command: str | None = None
     sidebar: SidebarPanePlan | None = None
 
     def to_record(self) -> dict[str, object]:
         return {
             'name': self.name,
             'order': self.order,
+            'kind': self.kind,
+            'label': self.label,
+            'command': self.command,
             'user_layout': self.user_layout,
             'realized_layout': self.realized_layout,
             'agent_names': list(self.agent_names),
@@ -57,15 +63,29 @@ class NamespaceTopologyPlan:
 
 def build_namespace_topology_plan(config, *, ccbd_socket_path: str | None = None, project_root: str | None = None) -> NamespaceTopologyPlan:
     sidebar_enabled = config.sidebar.mode == 'every_window'
-    windows = tuple(
-        _window_plan(
-            window,
-            sidebar=config.sidebar if sidebar_enabled else None,
-            ccbd_socket_path=ccbd_socket_path,
-            project_root=project_root,
-        )
-        for window in config.windows
-    )
+    agent_windows = tuple(config.windows)
+    tool_windows = tuple(getattr(config, 'tool_windows', ()) or ())
+    windows = tuple((
+        *(
+            _window_plan(
+                window,
+                sidebar=config.sidebar if sidebar_enabled else None,
+                ccbd_socket_path=ccbd_socket_path,
+                project_root=project_root,
+            )
+            for window in agent_windows
+        ),
+        *(
+            _tool_window_plan(
+                tool,
+                order_offset=len(agent_windows),
+                sidebar=config.sidebar if sidebar_enabled else None,
+                ccbd_socket_path=ccbd_socket_path,
+                project_root=project_root,
+            )
+            for tool in tool_windows
+        ),
+    ))
     return NamespaceTopologyPlan(
         signature=config.topology_signature,
         entry_window=config.entry_window,
@@ -75,23 +95,54 @@ def build_namespace_topology_plan(config, *, ccbd_socket_path: str | None = None
 
 
 def _window_plan(window, *, sidebar, ccbd_socket_path: str | None, project_root: str | None) -> NamespaceWindowPlan:
-    sidebar_plan = (
-        SidebarPanePlan(
-            mode=sidebar.mode,
-            width=sidebar.width,
-            bottom_height=sidebar.bottom_height,
-            launch_args=_sidebar_launch_args(ccbd_socket_path=ccbd_socket_path, project_root=project_root, window_name=window.name),
-        )
-        if sidebar is not None
-        else None
+    sidebar_plan = _sidebar_plan(
+        sidebar,
+        window_name=window.name,
+        ccbd_socket_path=ccbd_socket_path,
+        project_root=project_root,
     )
     return NamespaceWindowPlan(
         name=window.name,
         order=window.order,
+        kind='agents',
+        label=window.name,
         user_layout=window.layout_spec,
-        realized_layout=_realized_layout(window.layout_spec, sidebar_enabled=sidebar is not None),
+        realized_layout=_realized_layout(window.layout_spec, sidebar_enabled=sidebar_plan is not None),
         agent_names=window.agent_names,
         sidebar=sidebar_plan,
+    )
+
+
+def _tool_window_plan(tool, *, order_offset: int, sidebar, ccbd_socket_path: str | None, project_root: str | None) -> NamespaceWindowPlan:
+    sidebar_plan = _sidebar_plan(
+        sidebar,
+        window_name=tool.name,
+        ccbd_socket_path=ccbd_socket_path,
+        project_root=project_root,
+    )
+    return NamespaceWindowPlan(
+        name=tool.name,
+        order=order_offset + tool.order,
+        kind='tool',
+        label=tool.label,
+        command=tool.command,
+        user_layout=tool.command,
+        realized_layout='sidebar; (tool)' if sidebar_plan is not None else 'tool',
+        agent_names=(),
+        sidebar=sidebar_plan,
+    )
+
+
+def _sidebar_plan(sidebar, *, window_name: str, ccbd_socket_path: str | None, project_root: str | None) -> SidebarPanePlan | None:
+    return (
+        SidebarPanePlan(
+            mode=sidebar.mode,
+            width=sidebar.width,
+            bottom_height=sidebar.bottom_height,
+            launch_args=_sidebar_launch_args(ccbd_socket_path=ccbd_socket_path, project_root=project_root, window_name=window_name),
+        )
+        if sidebar is not None
+        else None
     )
 
 

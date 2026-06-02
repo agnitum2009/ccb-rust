@@ -10,6 +10,7 @@ from .additive_patch_preservation import assert_preserved_agent_panes, snapshot_
 from .additive_patch_validation import unsupported_additive_patch_reason
 from .additive_patch_windows import WindowPatchResult, create_new_windows
 from .remove_patch_agents import remove_agent_panes
+from .remove_patch_tools import remove_tool_windows
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class NamespacePatchApplyResult:
     removed_windows: tuple[str, ...] = ()
     removed_panes: tuple[str, ...] = ()
     removed_agents: dict[str, str] = field(default_factory=dict)
+    tool_panes: dict[str, str] = field(default_factory=dict)
     preserved_before: dict[str, str] = field(default_factory=dict)
     preserved_after: dict[str, str] = field(default_factory=dict)
     partial: bool = False
@@ -38,6 +40,7 @@ class NamespacePatchApplyResult:
             'removed_windows': list(self.removed_windows),
             'removed_panes': list(self.removed_panes),
             'removed_agents': dict(self.removed_agents),
+            'tool_panes': dict(self.tool_panes),
             'preserved_before': dict(self.preserved_before),
             'preserved_after': dict(self.preserved_after),
             'partial': bool(self.partial),
@@ -152,6 +155,14 @@ def _apply_mutations(
             result=state,
             timeout_s=timeout_s,
         )
+        remove_tool_windows(
+            backend,
+            old_topology=old_topology,
+            new_topology=new_topology,
+            current=current,
+            result=state,
+            timeout_s=timeout_s,
+        )
     except Exception as exc:
         return exc
     return None
@@ -185,6 +196,7 @@ def _failure_result(
         removed_windows=tuple(state.removed_windows),
         removed_panes=tuple(state.removed_panes),
         removed_agents=state.removed_agents,
+        tool_panes=state.tool_panes,
         preserved_before=preserved_before,
         preserved_after=preserved_after,
         partial=bool(state.created_windows or state.created_panes or state.removed_windows or state.removed_panes),
@@ -218,11 +230,12 @@ def _applied_result(
         removed_windows=tuple(state.removed_windows),
         removed_panes=tuple(state.removed_panes),
         removed_agents=state.removed_agents,
+        tool_panes=state.tool_panes,
         preserved_before=preserved_before,
         preserved_after=preserved_after,
         partial=False,
         diagnostics={
-            'supported_operations': ['add_window', 'add_agent', 'remove_agent'],
+            'supported_operations': ['add_window', 'add_agent', 'remove_agent', 'add_tool_window', 'remove_tool_window'],
             'namespace_state_written': False,
             'graph_published': False,
             'runtime_authority_written': False,

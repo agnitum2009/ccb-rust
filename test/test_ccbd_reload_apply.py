@@ -73,6 +73,12 @@ REMOVE_AGENT_CONFIG = BASE_CONFIG.replace(
     'agent1:codex',
 )
 
+ADD_TOOL_WINDOW_CONFIG = BASE_CONFIG + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+"""
+
 NOW = '2026-05-29T00:00:00Z'
 
 
@@ -254,6 +260,76 @@ def test_additive_reload_apply_add_window_success_mounts_new_window_agent_then_p
     assert app.config.entry_window == 'main'
     assert app.service_graph.registry.get('agent3').pane_id == '%4'
     assert calls[0]['namespace_agent_panes'] == {'agent3': '%4'}
+
+
+def test_additive_reload_apply_add_tool_window_publishes_without_runtime_mount(
+    tmp_path: Path,
+) -> None:
+    app = _started_app(tmp_path / 'repo-add-tool-window', BASE_CONFIG)
+    old_graph = app.service_graph
+    new_config = _load_config(app.project_root, ADD_TOOL_WINDOW_CONFIG)
+    runtime_calls: list[str] = []
+
+    result = run_additive_reload_apply(
+        app,
+        new_config,
+        current_namespace=_namespace(app),
+        apply_namespace_patch_fn=lambda **_kwargs: _namespace_patch_result(
+            created_windows=('neovim',),
+            created_panes=('%3', '%4'),
+            agent_panes={},
+            sidebar_panes={'neovim': '%3'},
+            tool_panes={'neovim': '%4'},
+        ),
+        run_runtime_mount_fn=lambda *_args, **_kwargs: (
+            runtime_calls.append('runtime') or AdditiveRuntimeMountResult(status='noop')
+        ),
+    )
+
+    assert result.status == 'published'
+    assert result.plan_class == 'add_tool_window'
+    assert result.namespace_patch['tool_panes'] == {'neovim': '%4'}
+    assert result.runtime_mount['status'] == 'noop'
+    assert runtime_calls == ['runtime']
+    assert app.service_graph is not old_graph
+    assert app.service_graph.version == 2
+    assert [tool.name for tool in app.config.tool_windows] == ['neovim']
+    assert app.service_graph.registry.list_known_agents() == ('agent1', 'agent2')
+    assert app.mount_manager.load_state().config_signature == app.config_identity['config_signature']
+    assert app.lifecycle_store.load().config_signature == app.config_identity['config_signature']
+
+
+def test_additive_reload_apply_remove_tool_window_publishes_without_agent_unload(
+    tmp_path: Path,
+) -> None:
+    app = _started_app(tmp_path / 'repo-remove-tool-window', ADD_TOOL_WINDOW_CONFIG)
+    old_graph = app.service_graph
+    new_config = _load_config(app.project_root, BASE_CONFIG)
+
+    result = run_additive_reload_apply(
+        app,
+        new_config,
+        current_namespace=_namespace(app),
+        apply_namespace_patch_fn=lambda **_kwargs: _namespace_patch_result(
+            created_panes=(),
+            agent_panes={},
+            removed_windows=('neovim',),
+            removed_panes=('%4',),
+            preserved_before={'agent1': '%1', 'agent2': '%2'},
+            preserved_after={'agent1': '%1', 'agent2': '%2'},
+        ),
+        run_runtime_mount_fn=lambda *_args, **_kwargs: AdditiveRuntimeMountResult(status='noop'),
+    )
+
+    assert result.status == 'published'
+    assert result.plan_class == 'remove_tool_window'
+    assert result.namespace_patch['removed_windows'] == ['neovim']
+    assert result.runtime_mount['status'] == 'noop'
+    assert app.service_graph is not old_graph
+    assert app.service_graph.version == 2
+    assert app.config.tool_windows == ()
+    assert app.service_graph.registry.list_known_agents() == ('agent1', 'agent2')
+    assert result.diagnostics['unload_or_replace_executed'] is False
 
 
 def test_additive_reload_apply_add_window_materializes_tmux_window_before_mount(
@@ -646,6 +722,71 @@ def test_project_reload_non_dry_run_add_window_publishes_after_additive_stages(
     assert [window['name'] for window in view['view']['windows']] == ['main', 'review']
 
 
+def test_project_reload_non_dry_run_add_tool_window_publishes_after_namespace_patch(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app = _started_app(tmp_path / 'repo-add-tool-handler', BASE_CONFIG)
+    _project(app.project_root, ADD_TOOL_WINDOW_CONFIG)
+    monkeypatch.setattr(
+        'ccbd.reload_apply_service.apply_namespace_patch',
+        lambda *_args, **_kwargs: _namespace_patch_result(
+            created_windows=('neovim',),
+            created_panes=('%3', '%4'),
+            agent_panes={},
+            sidebar_panes={'neovim': '%3'},
+            tool_panes={'neovim': '%4'},
+        ),
+    )
+
+    payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
+
+    assert payload['status'] == 'published'
+    assert payload['plan_class'] == 'add_tool_window'
+    assert {item['op'] for item in payload['operations']} == {'add_tool_window'}
+    assert payload['namespace_patch']['tool_panes'] == {'neovim': '%4'}
+    assert payload['runtime_mount']['status'] == 'noop'
+    assert payload['diagnostics']['graph_published'] is True
+    assert app.service_graph.version == 2
+    assert [tool.name for tool in app.config.tool_windows] == ['neovim']
+    view = app.socket_server._handlers['project_view']({'schema_version': 1})
+    assert [window['name'] for window in view['view']['windows']] == ['main', 'neovim']
+    assert view['view']['windows'][1]['kind'] == 'tool'
+
+
+def test_project_reload_non_dry_run_remove_tool_window_publishes_after_namespace_patch(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app = _started_app(tmp_path / 'repo-remove-tool-handler', ADD_TOOL_WINDOW_CONFIG)
+    _project(app.project_root, BASE_CONFIG)
+    monkeypatch.setattr(
+        'ccbd.reload_apply_service.apply_namespace_patch',
+        lambda *_args, **_kwargs: _namespace_patch_result(
+            created_panes=(),
+            agent_panes={},
+            removed_windows=('neovim',),
+            removed_panes=('%4',),
+            preserved_before={'agent1': '%1', 'agent2': '%2'},
+            preserved_after={'agent1': '%1', 'agent2': '%2'},
+        ),
+    )
+
+    payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
+
+    assert payload['status'] == 'published'
+    assert payload['plan_class'] == 'remove_tool_window'
+    assert {item['op'] for item in payload['operations']} == {'remove_tool_window'}
+    assert payload['namespace_patch']['removed_windows'] == ['neovim']
+    assert payload['runtime_mount']['status'] == 'noop'
+    assert payload['diagnostics']['graph_published'] is True
+    assert payload['diagnostics']['unload_or_replace_executed'] is False
+    assert app.service_graph.version == 2
+    assert app.config.tool_windows == ()
+    view = app.socket_server._handlers['project_view']({'schema_version': 1})
+    assert [window['name'] for window in view['view']['windows']] == ['main']
+
+
 def test_project_reload_non_dry_run_remove_agent_publishes_after_unload_stages(
     tmp_path: Path,
     monkeypatch,
@@ -864,6 +1005,7 @@ def _namespace_patch_result(
     removed_windows: tuple[str, ...] = (),
     removed_panes: tuple[str, ...] = (),
     removed_agents: dict[str, str] | None = None,
+    tool_panes: dict[str, str] | None = None,
     preserved_before: dict[str, str] | None = None,
     preserved_after: dict[str, str] | None = None,
 ) -> NamespacePatchApplyResult:
@@ -876,6 +1018,7 @@ def _namespace_patch_result(
         removed_windows=removed_windows,
         removed_panes=removed_panes,
         removed_agents=removed_agents or {},
+        tool_panes=tool_panes or {},
         preserved_before=preserved_before or {'agent1': '%1', 'agent2': '%2'},
         preserved_after=preserved_after or {'agent1': '%1', 'agent2': '%2'},
         diagnostics={

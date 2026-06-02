@@ -72,7 +72,7 @@ def handle_fault_clear(context, command, out, services) -> int:
 def handle_reload(context, command, out, services) -> int:
     payload = services.reload_config(context, command)
     services.write_lines(out, services.render_reload(payload))
-    return 0 if str(payload.get('status') or '') in {'ok', 'published'} else 1
+    return 0 if str(payload.get('status') or '') in {'ok', 'published', 'noop'} else 1
 
 
 __all__ = [

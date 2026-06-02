@@ -61,6 +61,8 @@ def load_memory_sources(
         if provider_source is not None:
             sources.append(provider_source)
 
+    sources.extend(_role_memory_sources(layout.project_root, agent_name=agent_name))
+
     sources.append(
         _read_source(
             kind='agent_private',
@@ -70,6 +72,19 @@ def load_memory_sources(
         )
     )
     return tuple(source for source in sources if source is not None)
+
+
+def _role_memory_sources(project_root: Path, *, agent_name: str) -> tuple[ProjectMemorySource, ...]:
+    try:
+        from rolepacks import project_role_memory_sources
+
+        return tuple(
+            source
+            for source in project_role_memory_sources(project_root, agent_name)
+            if isinstance(source, ProjectMemorySource)
+        )
+    except Exception:
+        return ()
 
 
 def _layout(project_root_or_layout) -> PathLayout:

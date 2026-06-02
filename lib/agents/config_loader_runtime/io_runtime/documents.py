@@ -3,7 +3,8 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
-from agents.models import normalize_agent_name, parse_layout_spec
+from agents.config_loader_runtime.role_lookup import RoleLookupError, installed_role_default_agent_name, looks_like_role_id, normalize_role_id
+from agents.models import LayoutLeaf, LayoutNode, normalize_agent_name, parse_layout_spec
 
 from ..common import (
     CONFIG_SOURCE_BUILTIN_DEFAULT,
@@ -66,13 +67,31 @@ def _consume_compact_leaf(
         return True
     if leaf.provider is None:
         _raise_invalid_compact_token(path, token)
+    role_id = None
+    if looks_like_role_id(token):
+        role_id = normalize_role_id(token)
+        try:
+            token = normalize_agent_name(installed_role_default_agent_name(role_id))
+        except RoleLookupError as exc:
+            raise ConfigValidationError(f'{path}: {exc}') from exc
+        except Exception as exc:
+            raise ConfigValidationError(f'{path}: role {role_id} default agent name is invalid: {exc}') from exc
+        normalized_name = token
     if normalized_name in agents:
+        if role_id is not None:
+            raise ConfigValidationError(
+                f'{path}: role {role_id} resolves to existing agent {normalized_name!r}; '
+                'use an explicit agent name with role binding'
+            )
         raise ConfigValidationError(f'{path}: duplicate agent name in compact config: {token}')
     default_agents.append(token)
-    agents[normalized_name] = _build_compact_agent_record(
+    record = _build_compact_agent_record(
         leaf.provider,
         workspace_mode='git-worktree' if str(leaf.workspace_mode or '').strip() == 'worktree' else 'inplace',
     )
+    if role_id is not None:
+        record['role'] = role_id
+    agents[normalized_name] = record
     return cmd_enabled
 
 
@@ -104,8 +123,37 @@ def _parse_compact_config_document(text: str, *, path: Path) -> dict[str, object
         'default_agents': default_agents,
         'agents': agents,
         'cmd_enabled': cmd_enabled,
-        'layout': layout.render(),
+        'layout': _expand_compact_role_layout(layout).render(),
     }
+
+
+def _expand_compact_role_layout(node):
+    if node.kind == 'leaf':
+        assert node.leaf is not None
+        name = str(node.leaf.name or '').strip()
+        if looks_like_role_id(name):
+            role_id = normalize_role_id(name)
+            try:
+                name = normalize_agent_name(installed_role_default_agent_name(role_id))
+            except RoleLookupError as exc:
+                raise ConfigValidationError(str(exc)) from exc
+            except Exception as exc:
+                raise ConfigValidationError(f'role {role_id} default agent name is invalid: {exc}') from exc
+        return LayoutNode(
+            kind='leaf',
+            leaf=LayoutLeaf(
+                name=name,
+                provider=node.leaf.provider,
+                workspace_mode=node.leaf.workspace_mode,
+            ),
+        )
+    assert node.left is not None
+    assert node.right is not None
+    return LayoutNode(
+        kind=node.kind,
+        left=_expand_compact_role_layout(node.left),
+        right=_expand_compact_role_layout(node.right),
+    )
 
 
 def _classify_config_document(text: str) -> tuple[str, str, str | None]:

@@ -116,6 +116,8 @@ def test_load_project_config_uses_builtin_default_when_project_config_is_missing
     assert config.windows_explicit is True
     assert config.entry_window == 'main'
     assert [window.name for window in config.windows] == ['main']
+    assert [tool.name for tool in config.tool_windows] == ['neovim']
+    assert config.tool_windows[0].command == 'ccb-nvim'
     loaded = load_project_config(project_root)
     assert loaded.source_path is None
     assert loaded.source_kind == CONFIG_SOURCE_BUILTIN_DEFAULT
@@ -125,12 +127,33 @@ def test_load_project_config_uses_builtin_default_when_project_config_is_missing
     assert loaded.config.windows_explicit is True
     assert loaded.config.entry_window == 'main'
     assert [window.name for window in loaded.config.windows] == ['main']
+    assert [tool.name for tool in loaded.config.tool_windows] == ['neovim']
+    assert loaded.config.tool_windows[0].command == 'ccb-nvim'
     assert set(loaded.config.agents) == {'agent1', 'agent2', 'agent3'}
     assert loaded.config.agents['agent1'].provider == 'codex'
     assert loaded.config.agents['agent2'].provider == 'codex'
     assert loaded.config.agents['agent3'].provider == 'claude'
     assert loaded.config.agents['agent1'].workspace_mode is WorkspaceMode.INPLACE
     assert loaded.config.agents['agent1'].runtime_mode is RuntimeMode.PANE_BACKED
+
+
+def test_render_default_project_config_text_includes_neovim_tool_window(tmp_path: Path) -> None:
+    from agents.config_loader import render_default_project_config_text
+
+    rendered = render_default_project_config_text()
+
+    assert '[windows]' in rendered
+    assert 'main = "agent1:codex, agent2:codex, agent3:claude"' in rendered
+    assert '[tool_windows.neovim]' in rendered
+    assert 'command = "ccb-nvim"' in rendered
+    assert '[ui.sidebar.view]' in rendered
+    assert 'agents_height = "50%"' in rendered
+    assert 'comms_height = "15%"' in rendered
+    assert 'tips_height = "35%"' in rendered
+    config_path = tmp_path / 'repo-render-default' / '.ccb' / 'ccb.config'
+    _write(config_path, rendered)
+    loaded = load_project_config(config_path.parents[1]).config
+    assert [tool.name for tool in loaded.tool_windows] == ['neovim']
 
 
 def test_ensure_default_project_config_creates_anchor_without_writing_config(tmp_path: Path) -> None:
@@ -1014,6 +1037,167 @@ model = "gpt-5"
     assert spec.restore_default is RestoreMode.FRESH
     assert spec.permission_default is PermissionMode.AUTO
     assert spec.model == 'gpt-5'
+
+
+def test_load_project_config_supports_managed_tool_windows(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-tool-windows'
+    config_path = project_root / '.ccb' / 'ccb.config'
+    _write(
+        config_path,
+        """version = 2
+entry_window = "neovim"
+
+[windows]
+main = "agent1:codex"
+
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+show_in_sidebar = true
+""",
+    )
+
+    result = load_project_config(project_root)
+
+    assert result.config.default_agents == ('agent1',)
+    assert set(result.config.agents) == {'agent1'}
+    assert result.config.entry_window == 'neovim'
+    assert [window.name for window in result.config.windows] == ['main']
+    assert len(result.config.tool_windows) == 1
+    tool = result.config.tool_windows[0]
+    assert tool.name == 'neovim'
+    assert tool.order == 0
+    assert tool.command == 'ccb-nvim'
+    assert tool.label == 'neovim'
+    assert tool.show_in_sidebar is True
+    record = result.config.to_record()
+    assert record['tool_windows'] == [
+        {
+            'name': 'neovim',
+            'order': 0,
+            'command': 'ccb-nvim',
+            'label': 'neovim',
+            'show_in_sidebar': True,
+        }
+    ]
+    assert 'neovim' not in project_config_identity_payload(result.config)['known_agents']
+
+
+def test_load_project_config_tool_windows_affect_topology_identity(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-tool-window-identity'
+    config_path = project_root / '.ccb' / 'ccb.config'
+    base = """version = 2
+
+[windows]
+main = "agent1:codex"
+"""
+    _write(config_path, base)
+    without_tool = load_project_config(project_root).config
+
+    _write(
+        config_path,
+        base
+        + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+""",
+    )
+    with_tool = load_project_config(project_root).config
+
+    assert with_tool.tool_windows[0].label == 'neovim'
+    assert with_tool.topology_signature != without_tool.topology_signature
+    assert project_config_identity_payload(with_tool)['config_signature'] != project_config_identity_payload(without_tool)['config_signature']
+
+
+def test_load_project_config_tool_window_label_and_sidebar_visibility_are_view_only(
+    tmp_path: Path,
+) -> None:
+    base = """version = 2
+
+[windows]
+main = "agent1:codex"
+
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+show_in_sidebar = true
+"""
+    changed = base.replace('label = "neovim"', 'label = "editor"').replace(
+        'show_in_sidebar = true',
+        'show_in_sidebar = false',
+    )
+    first_root = tmp_path / 'repo-tool-view-1'
+    second_root = tmp_path / 'repo-tool-view-2'
+    _write(first_root / '.ccb' / 'ccb.config', base)
+    _write(second_root / '.ccb' / 'ccb.config', changed)
+
+    first = load_project_config(first_root).config
+    second = load_project_config(second_root).config
+
+    assert first.topology_signature == second.topology_signature
+    assert (
+        project_config_identity_payload(first)['config_signature']
+        == project_config_identity_payload(second)['config_signature']
+    )
+
+
+def test_load_project_config_rejects_tool_window_name_conflict(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-tool-window-conflict'
+    config_path = project_root / '.ccb' / 'ccb.config'
+    _write(
+        config_path,
+        """version = 2
+
+[windows]
+neovim = "agent1:codex"
+
+[tool_windows.neovim]
+command = "ccb-nvim"
+""",
+    )
+
+    with pytest.raises(ConfigValidationError, match='tool window conflicts with agent window'):
+        load_project_config(project_root)
+
+
+def test_load_project_config_rejects_tool_windows_without_windows_topology(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-tool-without-windows'
+    config_path = project_root / '.ccb' / 'ccb.config'
+    _write(
+        config_path,
+        """version = 2
+default_agents = ["agent1"]
+layout = "agent1:codex"
+
+[agents.agent1]
+provider = "codex"
+
+[tool_windows.neovim]
+command = "ccb-nvim"
+""",
+    )
+
+    with pytest.raises(ConfigValidationError, match='tool_windows requires windows topology'):
+        load_project_config(project_root)
+
+
+def test_load_project_config_rejects_invalid_tool_window(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-tool-invalid'
+    config_path = project_root / '.ccb' / 'ccb.config'
+    _write(
+        config_path,
+        """version = 2
+
+[windows]
+main = "agent1:codex"
+
+[tool_windows.neovim]
+command = ""
+""",
+    )
+
+    with pytest.raises(ConfigValidationError, match='command cannot be empty'):
+        load_project_config(project_root)
 
 
 def test_load_project_config_supports_windows_topology_partial_agent_overlay(tmp_path: Path) -> None:

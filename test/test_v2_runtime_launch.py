@@ -1130,6 +1130,8 @@ def test_ensure_agent_runtime_falls_back_to_detached_tmux_session(monkeypatch, t
     assert any(name == 'set-option' for name, _ in calls)
     assert ('set-option', ('set-option', '-g', 'mouse', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'set-clipboard', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'focus-events', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'escape-time', '10')) in calls
     assert ('set-window-option', ('set-window-option', '-g', 'mode-keys', 'vi')) in calls
     assert ('bind-key', ('bind-key', '-T', 'copy-mode-vi', 'v', 'send-keys', '-X', 'begin-selection')) in calls
     assert _clipboard_bind_call('y') in calls
@@ -1308,6 +1310,8 @@ def test_ensure_agent_runtime_outside_tmux_relaunches_stale_binding_via_detached
     assert any(name == 'start-server' for name, _ in calls)
     assert ('set-option', ('set-option', '-g', 'mouse', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'set-clipboard', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'focus-events', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'escape-time', '10')) in calls
     assert ('set-window-option', ('set-window-option', '-g', 'mode-keys', 'vi')) in calls
     assert ('bind-key', ('bind-key', '-T', 'copy-mode-vi', 'y', 'send-keys', '-X', 'copy-selection-and-cancel')) not in calls
     assert _clipboard_bind_call('y') in calls
@@ -1559,6 +1563,8 @@ def test_ensure_agent_runtime_falls_back_when_created_pane_is_too_small(monkeypa
     assert any(name == 'set-option' for name, _ in calls)
     assert ('set-option', ('set-option', '-g', 'mouse', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'set-clipboard', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'focus-events', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'escape-time', '10')) in calls
     assert ('set-window-option', ('set-window-option', '-g', 'mode-keys', 'vi')) in calls
     assert _clipboard_bind_call('MouseDragEnd1Pane') in calls
     assert ('bind-key', ('bind-key', 'l', 'select-pane', '-R')) in calls

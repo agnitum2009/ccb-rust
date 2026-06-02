@@ -96,6 +96,11 @@ def build_agent_spec(agent_name: str, raw: dict[str, Any]) -> AgentSpec:
                 if raw.get('description') is not None
                 else None
             ),
+            role=(
+                expect_string(raw['role'], field_name=f'agents.{agent_name}.role')
+                if raw.get('role') is not None
+                else None
+            ),
             watch_paths=expect_string_list(raw.get('watch_paths', []), field_name=f'agents.{agent_name}.watch_paths'),
         )
     except AgentValidationError as exc:

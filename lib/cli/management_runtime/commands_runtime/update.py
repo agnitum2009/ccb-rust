@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import platform
 import re
 import shutil
+import sys
 import tarfile
 
 from release_artifacts import release_artifact_name
+from cli.roles_runtime.commands import cmd_roles
+from cli.tools_runtime.neovim import provision_neovim
 
 from ..install import (
     download_tarball,
@@ -140,6 +144,8 @@ def _update_via_tarball(tmp_base: Path, *, install_dir: Path, target_version: st
             extra_env={
                 "CODEX_INSTALL_PREFIX": str(install_dir),
                 "CCB_CLEAN_INSTALL": "1",
+                "CCB_INSTALL_NEOVIM": "0",
+                "CCB_INSTALL_ROLES": "0",
             },
         )
         if returncode != 0:
@@ -148,6 +154,8 @@ def _update_via_tarball(tmp_base: Path, *, install_dir: Path, target_version: st
 
         new_info = get_version_info(install_dir)
         _print_update_outcome(old_info, new_info)
+        _update_builtin_roles_after_update(install_dir=install_dir)
+        _provision_neovim_after_update()
         return 0
     except Exception as exc:
         print(f"❌ Update failed: {exc}")
@@ -164,6 +172,96 @@ def _print_update_outcome(old_info: dict[str, object], new_info: dict[str, objec
         print(f"✅ Updated: {old_str} → {new_str}")
     else:
         print(f"✅ Already up to date: {new_str}")
+
+
+def _provision_neovim_after_update() -> None:
+    choice = _neovim_install_choice()
+    if choice == 'env-skip':
+        print('ℹ️  Neovim tool provisioning skipped by CCB_INSTALL_NEOVIM=0')
+        return
+    if choice == 'declined':
+        print('ℹ️  Neovim/LazyVim provisioning skipped.')
+        print('   Run `ccb tools install neovim` later to enable the default neovim window.')
+        return
+    if choice == 'noninteractive-skip':
+        print('ℹ️  Neovim/LazyVim provisioning skipped in non-interactive update.')
+        print('   Run `ccb tools install neovim` later to enable the default neovim window.')
+        return
+    required = choice == 'required'
+    try:
+        result = provision_neovim(required=required)
+    except Exception as exc:
+        if required:
+            raise
+        print(f"⚠️  Neovim tool not ready: {type(exc).__name__}: {exc}")
+        return
+    status = str(result.get('status') or '')
+    if status == 'ok':
+        print(f"✅ Neovim tool ready: {result.get('wrapper')}")
+    elif required:
+        raise RuntimeError(str(result.get('reason') or 'Neovim tool provisioning failed'))
+    else:
+        print(f"⚠️  Neovim tool not ready: {result.get('reason') or status}")
+
+
+def _update_builtin_roles_after_update(*, install_dir: Path) -> None:
+    choice = _roles_update_choice()
+    if choice == 'declined':
+        print('ℹ️  Role Pack update skipped.')
+        print('   Run `ccb roles update ccb.archi` later to refresh roles and dependencies.')
+        return
+    if choice == 'noninteractive-skip':
+        print('ℹ️  Role Pack update skipped in non-interactive update.')
+        print('   Run `ccb roles update ccb.archi` later to refresh roles and dependencies.')
+        return
+    stdout = sys.stdout
+    stderr = sys.stderr
+    code = cmd_roles(['update', 'ccb.archi'], script_root=install_dir, cwd=Path.cwd(), stdout=stdout, stderr=stderr)
+    if code == 0:
+        print('✅ Role Pack ready: ccb.archi')
+    else:
+        print('⚠️  Role Pack update failed: ccb.archi')
+
+
+def _roles_update_choice() -> str:
+    if not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
+        return 'noninteractive-skip'
+    print('Install/refresh bundled Role Packs and dependencies now? [Y/n] ', end='', flush=True)
+    try:
+        answer = sys.stdin.readline()
+    except Exception:
+        return 'noninteractive-skip'
+    if str(answer or '').strip().lower() in {'n', 'no'}:
+        return 'declined'
+    return 'accepted'
+
+
+def _neovim_install_choice() -> str:
+    requested = str(os.environ.get('CCB_INSTALL_NEOVIM') or '').strip().lower()
+    if requested in {'0', 'false', 'off', 'no'}:
+        return 'env-skip'
+    if requested in {'1', 'true', 'on', 'yes'}:
+        return 'required'
+    if not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
+        return 'noninteractive-skip'
+    print('Install/refresh the default Neovim + LazyVim tool window now? [y/N] ', end='', flush=True)
+    try:
+        answer = sys.stdin.readline()
+    except Exception:
+        return 'noninteractive-skip'
+    if str(answer or '').strip().lower() in {'y', 'yes'}:
+        return 'optional'
+    return 'declined'
+
+
+def _stream_is_tty(stream) -> bool:
+    checker = getattr(stream, 'isatty', None)
+    if not callable(checker):
+        return False
+    try:
+        return bool(checker())
+    except Exception:
+        return False
 
 
 def _release_artifact_url(version: str, *, artifact_name: str) -> str:

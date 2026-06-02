@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.1.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.2.0-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **中文** | [English](README.md)
@@ -75,6 +75,9 @@ CCB 是一个项目级 agent CLI 工作台。它用 tmux 管理多个真实 CLI 
 - **可见协作**：sidebar 展示窗口、agent 状态和通信区；用户可以用鼠标直接切 pane。
 - **混合 provider**：一个项目里可以同时跑 Codex、Claude、Gemini、OpenCode、Droid 和 Antigravity（`agy`）。
 - **项目级配置**：`.ccb/ccb.config` 决定团队、布局、窗口、worktree、model、key、url。
+- **Roles**：全新的角色封装概念；它让携带“重武器”（独立 skills、记忆和
+  工具依赖等）的专业角色瞬间“降临”到目标项目中，成为一个可以快速热加载和
+  卸载的独立 agent，同时保持主环境、用户全局配置和项目运行状态不发生改变。
 - **可恢复运行态**：CCB 后台守护 agent pane，支持 attach、恢复和项目级清理。
 - **显式协作通道**：agent 可以通过 `/ask`、`$ask`、callback 和 silence 进行委派与交接。
 
@@ -240,6 +243,7 @@ CCB 配置有三层，优先级从低到高：
 3. 项目配置 `.ccb/ccb.config`。
 
 更高层会整体替换低层，不做局部合并。当前项目的权威配置文件是 `.ccb/ccb.config`；旧路径 `.ccb_config/ccb.config` 只应作为迁移参考。
+内置默认配置是 v2 `[windows]` 拓扑，包含 `agent1`、`agent2`、`agent3`，以及一个使用 `ccb-nvim` 的托管 `neovim` 工具 window。
 
 `.ccb/ccb.config` 主要配置这些内容：
 
@@ -249,12 +253,39 @@ CCB 配置有三层，优先级从低到高：
 | agent 名称和 provider | `main:codex`、`reviewer:claude` | 名称用于界面、ask 路由和记忆文件；provider 决定启动哪家 CLI。 |
 | 工作区隔离 | `worker1:codex(worktree)` | 给实现类 agent 独立 git worktree，降低互相覆盖的风险。 |
 | sidebar 行为 | `[ui.sidebar]` | 控制 sidebar 是否每个 window 都显示、宽度和 Comms 高度。 |
+| 工具 window | `[tool_windows.<name>]` | 添加 Neovim 这类非 agent 托管 window；sidebar 只显示一行，不是 `ask` 目标。 |
 | 单 agent 模型/API | `[agents.<name>]` | 可为不同 agent 配 `model`、`key`、`url` 等。 |
+| Role Pack 绑定 | `ccb.archi:codex` | 通过 window leaf 绑定可复用角色包；role 资产统一安装，再投影到解析出的 agent。 |
 | 角色说明 | `[agents.<name>] description = "..."` | 给 agent 一个简短职责说明；更长的工作流规则建议写到 memory。 |
 
-在已启动的项目里修改 `.ccb/ccb.config` 后，先运行 `ccb reload --dry-run` 预览计划，再运行 `ccb reload` 应用。显式 reload 可以动态新增 agent、新增 window、卸载 idle agent、删除 idle window，同时保持无关 agent 和 pane 继续运行。它不是后台文件监听；busy agent 卸载、provider 替换、agent 移动和任意布局重排会被拒绝，不会 kill 现有 pane。
+在已启动的项目里修改 `.ccb/ccb.config` 后，先运行 `ccb reload --dry-run` 预览计划，再运行 `ccb reload` 应用。显式 reload 可以动态新增 agent、新增 window、新增/删除托管工具 window、卸载 idle agent、删除 idle window，同时保持无关 agent 和 pane 继续运行。它不是后台文件监听；busy agent 卸载、provider 替换、agent 移动、工具命令替换和任意布局重排会被拒绝，不会 kill 现有 pane。
 
 如果你想先讨论配置而不是手写，可以直接用 `ccb-config` skill 描述目标团队。它会先提出完整方案，确认后再修改 `.ccb/ccb.config`。
+
+### Role Packs
+
+Role Pack 用来定义可复用的 agent 角色。一个 role 可以包含稳定身份、职责、
+记忆、provider-specific skills、工具 hooks 和依赖准备逻辑。这样项目配置会更短，
+专门角色也能跨项目复用，不需要在每个项目里复制一大段角色说明。
+
+目前内置 role 只有 `ccb.archi`，用于架构审查，并由 Architec 支撑；后续会
+陆续引入更多专业角色。在 `install.sh install` 或 `ccb update` 时确认安装/刷新
+bundled roles 即可；也可以手动刷新：
+
+```bash
+ccb roles update ccb.archi
+```
+
+在项目里使用这个 role 时，把它作为 window leaf 加进去：
+
+```bash
+ccb roles add ccb.archi:codex
+ccb reload
+```
+
+这会写入紧凑形式 `ccb.archi:codex`。运行时 CCB 会把它解析成项目本地
+agent `archi`，并把 role memory 和 skills 投影到该 agent 的 managed
+provider home。
 
 <details>
 <summary><b>配置格式示例：单窗口、多 window、per-agent 模型/API</b></summary>
@@ -299,6 +330,27 @@ comms_limit = 3
 ```
 
 注意：`cmd` 只属于紧凑/混合单窗口布局；`[windows]` 拓扑里不要写 `cmd`。
+
+### 托管 Neovim 工具 window
+
+工具 window 是 CCB 管理的 tmux window，但不是 agent。它不会出现在 `ccb ask` 目标中，也不会创建 provider runtime 记录。
+
+```toml
+version = 2
+entry_window = "main"
+
+[windows]
+main = "main:codex"
+
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+```
+
+`ccb tools install neovim` 会准备隔离的 `ccb-nvim` wrapper 和 LazyVim profile，路径在 CCB 自己的 XDG 目录下。`install.sh install` 和 `ccb update` 会在交互终端询问是否安装或刷新该工具；非交互安装会跳过并打印后续命令。设置 `CCB_INSTALL_NEOVIM=1` 可强制 provisioning，设置 `CCB_INSTALL_NEOVIM=0` 可跳过。
+如果 `PATH` 里没有 `nvim`，provisioning 会尝试下载 Linux/macOS 官方 Neovim release tarball，并校验 release sha256 后再启用；不会写入 `~/.config/nvim`。
+托管 profile 默认使用 ASCII 图标，避免没有 Nerd Font 的终端出现方块/乱码。确认终端字体支持 Nerd Font 时，可用 `CCB_LAZYVIM_ICON_STYLE=glyph ccb-nvim` 恢复 LazyVim 图标。
+用 `ccb tools doctor neovim` 验证托管 profile。LazyVim 真正可用时会显示 `neovim_status: ok` 和 `lazyvim_health_status: ok`；插件目录损坏或半下载会显示 `degraded`，重新运行 `ccb tools install neovim` 会尝试修复。
 
 ### 给 agent 单独配置模型、API key 或 base URL
 
@@ -459,6 +511,17 @@ v7 线重点：
 - 加固 tmux、Ghostty、release helper、Codex trust 和 provider 会话恢复路径。
 
 <details open>
+<summary><b>v7.2.0</b> - Role Packs And Managed Tools Release</summary>
+
+- 新增 Role Pack 体验面，内置 `ccb.archi` 架构师 role，包含 role memory、Codex/Claude skill 投影和项目 role lock。
+- `ccb roles add ccb.archi:codex` 成为主要接入命令；config 保留 shorthand，运行时解析为本地 agent `archi`。
+- `ccb roles install/update ccb.archi` 默认刷新 role 资产和依赖；安装/更新时交互提示，非交互场景会给出后续运行命令。
+- 新增 `[tool_windows.neovim]` 这类托管工具 window，以及 `ccb tools install/doctor neovim`、sidebar 行和安全的 reload add/remove 行为。
+- 包含 main 上已合入的 `agy` / Google Antigravity provider 支持。
+
+</details>
+
+<details>
 <summary><b>v7.1.1</b> - Sidebar View Height Release</summary>
 
 - 在 `[ui.sidebar.view]` 下新增三段 sidebar 高度配置：`agents_height`、`comms_height`、`tips_height`。

@@ -11,6 +11,8 @@ def remove_agent_steps(old_topology, new_topology, *, step_factory) -> dict[str,
     blocked: list[dict[str, object]] = []
     for window_name, old_window in old_windows.items():
         if window_name in removed_windows:
+            if str(getattr(old_window, 'kind', '') or '') == 'tool':
+                continue
             result = _remove_window_steps(window_name, old_window, step_factory=step_factory)
         else:
             new_window = new_windows.get(window_name)

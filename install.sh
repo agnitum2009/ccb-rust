@@ -232,6 +232,8 @@ Optional environment variables:
                            auto = enabled for macOS release installs, disabled for source/dev installs
   CCB_INSTALL_TOMLI        Auto-install tomli on Python versions without tomllib (default: 1; set 0 to skip)
   CCB_INSTALL_WATCHDOG     Auto-install optional watchdog dependency (default: 1; set 0 to skip)
+  CCB_INSTALL_NEOVIM       Install default Neovim/LazyVim tool: ask (default), 1 force, 0 skip
+  CCB_INSTALL_ROLES        Install bundled Role Packs and dependencies: ask (default), 1 force, 0 skip
   CCB_CONFIRM_MAJOR_UPGRADE Set to 1 to confirm replacing a pre-v6 install with v6+
 USAGE
 }
@@ -2641,6 +2643,8 @@ install_all() {
   cleanup_memory_injections
   install_settings_permissions
   install_tmux_config
+  provision_role_packs
+  provision_neovim_tool
   echo "OK: Installation complete"
   echo "   Executable dir : $BIN_DIR"
   if install_uses_live_source; then
@@ -2657,6 +2661,103 @@ install_all() {
   fi
   echo "   Global settings.json permissions added"
   print_install_identity_notice
+}
+
+provision_role_packs() {
+  local requested="${CCB_INSTALL_ROLES:-ask}"
+  if [[ "$requested" == "0" || "$requested" == "false" || "$requested" == "off" || "$requested" == "no" ]]; then
+    echo "INFO: Role Pack provisioning skipped by CCB_INSTALL_ROLES=0"
+    return 0
+  fi
+  if [[ "$requested" != "1" && "$requested" != "true" && "$requested" != "on" && "$requested" != "yes" ]]; then
+    if [[ ! -t 0 || ! -t 1 ]]; then
+      echo "INFO: Role Pack provisioning skipped in non-interactive install."
+      echo "      Run 'ccb roles update ccb.archi' later to refresh roles and dependencies."
+      return 0
+    fi
+    printf "Install bundled Role Packs and dependencies now? [Y/n] "
+    local answer
+    IFS= read -r answer || answer=""
+    case "$answer" in
+      n|N|no|NO|No)
+        echo "INFO: Role Pack provisioning skipped."
+        echo "      Run 'ccb roles update ccb.archi' later to refresh roles and dependencies."
+        return 0
+        ;;
+      *) ;;
+    esac
+  fi
+  local ccb_entry
+  if install_uses_live_source; then
+    ccb_entry="$(resolve_live_source_root)/ccb"
+  else
+    ccb_entry="$INSTALL_PREFIX/ccb"
+  fi
+  if [[ ! -x "$ccb_entry" ]]; then
+    echo "WARN: Role Pack provisioning skipped; ccb entrypoint not executable: $ccb_entry"
+    return 0
+  fi
+  local log_file
+  log_file="$(mktemp "${TMPDIR:-/tmp}/ccb-roles-install.XXXXXX")"
+  if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles update ccb.archi >"$log_file" 2>&1; then
+    rm -f "$log_file"
+    echo "OK: Role Packs ready"
+    return 0
+  fi
+  echo "WARN: Role Pack provisioning failed"
+  sed 's/^/   /' "$log_file" 2>/dev/null || true
+  rm -f "$log_file"
+  return 0
+}
+
+provision_neovim_tool() {
+  local requested="${CCB_INSTALL_NEOVIM:-ask}"
+  if [[ "$requested" == "0" || "$requested" == "false" || "$requested" == "off" || "$requested" == "no" ]]; then
+    echo "INFO: Neovim tool provisioning skipped by CCB_INSTALL_NEOVIM=0"
+    return 0
+  fi
+  local required=0
+  if [[ "$requested" == "1" || "$requested" == "true" || "$requested" == "on" || "$requested" == "yes" ]]; then
+    required=1
+  else
+    if [[ ! -t 0 || ! -t 1 ]]; then
+      echo "INFO: Neovim/LazyVim provisioning skipped in non-interactive install."
+      echo "      Run 'ccb tools install neovim' later to enable the default neovim window."
+      return 0
+    fi
+    printf "Install the default Neovim + LazyVim tool window now? [y/N] "
+    local answer
+    IFS= read -r answer || answer=""
+    case "$answer" in
+      y|Y|yes|YES|Yes) ;;
+      *)
+        echo "INFO: Neovim/LazyVim provisioning skipped."
+        echo "      Run 'ccb tools install neovim' later to enable the default neovim window."
+        return 0
+        ;;
+    esac
+  fi
+  local ccb_entry
+  if install_uses_live_source; then
+    ccb_entry="$(resolve_live_source_root)/ccb"
+  else
+    ccb_entry="$INSTALL_PREFIX/ccb"
+  fi
+  if [[ ! -x "$ccb_entry" ]]; then
+    echo "WARN: Neovim tool provisioning skipped; ccb entrypoint not executable: $ccb_entry"
+    [[ "$required" == "1" ]] && return 1 || return 0
+  fi
+  local log_file
+  log_file="$(mktemp "${TMPDIR:-/tmp}/ccb-neovim-install.XXXXXX")"
+  if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" tools install neovim >"$log_file" 2>&1; then
+    rm -f "$log_file"
+    echo "OK: Neovim tool provisioning checked"
+    return 0
+  fi
+  echo "WARN: Neovim tool provisioning failed"
+  sed 's/^/   /' "$log_file" 2>/dev/null || true
+  rm -f "$log_file"
+  [[ "$required" == "1" ]] && return 1 || return 0
 }
 
 uninstall_claude_md_config() {

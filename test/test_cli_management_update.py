@@ -4,9 +4,22 @@ import shutil
 import tarfile
 from pathlib import Path
 from types import SimpleNamespace
+from io import StringIO
+
+import pytest
 
 from cli.management_runtime import install as install_runtime
 from cli.management_runtime.commands_runtime import update as update_runtime
+
+
+class _TtyOutput(StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+class _PipeOutput(StringIO):
+    def isatty(self) -> bool:
+        return False
 
 
 def test_cmd_update_defaults_to_latest_release(monkeypatch, tmp_path: Path) -> None:
@@ -177,7 +190,209 @@ def test_update_via_tarball_uses_staged_unix_installer(monkeypatch, tmp_path: Pa
     assert calls["extra_env"] == {
         "CODEX_INSTALL_PREFIX": str(install_dir),
         "CCB_CLEAN_INSTALL": "1",
+        "CCB_INSTALL_NEOVIM": "0",
+        "CCB_INSTALL_ROLES": "0",
     }
+
+
+def test_update_roles_prompt_accepts_interactive_default(monkeypatch, tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "\n"
+
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+
+    def _fake_cmd_roles(argv, *, script_root, cwd, stdout, stderr):
+        calls.append({"argv": argv, "script_root": script_root, "cwd": cwd})
+        print("role_status: updated", file=stdout)
+        return 0
+
+    monkeypatch.setattr(update_runtime, "cmd_roles", _fake_cmd_roles)
+
+    update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
+
+    assert calls == [{"argv": ["update", "ccb.archi"], "script_root": tmp_path / "install", "cwd": Path.cwd()}]
+    assert "Install/refresh bundled Role Packs and dependencies now?" in stdout.getvalue()
+    assert "Role Pack ready: ccb.archi" in stdout.getvalue()
+
+
+def test_update_roles_prompt_declines_without_update(monkeypatch, tmp_path: Path) -> None:
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "n\n"
+
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        update_runtime,
+        "cmd_roles",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not update roles")),
+    )
+
+    update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
+
+    assert "Role Pack update skipped" in stdout.getvalue()
+
+
+def test_update_roles_noninteractive_skips_without_prompt(monkeypatch, tmp_path: Path) -> None:
+    class _PipeInput:
+        def isatty(self) -> bool:
+            return False
+
+    monkeypatch.setattr(update_runtime.sys, "stdin", _PipeInput())
+    stdout = _PipeOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        update_runtime,
+        "cmd_roles",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not update roles")),
+    )
+
+    update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
+
+    assert "non-interactive update" in stdout.getvalue()
+
+
+def test_update_neovim_prompt_accepts_interactive_yes(monkeypatch, capsys) -> None:
+    calls: list[dict[str, object]] = []
+
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "y\n"
+
+    monkeypatch.delenv("CCB_INSTALL_NEOVIM", raising=False)
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda *, required=False: calls.append({"required": required}) or {"status": "ok", "wrapper": "/tmp/ccb-nvim"},
+    )
+
+    update_runtime._provision_neovim_after_update()
+
+    assert calls == [{"required": False}]
+    assert "Install/refresh the default Neovim + LazyVim tool window now?" in stdout.getvalue()
+    assert "Neovim tool ready" in stdout.getvalue()
+
+
+def test_update_neovim_prompt_declines_without_provisioning(monkeypatch, capsys) -> None:
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "\n"
+
+    monkeypatch.delenv("CCB_INSTALL_NEOVIM", raising=False)
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not provision")),
+    )
+
+    update_runtime._provision_neovim_after_update()
+
+    assert "Run `ccb tools install neovim` later" in stdout.getvalue()
+
+
+def test_update_neovim_noninteractive_skips_without_prompt(monkeypatch, capsys) -> None:
+    class _PipeInput:
+        def isatty(self) -> bool:
+            return False
+
+    monkeypatch.delenv("CCB_INSTALL_NEOVIM", raising=False)
+    monkeypatch.setattr(update_runtime.sys, "stdin", _PipeInput())
+    stdout = _PipeOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not provision")),
+    )
+
+    update_runtime._provision_neovim_after_update()
+
+    assert "non-interactive update" in stdout.getvalue()
+
+
+def test_update_neovim_env_forces_required_install(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+    monkeypatch.setenv("CCB_INSTALL_NEOVIM", "1")
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda *, required=False: calls.append({"required": required}) or {"status": "ok", "wrapper": "/tmp/ccb-nvim"},
+    )
+
+    update_runtime._provision_neovim_after_update()
+
+    assert calls == [{"required": True}]
+
+
+def test_update_neovim_env_skip_does_not_provision(monkeypatch) -> None:
+    monkeypatch.setenv("CCB_INSTALL_NEOVIM", "0")
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not provision")),
+    )
+
+    update_runtime._provision_neovim_after_update()
+
+
+def test_update_neovim_optional_failure_is_soft(monkeypatch) -> None:
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "yes\n"
+
+    monkeypatch.delenv("CCB_INSTALL_NEOVIM", raising=False)
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("network unavailable")),
+    )
+
+    update_runtime._provision_neovim_after_update()
+
+    assert "Neovim tool not ready" in stdout.getvalue()
+    assert "network unavailable" in stdout.getvalue()
+
+
+def test_update_neovim_required_failure_is_hard(monkeypatch) -> None:
+    monkeypatch.setenv("CCB_INSTALL_NEOVIM", "1")
+    monkeypatch.setattr(
+        update_runtime,
+        "provision_neovim",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("checksum mismatch")),
+    )
+
+    with pytest.raises(RuntimeError, match="checksum mismatch"):
+        update_runtime._provision_neovim_after_update()
 
 
 def test_update_via_tarball_uses_macos_release_artifact(monkeypatch, tmp_path: Path) -> None:

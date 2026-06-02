@@ -36,6 +36,23 @@ def stage_result(
     )
 
 
+def noop_result(old_graph, plan: dict[str, object]) -> AdditiveReloadApplyResult:
+    return AdditiveReloadApplyResult(
+        status='noop',
+        stage='no_op',
+        plan_class=str(plan.get('plan_class') or ''),
+        old_graph_version=getattr(old_graph, 'version', None),
+        old_config_signature=graph_signature(old_graph),
+        new_config_signature=str(plan.get('new_config_signature') or '') or graph_signature(old_graph),
+        plan=deepcopy(plan),
+        diagnostics={
+            'reason': 'no_change',
+            'message': 'config identity and presentation fields are unchanged',
+            **not_published_diagnostics(),
+        },
+    )
+
+
 def namespace_residue(namespace_patch) -> dict[str, object]:
     patch_record = record(namespace_patch) or {}
     return {
@@ -47,6 +64,7 @@ def namespace_residue(namespace_patch) -> dict[str, object]:
         'removed_windows': list(patch_record.get('removed_windows') or ()),
         'removed_panes': list(patch_record.get('removed_panes') or ()),
         'removed_agents': dict(patch_record.get('removed_agents') or {}),
+        'tool_panes': dict(patch_record.get('tool_panes') or {}),
         'rollback_actions': list(patch_record.get('rollback_actions') or ()),
     }
 
@@ -115,6 +133,7 @@ __all__ = [
     'message_of',
     'namespace_residue',
     'not_published_diagnostics',
+    'noop_result',
     'reason_of',
     'runtime_residue',
     'stage_result',

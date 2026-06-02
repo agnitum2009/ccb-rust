@@ -16,6 +16,7 @@ from provider_core.memory_projection import (
 from provider_core.projected_assets import route_projected_tree
 from provider_core.source_home import current_provider_source_home
 from provider_profiles import provider_api_env_keys
+from rolepacks.projection import project_role_skills_to_home
 from project_memory import (
     ensure_project_memory,
     load_memory_sources,
@@ -222,6 +223,12 @@ def _materialize_inherited_assets(
         target_layout.claude_dir / 'skills',
         enabled=_inherits_skills(profile),
         label=_CLAUDE_SKILLS_PROJECTION_LABEL,
+    )
+    project_role_skills_to_home(
+        project_root=project_root,
+        agent_name=agent_name,
+        provider='claude',
+        target_skills_dir=target_layout.claude_dir / 'skills',
     )
     memory_result = _materialize_claude_memory(
         source_home,

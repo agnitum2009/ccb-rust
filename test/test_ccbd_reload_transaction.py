@@ -258,16 +258,17 @@ def test_reload_transaction_publish_failure_rolls_back_signatures_and_keeps_app_
     assert app.lifecycle_store.load().config_signature == old_graph.config_identity['config_signature']
 
 
-def test_project_reload_non_dry_run_no_change_blocks_after_publish_transaction_helper(tmp_path: Path) -> None:
+def test_project_reload_non_dry_run_no_change_noops_after_publish_transaction_helper(tmp_path: Path) -> None:
     app = _started_app(tmp_path / 'repo-block-no-change', BASE_CONFIG)
     old_graph = app.service_graph
 
     payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
 
-    assert payload['status'] == 'blocked'
-    assert payload['stage'] == 'plan'
+    assert payload['status'] == 'noop'
+    assert payload['stage'] == 'no_op'
     assert payload['plan_class'] == 'no_change'
     assert payload['diagnostics']['graph_published'] is False
+    assert payload['diagnostics']['reason'] == 'no_change'
     assert app.service_graph is old_graph
     assert app.control_plane_metrics.last_reload_duration_s is not None
 

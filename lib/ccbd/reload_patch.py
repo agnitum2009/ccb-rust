@@ -8,8 +8,16 @@ from ccbd.reload_patch_remove_agents import remove_agent_steps
 from ccbd.services.project_namespace_runtime import build_namespace_topology_plan
 
 
-_SUPPORTED_OPS = {'no_change', 'view_only_change', 'add_agent', 'add_window', 'remove_agent'}
-_MUTATING_OPS = {'add_agent', 'add_window', 'remove_agent'}
+_SUPPORTED_OPS = {
+    'no_change',
+    'view_only_change',
+    'add_agent',
+    'add_window',
+    'remove_agent',
+    'add_tool_window',
+    'remove_tool_window',
+}
+_MUTATING_OPS = {'add_agent', 'add_window', 'remove_agent', 'add_tool_window', 'remove_tool_window'}
 _REQUIRED_PROOFS = (
     'project_id',
     'tmux_socket_path',
@@ -75,8 +83,10 @@ def build_namespace_patch_plan(
         remove_result = remove_agent_steps(old_topology, new_topology, step_factory=NamespacePatchStep)
         steps.extend(remove_result['steps'])
         blocked.extend(remove_result['blocked'])
+        steps.extend(_remove_tool_window_steps(old_topology, new_topology))
         blocked.extend(_missing_additive_agent_steps(op_records, steps))
         blocked.extend(_missing_remove_agent_steps(op_records, steps))
+        blocked.extend(_missing_tool_window_steps(op_records, steps))
 
     status = 'blocked' if blocked else ('no_op' if not steps else 'planned')
     return {
@@ -212,6 +222,37 @@ def _additive_window_steps(old_topology, new_topology) -> list[NamespacePatchSte
                     reason='new managed window needs an agent pane',
                 )
             )
+        if str(getattr(window, 'kind', '') or '') == 'tool':
+            steps.append(
+                NamespacePatchStep(
+                    action='create_tool_pane',
+                    window=window_name,
+                    role='tool',
+                    slot_key=f'tool:{window_name}',
+                    reason='new managed tool window needs a tool pane',
+                )
+            )
+    return steps
+
+
+def _remove_tool_window_steps(old_topology, new_topology) -> list[NamespacePatchStep]:
+    old_windows = _window_map(old_topology)
+    new_windows = _window_map(new_topology)
+    steps: list[NamespacePatchStep] = []
+    for window_name, window in old_windows.items():
+        if window_name in new_windows:
+            continue
+        if str(getattr(window, 'kind', '') or '') != 'tool':
+            continue
+        steps.append(
+            NamespacePatchStep(
+                action='kill_tool_window',
+                window=window_name,
+                role='tool',
+                slot_key=f'tool:{window_name}',
+                reason='managed tool window exists only in current published config',
+            )
+        )
     return steps
 
 
@@ -253,6 +294,43 @@ def _missing_remove_agent_steps(
         }
         for agent_name in sorted(expected - planned)
     ]
+
+
+def _missing_tool_window_steps(
+    operations: tuple[dict[str, object], ...],
+    steps: list[NamespacePatchStep],
+) -> list[dict[str, object]]:
+    created = {
+        str(step.window)
+        for step in steps
+        if step.action == 'create_tool_pane' and str(step.window or '').strip()
+    }
+    removed = {
+        str(step.window)
+        for step in steps
+        if step.action == 'kill_tool_window' and str(step.window or '').strip()
+    }
+    missing: list[dict[str, object]] = []
+    for item in operations:
+        op = str(item.get('op') or '')
+        window = str(item.get('window') or '').strip()
+        if op == 'add_tool_window' and window and window not in created:
+            missing.append(
+                {
+                    'op': 'add_tool_window',
+                    'window': window,
+                    'reason': 'add_tool_window operation was not covered by a tool pane creation step',
+                }
+            )
+        if op == 'remove_tool_window' and window and window not in removed:
+            missing.append(
+                {
+                    'op': 'remove_tool_window',
+                    'window': window,
+                    'reason': 'remove_tool_window operation was not covered by a tool window removal step',
+                }
+            )
+    return missing
 
 
 def _preserved_agents(old_topology, new_topology) -> list[str]:

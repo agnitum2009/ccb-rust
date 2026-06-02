@@ -161,6 +161,42 @@ class WindowSpec:
         }
 
 
+@dataclass(frozen=True)
+class ToolWindowSpec:
+    name: str
+    order: int
+    command: str
+    label: str | None = None
+    show_in_sidebar: bool = True
+
+    def __post_init__(self) -> None:
+        name = validate_window_name(self.name)
+        try:
+            order = int(self.order)
+        except Exception as exc:
+            raise AgentValidationError('tool window order must be an integer') from exc
+        command = str(self.command or '').strip()
+        if not command:
+            raise AgentValidationError(f'tool_windows.{name}.command cannot be empty')
+        label = str(self.label or '').strip() or name
+        if not isinstance(self.show_in_sidebar, bool):
+            raise AgentValidationError(f'tool_windows.{name}.show_in_sidebar must be a boolean')
+        object.__setattr__(self, 'name', name)
+        object.__setattr__(self, 'order', order)
+        object.__setattr__(self, 'command', command)
+        object.__setattr__(self, 'label', label)
+        object.__setattr__(self, 'show_in_sidebar', self.show_in_sidebar)
+
+    def to_record(self) -> dict[str, object]:
+        return {
+            'name': self.name,
+            'order': self.order,
+            'command': self.command,
+            'label': self.label,
+            'show_in_sidebar': self.show_in_sidebar,
+        }
+
+
 def default_sidebar_spec() -> SidebarSpec:
     return SidebarSpec()
 
@@ -274,15 +310,49 @@ def _validate_windows(windows: tuple[WindowSpec, ...]) -> tuple[WindowSpec, ...]
     return tuple(normalized)
 
 
-def validate_entry_window(entry_window: str | None, *, windows: tuple[WindowSpec, ...]) -> str:
+def normalize_tool_windows(tool_windows: tuple[ToolWindowSpec, ...] | None) -> tuple[ToolWindowSpec, ...]:
+    normalized: list[ToolWindowSpec] = []
+    seen: set[str] = set()
+    for index, tool in enumerate(tuple(tool_windows or ())):
+        spec = ToolWindowSpec(
+            name=tool.name,
+            order=index,
+            command=tool.command,
+            label=tool.label,
+            show_in_sidebar=tool.show_in_sidebar,
+        )
+        if spec.name in seen:
+            raise AgentValidationError(f'duplicate tool window name: {spec.name}')
+        seen.add(spec.name)
+        normalized.append(spec)
+    return tuple(normalized)
+
+
+def validate_entry_window(
+    entry_window: str | None,
+    *,
+    windows: tuple[WindowSpec, ...],
+    tool_windows: tuple[ToolWindowSpec, ...] = (),
+) -> str:
     if not windows:
         raise AgentValidationError('at least one window must be configured')
     value = str(entry_window or '').strip() or windows[0].name
     value = validate_window_name(value)
     names = {window.name for window in windows}
+    names.update(tool.name for tool in tool_windows)
     if value not in names:
         raise AgentValidationError(f'entry_window references unknown window: {value}')
     return value
+
+
+def validate_tool_windows_do_not_conflict(
+    windows: tuple[WindowSpec, ...],
+    tool_windows: tuple[ToolWindowSpec, ...],
+) -> None:
+    agent_window_names = {window.name for window in windows}
+    for tool in tool_windows:
+        if tool.name in agent_window_names:
+            raise AgentValidationError(f'tool window conflicts with agent window: {tool.name}')
 
 
 def validate_windows_reference_agents(
@@ -305,6 +375,7 @@ def validate_windows_reference_agents(
 def topology_signature_payload(
     *,
     windows: tuple[WindowSpec, ...],
+    tool_windows: tuple[ToolWindowSpec, ...],
     entry_window: str,
     sidebar: SidebarSpec,
 ) -> dict[str, object]:
@@ -318,6 +389,14 @@ def topology_signature_payload(
                 'agents': list(window.agent_names),
             }
             for window in windows
+        ],
+        'tool_windows': [
+            {
+                'name': tool.name,
+                'order': tool.order,
+                'command': tool.command,
+            }
+            for tool in tool_windows
         ],
         'entry_window': entry_window,
         'sidebar': sidebar.to_record(),
@@ -335,16 +414,19 @@ __all__ = [
     'SIDEBAR_MODE_OFF',
     'SidebarSpec',
     'SidebarViewSpec',
+    'ToolWindowSpec',
     'WindowSpec',
     'default_sidebar_spec',
     'default_sidebar_view_spec',
     'legacy_main_window',
     'normalize_sidebar_width',
     'normalize_sidebar_view_height',
+    'normalize_tool_windows',
     'normalize_windows',
     'topology_signature',
     'topology_signature_payload',
     'validate_entry_window',
+    'validate_tool_windows_do_not_conflict',
     'validate_window_name',
     'validate_windows_reference_agents',
 ]

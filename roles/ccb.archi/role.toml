@@ -1,0 +1,66 @@
+schema = "rolepack/v1"
+id = "ccb.archi"
+name = "Architecture Reviewer"
+version = "0.2.0"
+description = "Architecture reviewer role powered by Architec, Hippo, and llmgateway."
+license = "MIT"
+
+[identity]
+default_agent_name = "archi"
+category = "review"
+purpose = "Guard long-term maintainability by reviewing architecture drift, boundaries, coupling, duplication, hotspots, and topology pressure."
+responsibilities = [
+  "Review current diffs for architecture risk",
+  "Run full-project architecture review when requested",
+  "Check Architec, Hippo, and llmgateway readiness",
+  "Explain structural tradeoffs and sequencing",
+  "Turn architecture findings into practical gates and next steps"
+]
+non_goals = [
+  "Direct business implementation",
+  "Release publishing",
+  "Runtime correctness certification",
+  "Automatic merge approval"
+]
+
+[compatibility]
+providers = ["codex", "claude"]
+hosts = ["ccb"]
+min_host_versions = { ccb = "7.1.0" }
+
+[memory]
+files = ["memory.md"]
+merge_strategy = "append_after_project_memory"
+
+[skills]
+codex = [
+  "skills/codex/archi-advice",
+  "skills/codex/archi-diff",
+  "skills/codex/archi-full",
+  "skills/codex/archi-goal",
+  "skills/codex/archi-tooling"
+]
+claude = [
+  "skills/claude/archi-advice",
+  "skills/claude/archi-diff",
+  "skills/claude/archi-full",
+  "skills/claude/archi-goal",
+  "skills/claude/archi-tooling"
+]
+
+[tools.architec]
+install = "python tools/install.py"
+doctor = "python tools/doctor.py"
+update = "python tools/update.py"
+required = true
+
+[permissions]
+default = "manual"
+network = "install_update_only"
+filesystem = "project_read"
+secrets = "external_config_only"
+shell = "architec_commands_only"
+
+[activation]
+ask_target = true
+recommended_workspace_mode = "inplace"

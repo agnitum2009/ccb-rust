@@ -29,7 +29,8 @@ class ProjectFocusService:
         _validate_epoch(namespace_epoch, namespace.namespace_epoch)
         backend = backend_for_namespace(self._deps.namespace_controller._backend_factory, namespace)
         select_window(backend, session_name=namespace.tmux_session_name, window_name=window_name)
-        agent_name = window_spec.agent_names[0] if window_spec.agent_names else None
+        agent_names = tuple(getattr(window_spec, 'agent_names', ()) or ())
+        agent_name = agent_names[0] if agent_names else None
         pane_id = (
             find_agent_pane(backend, project_id=self._deps.project_id, window_name=window_name, agent_name=agent_name)
             if agent_name is not None
@@ -117,7 +118,10 @@ def _valid_agent_name(value: str) -> str:
 
 
 def _window_spec(config, window_name: str):
-    for window in config.windows:
+    for window in tuple(getattr(config, 'windows', ()) or ()):
+        if window.name == window_name:
+            return window
+    for window in tuple(getattr(config, 'tool_windows', ()) or ()):
         if window.name == window_name:
             return window
     raise ProjectFocusError(FocusErrorCode.UNKNOWN_WINDOW, f'unknown window: {window_name}')

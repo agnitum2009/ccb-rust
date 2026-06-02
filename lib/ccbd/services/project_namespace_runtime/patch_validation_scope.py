@@ -6,7 +6,9 @@ _SUPPORTED_ACTIONS = {
     'create_window',
     'create_sidebar_pane',
     'create_agent_pane',
+    'create_tool_pane',
     'kill_agent_pane',
+    'kill_tool_window',
     'kill_window',
 }
 
@@ -78,11 +80,15 @@ def _step_scope_reason(
 ) -> tuple[str, str] | None:
     if action in {'create_window', 'create_sidebar_pane'} and window not in added_windows:
         return ('unsupported_patch_step', 'window/sidebar patch steps are only supported for newly-added windows')
-    if action == 'kill_window' and window not in removed_windows:
+    if action in {'kill_window', 'kill_tool_window'} and window not in removed_windows:
         return ('patch_plan_mismatch', 'window removal step does not match removed topology window')
     if action == 'kill_agent_pane':
         if (window, str(step.get('agent') or '')) not in expected_removed_agents:
             return ('patch_plan_mismatch', 'agent pane removal step does not match a removed topology agent')
+        return None
+    if action == 'create_tool_pane':
+        if window not in added_windows:
+            return ('patch_plan_mismatch', 'tool pane patch step window is not an added window')
         return None
     if action != 'create_agent_pane':
         return None
@@ -96,13 +102,18 @@ def _step_scope_reason(
 def _step_identity_reason(action: str, step: Mapping[str, object]) -> tuple[str, str] | None:
     if str(step.get('managed_by') or '') != 'ccbd':
         return ('scope_proof_missing', 'namespace patch step is missing managed_by=ccbd proof')
-    if action not in {'create_sidebar_pane', 'create_agent_pane', 'kill_agent_pane'}:
+    if action not in {'create_sidebar_pane', 'create_agent_pane', 'create_tool_pane', 'kill_agent_pane', 'kill_tool_window'}:
         return None
     role = str(step.get('role') or '')
     slot_key = str(step.get('slot_key') or '')
     if not role or not slot_key:
         return ('scope_proof_missing', 'namespace patch pane step is missing role or slot_key proof')
-    expected_role = 'sidebar' if action == 'create_sidebar_pane' else 'agent'
+    if action == 'create_sidebar_pane':
+        expected_role = 'sidebar'
+    elif action in {'create_tool_pane', 'kill_tool_window'}:
+        expected_role = 'tool'
+    else:
+        expected_role = 'agent'
     if role != expected_role:
         return ('scope_proof_mismatch', f'namespace patch pane step role must be {expected_role}')
     return None

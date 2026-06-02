@@ -5,7 +5,7 @@ import re
 from .nodes import LayoutLeaf, LayoutNode
 
 _LEAF_TOKEN_RE = re.compile(
-    r'(?P<name>[A-Za-z][A-Za-z0-9_-]{0,31})'
+    r'(?P<name>[A-Za-z][A-Za-z0-9_.-]{0,63})'
     r'(?:\s*:\s*(?P<provider>[A-Za-z0-9_-]+)'
     r'(?:\s*\(\s*(?P<workspace_mode>worktree)\s*\))?'
     r')?$'

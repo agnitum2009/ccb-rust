@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from agents.config_loader import build_default_project_config
-from agents.models import AgentSpec, PermissionMode, ProjectConfig, QueuePolicy, RestoreMode, RuntimeMode, SidebarSpec, WindowSpec, WorkspaceMode
+from agents.models import AgentSpec, PermissionMode, ProjectConfig, QueuePolicy, RestoreMode, RuntimeMode, SidebarSpec, ToolWindowSpec, WindowSpec, WorkspaceMode
 from ccbd.services.project_namespace_runtime import build_namespace_topology_plan
 
 
@@ -31,7 +31,7 @@ def test_namespace_topology_plan_projects_sidebar_outside_user_layout() -> None:
     assert plan.signature == config.topology_signature
     assert plan.entry_window == 'main'
     assert plan.sidebar_enabled is True
-    assert len(plan.windows) == 1
+    assert len(plan.windows) == 2
     window = plan.windows[0]
     assert window.name == 'main'
     assert window.user_layout == 'agent1:codex, agent2:codex, agent3:claude'
@@ -47,6 +47,11 @@ def test_namespace_topology_plan_projects_sidebar_outside_user_layout() -> None:
         '--pane-window',
         'main',
     )
+    tool = plan.windows[1]
+    assert tool.name == 'neovim'
+    assert tool.kind == 'tool'
+    assert tool.command == 'ccb-nvim'
+    assert tool.agent_names == ()
 
 
 def test_namespace_topology_plan_leaves_layout_plain_when_sidebar_off() -> None:
@@ -65,3 +70,47 @@ def test_namespace_topology_plan_leaves_layout_plain_when_sidebar_off() -> None:
     assert plan.sidebar_enabled is False
     assert plan.windows[0].realized_layout == 'agent1:codex'
     assert plan.windows[0].sidebar is None
+
+
+def test_namespace_topology_plan_includes_tool_window_without_agent_names() -> None:
+    config = ProjectConfig(
+        version=2,
+        default_agents=('agent1',),
+        agents={'agent1': _spec('agent1', 'codex')},
+        layout_spec='agent1:codex',
+        windows=(WindowSpec(name='main', order=0, layout_spec='agent1:codex', agent_names=('agent1',)),),
+        tool_windows=(ToolWindowSpec(name='neovim', order=0, command='ccb-nvim'),),
+        entry_window='main',
+    )
+
+    plan = build_namespace_topology_plan(config, ccbd_socket_path='/tmp/ccbd.sock', project_root='/repo')
+
+    assert [window.name for window in plan.windows] == ['main', 'neovim']
+    tool = plan.windows[1]
+    assert tool.kind == 'tool'
+    assert tool.label == 'neovim'
+    assert tool.command == 'ccb-nvim'
+    assert tool.agent_names == ()
+    assert tool.user_layout == 'ccb-nvim'
+    assert tool.realized_layout == 'sidebar; (tool)'
+    assert tool.sidebar is not None
+    assert tool.sidebar.launch_args[-2:] == ('--pane-window', 'neovim')
+
+
+def test_namespace_topology_plan_keeps_sidebar_pane_for_hidden_tool_row() -> None:
+    config = ProjectConfig(
+        version=2,
+        default_agents=('agent1',),
+        agents={'agent1': _spec('agent1', 'codex')},
+        layout_spec='agent1:codex',
+        windows=(WindowSpec(name='main', order=0, layout_spec='agent1:codex', agent_names=('agent1',)),),
+        tool_windows=(ToolWindowSpec(name='logs', order=0, command='tail -f app.log', show_in_sidebar=False),),
+        entry_window='main',
+    )
+
+    plan = build_namespace_topology_plan(config, ccbd_socket_path='/tmp/ccbd.sock', project_root='/repo')
+
+    tool = plan.windows[1]
+    assert tool.name == 'logs'
+    assert tool.sidebar is not None
+    assert tool.realized_layout == 'sidebar; (tool)'

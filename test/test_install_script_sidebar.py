@@ -17,6 +17,27 @@ def test_install_script_links_sidebar_helper() -> None:
     assert 'ERROR: ccb-agent-sidebar binary not available' in text
 
 
+def test_install_script_provisions_neovim_tool_softly() -> None:
+    text = Path('install.sh').read_text(encoding='utf-8')
+
+    assert 'provision_neovim_tool' in text
+    assert 'CCB_INSTALL_NEOVIM=0' in text
+    assert 'Install the default Neovim + LazyVim tool window now?' in text
+    assert 'non-interactive install' in text
+    assert 'tools install neovim' in text
+    assert '[[ "$required" == "1" ]] && return 1 || return 0' in text
+
+
+def test_install_script_provisions_role_packs_softly() -> None:
+    text = Path('install.sh').read_text(encoding='utf-8')
+
+    assert 'provision_role_packs' in text
+    assert 'CCB_INSTALL_ROLES=0' in text
+    assert 'Install bundled Role Packs and dependencies now?' in text
+    assert 'non-interactive install' in text
+    assert 'roles update ccb.archi' in text
+
+
 def test_sidebar_bin_wrapper_is_source_install_fallback() -> None:
     text = Path('bin/ccb-agent-sidebar').read_text(encoding='utf-8')
 
@@ -378,7 +399,7 @@ def test_sidebar_release_workflow_publishes_linux_artifact() -> None:
 def test_release_artifacts_workflow_sets_up_rust_for_sidebar_build() -> None:
     text = Path('.github/workflows/release-artifacts.yml').read_text(encoding='utf-8')
 
-    assert 'default: "v7.1.1"' in text
+    assert 'default: "v7.2.0"' in text
     assert 'os: ubuntu-22.04' in text
     assert 'uses: dtolnay/rust-toolchain@stable' in text
     assert 'rustup target add x86_64-apple-darwin aarch64-apple-darwin' in text

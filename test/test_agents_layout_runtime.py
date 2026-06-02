@@ -19,6 +19,15 @@ def test_parse_layout_spec_roundtrip_with_worktree_workspace_marker() -> None:
     assert iter_layout_names(layout) == ('cmd', 'agent1', 'agent2')
 
 
+def test_parse_layout_spec_accepts_role_id_leaf_token() -> None:
+    layout = parse_layout_spec('agent1:codex, ccb.archi:codex')
+    leaves = layout.iter_leaves()
+
+    assert leaves[1].name == 'ccb.archi'
+    assert leaves[1].provider == 'codex'
+    assert layout.render() == 'agent1:codex, ccb.archi:codex'
+
+
 def test_prune_layout_preserves_branch_shape_when_possible() -> None:
     layout = parse_layout_spec('cmd; (agent1:codex, agent2:claude)')
 

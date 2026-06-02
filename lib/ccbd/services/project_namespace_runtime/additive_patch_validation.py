@@ -10,6 +10,8 @@ from .patch_validation_steps import (
     planned_create_windows,
     planned_kill_windows,
     planned_removed_agent_targets,
+    planned_removed_tool_windows,
+    planned_tool_windows,
 )
 from .patch_validation_targets import removed_agent_targets
 
@@ -32,6 +34,8 @@ def unsupported_additive_patch_reason(
     steps = patch_steps(patch_plan)
     expected_new_agents = new_agent_targets(old_topology, new_topology)
     expected_removed_agents = removed_agent_targets(old_topology, new_topology)
+    expected_new_tools = _new_tool_windows(old_topology, new_topology)
+    expected_removed_tools = _removed_tool_windows(old_topology, new_topology)
     reason = _planned_target_reason(
         steps,
         added_windows,
@@ -39,6 +43,8 @@ def unsupported_additive_patch_reason(
         append_windows,
         expected_new_agents,
         expected_removed_agents,
+        expected_new_tools,
+        expected_removed_tools,
     )
     if reason is not None:
         return reason
@@ -67,6 +73,8 @@ def _planned_target_reason(
     append_windows: dict[str, object],
     expected_new_agents: set[tuple[str, str]],
     expected_removed_agents: set[tuple[str, str]],
+    expected_new_tools: set[str],
+    expected_removed_tools: set[str],
 ) -> tuple[str, str] | None:
     planned_windows = planned_create_windows(steps)
     if planned_windows != added_windows:
@@ -77,9 +85,29 @@ def _planned_target_reason(
         return ('patch_plan_mismatch', 'namespace patch plan agent panes do not match new topology agents')
     if planned_removed_agent_targets(steps) != expected_removed_agents:
         return ('patch_plan_mismatch', 'namespace patch plan removed agent panes do not match new topology agents')
-    if not planned_windows and not append_windows and not expected_removed_agents and not has_view_only_step(steps):
+    if planned_tool_windows(steps) != expected_new_tools:
+        return ('patch_plan_mismatch', 'namespace patch plan tool panes do not match new topology tools')
+    if planned_removed_tool_windows(steps) != expected_removed_tools:
+        return ('patch_plan_mismatch', 'namespace patch plan removed tool windows do not match removed topology tools')
+    if not planned_windows and not append_windows and not expected_removed_agents and not expected_removed_tools and not has_view_only_step(steps):
         return ('unsupported_patch_step', 'namespace additive patch has no supported namespace mutation steps')
     return None
+
+
+def _tool_window_names(topology) -> set[str]:
+    return {
+        str(window.name)
+        for window in tuple(getattr(topology, 'windows', ()) or ())
+        if str(getattr(window, 'kind', '') or '') == 'tool'
+    }
+
+
+def _new_tool_windows(old_topology, new_topology) -> set[str]:
+    return _tool_window_names(new_topology) - _tool_window_names(old_topology)
+
+
+def _removed_tool_windows(old_topology, new_topology) -> set[str]:
+    return _tool_window_names(old_topology) - _tool_window_names(new_topology)
 
 
 __all__ = ['unsupported_additive_patch_reason']

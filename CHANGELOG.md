@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v7.2.0 (2026-06-02)
+
+### Role Packs And Managed Tools Release
+
+- **Role Pack UX Added**: `ccb roles add ccb.archi:codex` is now the primary project entry point; configs keep the shorthand `ccb.archi:codex`, while runtime resolves it to the local `archi` agent and projects role memory plus provider skills.
+- **Bundled `ccb.archi` Role Added**: the first built-in Role Pack provides an Architec-backed architecture reviewer with role memory, Codex/Claude skills, and CCB-managed Architec tooling.
+- **Role Dependency Flow Simplified**: `ccb roles install ccb.archi` and `ccb roles update ccb.archi` install or refresh both role assets and dependencies by default; `install.sh install` and `ccb update` prompt interactive users and show `ccb roles update ccb.archi` as the non-interactive follow-up.
+- **Managed Tool Windows Added**: CCB config now supports `[tool_windows.<name>]` for non-agent windows such as the bundled `neovim` tool, including sidebar/project-view rows, reload add/remove support, and `ccb tools install/doctor neovim` provisioning.
+- **Antigravity Provider Included**: the release includes the new `agy` / Google Antigravity CLI provider support already landed on `main`.
+
 ## v7.1.1 (2026-05-31)
 
 ### Sidebar View Height Release

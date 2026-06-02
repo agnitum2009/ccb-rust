@@ -560,18 +560,38 @@ def _current_sidebar_view(deps: ProjectViewDependencies):
 
 
 def _window_views(*, config, focus: dict[str, object], tmux_snapshot: dict[str, dict[str, object]]) -> list[dict[str, object]]:
-    return [
-        {
-            'name': window.name,
-            'order': window.order,
-            'tmux_window_id': tmux_snapshot.get(window.name, {}).get('tmux_window_id'),
-            'tmux_window_index': tmux_snapshot.get(window.name, {}).get('tmux_window_index'),
-            'active': window.name == (focus.get('active_window') or config.entry_window),
-            'sidebar_pane_id': tmux_snapshot.get(window.name, {}).get('sidebar_pane_id'),
-            'agents': list(window.agent_names),
-        }
-        for window in config.windows
-    ]
+    rows: list[dict[str, object]] = []
+    for window in config.windows:
+        rows.append(
+            {
+                'name': window.name,
+                'label': window.name,
+                'kind': 'agents',
+                'order': window.order,
+                'tmux_window_id': tmux_snapshot.get(window.name, {}).get('tmux_window_id'),
+                'tmux_window_index': tmux_snapshot.get(window.name, {}).get('tmux_window_index'),
+                'active': window.name == (focus.get('active_window') or config.entry_window),
+                'sidebar_pane_id': tmux_snapshot.get(window.name, {}).get('sidebar_pane_id'),
+                'agents': list(window.agent_names),
+            }
+        )
+    offset = len(rows)
+    for tool in tuple(getattr(config, 'tool_windows', ()) or ()):
+        rows.append(
+            {
+                'name': tool.name,
+                'label': tool.label,
+                'kind': 'tool',
+                'show_in_sidebar': bool(getattr(tool, 'show_in_sidebar', True)),
+                'order': offset + tool.order,
+                'tmux_window_id': tmux_snapshot.get(tool.name, {}).get('tmux_window_id'),
+                'tmux_window_index': tmux_snapshot.get(tool.name, {}).get('tmux_window_index'),
+                'active': tool.name == (focus.get('active_window') or config.entry_window),
+                'sidebar_pane_id': tmux_snapshot.get(tool.name, {}).get('sidebar_pane_id'),
+                'agents': [],
+            }
+        )
+    return rows
 
 
 def _tmux_snapshot(context: _ProjectViewBuildContext) -> dict[str, dict[str, object]]:

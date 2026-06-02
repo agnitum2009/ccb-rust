@@ -21,6 +21,8 @@ def remove_agent_panes(
     removed_windows = set(old_windows) - set(new_windows)
     for window_name, old_window in old_windows.items():
         if window_name in removed_windows:
+            if str(getattr(old_window, 'kind', '') or '') == 'tool':
+                continue
             _remove_window_agents(
                 backend,
                 window_name=window_name,

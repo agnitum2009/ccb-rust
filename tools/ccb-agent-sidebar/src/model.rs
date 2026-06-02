@@ -90,9 +90,15 @@ impl Default for SidebarViewInfo {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct WindowView {
     pub name: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default = "default_show_in_sidebar")]
+    pub show_in_sidebar: bool,
     #[serde(default)]
     pub order: u64,
     #[serde(default)]
@@ -105,6 +111,23 @@ pub struct WindowView {
     pub sidebar_pane_id: Option<String>,
     #[serde(default)]
     pub agents: Vec<String>,
+}
+
+impl Default for WindowView {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            label: String::new(),
+            kind: String::new(),
+            show_in_sidebar: default_show_in_sidebar(),
+            order: 0,
+            active: false,
+            tmux_window_id: None,
+            tmux_window_index: None,
+            sidebar_pane_id: None,
+            agents: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default, PartialEq)]
@@ -176,6 +199,9 @@ pub enum RowTarget {
 pub fn row_targets(view: &ProjectView) -> Vec<RowTarget> {
     let mut targets = Vec::new();
     for window in &view.windows {
+        if !window.show_in_sidebar {
+            continue;
+        }
         targets.push(RowTarget::Window(window.name.clone()));
         for agent in view
             .agents
@@ -235,6 +261,10 @@ fn default_tips() -> Vec<String> {
     .into_iter()
     .map(str::to_string)
     .collect()
+}
+
+fn default_show_in_sidebar() -> bool {
+    true
 }
 
 #[cfg(test)]
@@ -325,6 +355,63 @@ mod tests {
             vec![
                 RowTarget::Window("main".into()),
                 RowTarget::Agent("agent1".into())
+            ]
+        );
+    }
+
+    #[test]
+    fn parses_tool_window_without_agent_row() {
+        let payload = r#"{
+          "view": {
+            "project": {"display_name": "repo"},
+            "namespace": {"epoch": 3, "active_window": "neovim", "sidebar": {"view": {}}},
+            "windows": [
+              {"name": "main", "kind": "agents", "active": false, "agents": ["agent1"]},
+              {"name": "neovim", "label": "neovim", "kind": "tool", "active": true, "agents": []}
+            ],
+            "agents": [{"name": "agent1", "provider": "codex", "window": "main", "activity_state": "idle"}],
+            "comms": []
+          },
+          "cache": {"sequence": 7, "ttl_ms": 1000}
+        }"#;
+
+        let response: ProjectViewResponse = serde_json::from_str(payload).unwrap();
+
+        assert_eq!(
+            row_targets(&response.view),
+            vec![
+                RowTarget::Window("main".into()),
+                RowTarget::Agent("agent1".into()),
+                RowTarget::Window("neovim".into()),
+            ]
+        );
+        assert_eq!(response.view.windows[1].kind, "tool");
+        assert!(response.view.windows[1].agents.is_empty());
+    }
+
+    #[test]
+    fn hidden_tool_window_is_not_a_sidebar_row() {
+        let payload = r#"{
+          "view": {
+            "project": {"display_name": "repo"},
+            "namespace": {"epoch": 3, "active_window": "main", "sidebar": {"view": {}}},
+            "windows": [
+              {"name": "main", "kind": "agents", "active": true, "agents": ["agent1"]},
+              {"name": "logs", "label": "logs", "kind": "tool", "show_in_sidebar": false, "agents": []}
+            ],
+            "agents": [{"name": "agent1", "provider": "codex", "window": "main", "activity_state": "idle"}],
+            "comms": []
+          },
+          "cache": {"sequence": 7, "ttl_ms": 1000}
+        }"#;
+
+        let response: ProjectViewResponse = serde_json::from_str(payload).unwrap();
+
+        assert_eq!(
+            row_targets(&response.view),
+            vec![
+                RowTarget::Window("main".into()),
+                RowTarget::Agent("agent1".into()),
             ]
         );
     }

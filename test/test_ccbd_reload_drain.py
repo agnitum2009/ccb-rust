@@ -216,17 +216,18 @@ main = "agent1:claude"
     assert plan['mutation_enabled'] is False
 
 
-def test_reload_non_dry_run_no_change_blocks_and_parser_accepts_explicit_apply(tmp_path: Path) -> None:
+def test_reload_non_dry_run_no_change_noops_and_parser_accepts_explicit_apply(tmp_path: Path) -> None:
     project_root = _project(tmp_path / 'repo-block-no-change', BASE_CONFIG)
     app = CcbdApp(project_root, clock=lambda: '2026-05-29T00:00:00Z', pid=4242)
     old_graph = app.service_graph
 
     payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
 
-    assert payload['status'] == 'blocked'
-    assert payload['stage'] == 'plan'
+    assert payload['status'] == 'noop'
+    assert payload['stage'] == 'no_op'
     assert payload['plan_class'] == 'no_change'
     assert payload['diagnostics']['graph_published'] is False
+    assert payload['diagnostics']['reason'] == 'no_change'
     assert app.service_graph is old_graph
     assert CliParser().parse(['reload']).dry_run is False
 

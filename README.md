@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.1.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.2.0-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -75,6 +75,11 @@ CCB is a project-level agent CLI workspace. It uses tmux to manage multiple real
 - **Visible collaboration**: the sidebar shows windows, agents, status, and communication; users can switch panes by mouse.
 - **Mixed providers**: one project can run Codex, Claude, Gemini, OpenCode, Droid, and Antigravity (`agy`) together.
 - **Project config**: `.ccb/ccb.config` defines the team, layout, windows, worktrees, model, key, and url.
+- **Roles**: a new role packaging model that lets specialized agents carrying
+  "heavy weapons" such as independent skills, memory, and tool dependencies
+  instantly land in a target project as hot-loadable, removable agents, while
+  leaving the main environment, user global config, and project runtime state
+  unchanged.
 - **Recoverable runtime**: CCB supervises agent panes and supports attach, restore, and project-scoped cleanup.
 - **Explicit collaboration channel**: agents can delegate through `/ask`, `$ask`, callback, and silence routes.
 
@@ -243,6 +248,7 @@ CCB resolves config in three layers, from lowest to highest priority:
 3. Project config at `.ccb/ccb.config`.
 
 Higher layers replace lower layers as a whole; they are not merged. The project authority file is `.ccb/ccb.config`. The old `.ccb_config/ccb.config` path is legacy migration evidence only.
+The built-in default is a v2 `[windows]` config with `agent1`, `agent2`, `agent3`, and a managed `neovim` tool window using `ccb-nvim`.
 
 `.ccb/ccb.config` mainly controls:
 
@@ -252,12 +258,41 @@ Higher layers replace lower layers as a whole; they are not merged. The project 
 | Agent name and provider | `main:codex`, `reviewer:claude` | Names are used by the UI, ask routing, and memory files; provider decides which CLI starts. |
 | Workspace isolation | `worker1:codex(worktree)` | Gives implementation agents isolated git worktrees to reduce accidental overlap. |
 | Sidebar behavior | `[ui.sidebar]` | Controls whether the sidebar appears in every window, plus width and Comms height. |
+| Tool windows | `[tool_windows.<name>]` | Add managed non-agent windows such as Neovim; they appear as one sidebar row and are not `ask` targets. |
 | Per-agent model/API | `[agents.<name>]` | Configure `model`, `key`, `url`, and related agent-local overrides. |
+| Role Pack binding | `ccb.archi:codex` | Bind a reusable role package through a window leaf; role assets are installed once and projected into the derived agent. |
 | Role description | `[agents.<name>] description = "..."` | Give an agent a short responsibility note; longer workflow rules belong in memory. |
 
-After editing `.ccb/ccb.config` in a mounted project, run `ccb reload --dry-run` to preview the plan and `ccb reload` to apply it. The explicit reload path can dynamically add agents, add windows, unload idle agents, and remove idle windows while keeping unrelated agents and panes running. It does not run as a background file watcher, and unsafe changes such as busy unloads, provider replacement, agent moves, and arbitrary reshapes are rejected without killing existing panes.
+After editing `.ccb/ccb.config` in a mounted project, run `ccb reload --dry-run` to preview the plan and `ccb reload` to apply it. The explicit reload path can dynamically add agents, add windows, add/remove managed tool windows, unload idle agents, and remove idle windows while keeping unrelated agents and panes running. It does not run as a background file watcher, and unsafe changes such as busy unloads, provider replacement, agent moves, tool command replacement, and arbitrary reshapes are rejected without killing existing panes.
 
 If you want to discuss the configuration before writing it by hand, use the `ccb-config` skill and describe the target team. It proposes a complete config first, then writes `.ccb/ccb.config` only after confirmation.
+
+### Role Packs
+
+Role Packs define reusable agent roles. A role can carry a stable identity,
+responsibilities, memory, provider-specific skills, tool hooks, and dependency
+setup. This keeps project config short and makes specialized agents reusable
+instead of copying long role instructions into every project.
+
+The current built-in role is `ccb.archi`, an architecture reviewer role backed
+by Architec. More specialized roles will be added over time. Install or refresh
+bundled roles when prompted during `install.sh install` or `ccb update`; you
+can also refresh manually:
+
+```bash
+ccb roles update ccb.archi
+```
+
+To use the role in a project, add it as a window leaf:
+
+```bash
+ccb roles add ccb.archi:codex
+ccb reload
+```
+
+This writes the compact form `ccb.archi:codex`. At runtime CCB resolves it to
+the project-local agent `archi`, then projects the role memory and skills into
+that agent's managed provider home.
 
 <details>
 <summary><b>Config format examples: single window, multi-window, per-agent model/API</b></summary>
@@ -302,6 +337,27 @@ comms_limit = 3
 ```
 
 Note: `cmd` belongs to compact/hybrid single-window layouts. Do not put `cmd` inside `[windows]`.
+
+### Managed Neovim tool window
+
+Tool windows are tmux windows managed by CCB, but they are not agents. They do not appear in `ccb ask` targets and do not create provider runtime records.
+
+```toml
+version = 2
+entry_window = "main"
+
+[windows]
+main = "main:codex"
+
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+```
+
+`ccb tools install neovim` prepares an isolated `ccb-nvim` wrapper and LazyVim profile under CCB-owned XDG paths. `install.sh install` and `ccb update` ask in interactive terminals whether to install or refresh this tool. Non-interactive installs skip it and print the follow-up command. Set `CCB_INSTALL_NEOVIM=1` to force provisioning or `CCB_INSTALL_NEOVIM=0` to skip it.
+If `nvim` is not already on `PATH`, provisioning attempts to download the official Neovim release tarball for Linux/macOS and verifies the release sha256 before activating it. It does not write `~/.config/nvim`.
+The managed profile defaults to ASCII icons so terminals without Nerd Font support do not show unreadable boxes. To opt back into LazyVim glyph icons, launch with `CCB_LAZYVIM_ICON_STYLE=glyph ccb-nvim`.
+Use `ccb tools doctor neovim` to verify the managed profile. A working LazyVim setup reports `neovim_status: ok` and `lazyvim_health_status: ok`; damaged or partially downloaded plugin trees report `degraded` and can be repaired by rerunning `ccb tools install neovim`.
 
 ### Per-agent model, API key, or base URL
 
@@ -462,6 +518,17 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
+<summary><b>v7.2.0</b> - Role Packs And Managed Tools Release</summary>
+
+- Adds the Role Pack surface with the built-in `ccb.archi` architecture role, role memory, Codex/Claude skill projection, and project role locks.
+- Makes `ccb roles add ccb.archi:codex` the primary role onboarding command; config stores the shorthand while runtime resolves it to the local `archi` agent.
+- Makes `ccb roles install/update ccb.archi` refresh role assets and dependencies by default; install/update prompts interactive users and gives non-interactive users the follow-up command.
+- Adds managed tool windows such as `[tool_windows.neovim]`, plus `ccb tools install/doctor neovim`, sidebar rows, and safe reload add/remove behavior for non-agent tools.
+- Includes the new `agy` / Google Antigravity provider support from `main`.
+
+</details>
+
+<details>
 <summary><b>v7.1.1</b> - Sidebar View Height Release</summary>
 
 - Adds three configurable sidebar sections under `[ui.sidebar.view]`: `agents_height`, `comms_height`, and `tips_height`.
@@ -479,6 +546,8 @@ v7 highlights:
 - Dynamically mounts append-only agents and new windows under the existing ccbd daemon without interrupting unrelated panes.
 - Dynamically unloads idle removed agents and idle removed windows while preserving remaining agent panes.
 - Treats config signature drift as reload-pending instead of a daemon restart trigger; busy unloads and unsafe replacements still fail closed.
+- Starts the Role Pack surface with `ccb.archi`, `ccb roles ...`, project role
+  locks, role memory inclusion, and provider skill projection.
 
 </details>
 

@@ -47,6 +47,8 @@ def update_optional_agent_fields(payload: dict[str, object], spec) -> None:
         payload['labels'] = list(spec.labels)
     if spec.description is not None:
         payload['description'] = spec.description
+    if spec.role is not None:
+        payload['role'] = spec.role
     if spec.watch_paths:
         payload['watch_paths'] = list(spec.watch_paths)
 

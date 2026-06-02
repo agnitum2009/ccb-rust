@@ -73,6 +73,8 @@ def ensure_server_policy(backend, *, timeout_s: float | None = None) -> None:
     )
     _apply_optional_server_policy(backend, option='mouse', value='on', timeout_s=timeout_s)
     _apply_optional_server_policy(backend, option='set-clipboard', value='on', timeout_s=timeout_s)
+    _apply_optional_server_policy(backend, option='focus-events', value='on', timeout_s=timeout_s)
+    _apply_optional_server_policy(backend, option='escape-time', value='10', timeout_s=timeout_s)
     _apply_tmux_environment_policy(backend, timeout_s=timeout_s)
     _apply_optional_window_policy(backend, option='mode-keys', value='vi', timeout_s=timeout_s)
     _apply_optional_tmux_policy(

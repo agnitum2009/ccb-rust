@@ -43,6 +43,7 @@ def test_copy_repo_tree_excludes_runtime_state(tmp_path: Path) -> None:
     (repo_root / "inherit_skills" / "claude_skills" / "ask").mkdir(parents=True)
     (repo_root / "useful_tools" / "codex_skills" / "plan-tree").mkdir(parents=True)
     (repo_root / "useful_tools" / "claude_skills" / "plan-tree").mkdir(parents=True)
+    (repo_root / "roles" / "ccb.archi").mkdir(parents=True)
     (repo_root / "lib").mkdir(parents=True)
     (repo_root / "ccb").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
     (repo_root / "install.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
@@ -62,6 +63,7 @@ def test_copy_repo_tree_excludes_runtime_state(tmp_path: Path) -> None:
     (repo_root / "inherit_skills" / "claude_skills" / "ask" / "SKILL.md").write_text("ask\n", encoding="utf-8")
     (repo_root / "useful_tools" / "codex_skills" / "plan-tree" / "SKILL.md").write_text("skill\n", encoding="utf-8")
     (repo_root / "useful_tools" / "claude_skills" / "plan-tree" / "SKILL.md").write_text("skill\n", encoding="utf-8")
+    (repo_root / "roles" / "ccb.archi" / "role.toml").write_text('schema = "rolepack/v1"\n', encoding="utf-8")
 
     module.copy_repo_tree(repo_root, destination)
 
@@ -70,6 +72,7 @@ def test_copy_repo_tree_excludes_runtime_state(tmp_path: Path) -> None:
     assert (destination / "inherit_skills" / "claude_skills" / "ask" / "SKILL.md").exists()
     assert (destination / "useful_tools" / "codex_skills" / "plan-tree" / "SKILL.md").exists()
     assert (destination / "useful_tools" / "claude_skills" / "plan-tree" / "SKILL.md").exists()
+    assert (destination / "roles" / "ccb.archi" / "role.toml").exists()
     assert not (destination / ".git").exists()
     assert not (destination / ".ccb").exists()
     assert not (destination / ".ccb-requests").exists()

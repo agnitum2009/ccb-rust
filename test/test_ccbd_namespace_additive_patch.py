@@ -46,6 +46,13 @@ bottom_height = 20
 """
 
 
+ADD_TOOL_WINDOW_CONFIG = BASE_CONFIG + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+"""
+
+
 @dataclass
 class _PatchFakeBackend:
     socket_path: str | None = None
@@ -139,9 +146,17 @@ class _PatchFakeBackend:
         if len(args) >= 3 and args[:2] == ['kill-window', '-t']:
             session_name, _, window_ref = args[2].partition(':')
             windows = self.sessions.get(session_name, [])
+            removed_panes = [
+                pane
+                for record in windows
+                if record['name'] == window_ref or record['id'] == window_ref
+                for pane in record['panes']
+            ]
             self.sessions[session_name] = [
                 record for record in windows if record['name'] != window_ref and record['id'] != window_ref
             ]
+            for pane in removed_panes:
+                self.pane_options.pop(str(pane), None)
             return SimpleNamespace(returncode=0, stdout='', stderr='')
         raise AssertionError(f'unexpected tmux command in additive patch test: {args}')
 
@@ -426,6 +441,139 @@ def test_apply_trailing_add_agent_creates_new_agent_pane(tmp_path: Path, monkeyp
     assert backend.pane_options['%3']['@ccb_window'] == 'main'
 
 
+def test_apply_add_tool_window_creates_tool_window_sidebar_and_tool_pane(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    current = _load_config(tmp_path / 'current-tool-window', BASE_CONFIG)
+    new = _load_config(tmp_path / 'new-tool-window', ADD_TOOL_WINDOW_CONFIG)
+    layout = PathLayout(_project(tmp_path / 'repo-tool-window', BASE_CONFIG))
+    backend = _PatchFakeBackend(socket_path=str(layout.ccbd_tmux_socket_path))
+    backend.add_window(layout.ccbd_tmux_session_name, 'main')
+    backend.sessions[layout.ccbd_tmux_session_name][0]['panes'].append('%2')
+    backend.pane_counter = 2
+    _seed_agent_pane(backend, '%1', project_id='proj-1', window='main', agent='agent1')
+    _seed_agent_pane(backend, '%2', project_id='proj-1', window='main', agent='agent2')
+    _store_namespace(layout, project_id='proj-1')
+    controller = ProjectNamespaceController(layout, 'proj-1', backend_factory=lambda socket_path=None: backend)
+    _forbid_recreate_paths(monkeypatch)
+    plan = build_reload_dry_run_plan(current, new, project_id='proj-1', current_namespace=controller.load())
+
+    result = controller.apply_additive_patch(
+        patch_plan=plan['namespace_patch_plan'],
+        old_topology=build_namespace_topology_plan(current),
+        new_topology=build_namespace_topology_plan(new),
+        timeout_s=0.0,
+    )
+
+    assert result.status == 'applied'
+    assert result.created_windows == ('neovim',)
+    assert result.created_panes == ('%3', '%4')
+    assert result.sidebar_panes == {'neovim': '%3'}
+    assert result.tool_panes == {'neovim': '%4'}
+    assert result.agent_panes == {}
+    assert backend.respawn_calls[-1] == ('%4', 'ccb-nvim')
+    assert backend.pane_options['%3']['@ccb_role'] == 'sidebar'
+    assert backend.pane_options['%3']['@ccb_slot'] == 'sidebar:neovim'
+    assert backend.pane_options['%4']['@ccb_role'] == 'tool'
+    assert backend.pane_options['%4']['@ccb_slot'] == 'tool:neovim'
+    assert backend.pane_options['%4']['@ccb_window'] == 'neovim'
+    assert result.diagnostics['runtime_authority_written'] is False
+
+
+def test_apply_remove_tool_window_kills_only_tool_window(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    current = _load_config(tmp_path / 'current-tool-remove', ADD_TOOL_WINDOW_CONFIG)
+    new = _load_config(tmp_path / 'new-tool-remove', BASE_CONFIG)
+    layout = PathLayout(_project(tmp_path / 'repo-tool-remove', ADD_TOOL_WINDOW_CONFIG))
+    backend = _PatchFakeBackend(socket_path=str(layout.ccbd_tmux_socket_path))
+    backend.add_window(layout.ccbd_tmux_session_name, 'main')
+    backend.sessions[layout.ccbd_tmux_session_name][0]['panes'].append('%2')
+    backend.pane_counter = 2
+    _seed_agent_pane(backend, '%1', project_id='proj-1', window='main', agent='agent1')
+    _seed_agent_pane(backend, '%2', project_id='proj-1', window='main', agent='agent2')
+    tool_root = backend.add_window(layout.ccbd_tmux_session_name, 'neovim')
+    backend.pane_options[tool_root] = {
+        '@ccb_project_id': 'proj-1',
+        '@ccb_role': 'tool',
+        '@ccb_slot': 'tool:neovim',
+        '@ccb_window': 'neovim',
+        '@ccb_managed_by': 'ccbd',
+    }
+    _store_namespace(layout, project_id='proj-1')
+    controller = ProjectNamespaceController(layout, 'proj-1', backend_factory=lambda socket_path=None: backend)
+    _forbid_recreate_paths(monkeypatch, allow_kill_window=True)
+    plan = build_reload_dry_run_plan(current, new, project_id='proj-1', current_namespace=controller.load())
+
+    result = controller.apply_reload_patch(
+        patch_plan=plan['namespace_patch_plan'],
+        old_topology=build_namespace_topology_plan(current),
+        new_topology=build_namespace_topology_plan(new),
+        timeout_s=0.0,
+    )
+
+    assert result.status == 'applied'
+    assert result.removed_windows == ('neovim',)
+    assert [
+        call
+        for call in backend.tmux_calls
+        if call == ('kill-window', '-t', f'{layout.ccbd_tmux_session_name}:neovim')
+    ] == [('kill-window', '-t', f'{layout.ccbd_tmux_session_name}:neovim')]
+    assert [record['name'] for record in backend.sessions[layout.ccbd_tmux_session_name]] == ['main']
+    assert tool_root not in backend.pane_options
+    assert backend.pane_options['%1']['@ccb_slot'] == 'agent1'
+    assert backend.pane_options['%2']['@ccb_slot'] == 'agent2'
+
+
+def test_apply_remove_tool_window_is_idempotent_when_window_already_missing(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    current = _load_config(tmp_path / 'current-tool-remove-missing', ADD_TOOL_WINDOW_CONFIG)
+    new = _load_config(tmp_path / 'new-tool-remove-missing', BASE_CONFIG)
+    layout = PathLayout(_project(tmp_path / 'repo-tool-remove-missing', ADD_TOOL_WINDOW_CONFIG))
+
+    class _MissingWindowBackend(_PatchFakeBackend):
+        def _tmux_run(self, args: list[str], *, check=False, capture=False, input_bytes=None, timeout=None):
+            if len(args) >= 3 and args[:2] == ['kill-window', '-t']:
+                self.tmux_calls.append(tuple(args))
+                return SimpleNamespace(returncode=1, stdout='', stderr="can't find window: neovim")
+            return super()._tmux_run(
+                args,
+                check=check,
+                capture=capture,
+                input_bytes=input_bytes,
+                timeout=timeout,
+            )
+
+    backend = _MissingWindowBackend(socket_path=str(layout.ccbd_tmux_socket_path))
+    backend.add_window(layout.ccbd_tmux_session_name, 'main')
+    backend.sessions[layout.ccbd_tmux_session_name][0]['panes'].append('%2')
+    backend.pane_counter = 2
+    _seed_agent_pane(backend, '%1', project_id='proj-1', window='main', agent='agent1')
+    _seed_agent_pane(backend, '%2', project_id='proj-1', window='main', agent='agent2')
+    _store_namespace(layout, project_id='proj-1')
+    controller = ProjectNamespaceController(layout, 'proj-1', backend_factory=lambda socket_path=None: backend)
+    _forbid_recreate_paths(monkeypatch, allow_kill_window=True)
+    plan = build_reload_dry_run_plan(current, new, project_id='proj-1', current_namespace=controller.load())
+
+    result = controller.apply_reload_patch(
+        patch_plan=plan['namespace_patch_plan'],
+        old_topology=build_namespace_topology_plan(current),
+        new_topology=build_namespace_topology_plan(new),
+        timeout_s=0.0,
+    )
+
+    assert result.status == 'applied'
+    assert result.removed_windows == ('neovim',)
+    assert result.preserved_before == {'agent1': '%1', 'agent2': '%2'}
+    assert result.preserved_after == {'agent1': '%1', 'agent2': '%2'}
+    assert backend.pane_options['%1']['@ccb_slot'] == 'agent1'
+    assert backend.pane_options['%2']['@ccb_slot'] == 'agent2'
+
+
 def test_apply_append_add_agent_failure_does_not_publish_or_write_authority(tmp_path: Path, monkeypatch) -> None:
     current = _load_config(tmp_path / 'current-add-agent-fail', BASE_CONFIG)
     new = _load_config(
@@ -591,28 +739,30 @@ bottom_height = 20
     assert backend.split_calls == []
 
 
-def test_project_reload_non_dry_run_no_change_blocks_after_patch_api(tmp_path: Path) -> None:
+def test_project_reload_non_dry_run_no_change_noops_after_patch_api(tmp_path: Path) -> None:
     project_root = _project(tmp_path / 'repo-block-no-change', BASE_CONFIG)
     app = CcbdApp(project_root, clock=lambda: '2026-05-29T00:00:00Z', pid=4242)
     old_graph = app.service_graph
 
     payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
 
-    assert payload['status'] == 'blocked'
-    assert payload['stage'] == 'plan'
+    assert payload['status'] == 'noop'
+    assert payload['stage'] == 'no_op'
     assert payload['plan_class'] == 'no_change'
     assert payload['diagnostics']['graph_published'] is False
     assert app.service_graph is old_graph
     assert app.control_plane_metrics.last_reload_duration_s is not None
+    assert app.control_plane_metrics.last_reload_error is None
 
 
-def _forbid_recreate_paths(monkeypatch) -> None:
+def _forbid_recreate_paths(monkeypatch, *, allow_kill_window: bool = False) -> None:
     monkeypatch.setattr(
         'ccbd.services.project_namespace_runtime.ensure.ensure_project_namespace',
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError('must not call full ensure')),
         raising=False,
     )
-    for name in ('kill_server', 'kill_window'):
+    forbidden_backend_mutations = ('kill_server',) if allow_kill_window else ('kill_server', 'kill_window')
+    for name in forbidden_backend_mutations:
         monkeypatch.setattr(
             f'ccbd.services.project_namespace_runtime.backend.{name}',
             lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError(f'must not call {name}')),

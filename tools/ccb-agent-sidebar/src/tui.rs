@@ -796,6 +796,9 @@ fn draw_tree(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
     let mut rows = Vec::new();
     if let Some(view) = app.view() {
         for window in &view.windows {
+            if !window.show_in_sidebar {
+                continue;
+            }
             rows.push(window_row(window));
             for agent in view
                 .agents
@@ -915,10 +918,15 @@ fn tree_focus_style(_app: &SidebarApp) -> Style {
 
 fn window_row(window: &WindowView) -> ListItem<'static> {
     let active = if window.active { ">" } else { " " };
+    let label = if window.label.is_empty() {
+        window.name.clone()
+    } else {
+        window.label.clone()
+    };
     ListItem::new(Line::from(vec![
         Span::raw(format!("{active} ")),
         Span::styled(
-            window.name.clone(),
+            label,
             Style::default().add_modifier(Modifier::BOLD),
         ),
     ]))

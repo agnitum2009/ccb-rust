@@ -784,6 +784,8 @@ def test_project_namespace_controller_applies_server_policy_when_reusing_session
     assert (['set-option', '-g', 'destroy-unattached', 'off'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'mouse', 'on'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'set-clipboard', 'on'], True) in backend.tmux_calls
+    assert (['set-option', '-g', 'focus-events', 'on'], True) in backend.tmux_calls
+    assert (['set-option', '-g', 'escape-time', '10'], True) in backend.tmux_calls
     assert (['set-window-option', '-g', 'mode-keys', 'vi'], True) in backend.tmux_calls
     assert (['bind-key', '-T', 'copy-mode-vi', 'v', 'send-keys', '-X', 'begin-selection'], True) in backend.tmux_calls
     assert (['bind-key', '-T', 'copy-mode-vi', 'y', 'send-keys', '-X', 'copy-selection-and-cancel'], True) not in backend.tmux_calls
@@ -1152,6 +1154,8 @@ def test_project_namespace_controller_uses_silent_server_commands(tmp_path: Path
     assert (['set-option', '-g', 'destroy-unattached', 'off'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'mouse', 'on'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'set-clipboard', 'on'], True) in backend.tmux_calls
+    assert (['set-option', '-g', 'focus-events', 'on'], True) in backend.tmux_calls
+    assert (['set-option', '-g', 'escape-time', '10'], True) in backend.tmux_calls
     assert (['set-window-option', '-g', 'mode-keys', 'vi'], True) in backend.tmux_calls
     assert (['bind-key', '-T', 'copy-mode-vi', 'y', 'send-keys', '-X', 'copy-selection-and-cancel'], True) not in backend.tmux_calls
     assert _clipboard_bind_call('y') in backend.tmux_calls

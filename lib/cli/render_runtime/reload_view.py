@@ -95,6 +95,7 @@ def _reload_residue_line(residue: Mapping[str, object]) -> str:
         'created_panes',
         'agent_panes',
         'sidebar_panes',
+        'tool_panes',
         'removed_windows',
         'removed_panes',
         'removed_agents',

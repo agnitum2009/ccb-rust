@@ -11,8 +11,11 @@ from ccbd.reload_patch import build_invalid_namespace_patch_plan, build_namespac
 _PLAN_PRIORITY = {
     'no_change': 0,
     'view_only_change': 10,
+    'add_tool_window': 30,
     'add_agent': 40,
     'add_window': 50,
+    'remove_tool_window': 55,
+    'change_tool_window': 65,
     'layout_change': 60,
     'move_agent': 70,
     'remove_agent': 80,
@@ -185,6 +188,8 @@ def _build_operations(current_config, new_config) -> list[dict[str, object]]:
     new_window_by_agent = _agent_window_map(new_config)
     old_windows = _window_record_map(current_config)
     new_windows = _window_record_map(new_config)
+    old_tools = _tool_window_record_map(current_config)
+    new_tools = _tool_window_record_map(new_config)
     added_windows = set(new_windows) - set(old_windows)
 
     for window_name in _ordered_windows(new_config, added_windows):
@@ -246,6 +251,7 @@ def _build_operations(current_config, new_config) -> list[dict[str, object]]:
             )
 
     operations.extend(_topology_operations(current_config, new_config, old_windows=old_windows, new_windows=new_windows))
+    operations.extend(_tool_window_operations(current_config, new_config, old_tools=old_tools, new_tools=new_tools))
     return operations
 
 
@@ -316,9 +322,13 @@ def _select_plan_class(operations: list[dict[str, object]]) -> str:
 def _future_safe_to_apply(plan_class: str, operations: list[dict[str, object]]) -> bool:
     if plan_class in {'no_change', 'view_only_change'}:
         return True
+    if plan_class in {'add_tool_window', 'remove_tool_window'}:
+        unsafe_tool_ops = {'change_tool_window'}
+        unsafe_agent_ops = {'replace_agent', 'move_agent'}
+        return not any(str(item.get('op') or '') in unsafe_tool_ops | unsafe_agent_ops for item in operations)
     if plan_class == 'remove_agent':
         return _remove_agent_operations_are_safe(operations)
-    unsafe_ops = {'replace_agent', 'move_agent', 'layout_change'}
+    unsafe_ops = {'replace_agent', 'move_agent', 'layout_change', 'change_tool_window'}
     if any(str(item.get('op') or '') in unsafe_ops for item in operations):
         return False
     return plan_class in {'add_agent', 'add_window'}
@@ -335,6 +345,52 @@ def _remove_agent_operations_are_safe(operations: list[dict[str, object]]) -> bo
             continue
         return False
     return any(str(item.get('op') or '') == 'remove_agent' for item in operations)
+
+
+def _tool_window_operations(
+    current_config,
+    new_config,
+    *,
+    old_tools: dict[str, dict[str, object]],
+    new_tools: dict[str, dict[str, object]],
+) -> list[dict[str, object]]:
+    operations: list[dict[str, object]] = []
+    for window_name in _ordered_tool_windows(new_config, set(new_tools) - set(old_tools)):
+        record = new_tools[window_name]
+        operations.append(
+            {
+                'op': 'add_tool_window',
+                'window': window_name,
+                'command': record.get('command'),
+                'reason': 'tool window exists only in new config',
+            }
+        )
+    for window_name in _ordered_tool_windows(current_config, set(old_tools) - set(new_tools)):
+        operations.append(
+            {
+                'op': 'remove_tool_window',
+                'window': window_name,
+                'reason': 'tool window exists only in current published config',
+            }
+        )
+    for window_name in _ordered_tool_windows(new_config, set(old_tools) & set(new_tools)):
+        old_record = old_tools[window_name]
+        new_record = new_tools[window_name]
+        changed = [
+            field
+            for field in ('command',)
+            if old_record.get(field) != new_record.get(field)
+        ]
+        if changed:
+            operations.append(
+                {
+                    'op': 'change_tool_window',
+                    'window': window_name,
+                    'fields': changed,
+                    'reason': 'existing tool window changed; explicit restart policy is not implemented',
+                }
+            )
+    return operations
 
 
 def _plan_payload(
@@ -419,10 +475,25 @@ def _window_record_map(config) -> dict[str, dict[str, object]]:
     }
 
 
+def _tool_window_record_map(config) -> dict[str, dict[str, object]]:
+    return {
+        str(getattr(tool, 'name', '') or ''): dict(tool.to_record())
+        for tool in tuple(getattr(config, 'tool_windows', ()) or ())
+    }
+
+
 def _ordered_windows(config, names: set[str]) -> list[str]:
     order = {
         str(getattr(window, 'name', '') or ''): int(getattr(window, 'order', 0) or 0)
         for window in tuple(getattr(config, 'windows', ()) or ())
+    }
+    return sorted(names, key=lambda name: (order.get(name, 999999), name))
+
+
+def _ordered_tool_windows(config, names: set[str]) -> list[str]:
+    order = {
+        str(getattr(tool, 'name', '') or ''): int(getattr(tool, 'order', 0) or 0)
+        for tool in tuple(getattr(config, 'tool_windows', ()) or ())
     }
     return sorted(names, key=lambda name: (order.get(name, 999999), name))
 

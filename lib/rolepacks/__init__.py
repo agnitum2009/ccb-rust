@@ -1,0 +1,51 @@
+from __future__ import annotations
+
+from .manifest import (
+    RoleManifest,
+    RoleManifestError,
+    load_role_manifest,
+    normalize_role_id,
+    read_toml_manifest,
+    role_manifest_from_mapping,
+)
+from .service import (
+    RolePack,
+    RolePackError,
+    add_role_to_project_config,
+    builtin_role_root,
+    install_role,
+    list_builtin_roles,
+    load_project_agent_role,
+    load_installed_role,
+    load_role,
+    project_role_memory_sources,
+    project_role_skill_sources,
+    role_store_root,
+    role_status,
+    run_role_tool_hooks,
+    update_role,
+)
+
+__all__ = [
+    'RoleManifest',
+    'RoleManifestError',
+    'RolePack',
+    'RolePackError',
+    'add_role_to_project_config',
+    'builtin_role_root',
+    'install_role',
+    'list_builtin_roles',
+    'load_project_agent_role',
+    'load_installed_role',
+    'load_role',
+    'load_role_manifest',
+    'normalize_role_id',
+    'project_role_memory_sources',
+    'project_role_skill_sources',
+    'read_toml_manifest',
+    'role_manifest_from_mapping',
+    'role_store_root',
+    'role_status',
+    'run_role_tool_hooks',
+    'update_role',
+]

@@ -12,7 +12,7 @@ def planned_create_windows(steps: tuple[Mapping[str, object] | object, ...]) -> 
 
 
 def planned_kill_windows(steps: tuple[Mapping[str, object] | object, ...]) -> set[str]:
-    return _planned_windows_for_action(steps, 'kill_window')
+    return _planned_windows_for_action(steps, 'kill_window') | _planned_windows_for_action(steps, 'kill_tool_window')
 
 
 def planned_agent_targets(steps: tuple[Mapping[str, object] | object, ...]) -> set[tuple[str, str]]:
@@ -21,6 +21,14 @@ def planned_agent_targets(steps: tuple[Mapping[str, object] | object, ...]) -> s
 
 def planned_removed_agent_targets(steps: tuple[Mapping[str, object] | object, ...]) -> set[tuple[str, str]]:
     return _planned_agent_targets_for_action(steps, 'kill_agent_pane')
+
+
+def planned_tool_windows(steps: tuple[Mapping[str, object] | object, ...]) -> set[str]:
+    return _planned_windows_for_action(steps, 'create_tool_pane')
+
+
+def planned_removed_tool_windows(steps: tuple[Mapping[str, object] | object, ...]) -> set[str]:
+    return _planned_windows_for_action(steps, 'kill_tool_window')
 
 
 def has_view_only_step(steps: tuple[Mapping[str, object] | object, ...]) -> bool:
@@ -58,5 +66,7 @@ __all__ = [
     'planned_agent_targets',
     'planned_create_windows',
     'planned_kill_windows',
+    'planned_removed_tool_windows',
     'planned_removed_agent_targets',
+    'planned_tool_windows',
 ]

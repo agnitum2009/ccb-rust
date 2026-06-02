@@ -7,8 +7,24 @@ from ccbd.reload_apply_results import not_published_diagnostics
 from ccbd.reload_transaction_records import graph_signature
 
 
-_ALLOWED_PLAN_CLASSES = frozenset({'view_only_change', 'add_agent', 'add_window', 'remove_agent'})
-_ALLOWED_OPERATIONS = frozenset({'view_only_change', 'add_agent', 'add_window', 'remove_agent', 'layout_change'})
+_ALLOWED_PLAN_CLASSES = frozenset({
+    'no_change',
+    'view_only_change',
+    'add_agent',
+    'add_window',
+    'remove_agent',
+    'add_tool_window',
+    'remove_tool_window',
+})
+_ALLOWED_OPERATIONS = frozenset({
+    'view_only_change',
+    'add_agent',
+    'add_window',
+    'remove_agent',
+    'add_tool_window',
+    'remove_tool_window',
+    'layout_change',
+})
 
 
 def plan_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
@@ -19,7 +35,7 @@ def plan_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
         return (
             'unsupported_plan_class',
             'additive reload apply only accepts view_only_change, '
-            'add_agent, add_window, and idle remove_agent',
+            'no_change, add_agent, add_window, idle remove_agent, add_tool_window, and remove_tool_window',
         )
     operation_blocker = _operation_blocker(plan)
     if operation_blocker is not None:
@@ -29,7 +45,7 @@ def plan_blocker(plan: dict[str, object]) -> tuple[str, str] | None:
             'plan_not_future_safe',
             'dry-run plan is not future-safe for additive apply',
         )
-    if plan_class in {'add_agent', 'add_window', 'remove_agent'}:
+    if plan_class in {'add_agent', 'add_window', 'remove_agent', 'add_tool_window', 'remove_tool_window'}:
         return _namespace_patch_blocker(plan)
     return None
 

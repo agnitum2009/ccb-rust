@@ -6,7 +6,7 @@ def metrics_fields(payload: dict[str, object], *, fallback_plan_class: str) -> t
     error_text = _error_text(payload)
     if error_text:
         return plan_class, error_text
-    if str(payload.get('status') or '') not in {'ok', 'published'}:
+    if str(payload.get('status') or '') not in {'ok', 'published', 'noop'}:
         return plan_class, _diagnostic_text(payload)
     return plan_class, None
 

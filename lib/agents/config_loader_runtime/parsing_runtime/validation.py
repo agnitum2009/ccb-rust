@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from agents.models import AgentValidationError, ProjectConfig, normalize_agent_name
+from agents.config_loader_runtime.role_lookup import RoleLookupError, installed_role_default_agent_name, looks_like_role_id, normalize_role_id
+from agents.models import AgentValidationError, LayoutLeaf, LayoutNode, ProjectConfig, normalize_agent_name, parse_layout_spec
 
 from ..common import ALLOWED_TOP_LEVEL_KEYS, ConfigValidationError
 from .agent_specs import parse_agents
 from .expectations import expect_bool, expect_string, expect_string_list
-from .topology import agents_from_topology_windows, parse_sidebar, parse_sidebar_view, parse_topology_windows
+from .topology import agents_from_topology_windows, parse_sidebar, parse_sidebar_view, parse_tool_windows, parse_topology_windows
 
 
 def validate_project_config(document: dict[str, Any], *, source_path: Path | None = None) -> ProjectConfig:
+    document = _expand_role_id_shorthand(document)
     _validate_document_shape(document)
     windows = parse_topology_windows(document.get('windows'))
+    tool_windows = parse_tool_windows(document.get('tool_windows'))
+    _validate_topology_presence(document, windows=windows, tool_windows=tool_windows)
     if windows is not None:
         default_agents = _parse_topology_default_agents(document, windows=windows)
         parsed_agents = agents_from_topology_windows(windows, raw_agents=document.get('agents', {}))
@@ -25,13 +30,14 @@ def validate_project_config(document: dict[str, Any], *, source_path: Path | Non
     sidebar = parse_sidebar(document.get('ui'))
     sidebar_view = parse_sidebar_view(document.get('ui'))
     entry_window = _parse_entry_window(document)
-    _validate_legacy_and_windows_fields(document, windows=windows)
+    _validate_legacy_and_windows_fields(document, windows=windows, tool_windows=tool_windows)
     return _build_project_config(
         default_agents=default_agents,
         parsed_agents=parsed_agents,
         cmd_enabled=cmd_enabled,
         layout_spec=layout_spec,
         windows=windows,
+        tool_windows=tool_windows,
         entry_window=entry_window,
         sidebar=sidebar,
         sidebar_view=sidebar_view,
@@ -91,6 +97,7 @@ def _validate_legacy_and_windows_fields(
     document: dict[str, Any],
     *,
     windows,
+    tool_windows,
 ) -> None:
     if windows is None:
         if 'entry_window' in document:
@@ -104,6 +111,13 @@ def _validate_legacy_and_windows_fields(
         raise ConfigValidationError('cmd_enabled is not supported with windows topology')
 
 
+def _validate_topology_presence(document: dict[str, Any], *, windows, tool_windows) -> None:
+    if windows is not None:
+        return
+    if tuple(tool_windows or ()):
+        raise ConfigValidationError('tool_windows requires windows topology')
+
+
 def _build_project_config(
     *,
     default_agents: tuple[str, ...],
@@ -111,6 +125,7 @@ def _build_project_config(
     cmd_enabled: bool,
     layout_spec: str | None,
     windows,
+    tool_windows,
     entry_window: str | None,
     sidebar,
     sidebar_view,
@@ -124,6 +139,7 @@ def _build_project_config(
             cmd_enabled=cmd_enabled,
             layout_spec=layout_spec,
             windows=windows,
+            tool_windows=tool_windows,
             entry_window=entry_window,
             sidebar=sidebar,
             sidebar_view=sidebar_view,
@@ -132,6 +148,69 @@ def _build_project_config(
         )
     except AgentValidationError as exc:
         raise ConfigValidationError(str(exc)) from exc
+
+
+def _expand_role_id_shorthand(document: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(document.get('windows'), dict):
+        return document
+    expanded = deepcopy(document)
+    windows = dict(expanded.get('windows') or {})
+    agents = dict(expanded.get('agents') or {})
+    for window_name, layout_text in windows.items():
+        layout = parse_layout_spec(str(layout_text))
+        role_bindings: dict[str, str] = {}
+        resolved = _expand_role_layout(layout, role_bindings=role_bindings)
+        if role_bindings:
+            windows[window_name] = resolved.render()
+            for agent_name, role_id in role_bindings.items():
+                raw_spec = dict(agents.get(agent_name) or {})
+                existing_role = str(raw_spec.get('role') or '').strip().lower()
+                if existing_role and existing_role != role_id:
+                    raise ConfigValidationError(
+                        f'agent {agent_name!r} role conflicts with shorthand role {role_id}'
+                    )
+                raw_spec['role'] = role_id
+                agents[agent_name] = raw_spec
+    expanded['windows'] = windows
+    if agents:
+        expanded['agents'] = agents
+    return expanded
+
+
+def _expand_role_layout(node, *, role_bindings: dict[str, str]):
+    if node.kind == 'leaf':
+        assert node.leaf is not None
+        name = str(node.leaf.name or '').strip()
+        if looks_like_role_id(name):
+            role_id = normalize_role_id(name)
+            try:
+                agent_name = normalize_agent_name(installed_role_default_agent_name(role_id))
+            except RoleLookupError as exc:
+                raise ConfigValidationError(str(exc)) from exc
+            except AgentValidationError as exc:
+                raise ConfigValidationError(f'role {role_id} default agent name is invalid: {exc}') from exc
+            existing = role_bindings.get(agent_name)
+            if existing is not None and existing != role_id:
+                raise ConfigValidationError(
+                    f'agent {agent_name!r} cannot be derived from multiple roles: {existing}, {role_id}'
+                )
+            role_bindings[agent_name] = role_id
+            return LayoutNode(
+                kind='leaf',
+                leaf=LayoutLeaf(
+                    name=agent_name,
+                    provider=node.leaf.provider,
+                    workspace_mode=node.leaf.workspace_mode,
+                ),
+            )
+        return node
+    assert node.left is not None
+    assert node.right is not None
+    return LayoutNode(
+        kind=node.kind,
+        left=_expand_role_layout(node.left, role_bindings=role_bindings),
+        right=_expand_role_layout(node.right, role_bindings=role_bindings),
+    )
 
 
 __all__ = ['validate_project_config']

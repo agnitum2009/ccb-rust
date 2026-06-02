@@ -25,6 +25,7 @@ from provider_core.projected_assets import (
     write_projected_marker,
 )
 from provider_core.source_home import current_provider_source_home
+from rolepacks.projection import project_role_skills_to_home
 from storage.atomic import atomic_write_text
 from storage.paths import PathLayout
 
@@ -124,6 +125,12 @@ def materialize_codex_home_config(
         target_home / 'skills',
         enabled=_inherits_skills(profile),
         label=_CODEX_SKILLS_PROJECTION_LABEL,
+    )
+    project_role_skills_to_home(
+        project_root=project_root,
+        agent_name=agent_name,
+        provider='codex',
+        target_skills_dir=target_home / 'skills',
     )
     _route_inherited_tree(
         source_home / 'commands',

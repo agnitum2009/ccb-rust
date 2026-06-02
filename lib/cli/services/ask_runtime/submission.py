@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection
 
+from agents.config_loader_runtime.role_lookup import looks_like_role_id, normalize_role_id
 from agents.models import AgentValidationError
 from ccbd.api_models import DeliveryScope, MessageEnvelope
 from mailbox_runtime.targets import NON_AGENT_ACTORS, normalize_actor_name
@@ -67,7 +68,7 @@ def submit_ask(
     invoke_mounted_daemon_fn: Callable,
 ) -> AskSummary:
     config = load_project_config_fn(context.project.project_root).config
-    normalized_target = _normalize_target(command.target)
+    normalized_target = _resolve_target(command.target, config.agents)
     _validate_target(normalized_target, config.agents)
     sender = resolve_ask_sender_fn(context, command.sender)
     normalized_sender = _normalize_sender(sender)
@@ -97,7 +98,7 @@ def submit_ask(
                 task_id=command.task_id,
                 reply_to=command.reply_to,
                 message_type=command.mode or 'ask',
-                delivery_scope=_delivery_scope(command.target),
+                delivery_scope=_delivery_scope(normalized_target),
                 silence_on_success=command.silence,
                 route_options=_route_options(command),
                 body_artifact=body_artifact,
@@ -152,12 +153,39 @@ def _normalize_target(value: str | None) -> str:
     normalized = str(value or '').strip().lower()
     if normalized == 'all':
         return normalized
+    if looks_like_role_id(normalized):
+        return normalize_role_id(normalized)
     return _normalize_sender(normalized)
 
 
 def _validate_target(target: str, configured_agents: Collection[str]) -> None:
     if target != 'all' and target not in configured_agents:
         raise ValueError(f'unknown agent: {target}')
+
+
+def _resolve_target(value: str | None, configured_agents: Collection[str]) -> str:
+    normalized = _normalize_target(value)
+    if normalized == 'all' or normalized in configured_agents:
+        return normalized
+    if looks_like_role_id(normalized):
+        role_id = normalize_role_id(normalized)
+        matches = sorted(
+            name
+            for name, spec in dict(configured_agents).items()
+            if str(getattr(spec, 'role', '') or '').strip().lower() == role_id
+        )
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise ValueError(
+                f'role {role_id} is not bound to any configured agent; '
+                'target the project-local agent name or add the role to config'
+            )
+        raise ValueError(
+            f'role {role_id} is bound to multiple agents: {", ".join(matches)}; '
+            'target one agent name explicitly'
+        )
+    return normalized
 
 
 def _validate_sender(sender: str, configured_agents: Collection[str]) -> None:
@@ -171,7 +199,7 @@ def _validate_sender(sender: str, configured_agents: Collection[str]) -> None:
 
 
 def _delivery_scope(target: str | None) -> DeliveryScope:
-    return DeliveryScope.BROADCAST if _normalize_target(target) == 'all' else DeliveryScope.SINGLE
+    return DeliveryScope.BROADCAST if str(target or '').strip().lower() == 'all' else DeliveryScope.SINGLE
 
 
 def _summary_from_payload(project_id: str, payload: dict) -> AskSummary:

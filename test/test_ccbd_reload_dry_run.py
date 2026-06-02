@@ -153,6 +153,84 @@ def test_reload_plan_classifies_runtime_and_layout_changes(
     assert plan['mutation_enabled'] is False
 
 
+def test_reload_plan_classifies_tool_window_add_remove_and_change(tmp_path: Path) -> None:
+    current = _load_config(tmp_path / 'current-tool', BASE_CONFIG)
+    added = _load_config(
+        tmp_path / 'new-tool-add',
+        BASE_CONFIG
+        + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+""",
+    )
+
+    add_plan = build_reload_dry_run_plan(current, added, project_id='project-1', current_namespace=_namespace('project-1'))
+
+    assert add_plan['plan_class'] == 'add_tool_window'
+    assert {item['op'] for item in add_plan['operations']} == {'add_tool_window'}
+    assert add_plan['future_safe_to_apply'] is True
+    assert add_plan['namespace_patch_plan']['status'] == 'planned'
+    assert any(step['action'] == 'create_tool_pane' for step in add_plan['namespace_patch_plan']['steps'])
+    assert add_plan['new_known_agents'] == ['agent1', 'agent2']
+
+    remove_plan = build_reload_dry_run_plan(added, current, project_id='project-1', current_namespace=_namespace('project-1'))
+
+    assert remove_plan['plan_class'] == 'remove_tool_window'
+    assert {item['op'] for item in remove_plan['operations']} == {'remove_tool_window'}
+    assert remove_plan['future_safe_to_apply'] is True
+    assert any(step['action'] == 'kill_tool_window' for step in remove_plan['namespace_patch_plan']['steps'])
+
+    changed = _load_config(
+        tmp_path / 'new-tool-change',
+        BASE_CONFIG
+        + """
+[tool_windows.neovim]
+command = "nvim"
+""",
+    )
+    change_plan = build_reload_dry_run_plan(added, changed, project_id='project-1', current_namespace=_namespace('project-1'))
+
+    assert change_plan['plan_class'] == 'change_tool_window'
+    assert {item['op'] for item in change_plan['operations']} == {'change_tool_window'}
+    assert change_plan['future_safe_to_apply'] is False
+    assert change_plan['namespace_patch_plan']['status'] == 'blocked'
+
+
+def test_reload_plan_treats_tool_window_label_and_visibility_as_view_only(tmp_path: Path) -> None:
+    current = _load_config(
+        tmp_path / 'current-tool-view',
+        BASE_CONFIG
+        + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+show_in_sidebar = true
+""",
+    )
+    new = _load_config(
+        tmp_path / 'new-tool-view',
+        BASE_CONFIG
+        + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "editor"
+show_in_sidebar = false
+""",
+    )
+
+    plan = build_reload_dry_run_plan(
+        current,
+        new,
+        project_id='project-1',
+        current_namespace=_namespace('project-1'),
+    )
+
+    assert plan['plan_class'] == 'view_only_change'
+    assert plan['old_config_signature'] == plan['new_config_signature']
+    assert plan['namespace_patch_plan']['status'] == 'planned'
+    assert plan['namespace_patch_plan']['steps'][0]['action'] == 'refresh_project_view'
+
+
 def test_reload_plan_classifies_sidebar_view_only_change(tmp_path: Path) -> None:
     current = _load_config(
         tmp_path / 'current-view',
@@ -231,7 +309,7 @@ def test_reload_dry_run_missing_project_config_is_invalid_not_default_fallback(
     assert app.control_plane_metrics.last_reload_error
 
 
-def test_reload_non_dry_run_no_change_is_blocked_without_mutation(tmp_path: Path) -> None:
+def test_reload_non_dry_run_no_change_is_successful_noop_without_mutation(tmp_path: Path) -> None:
     project_root = _project(tmp_path / 'repo-block-no-change', BASE_CONFIG)
     app = CcbdApp(project_root, clock=lambda: '2026-05-29T00:00:00Z', pid=4242)
     before_snapshot = _runtime_file_snapshot(project_root)
@@ -239,18 +317,18 @@ def test_reload_non_dry_run_no_change_is_blocked_without_mutation(tmp_path: Path
 
     payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
 
-    assert payload['status'] == 'blocked'
+    assert payload['status'] == 'noop'
     assert payload['dry_run'] is False
     assert payload['mutation_enabled'] is False
     assert payload['plan_class'] == 'no_change'
-    assert payload['stage'] == 'plan'
-    assert payload['diagnostics']['reason'] == 'unsupported_plan_class'
+    assert payload['stage'] == 'no_op'
+    assert payload['diagnostics']['reason'] == 'no_change'
     assert payload['diagnostics']['graph_published'] is False
     assert app.service_graph is before_graph
     assert _runtime_file_snapshot(project_root) == before_snapshot
     assert app.control_plane_metrics.last_reload_duration_s is not None
     assert app.control_plane_metrics.last_reload_plan_class == 'no_change'
-    assert app.control_plane_metrics.last_reload_error
+    assert app.control_plane_metrics.last_reload_error is None
 
 
 def test_reload_cli_parser_endpoint_render_and_phase2_return_code(monkeypatch, tmp_path: Path) -> None:
@@ -583,6 +661,16 @@ def _write_config(project_root: Path, text: str) -> None:
 def _load_config(project_root: Path, text: str):
     _project(project_root, text)
     return load_project_config(project_root).config
+
+
+def _namespace(project_id: str):
+    return SimpleNamespace(
+        project_id=project_id,
+        namespace_epoch=7,
+        tmux_socket_path='/tmp/ccb-tmux.sock',
+        tmux_session_name='ccb-test',
+        ui_attachable=True,
+    )
 
 
 def _runtime_file_snapshot(project_root: Path) -> dict[str, bytes]:

@@ -14,8 +14,10 @@ from cli.management_runtime.startup_update import (
 from cli.phase2 import maybe_handle_phase2
 from cli.parser_runtime.constants import SUBCOMMANDS
 from cli.router import dispatch_auxiliary_command, dispatch_management_command, print_command_help, print_kill_help, print_start_help
+from cli.roles_runtime import cmd_roles
 from cli.sidebar_click import maybe_handle_sidebar_click_command
 from cli.sidebar_resize_sync import maybe_handle_sidebar_resize_sync_command
+from cli.tools_runtime import cmd_tools
 
 
 def _should_print_version(tokens: list[str]) -> bool:
@@ -38,7 +40,7 @@ def _is_start_help(tokens: list[str]) -> bool:
         return False
     if tokens[0] in {"-h", "--help", "help"}:
         return True
-    if tokens[0] in SUBCOMMANDS or tokens[0] in {"version", "update", "uninstall", "reinstall", "droid", "mail", "provider", "up"}:
+    if tokens[0] in SUBCOMMANDS or tokens[0] in {"version", "update", "uninstall", "reinstall", "droid", "tools", "roles", "mail", "provider", "up"}:
         return False
     return any(token in {"-h", "--help", "help"} for token in tokens)
 
@@ -143,6 +145,18 @@ def _dispatch_management(tokens: list[str], *, script_root: Path) -> int | None:
     )
 
 
+def _dispatch_tools(tokens: list[str], *, script_root: Path, stdout: TextIO, stderr: TextIO) -> int | None:
+    if not (tokens and tokens[0] == 'tools'):
+        return None
+    return cmd_tools(tokens[1:], script_root=script_root, stdout=stdout, stderr=stderr)
+
+
+def _dispatch_roles(tokens: list[str], *, script_root: Path, cwd: Path, stdout: TextIO, stderr: TextIO) -> int | None:
+    if not (tokens and tokens[0] == 'roles'):
+        return None
+    return cmd_roles(tokens[1:], script_root=script_root, cwd=cwd, stdout=stdout, stderr=stderr)
+
+
 def run_cli_entrypoint(
     argv: list[str],
     *,
@@ -183,6 +197,14 @@ def run_cli_entrypoint(
     management_result = _dispatch_management(tokens, script_root=script_root)
     if management_result is not None:
         return management_result
+
+    tools_result = _dispatch_tools(tokens, script_root=script_root, stdout=stdout, stderr=stderr)
+    if tools_result is not None:
+        return tools_result
+
+    roles_result = _dispatch_roles(tokens, script_root=script_root, cwd=cwd, stdout=stdout, stderr=stderr)
+    if roles_result is not None:
+        return roles_result
 
     startup_update_result = maybe_handle_startup_release_update(
         tokens,

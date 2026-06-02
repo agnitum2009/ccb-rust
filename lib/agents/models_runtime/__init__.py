@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .config import AgentApiSpec, AgentSpec, ProjectConfig
-from .config_runtime.topology import SidebarSpec, SidebarViewSpec, WindowSpec
+from .config_runtime.topology import SidebarSpec, SidebarViewSpec, ToolWindowSpec, WindowSpec
 from provider_profiles.models import ProviderProfileSpec
 
 from .enums import (
@@ -52,6 +52,7 @@ __all__ = [
     'SCHEMA_VERSION',
     'SidebarSpec',
     'SidebarViewSpec',
+    'ToolWindowSpec',
     'WorkspaceMode',
     'WindowSpec',
     'build_balanced_layout',

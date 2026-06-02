@@ -168,6 +168,74 @@ bottom_height = 20
     assert patch['steps'][2]['agent'] == 'agent3'
 
 
+def test_namespace_patch_plan_add_tool_window_creates_sidebar_and_tool_pane(tmp_path: Path) -> None:
+    current = _load_config(tmp_path / 'current-tool-window', BASE_CONFIG)
+    new = _load_config(
+        tmp_path / 'new-tool-window',
+        BASE_CONFIG
+        + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+""",
+    )
+    plan = build_reload_dry_run_plan(
+        current,
+        new,
+        project_id='proj-1',
+        current_namespace=_namespace('proj-1'),
+    )
+
+    patch = plan['namespace_patch_plan']
+
+    assert plan['plan_class'] == 'add_tool_window'
+    assert patch['status'] == 'planned'
+    assert patch['preserved_agents'] == ['agent1', 'agent2']
+    assert [step['action'] for step in patch['steps']] == [
+        'create_window',
+        'create_sidebar_pane',
+        'create_tool_pane',
+    ]
+    assert patch['steps'][0]['window'] == 'neovim'
+    assert patch['steps'][1]['slot_key'] == 'sidebar:neovim'
+    assert patch['steps'][2]['slot_key'] == 'tool:neovim'
+
+
+def test_namespace_patch_plan_remove_tool_window_kills_tool_window(tmp_path: Path) -> None:
+    current = _load_config(
+        tmp_path / 'current-tool-remove',
+        BASE_CONFIG
+        + """
+[tool_windows.neovim]
+command = "ccb-nvim"
+label = "neovim"
+""",
+    )
+    new = _load_config(tmp_path / 'new-tool-remove', BASE_CONFIG)
+    plan = build_reload_dry_run_plan(
+        current,
+        new,
+        project_id='proj-1',
+        current_namespace=_namespace('proj-1'),
+    )
+
+    patch = plan['namespace_patch_plan']
+
+    assert plan['plan_class'] == 'remove_tool_window'
+    assert patch['status'] == 'planned'
+    assert patch['preserved_agents'] == ['agent1', 'agent2']
+    assert patch['steps'] == [
+        {
+            'action': 'kill_tool_window',
+            'window': 'neovim',
+            'role': 'tool',
+            'slot_key': 'tool:neovim',
+            'managed_by': 'ccbd',
+            'reason': 'managed tool window exists only in current published config',
+        }
+    ]
+
+
 def test_namespace_patch_plan_view_only_has_no_tmux_mutation_step(tmp_path: Path) -> None:
     current = _load_config(
         tmp_path / 'current-view',
@@ -353,21 +421,21 @@ def test_namespace_patch_planner_does_not_touch_old_runtime_or_tmux(tmp_path: Pa
     assert _runtime_file_snapshot(project_root) == before_snapshot
 
 
-def test_project_reload_non_dry_run_no_change_blocks_without_publish(tmp_path: Path) -> None:
+def test_project_reload_non_dry_run_no_change_noops_without_publish(tmp_path: Path) -> None:
     project_root = _project(tmp_path / 'repo-block-no-change', BASE_CONFIG)
     app = CcbdApp(project_root, clock=lambda: '2026-05-29T00:00:00Z', pid=4242)
     old_graph = app.service_graph
 
     payload = app.socket_server._handlers['project_reload_config']({'dry_run': False})
 
-    assert payload['status'] == 'blocked'
-    assert payload['stage'] == 'plan'
+    assert payload['status'] == 'noop'
+    assert payload['stage'] == 'no_op'
     assert payload['plan_class'] == 'no_change'
     assert payload['diagnostics']['graph_published'] is False
     assert app.service_graph is old_graph
     assert app.control_plane_metrics.last_reload_duration_s is not None
     assert app.control_plane_metrics.last_reload_plan_class == 'no_change'
-    assert app.control_plane_metrics.last_reload_error
+    assert app.control_plane_metrics.last_reload_error is None
 
 
 def test_cli_reload_non_dry_run_calls_socket_with_dry_run_false(tmp_path: Path, monkeypatch) -> None:

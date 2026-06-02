@@ -8,7 +8,7 @@ from ccbd.reload_apply_namespace import (
     topology_for,
 )
 from ccbd.reload_apply_plan import plan_blocked_result, plan_blocker
-from ccbd.reload_apply_results import status_of
+from ccbd.reload_apply_results import noop_result, status_of
 from ccbd.reload_apply_runtime import (
     PUBLISH_READY_RUNTIME_STATUSES,
     run_runtime_mount,
@@ -91,6 +91,8 @@ def _run_locked(
             blocker,
             namespace_diagnostics=namespace_diagnostics,
         )
+    if str(plan.get('plan_class') or '') == 'no_change':
+        return noop_result(old_graph, plan)
 
     handoff = begin_reload_handoff(app, target_config_identity=project_config_identity_payload(new_config))
     try:

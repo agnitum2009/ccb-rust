@@ -118,6 +118,13 @@ def materialize_topology(
                 timeout_s=timeout_s,
             )
         )
+        _materialize_tool_window(
+            controller,
+            context,
+            window=window,
+            user_root=user_root,
+            epoch=epoch,
+        )
 
     refresh_topology_ui_for_project(
         controller,
@@ -154,7 +161,7 @@ def existing_topology_agent_panes(controller, context, *, topology_plan) -> dict
 def topology_active_panes(controller, context, *, topology_plan) -> tuple[str, ...]:
     expected_windows = {str(window.name) for window in tuple(getattr(topology_plan, 'windows', ()) or ())}
     panes: list[str] = []
-    for role in ('sidebar', 'agent'):
+    for role in ('sidebar', 'agent', 'tool'):
         matches = _list_panes_by_user_options(
             context.backend,
             {
@@ -203,6 +210,24 @@ def topology_recreate_reason(controller, context, *, topology_plan) -> str | Non
             )
             if len(matches) != 1:
                 return 'topology_sidebar_panes_changed'
+    expected_tools = {
+        str(window.name)
+        for window in windows
+        if str(getattr(window, 'kind', '') or '') == 'tool'
+    }
+    for window_name in expected_tools:
+        matches = _list_panes_by_user_options(
+            context.backend,
+            {
+                '@ccb_project_id': controller._project_id,
+                '@ccb_role': 'tool',
+                '@ccb_slot': f'tool:{window_name}',
+                '@ccb_window': window_name,
+                '@ccb_managed_by': 'ccbd',
+            },
+        )
+        if len(matches) != 1:
+            return 'topology_tool_panes_changed'
     return None
 
 
@@ -290,6 +315,8 @@ def _materialize_agent_layout(
     epoch: int,
     timeout_s: float | None,
 ) -> dict[str, str]:
+    if str(getattr(window, 'kind', '') or '') == 'tool':
+        return {}
     layout = parse_layout_spec(window.user_layout)
     agent_names = tuple(str(name) for name in getattr(window, 'agent_names', ()) or ())
     style_index_by_agent = {name: index for index, name in enumerate(agent_names)}
@@ -322,6 +349,37 @@ def _materialize_agent_layout(
         timeout_s=timeout_s,
     )
     return agent_panes
+
+
+def _materialize_tool_window(
+    controller,
+    context,
+    *,
+    window,
+    user_root: str,
+    epoch: int,
+) -> None:
+    if str(getattr(window, 'kind', '') or '') != 'tool':
+        return
+    command = str(getattr(window, 'command', '') or '').strip() or pane_placeholder_cmd()
+    respawn = getattr(context.backend, 'respawn_pane', None)
+    if callable(respawn):
+        respawn(user_root, cmd=command, cwd=str(controller._layout.project_root), remain_on_exit=True)
+    else:
+        context.backend._tmux_run(['respawn-pane', '-k', '-t', user_root, 'sh', '-lc', command], check=False)
+    apply_ccb_pane_identity(
+        context.backend,
+        user_root,
+        title=str(getattr(window, 'label', None) or window.name),
+        agent_label=str(getattr(window, 'label', None) or window.name),
+        project_id=controller._project_id,
+        order_index=int(getattr(window, 'order', 0) or 0),
+        role='tool',
+        slot_key=f'tool:{window.name}',
+        window_name=window.name,
+        namespace_epoch=epoch,
+        managed_by='ccbd',
+    )
 
 
 def _materialize_layout(

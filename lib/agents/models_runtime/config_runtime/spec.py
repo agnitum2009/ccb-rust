@@ -48,6 +48,7 @@ class AgentSpec:
     branch_template: str | None = None
     labels: tuple[str, ...] = field(default_factory=tuple)
     description: str | None = None
+    role: str | None = None
     watch_paths: tuple[str, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
@@ -66,6 +67,7 @@ class AgentSpec:
         object.__setattr__(self, 'model', model)
         object.__setattr__(self, 'startup_args', self._normalize_startup_args(provider=provider, model=model, startup_args=startup_args))
         object.__setattr__(self, 'labels', tuple(str(item) for item in self.labels))
+        object.__setattr__(self, 'role', self._normalize_role())
         object.__setattr__(self, 'watch_paths', tuple(str(item) for item in self.watch_paths))
         object.__setattr__(self, 'env', {str(key): str(value) for key, value in dict(self.env).items()})
         object.__setattr__(self, 'api', normalize_agent_api(self.api))
@@ -77,6 +79,17 @@ class AgentSpec:
         normalized = str(self.model).strip()
         if not normalized:
             raise AgentValidationError('model cannot be empty')
+        return normalized
+
+    def _normalize_role(self) -> str | None:
+        if self.role is None:
+            return None
+        normalized = str(self.role).strip().lower()
+        if not normalized:
+            raise AgentValidationError('role cannot be empty')
+        allowed = set('abcdefghijklmnopqrstuvwxyz0123456789._-')
+        if any(ch not in allowed for ch in normalized) or '.' not in normalized:
+            raise AgentValidationError('role must use publisher.role form, for example ccb.archi')
         return normalized
 
     def _normalize_startup_args(
@@ -126,6 +139,7 @@ class AgentSpec:
             'branch_template': self.branch_template,
             'labels': list(self.labels),
             'description': self.description,
+            'role': self.role,
             'watch_paths': list(self.watch_paths),
         }
 

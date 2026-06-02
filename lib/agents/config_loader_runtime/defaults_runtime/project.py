@@ -7,6 +7,7 @@ from agents.models import (
     QueuePolicy,
     RestoreMode,
     RuntimeMode,
+    ToolWindowSpec,
     WindowSpec,
     WorkspaceMode,
 )
@@ -19,6 +20,7 @@ DEFAULT_AGENT_PROVIDERS = (
     ('agent3', 'claude'),
 )
 DEFAULT_WINDOW_LAYOUT = 'agent1:codex, agent2:codex, agent3:claude'
+DEFAULT_TOOL_WINDOW_COMMAND = 'ccb-nvim'
 
 
 def build_default_project_config() -> ProjectConfig:
@@ -38,6 +40,14 @@ def build_default_project_config() -> ProjectConfig:
                 order=0,
                 layout_spec=DEFAULT_WINDOW_LAYOUT,
                 agent_names=DEFAULT_DEFAULT_AGENTS,
+            ),
+        ),
+        tool_windows=(
+            ToolWindowSpec(
+                name='neovim',
+                order=0,
+                command=DEFAULT_TOOL_WINDOW_COMMAND,
+                label='neovim',
             ),
         ),
         entry_window='main',
@@ -61,6 +71,7 @@ def build_default_agent_spec(*, name: str, provider: str) -> AgentSpec:
 
 __all__ = [
     'DEFAULT_AGENT_PROVIDERS',
+    'DEFAULT_TOOL_WINDOW_COMMAND',
     'DEFAULT_WINDOW_LAYOUT',
     'build_default_agent_spec',
     'build_default_project_config',

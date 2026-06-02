@@ -4,7 +4,7 @@ from typing import Any
 
 from agents.config_loader_runtime.parsing_runtime.agent_specs import build_agent_spec
 from agents.config_loader_runtime.parsing_runtime.expectations import expect_bool, expect_mapping, expect_string, expect_string_list
-from agents.models import AgentValidationError, SidebarSpec, SidebarViewSpec, WindowSpec, normalize_agent_name, parse_layout_spec
+from agents.models import AgentValidationError, SidebarSpec, SidebarViewSpec, ToolWindowSpec, WindowSpec, normalize_agent_name, parse_layout_spec
 
 from ..common import ConfigValidationError
 
@@ -89,7 +89,10 @@ def parse_topology_windows(raw_windows: Any) -> tuple[WindowSpec, ...] | None:
                     raise ConfigValidationError(
                         f'windows.{raw_name}: agent leaf {leaf.name!r} must declare a provider'
                     )
-                normalized_name = normalize_agent_name(leaf.name)
+                try:
+                    normalized_name = normalize_agent_name(leaf.name)
+                except AgentValidationError as exc:
+                    raise ConfigValidationError(str(exc)) from exc
                 if normalized_name in seen_agents:
                     raise ConfigValidationError(
                         f'duplicate agent across windows: {normalized_name}'
@@ -111,6 +114,42 @@ def parse_topology_windows(raw_windows: Any) -> tuple[WindowSpec, ...] | None:
         except Exception as exc:
             raise ConfigValidationError(f'windows.{raw_name}: invalid layout: {exc}') from exc
     return tuple(windows)
+
+
+def parse_tool_windows(raw_tool_windows: Any) -> tuple[ToolWindowSpec, ...]:
+    if raw_tool_windows is None:
+        return ()
+    tool_map = expect_mapping(raw_tool_windows, field_name='tool_windows')
+    tools: list[ToolWindowSpec] = []
+    for index, (raw_name, raw_spec) in enumerate(tool_map.items()):
+        if not isinstance(raw_name, str):
+            raise ConfigValidationError('tool_windows keys must be strings')
+        spec = expect_mapping(raw_spec, field_name=f'tool_windows.{raw_name}')
+        unknown = sorted(set(spec) - {'command', 'label', 'show_in_sidebar'})
+        if unknown:
+            raise ConfigValidationError(
+                f'tool_windows.{raw_name} contains unknown fields: {", ".join(unknown)}'
+            )
+        command = expect_string(spec.get('command'), field_name=f'tool_windows.{raw_name}.command')
+        label = None
+        if spec.get('label') is not None:
+            label = expect_string(spec.get('label'), field_name=f'tool_windows.{raw_name}.label')
+        try:
+            tools.append(
+                ToolWindowSpec(
+                    name=raw_name,
+                    order=index,
+                    command=command,
+                    label=label,
+                    show_in_sidebar=expect_bool(
+                        spec.get('show_in_sidebar', True),
+                        field_name=f'tool_windows.{raw_name}.show_in_sidebar',
+                    ),
+                )
+            )
+        except AgentValidationError as exc:
+            raise ConfigValidationError(str(exc)) from exc
+    return tuple(tools)
 
 
 def agents_from_topology_windows(
@@ -200,4 +239,10 @@ def _validate_topology_overlay_provider(
         )
 
 
-__all__ = ['agents_from_topology_windows', 'parse_sidebar', 'parse_sidebar_view', 'parse_topology_windows']
+__all__ = [
+    'agents_from_topology_windows',
+    'parse_sidebar',
+    'parse_sidebar_view',
+    'parse_tool_windows',
+    'parse_topology_windows',
+]

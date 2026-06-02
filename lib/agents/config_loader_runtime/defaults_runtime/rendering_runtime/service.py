@@ -15,6 +15,8 @@ def render_default_project_config_text() -> str:
 
 
 def render_project_config_text(config) -> str:
+    if getattr(config, 'windows_explicit', False):
+        return _render_windows_config_text(config)
     if can_render_compact(config):
         return f'{config.layout_spec}\n'
     hybrid_layout = _render_hybrid_layout(config)
@@ -117,6 +119,84 @@ def _build_hybrid_overlay_payload(config) -> dict[str, object] | None:
     if not overlay_agents:
         return None
     return {'agents': overlay_agents}
+
+
+def _render_windows_config_text(config) -> str:
+    payload = _build_windows_payload(config)
+    return _render_toml_document(payload)
+
+
+def _build_windows_payload(config) -> dict[str, object]:
+    payload: dict[str, object] = {
+        'version': int(config.version),
+        'entry_window': str(config.entry_window),
+        'windows': {
+            window.name: window.layout_spec
+            for window in tuple(getattr(config, 'windows', ()) or ())
+        },
+    }
+    tools = {
+        tool.name: _tool_window_payload(tool)
+        for tool in tuple(getattr(config, 'tool_windows', ()) or ())
+    }
+    if tools:
+        payload['tool_windows'] = tools
+    sidebar = _sidebar_payload(config)
+    if sidebar:
+        payload['ui'] = {'sidebar': sidebar}
+    agent_payload = _windows_agent_overlay_payload(config)
+    if agent_payload:
+        payload['agents'] = agent_payload
+    return payload
+
+
+def _tool_window_payload(tool) -> dict[str, object]:
+    payload: dict[str, object] = {'command': tool.command}
+    if str(tool.label or '') != str(tool.name):
+        payload['label'] = tool.label
+    if bool(tool.show_in_sidebar) is not True:
+        payload['show_in_sidebar'] = bool(tool.show_in_sidebar)
+    return payload
+
+
+def _sidebar_payload(config) -> dict[str, object]:
+    sidebar = getattr(config, 'sidebar', None)
+    if sidebar is None:
+        return {}
+    payload: dict[str, object] = {}
+    if sidebar.mode != 'every_window':
+        payload['mode'] = sidebar.mode
+    if sidebar.width != '15%':
+        payload['width'] = sidebar.width
+    if int(sidebar.bottom_height) != 20:
+        payload['bottom_height'] = int(sidebar.bottom_height)
+    sidebar_view = getattr(config, 'sidebar_view', None)
+    if sidebar_view is not None:
+        payload['view'] = {
+            'agents_height': sidebar_view.agents_height,
+            'comms_height': sidebar_view.comms_height,
+            'tips_height': sidebar_view.tips_height,
+        }
+    return payload
+
+
+def _windows_agent_overlay_payload(config) -> dict[str, dict[str, object]]:
+    compact_agent_defaults = _compact_agent_defaults_by_name(_render_hybrid_layout(config))
+    overlay_agents: dict[str, dict[str, object]] = {}
+    ordered_names = list(config.default_agents) + [name for name in config.agents if name not in config.default_agents]
+    for name in ordered_names:
+        spec = config.agents[name]
+        compact_defaults = compact_agent_defaults.get(name)
+        if compact_defaults is None:
+            continue
+        overlay = agent_spec_to_hybrid_overlay_dict(
+            spec,
+            compact_provider=str(compact_defaults['provider']),
+            compact_workspace_mode=str(compact_defaults['workspace_mode']),
+        )
+        if overlay:
+            overlay_agents[name] = overlay
+    return overlay_agents
 
 
 def _compact_agent_defaults_by_name(layout_spec: str) -> dict[str, dict[str, str]]:

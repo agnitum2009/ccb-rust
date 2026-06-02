@@ -41,7 +41,7 @@ def non_dry_run_invalid_config_payload(plan: dict[str, object]) -> dict[str, obj
 
 
 def apply_errors(payload: dict[str, object]) -> list[str]:
-    if str(payload.get('status') or '') == 'published':
+    if str(payload.get('status') or '') in {'published', 'noop'}:
         return []
     diagnostics = dict(payload.get('diagnostics') or {})
     reason = str(diagnostics.get('reason') or payload.get('status') or '').strip()

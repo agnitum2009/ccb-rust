@@ -12,6 +12,10 @@ def project_config_identity_payload(config: ProjectConfig) -> dict[str, object]:
     canonical.pop('record_type', None)
     canonical.pop('source_path', None)
     canonical.pop('sidebar_view', None)
+    for tool in tuple(canonical.get('tool_windows') or ()):
+        if isinstance(tool, dict):
+            tool.pop('label', None)
+            tool.pop('show_in_sidebar', None)
 
     agents = canonical.get('agents')
     if isinstance(agents, dict):
