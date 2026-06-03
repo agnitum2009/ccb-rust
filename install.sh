@@ -326,7 +326,7 @@ Optional environment variables:
   CCB_INSTALL_TOMLI        Auto-install tomli on Python versions without tomllib (default: 1; set 0 to skip)
   CCB_INSTALL_WATCHDOG     Auto-install optional watchdog dependency (default: 1; set 0 to skip)
   CCB_INSTALL_NEOVIM       Install default Neovim/LazyVim tool: ask (default), 1 force, 0 skip
-  CCB_INSTALL_ROLES        Install bundled Role Packs and dependencies: ask (default), 1 force, 0 skip
+  CCB_INSTALL_ROLES        Install catalog Role Packs and dependencies: ask (default), 1 force, 0 skip
   CCB_ALLOW_ROOT_INSTALL   Set to 1 to explicitly allow a root-owned install
   CCB_CONFIRM_MAJOR_UPGRADE Set to 1 to confirm replacing a pre-v6 install with v6+
 USAGE
@@ -2787,16 +2787,16 @@ provision_role_packs() {
   if [[ "$requested" != "1" && "$requested" != "true" && "$requested" != "on" && "$requested" != "yes" ]]; then
     if [[ ! -t 0 || ! -t 1 ]]; then
       echo "INFO: Role Pack provisioning skipped in non-interactive install."
-      echo "      Run 'ccb roles update ccb.archi' later to refresh roles and dependencies."
+      echo "      Run 'ccb roles update agentroles.archi' later to refresh roles and dependencies."
       return 0
     fi
-    printf "Install bundled Role Packs and dependencies now? [Y/n] "
+    printf "Install catalog Role Packs and dependencies now? [Y/n] "
     local answer
     IFS= read -r answer || answer=""
     case "$answer" in
       n|N|no|NO|No)
         echo "INFO: Role Pack provisioning skipped."
-        echo "      Run 'ccb roles update ccb.archi' later to refresh roles and dependencies."
+        echo "      Run 'ccb roles update agentroles.archi' later to refresh roles and dependencies."
         return 0
         ;;
       *) ;;
@@ -2814,7 +2814,7 @@ provision_role_packs() {
   fi
   local log_file
   log_file="$(mktemp "${TMPDIR:-/tmp}/ccb-roles-install.XXXXXX")"
-  if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles update ccb.archi >"$log_file" 2>&1; then
+  if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles update agentroles.archi >"$log_file" 2>&1; then
     rm -f "$log_file"
     echo "OK: Role Packs ready"
     return 0

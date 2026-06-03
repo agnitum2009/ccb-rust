@@ -306,7 +306,7 @@ def test_agent_role_preview_manifest_translates_for_ccb() -> None:
         'skills/archi-goal',
         'adapters/ccb/skills/archi-tooling',
     ]
-    assert manifest.manifest['tools']['architec']['doctor'] == 'python adapters/ccb/tools/doctor.py'
+    assert manifest.manifest['tools']['architec']['doctor'] == 'python -B adapters/ccb/tools/doctor.py'
 
 
 def test_catalog_discovery_prefers_roles_and_hides_reference_roles_by_default(tmp_path: Path, monkeypatch) -> None:

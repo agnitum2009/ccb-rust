@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.2.3-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.2.4-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -519,6 +519,16 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
+<summary><b>v7.2.4</b> - Agent Roles Catalog Release</summary>
+
+- Moves the production architecture role out of the CCB source tree and consumes `agentroles.archi` from `agent-roles-spec`.
+- Adds catalog-backed role list/install/update/sync/add/doctor behavior with installed-role metadata, project locks, digest pinning, and explicit re-add updates.
+- Projects role memory, CCB adapter memory, provider skills, and Architec adapter hooks into managed provider homes.
+- Keeps `ccb.archi` as a compatibility alias while writing canonical `agentroles.archi` bindings and locks.
+
+</details>
+
+<details>
 <summary><b>v7.2.3</b> - Root Install Support Validation Hotfix</summary>
 
 - Keeps the root install confirmation behavior from v7.2.2: root installs require explicit confirmation, while uninstall remains ungated.

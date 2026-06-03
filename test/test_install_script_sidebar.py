@@ -398,8 +398,9 @@ def test_sidebar_release_workflow_publishes_linux_artifact() -> None:
 
 def test_release_artifacts_workflow_sets_up_rust_for_sidebar_build() -> None:
     text = Path('.github/workflows/release-artifacts.yml').read_text(encoding='utf-8')
+    version = Path('VERSION').read_text(encoding='utf-8').strip()
 
-    assert 'default: "v7.1.0"' in text
+    assert f'default: "v{version}"' in text
     assert 'os: ubuntu-22.04' in text
     assert 'uses: dtolnay/rust-toolchain@stable' in text
     assert 'rustup target add x86_64-apple-darwin aarch64-apple-darwin' in text

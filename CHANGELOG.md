@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v7.2.4 (2026-06-04)
+
+### Agent Roles Catalog Release
+
+- **Agent Roles Catalog Added**: CCB now consumes `agentroles.archi` from the external `agent-roles-spec` catalog instead of shipping production role content inside the CCB source tree.
+- **Catalog Role Lifecycle Hardened**: `ccb roles list/install/update/sync/add/doctor` now works with catalog roles, installed-role metadata, project locks, digest pinning, and explicit re-add semantics.
+- **Runtime Projection Preserved**: role memory, adapter memory, provider skills, and CCB adapter tool hooks project into managed Codex/Claude homes for `agentroles.archi`.
+- **Update Flow Improved**: `install.sh install` and `ccb update` handle catalog role refreshes, report newly available roles, and keep non-interactive follow-up commands explicit.
+- **Compatibility Alias Kept**: legacy `ccb.archi` inputs resolve to `agentroles.archi` while project config and locks use the canonical catalog role id.
+
 ## v7.2.3 (2026-06-03)
 
 ### Root Install Support Validation Hotfix
