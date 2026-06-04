@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-import ccbd.handlers.project_clear as project_clear
-from ccbd.handlers.project_clear import build_project_clear_context_handler
+
+def _load_project_clear_module():
+    # Avoid the existing ccbd.handlers package import cycle in this focused unit test.
+    module_path = Path(__file__).resolve().parents[1] / 'lib' / 'ccbd' / 'handlers' / 'project_clear.py'
+    spec = importlib.util.spec_from_file_location('ccbd_project_clear_for_test', module_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+project_clear = _load_project_clear_module()
+build_project_clear_context_handler = project_clear.build_project_clear_context_handler
 
 
 class _Registry:
@@ -33,9 +47,9 @@ class _FakeBackend:
         self.calls.append(tuple(args))
 
 
-def _app(*, runtimes: dict[str, object]):
+def _app(*, runtimes: dict[str, object], agents: dict[str, object] | None = None):
     return SimpleNamespace(
-        config=SimpleNamespace(agents={'agent1': object(), 'agent2': object()}),
+        config=SimpleNamespace(agents=agents or {'agent1': object(), 'agent2': object()}),
         registry=_Registry(runtimes),
         project_namespace=SimpleNamespace(load=lambda: SimpleNamespace(tmux_socket_path='/tmp/tmux.sock')),
     )
@@ -92,6 +106,46 @@ def test_project_clear_context_handler_targets_requested_agents_once(monkeypatch
         {'agent': 'agent2', 'status': 'cleared', 'pane_id': '%2', 'command': '/clear'},
     ]
     assert [call for call in backend.calls if call[:1] == ('send-keys',)] == [
+        ('send-keys', '-t', '%2', 'C-u'),
+        ('send-keys', '-t', '%2', '-l', '/clear'),
+        ('send-keys', '-t', '%2', 'Enter'),
+    ]
+
+
+def test_project_clear_context_handler_delays_opencode_submit(monkeypatch) -> None:
+    backend = _FakeBackend()
+    monkeypatch.setattr(project_clear, 'TmuxBackend', lambda *, socket_path: backend)
+    monkeypatch.setattr(
+        project_clear.time,
+        'sleep',
+        lambda seconds: backend.calls.append(('sleep', str(seconds))),
+    )
+    handler = build_project_clear_context_handler(
+        _app(
+            agents={
+                'opener': SimpleNamespace(provider='opencode'),
+                'agent1': SimpleNamespace(provider='codex'),
+            },
+            runtimes={
+                'opener': SimpleNamespace(active_pane_id='%1'),
+                'agent1': SimpleNamespace(active_pane_id='%2'),
+            },
+        )
+    )
+
+    payload = handler({})
+
+    assert payload['results'] == [
+        {'agent': 'opener', 'status': 'cleared', 'pane_id': '%1', 'command': '/clear'},
+        {'agent': 'agent1', 'status': 'cleared', 'pane_id': '%2', 'command': '/clear'},
+    ]
+    assert backend.calls == [
+        ('copy-mode-quit', '%1'),
+        ('send-keys', '-t', '%1', 'C-u'),
+        ('send-keys', '-t', '%1', '-l', '/clear'),
+        ('sleep', str(project_clear.OPENCODE_CLEAR_SUBMIT_DELAY_S)),
+        ('send-keys', '-t', '%1', 'Enter'),
+        ('copy-mode-quit', '%2'),
         ('send-keys', '-t', '%2', 'C-u'),
         ('send-keys', '-t', '%2', '-l', '/clear'),
         ('send-keys', '-t', '%2', 'Enter'),
