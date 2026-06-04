@@ -33,6 +33,7 @@ from .sources import (
     find_source_role,
     find_system_source_role,
     installed_role_metadata,
+    repair_installed_role_store,
 )
 
 
@@ -190,23 +191,21 @@ def _resolve_install_source(
 
 
 def _installed_source_path(role_id: str) -> Path | None:
-    metadata = {}
     for candidate_id in role_id_candidates(role_id):
         metadata_path = role_store_root() / candidate_id / 'install.json'
         try:
             metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
-            break
         except Exception:
-            metadata = {}
-    if not isinstance(metadata, dict):
-        return None
-    source_path = str(metadata.get('source_path') or '').strip()
-    if not source_path:
-        return None
-    source = Path(source_path).expanduser()
-    if not source.is_dir():
-        raise RolePackError(f'installed role source path is missing: {source}')
-    return source.resolve()
+            continue
+        if not isinstance(metadata, dict):
+            continue
+        source_path = str(metadata.get('source_path') or '').strip()
+        if not source_path:
+            continue
+        source = Path(source_path).expanduser()
+        if source.is_dir():
+            return source.resolve()
+    return None
 
 
 def _install_role_assets(role: RolePack, *, source: Path, source_kind: str) -> dict[str, object]:
@@ -266,8 +265,9 @@ def _install_role_assets(role: RolePack, *, source: Path, source_kind: str) -> d
 
 def role_status(role_id: str, *, script_root: Path | None = None, include_tools: bool = False) -> dict[str, object]:
     role_id = normalize_role_id(role_id)
-    installed = load_installed_role(role_id)
     source_role = find_source_role(role_id)
+    repair_installed_role_store(role_id, source_role=source_role)
+    installed = load_installed_role(role_id)
     payload: dict[str, object] = {
         'role_id': role_id,
         'available': source_role is not None,

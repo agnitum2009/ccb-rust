@@ -17,7 +17,7 @@ from project_memory import load_memory_sources
 from provider_profiles.codex_home_config import materialize_codex_home_config
 from rolepacks.manifest import RoleManifestError, load_role_manifest
 from rolepacks.runtime_lookup import tree_digest
-from rolepacks.service import builtin_role_root, install_role, load_installed_role, update_role
+from rolepacks.service import builtin_role_root, install_role, load_installed_role, role_status, update_role
 from rolepacks.sources import (
     DEFAULT_AGENT_ROLES_SPEC_GIT_URL,
     add_role_source,
@@ -858,6 +858,84 @@ def test_legacy_ccb_archi_role_id_aliases_to_agentroles_archi(tmp_path: Path, mo
     assert 'ccb.archi:codex' not in text
     loaded = load_project_config(project).config
     assert loaded.agents['archi'].role == 'agentroles.archi'
+
+
+def test_legacy_ccb_archi_current_store_migrates_to_canonical_metadata(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'xdg-data'))
+    install_role('agentroles.archi', with_tools=False)
+    store = tmp_path / 'xdg-data' / 'ccb' / 'roles'
+    canonical = store / 'agentroles.archi'
+    legacy = store / 'ccb.archi'
+    shutil.copytree(canonical, legacy, symlinks=False)
+    shutil.rmtree(canonical)
+    metadata_path = legacy / 'install.json'
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    metadata['id'] = 'ccb.archi'
+    metadata['source_path'] = str(tmp_path / 'old-ccb' / 'roles' / 'ccb.archi')
+    metadata_path.write_text(json.dumps(metadata, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+
+    rows = {str(row['role_id']): row for row in role_catalog_status()}
+
+    assert rows['agentroles.archi']['status'] == 'current'
+    assert rows['agentroles.archi']['path'] == str(_agent_roles_archi())
+    canonical_metadata = json.loads((canonical / 'install.json').read_text(encoding='utf-8'))
+    assert canonical_metadata['id'] == 'agentroles.archi'
+    assert canonical_metadata['source_path'] == str(_agent_roles_archi())
+    assert (canonical / 'current' / 'role.toml').is_file()
+    assert load_installed_role('ccb.archi').id == 'agentroles.archi'
+
+
+def test_roles_status_legacy_ccb_archi_migrates_on_status_query(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'xdg-data'))
+    install_role('agentroles.archi', with_tools=False)
+    store = tmp_path / 'xdg-data' / 'ccb' / 'roles'
+    canonical = store / 'agentroles.archi'
+    legacy = store / 'ccb.archi'
+    shutil.copytree(canonical, legacy, symlinks=False)
+    shutil.rmtree(canonical)
+    metadata_path = legacy / 'install.json'
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    metadata['id'] = 'ccb.archi'
+    metadata['source_path'] = str(tmp_path / 'old-ccb' / 'roles' / 'ccb.archi')
+    metadata_path.write_text(json.dumps(metadata, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+
+    payload = role_status('ccb.archi')
+
+    assert payload['role_id'] == 'agentroles.archi'
+    assert payload['installed'] is True
+    assert payload['available'] is True
+    assert payload['source_path'] == str(_agent_roles_archi())
+    canonical_metadata = json.loads((canonical / 'install.json').read_text(encoding='utf-8'))
+    assert canonical_metadata['id'] == 'agentroles.archi'
+    assert canonical_metadata['source_path'] == str(_agent_roles_archi())
+    assert (canonical / 'current' / 'role.toml').is_file()
+
+
+def test_roles_update_legacy_ccb_archi_missing_source_falls_back_to_catalog(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'xdg-data'))
+    install_role('agentroles.archi', with_tools=False)
+    store = tmp_path / 'xdg-data' / 'ccb' / 'roles'
+    canonical = store / 'agentroles.archi'
+    legacy = store / 'ccb.archi'
+    canonical.rename(legacy)
+    metadata_path = legacy / 'install.json'
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    metadata['id'] = 'ccb.archi'
+    metadata['version'] = '0.1.0'
+    metadata['digest'] = 'sha256:legacy'
+    metadata['source_path'] = str(tmp_path / 'removed-source' / 'roles' / 'ccb.archi')
+    metadata_path.write_text(json.dumps(metadata, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+
+    payload = update_role('ccb.archi', with_tools=False)
+
+    assert payload['role_status'] == 'updated'
+    assert payload['role_id'] == 'agentroles.archi'
+    assert payload['source'] == 'agentroles'
+    canonical_metadata = json.loads((canonical / 'install.json').read_text(encoding='utf-8'))
+    assert canonical_metadata['id'] == 'agentroles.archi'
+    assert canonical_metadata['source_path'] == str(_agent_roles_archi())
+    assert canonical_metadata['version'] == '0.2.0'
+    assert canonical_metadata['digest'] != 'sha256:legacy'
 
 
 def test_roles_install_can_skip_tool_hooks_for_tests_or_advanced_use(tmp_path: Path, monkeypatch) -> None:

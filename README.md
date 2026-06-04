@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.2.9-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.2.10-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -519,6 +519,16 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
+<summary><b>v7.2.10</b> - Role Pack Post-Update Hotfix</summary>
+
+- Fixes managed `ccb update` so optional Role Pack and Neovim provisioning runs through the newly installed `ccb __post-update` entrypoint instead of the old updater process.
+- Repairs legacy installed `ccb.archi` role metadata under canonical `agentroles.archi` and falls back to the current catalog source when old source paths are gone.
+- Preserves optional post-update provisioning as warnings, while `CCB_INSTALL_ROLES=1`, `CCB_INSTALL_NEOVIM=1`, or `CCB_POST_UPDATE_REQUIRED=1` still fail the parent update when required provisioning fails.
+- Keeps new config guidance on `agentroles.archi`; `ccb.archi` remains a legacy input alias only.
+
+</details>
+
+<details>
 <summary><b>v7.2.9</b> - Agent Roles Catalog Release</summary>
 
 - Moves the production architecture role out of the CCB source tree and consumes `agentroles.archi` from `agent-roles-spec`.

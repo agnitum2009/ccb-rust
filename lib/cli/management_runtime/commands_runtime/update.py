@@ -5,6 +5,7 @@ import os
 import platform
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 
@@ -23,6 +24,11 @@ from ..install import (
 )
 from ..versioning import REPO_URL, format_version_info, get_available_versions, get_version_info
 from .matching import find_matching_version, latest_version
+
+
+POST_UPDATE_COMMAND = "__post-update"
+POST_UPDATE_TIMEOUT_SECONDS = 300.0
+ENTRYPOINT_SMOKE_TIMEOUT_SECONDS = 30.0
 
 
 def cmd_update(args, *, script_root: Path) -> int:
@@ -155,8 +161,8 @@ def _update_via_tarball(tmp_base: Path, *, install_dir: Path, target_version: st
 
         new_info = get_version_info(install_dir)
         _print_update_outcome(old_info, new_info)
-        _update_builtin_roles_after_update(install_dir=install_dir)
-        _provision_neovim_after_update()
+        if not _run_post_update_with_new_entrypoint(install_dir=install_dir, old_info=old_info, new_info=new_info):
+            return 1
         return 0
     except Exception as exc:
         print(f"❌ Update failed: {exc}")
@@ -164,6 +170,171 @@ def _update_via_tarball(tmp_base: Path, *, install_dir: Path, target_version: st
     finally:
         if tmp_dir.exists():
             shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def maybe_handle_post_update_command(tokens: list[str], *, script_root: Path) -> int | None:
+    if list(tokens[:1]) != [POST_UPDATE_COMMAND]:
+        return None
+    return _run_post_update_provisioning(install_dir=Path(script_root).expanduser())
+
+
+def _run_post_update_with_new_entrypoint(
+    *,
+    install_dir: Path,
+    old_info: dict[str, object],
+    new_info: dict[str, object],
+) -> bool:
+    ccb_entry = _installed_ccb_entrypoint(install_dir)
+    if not _verify_installed_ccb_entrypoint(ccb_entry):
+        return False
+    command = [
+        str(ccb_entry),
+        POST_UPDATE_COMMAND,
+        "--from-version",
+        _post_update_version_label(old_info),
+        "--to-version",
+        _post_update_version_label(new_info),
+    ]
+    env = dict(os.environ)
+    env["CODEX_INSTALL_PREFIX"] = str(install_dir)
+    env["CCB_SKIP_STARTUP_UPDATE_CHECK"] = "1"
+    try:
+        result = subprocess.run(command, cwd=Path.cwd(), env=env, timeout=_post_update_timeout_seconds())
+    except subprocess.TimeoutExpired:
+        if _post_update_failure_is_required():
+            print(f"❌ Required post-update provisioning timed out after {_post_update_timeout_seconds():g}s.")
+            return False
+        print(f"⚠️  Post-update provisioning timed out after {_post_update_timeout_seconds():g}s.")
+        print("   Core update completed; retry optional provisioning with `ccb roles list` or `ccb tools install neovim`.")
+        return True
+    except Exception as exc:
+        if _post_update_failure_is_required():
+            print(f"❌ Required post-update provisioning failed to run: {type(exc).__name__}: {exc}")
+            return False
+        print(f"⚠️  Post-update provisioning skipped: {type(exc).__name__}: {exc}")
+        return True
+    if result.returncode != 0:
+        if _post_update_failure_is_required():
+            print(f"❌ Required post-update provisioning exited with code {result.returncode}.")
+            return False
+        print(f"⚠️  Post-update provisioning exited with code {result.returncode}.")
+        print("   Core update completed; retry optional provisioning with `ccb roles list` or `ccb tools install neovim`.")
+    return True
+
+
+def _installed_ccb_entrypoint(install_dir: Path) -> Path:
+    bin_dir = str(os.environ.get("CODEX_BIN_DIR") or "").strip()
+    if bin_dir:
+        return Path(bin_dir).expanduser() / "ccb"
+    install_root = Path(install_dir).expanduser()
+    candidates: list[Path] = []
+    argv0 = str(sys.argv[0] if sys.argv else "").strip()
+    if argv0:
+        current_entry = Path(argv0).expanduser()
+        if current_entry.name == "ccb":
+            candidates.append(current_entry)
+    candidates.append(Path.home() / ".local" / "bin" / "ccb")
+    candidates.append(install_root / "ccb")
+    for candidate in candidates:
+        if _entrypoint_targets_install_dir(candidate, install_root):
+            return candidate
+    return install_root / "ccb"
+
+
+def _entrypoint_targets_install_dir(candidate: Path, install_dir: Path) -> bool:
+    try:
+        resolved_candidate = Path(candidate).expanduser().resolve()
+        installed_entry = Path(install_dir).expanduser().resolve() / "ccb"
+        if resolved_candidate == installed_entry:
+            return True
+    except Exception:
+        installed_entry = Path(install_dir).expanduser() / "ccb"
+    try:
+        text = Path(candidate).expanduser().read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+    return str(installed_entry) in text or str(Path(install_dir).expanduser() / "ccb") in text
+
+
+def _verify_installed_ccb_entrypoint(ccb_entry: Path) -> bool:
+    if not ccb_entry.exists():
+        print(f"❌ Update failed: installed ccb entrypoint not found: {ccb_entry}")
+        return False
+    try:
+        result = subprocess.run(
+            [str(ccb_entry), "--print-version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=_entrypoint_smoke_timeout_seconds(),
+        )
+    except subprocess.TimeoutExpired:
+        print(f"❌ Update failed: installed ccb entrypoint smoke check timed out after {_entrypoint_smoke_timeout_seconds():g}s")
+        return False
+    except Exception as exc:
+        print(f"❌ Update failed: installed ccb entrypoint smoke check could not run: {type(exc).__name__}: {exc}")
+        return False
+    if result.returncode == 0:
+        return True
+    print(f"❌ Update failed: installed ccb entrypoint failed runtime smoke check: {ccb_entry}")
+    detail = (result.stderr or result.stdout or "").strip()
+    if detail:
+        print(f"   {detail.splitlines()[0]}")
+    return False
+
+
+def _post_update_version_label(info: dict[str, object]) -> str:
+    value = info.get("version") or info.get("commit") or "unknown"
+    return str(value)
+
+
+def _post_update_timeout_seconds() -> float:
+    return _positive_float_env("CCB_POST_UPDATE_TIMEOUT_SECONDS", POST_UPDATE_TIMEOUT_SECONDS)
+
+
+def _entrypoint_smoke_timeout_seconds() -> float:
+    return _positive_float_env("CCB_ENTRYPOINT_SMOKE_TIMEOUT_SECONDS", ENTRYPOINT_SMOKE_TIMEOUT_SECONDS)
+
+
+def _positive_float_env(name: str, default: float) -> float:
+    raw = str(os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def _post_update_failure_is_required() -> bool:
+    # In post-update context, force env vars mean both "do not prompt" and
+    # "treat provisioning failure as required".
+    return (
+        _truthy_env("CCB_POST_UPDATE_REQUIRED")
+        or _truthy_env("CCB_INSTALL_ROLES")
+        or _truthy_env("CCB_INSTALL_NEOVIM")
+    )
+
+
+def _truthy_env(name: str) -> bool:
+    value = str(os.environ.get(name) or "").strip().lower()
+    return value in {"1", "true", "on", "yes"}
+
+
+def _run_post_update_provisioning(*, install_dir: Path) -> int:
+    failures = 0
+    try:
+        failures += int(_update_builtin_roles_after_update(install_dir=install_dir) or 0)
+    except Exception as exc:
+        failures += 1
+        print(f"⚠️  Role Pack post-update provisioning failed: {type(exc).__name__}: {exc}")
+    try:
+        _provision_neovim_after_update()
+    except Exception as exc:
+        failures += 1
+        print(f"⚠️  Neovim post-update provisioning failed: {type(exc).__name__}: {exc}")
+    return 1 if failures else 0
 
 
 def _print_update_outcome(old_info: dict[str, object], new_info: dict[str, object]) -> None:
@@ -205,39 +376,39 @@ def _provision_neovim_after_update() -> None:
         print(f"⚠️  Neovim tool not ready: {result.get('reason') or status}")
 
 
-def _update_builtin_roles_after_update(*, install_dir: Path) -> None:
-    _update_catalog_roles_after_update(install_dir=install_dir)
+def _update_builtin_roles_after_update(*, install_dir: Path) -> int:
+    return _update_catalog_roles_after_update(install_dir=install_dir)
 
 
-def _update_catalog_roles_after_update(*, install_dir: Path) -> None:
+def _update_catalog_roles_after_update(*, install_dir: Path) -> int:
+    choice = _roles_update_choice()
+    if choice == 'env-skip':
+        print('ℹ️  Role Pack update skipped by CCB_INSTALL_ROLES=0')
+        return 0
     try:
         rows = tuple(role_catalog_status(refresh_default=True))
     except Exception as exc:
         print(f'⚠️  Agent Roles catalog unavailable: {type(exc).__name__}: {exc}')
-        return
-    choice = _roles_update_choice()
-    if choice == 'env-skip':
-        print('ℹ️  Role Pack update skipped by CCB_INSTALL_ROLES=0')
-        _print_catalog_followups(rows)
-        return
+        return 1
     if choice == 'declined':
         print('ℹ️  Role Pack update skipped.')
         _print_catalog_followups(rows)
-        return
+        return 0
     if choice == 'noninteractive-skip':
         print('ℹ️  Role Pack update skipped in non-interactive update.')
         _print_catalog_followups(rows)
-        return
-    _refresh_installed_catalog_roles(rows, install_dir=install_dir)
+        return 0
+    failures = _refresh_installed_catalog_roles(rows, install_dir=install_dir)
     try:
         refreshed_rows = tuple(role_catalog_status(refresh_default=True))
     except Exception:
         refreshed_rows = rows
     _print_catalog_followups(refreshed_rows)
-    _install_new_catalog_roles_interactive(refreshed_rows, install_dir=install_dir)
+    failures += _install_new_catalog_roles_interactive(refreshed_rows, install_dir=install_dir)
+    return failures
 
 
-def _refresh_installed_catalog_roles(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> None:
+def _refresh_installed_catalog_roles(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> int:
     update_rows = [row for row in rows if row.get('status') == 'update_available']
     current_rows = [row for row in rows if row.get('status') == 'current']
     if not update_rows:
@@ -245,7 +416,7 @@ def _refresh_installed_catalog_roles(rows: tuple[dict[str, object], ...], *, ins
             print('✅ Installed Role Packs already match the catalog.')
         else:
             print('ℹ️  No installed catalog Role Packs to update.')
-        return
+        return 0
     stdout = sys.stdout
     stderr = sys.stderr
     failures = 0
@@ -261,6 +432,7 @@ def _refresh_installed_catalog_roles(rows: tuple[dict[str, object], ...], *, ins
             print(f'⚠️  Role Pack update failed: {role_id}')
     if failures:
         print(f'⚠️  Role Pack updates had {failures} failure(s).')
+    return failures
 
 
 def _print_catalog_followups(rows: tuple[dict[str, object], ...]) -> None:
@@ -283,19 +455,19 @@ def _print_catalog_followups(rows: tuple[dict[str, object], ...]) -> None:
         print(f'⚠️  Installed Role Pack source missing: {role_id}' + (f' ({source_path})' if source_path else ''))
 
 
-def _install_new_catalog_roles_interactive(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> None:
+def _install_new_catalog_roles_interactive(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> int:
     available = [row for row in rows if row.get('status') == 'available']
     if not available or not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
-        return
+        return 0
     print('Install newly available Agent Roles now? Enter numbers, all, or blank to skip: ', end='', flush=True)
     try:
         answer = sys.stdin.readline()
     except Exception:
-        return
+        return 0
     selected = _select_catalog_role_ids(answer, available)
     if not selected:
         print('ℹ️  New Role Pack installation skipped.')
-        return
+        return 0
     stdout = sys.stdout
     stderr = sys.stderr
     failures = 0
@@ -308,6 +480,7 @@ def _install_new_catalog_roles_interactive(rows: tuple[dict[str, object], ...], 
             print(f'⚠️  Role Pack install failed: {role_id}')
     if failures:
         print(f'⚠️  Role Pack installs had {failures} failure(s).')
+    return failures
 
 
 def _select_catalog_role_ids(answer: str, rows: list[dict[str, object]]) -> tuple[str, ...]:
@@ -347,6 +520,8 @@ def _roles_update_choice() -> str:
     requested = str(os.environ.get('CCB_INSTALL_ROLES') or '').strip().lower()
     if requested in {'0', 'false', 'off', 'no'}:
         return 'env-skip'
+    if _truthy_env("CCB_POST_UPDATE_REQUIRED"):
+        return 'accepted'
     if requested in {'1', 'true', 'on', 'yes'}:
         return 'accepted'
     if not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
@@ -365,6 +540,8 @@ def _neovim_install_choice() -> str:
     requested = str(os.environ.get('CCB_INSTALL_NEOVIM') or '').strip().lower()
     if requested in {'0', 'false', 'off', 'no'}:
         return 'env-skip'
+    if _truthy_env("CCB_POST_UPDATE_REQUIRED"):
+        return 'required'
     if requested in {'1', 'true', 'on', 'yes'}:
         return 'required'
     if not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
@@ -406,4 +583,4 @@ def _release_extract_dir_name(artifact_name: str) -> str:
     return Path(text).stem
 
 
-__all__ = ['cmd_update']
+__all__ = ['POST_UPDATE_COMMAND', 'cmd_update', 'maybe_handle_post_update_command']

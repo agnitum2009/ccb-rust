@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v7.2.10 (2026-06-04)
+
+### Role Pack Post-Update Hotfix
+
+- **Post-Update Handoff Fixed**: `ccb update` now installs the new release, smoke-checks the installed entrypoint, and delegates Role Pack plus Neovim provisioning to the newly installed `ccb __post-update` command instead of continuing with the old updater process.
+- **Legacy Role Store Repair Added**: installed `ccb.archi` metadata is repaired under canonical `agentroles.archi`, and stale removed source paths fall back to the current catalog role source.
+- **Forced Provisioning Failure Propagates**: `CCB_INSTALL_ROLES=1`, `CCB_INSTALL_NEOVIM=1`, and `CCB_POST_UPDATE_REQUIRED=1` now make post-update subprocess failures fail the parent update, while optional post-update provisioning remains a warning after the core update succeeds.
+- **Role Config Guidance Aligned**: inherited `ccb-config` skill docs now generate `agentroles.archi` bindings and mention `ccb.archi` only as a legacy migration alias.
+
 ## v7.2.9 (2026-06-04)
 
 ### Agent Roles Catalog Release

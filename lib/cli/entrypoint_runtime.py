@@ -7,6 +7,7 @@ from typing import TextIO
 from cli.ask_usage import write_ask_usage
 from cli.auxiliary import cmd_droid_subcommand
 from cli.management import cmd_reinstall, cmd_uninstall, cmd_update, cmd_version
+from cli.management_runtime.commands_runtime.update import maybe_handle_post_update_command
 from cli.management_runtime.startup_update import (
     maybe_handle_background_update_refresh_command,
     maybe_handle_startup_release_update,
@@ -177,6 +178,9 @@ def run_cli_entrypoint(
     if sidebar_resize_sync_result is not None:
         return sidebar_resize_sync_result
     internal_result = maybe_handle_background_update_refresh_command(tokens, script_root=script_root)
+    if internal_result is not None:
+        return internal_result
+    internal_result = maybe_handle_post_update_command(tokens, script_root=script_root)
     if internal_result is not None:
         return internal_result
 

@@ -162,6 +162,58 @@ Rules:
 - `[agents.<name>]` tables for names no longer present in `[windows]` are ignored as stale overlay residue.
 - `[ui.sidebar.view]` is optional and UI-only. It can tune sidebar tree height, Comms visible row count/compactness, and short Tips text without changing the managed window topology.
 
+## Role Pack Agents
+
+CCB can bind installed Role Packs into project config. New configs must use
+canonical catalog role ids. For the architecture reviewer role, use
+`agentroles.archi`; do not write `ccb.archi` in new config.
+
+Preferred shorthand:
+
+```toml
+version = 2
+entry_window = "main"
+
+[windows]
+main = "main:codex, agentroles.archi:codex"
+```
+
+Equivalent explicit binding:
+
+```toml
+version = 2
+entry_window = "main"
+
+[windows]
+main = "main:codex, archi:codex"
+
+[agents.archi]
+role = "agentroles.archi"
+provider = "codex"
+```
+
+Semantics:
+
+- `agentroles.archi` is the stable Role Pack id from the external
+  `agent-roles-spec` catalog.
+- `archi` is the project-local agent name and the normal ask target.
+- Sidebar, pane labels, and primary commands use `archi`.
+- Role diagnostics and install commands use `agentroles.archi`.
+- `ccb.archi` is a legacy input alias only. When migrating old config, rewrite
+  it to `agentroles.archi`.
+
+Common commands:
+
+```bash
+ccb roles install agentroles.archi
+ccb roles doctor agentroles.archi
+ccb roles add agentroles.archi:codex
+ccb ask archi "review this change"
+```
+
+Do not copy Role Pack memory or skills into `.ccb` by hand. CCB projects role
+assets from the installed role store into the bound provider home.
+
 ## Migrating Old Configs To Windows
 
 Old compact and hybrid configs are still valid single-window configs. Migrate them only when the user asks for multi-window behavior, named windows, or per-window sidebar layout.

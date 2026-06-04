@@ -8,6 +8,7 @@ from io import StringIO
 
 import pytest
 
+from cli import entrypoint_runtime
 from cli.management_runtime import install as install_runtime
 from cli.management_runtime.commands_runtime import update as update_runtime
 
@@ -20,6 +21,17 @@ class _TtyOutput(StringIO):
 class _PipeOutput(StringIO):
     def isatty(self) -> bool:
         return False
+
+
+def _clear_post_update_env(monkeypatch) -> None:
+    for name in (
+        "CCB_INSTALL_ROLES",
+        "CCB_INSTALL_NEOVIM",
+        "CCB_POST_UPDATE_REQUIRED",
+        "CCB_POST_UPDATE_TIMEOUT_SECONDS",
+        "CCB_ENTRYPOINT_SMOKE_TIMEOUT_SECONDS",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 def test_cmd_update_defaults_to_latest_release(monkeypatch, tmp_path: Path) -> None:
@@ -166,6 +178,7 @@ def test_update_via_tarball_uses_staged_unix_installer(monkeypatch, tmp_path: Pa
     monkeypatch.setattr(update_runtime, "download_tarball", _fake_download)
     monkeypatch.setattr(update_runtime, "get_version_info", lambda _install_dir: {"version": "6.0.8"})
     monkeypatch.setattr(update_runtime, "_print_update_outcome", lambda old_info, new_info: None)
+    post_update_calls: list[dict[str, object]] = []
 
     def _fake_run_staged(action: str, *, source_dir: Path, install_dir: Path, extra_env: dict[str, str] | None = None) -> int:
         calls["action"] = action
@@ -175,6 +188,21 @@ def test_update_via_tarball_uses_staged_unix_installer(monkeypatch, tmp_path: Pa
         return 0
 
     monkeypatch.setattr(update_runtime, "run_staged_unix_installer", _fake_run_staged)
+    monkeypatch.setattr(
+        update_runtime,
+        "_update_builtin_roles_after_update",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("old updater must not update roles directly")),
+    )
+    monkeypatch.setattr(
+        update_runtime,
+        "_provision_neovim_after_update",
+        lambda: (_ for _ in ()).throw(AssertionError("old updater must not provision neovim directly")),
+    )
+    monkeypatch.setattr(
+        update_runtime,
+        "_run_post_update_with_new_entrypoint",
+        lambda **kwargs: post_update_calls.append(dict(kwargs)) or True,
+    )
 
     code = update_runtime._update_via_tarball(
         tmp_base,
@@ -193,6 +221,365 @@ def test_update_via_tarball_uses_staged_unix_installer(monkeypatch, tmp_path: Pa
         "CCB_INSTALL_NEOVIM": "0",
         "CCB_INSTALL_ROLES": "0",
     }
+    assert post_update_calls == [
+        {
+            "install_dir": install_dir,
+            "old_info": {"version": "6.0.7"},
+            "new_info": {"version": "6.0.8"},
+        }
+    ]
+
+
+def test_post_update_delegation_runs_installed_entrypoint(monkeypatch, tmp_path: Path) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
+    install_dir = tmp_path / "install"
+    install_dir.mkdir()
+    ccb_entry = install_dir / "ccb"
+    ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    calls: list[dict[str, object]] = []
+
+    def _fake_run(command, **kwargs):
+        calls.append({"command": list(command), "kwargs": dict(kwargs)})
+        return update_runtime.subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(update_runtime.subprocess, "run", _fake_run)
+
+    ok = update_runtime._run_post_update_with_new_entrypoint(
+        install_dir=install_dir,
+        old_info={"version": "6.0.7"},
+        new_info={"version": "6.0.8"},
+    )
+
+    assert ok is True
+    assert calls[0]["command"] == [str(ccb_entry), "--print-version"]
+    assert calls[1]["command"] == [
+        str(ccb_entry),
+        update_runtime.POST_UPDATE_COMMAND,
+        "--from-version",
+        "6.0.7",
+        "--to-version",
+        "6.0.8",
+    ]
+    assert calls[1]["kwargs"]["cwd"] == Path.cwd()
+    assert calls[1]["kwargs"]["env"]["CODEX_INSTALL_PREFIX"] == str(install_dir)
+    assert calls[1]["kwargs"]["env"]["CCB_SKIP_STARTUP_UPDATE_CHECK"] == "1"
+
+
+def test_post_update_delegation_prefers_current_bin_wrapper(monkeypatch, tmp_path: Path) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
+    install_dir = tmp_path / "install"
+    bin_dir = tmp_path / "bin"
+    install_dir.mkdir()
+    bin_dir.mkdir()
+    (install_dir / "ccb").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    ccb_entry = bin_dir / "ccb"
+    ccb_entry.write_text(f'#!/usr/bin/env bash\nexec /venv/bin/python "{install_dir / "ccb"}" "$@"\n', encoding="utf-8")
+    calls: list[dict[str, object]] = []
+
+    def _fake_run(command, **kwargs):
+        calls.append({"command": list(command), "kwargs": dict(kwargs)})
+        return update_runtime.subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(update_runtime.sys, "argv", [str(ccb_entry), "update"])
+    monkeypatch.setattr(update_runtime.subprocess, "run", _fake_run)
+
+    ok = update_runtime._run_post_update_with_new_entrypoint(
+        install_dir=install_dir,
+        old_info={"version": "6.0.7"},
+        new_info={"version": "6.0.8"},
+    )
+
+    assert ok is True
+    assert calls[0]["command"] == [str(ccb_entry), "--print-version"]
+    assert calls[1]["command"][0] == str(ccb_entry)
+
+
+def test_post_update_delegation_honors_codex_bin_dir(monkeypatch, tmp_path: Path) -> None:
+    _clear_post_update_env(monkeypatch)
+    install_dir = tmp_path / "install"
+    bin_dir = tmp_path / "custom-bin"
+    install_dir.mkdir()
+    bin_dir.mkdir()
+    (install_dir / "ccb").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    ccb_entry = bin_dir / "ccb"
+    # Explicit CODEX_BIN_DIR is authoritative and intentionally bypasses
+    # install_dir wrapper target detection.
+    ccb_entry.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def _fake_run(command, **kwargs):
+        calls.append(list(command))
+        return update_runtime.subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setenv("CODEX_BIN_DIR", str(bin_dir))
+    monkeypatch.setattr(update_runtime.subprocess, "run", _fake_run)
+
+    ok = update_runtime._run_post_update_with_new_entrypoint(
+        install_dir=install_dir,
+        old_info={"version": "6.0.7"},
+        new_info={"version": "6.0.8"},
+    )
+
+    assert ok is True
+    assert calls[0] == [str(ccb_entry), "--print-version"]
+    assert calls[1][0] == str(ccb_entry)
+
+
+def test_post_update_delegation_warns_without_failing_core_update(monkeypatch, tmp_path: Path, capsys) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
+    install_dir = tmp_path / "install"
+    install_dir.mkdir()
+    ccb_entry = install_dir / "ccb"
+    ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+
+    def _fake_run(command, **kwargs):
+        if list(command)[-1] == "--print-version":
+            return update_runtime.subprocess.CompletedProcess(command, 0)
+        return update_runtime.subprocess.CompletedProcess(command, 17)
+
+    monkeypatch.setattr(update_runtime.subprocess, "run", _fake_run)
+
+    ok = update_runtime._run_post_update_with_new_entrypoint(
+        install_dir=install_dir,
+        old_info={"version": "6.0.7"},
+        new_info={"version": "6.0.8"},
+    )
+
+    captured = capsys.readouterr()
+    assert ok is True
+    assert "Post-update provisioning exited with code 17" in captured.out
+    assert "Core update completed" in captured.out
+
+
+def test_post_update_delegation_timeout_warns_without_failing_core_update(monkeypatch, tmp_path: Path, capsys) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
+    monkeypatch.setenv("CCB_POST_UPDATE_TIMEOUT_SECONDS", "1")
+    install_dir = tmp_path / "install"
+    install_dir.mkdir()
+    ccb_entry = install_dir / "ccb"
+    ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+
+    def _fake_run(command, **kwargs):
+        if list(command)[-1] == "--print-version":
+            return update_runtime.subprocess.CompletedProcess(command, 0)
+        raise update_runtime.subprocess.TimeoutExpired(command, kwargs.get("timeout"))
+
+    monkeypatch.setattr(update_runtime.subprocess, "run", _fake_run)
+
+    ok = update_runtime._run_post_update_with_new_entrypoint(
+        install_dir=install_dir,
+        old_info={"version": "6.0.7"},
+        new_info={"version": "6.0.8"},
+    )
+
+    captured = capsys.readouterr()
+    assert ok is True
+    assert "Post-update provisioning timed out after 1s" in captured.out
+    assert "Core update completed" in captured.out
+
+
+def test_post_update_required_failure_fails_update(monkeypatch, tmp_path: Path, capsys) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
+    monkeypatch.setenv("CCB_INSTALL_NEOVIM", "1")
+    install_dir = tmp_path / "install"
+    install_dir.mkdir()
+    ccb_entry = install_dir / "ccb"
+    ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+
+    def _fake_run(command, **kwargs):
+        if list(command)[-1] == "--print-version":
+            return update_runtime.subprocess.CompletedProcess(command, 0)
+        return update_runtime.subprocess.CompletedProcess(command, 17)
+
+    monkeypatch.setattr(update_runtime.subprocess, "run", _fake_run)
+
+    ok = update_runtime._run_post_update_with_new_entrypoint(
+        install_dir=install_dir,
+        old_info={"version": "6.0.7"},
+        new_info={"version": "6.0.8"},
+    )
+
+    captured = capsys.readouterr()
+    assert ok is False
+    assert "Required post-update provisioning exited with code 17" in captured.out
+
+
+@pytest.mark.parametrize("required_env", ["CCB_INSTALL_ROLES", "CCB_POST_UPDATE_REQUIRED"])
+def test_post_update_required_roles_catalog_unavailable_returns_failure(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+    required_env: str,
+) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.setenv(required_env, "1")
+    monkeypatch.setattr(
+        update_runtime,
+        "role_catalog_status",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("catalog down")),
+    )
+    monkeypatch.setattr(update_runtime, "_provision_neovim_after_update", lambda: None)
+
+    code = update_runtime._run_post_update_provisioning(install_dir=tmp_path / "install")
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "Agent Roles catalog unavailable" in captured.out
+
+
+def test_post_update_required_installed_role_update_failure_returns_failure(monkeypatch, tmp_path: Path, capsys) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.setenv("CCB_INSTALL_ROLES", "1")
+    rows = (
+        {
+            "role_id": "agentroles.archi",
+            "status": "update_available",
+            "version": "0.2.0",
+            "installed_version": "0.1.0",
+        },
+    )
+    monkeypatch.setattr(update_runtime, "role_catalog_status", lambda **_kwargs: rows)
+    monkeypatch.setattr(update_runtime, "cmd_roles", lambda *_args, **_kwargs: 42)
+    monkeypatch.setattr(update_runtime, "_provision_neovim_after_update", lambda: None)
+
+    code = update_runtime._run_post_update_provisioning(install_dir=tmp_path / "install")
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "Role Pack update failed: agentroles.archi" in captured.out
+    assert "Role Pack updates had 1 failure" in captured.out
+
+
+def test_post_update_required_selected_new_role_install_failure_returns_failure(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.setenv("CCB_INSTALL_ROLES", "1")
+    rows = (
+        {
+            "role_id": "agentroles.new",
+            "status": "available",
+            "version": "0.1.0",
+            "name": "New Role",
+            "description": "New catalog role.",
+        },
+    )
+
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "1\n"
+
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(update_runtime, "role_catalog_status", lambda **_kwargs: rows)
+    monkeypatch.setattr(update_runtime, "cmd_roles", lambda *_args, **_kwargs: 42)
+    monkeypatch.setattr(update_runtime, "_provision_neovim_after_update", lambda: None)
+
+    code = update_runtime._run_post_update_provisioning(install_dir=tmp_path / "install")
+
+    captured = capsys.readouterr()
+    assert code == 1
+    output = stdout.getvalue() + captured.out
+    assert "Role Pack install failed: agentroles.new" in output
+    assert "Role Pack installs had 1 failure" in output
+
+
+def test_post_update_internal_command_runs_new_process_provisioning(monkeypatch, tmp_path: Path) -> None:
+    install_dir = tmp_path / "install"
+    calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        update_runtime,
+        "_update_builtin_roles_after_update",
+        lambda **kwargs: calls.append({"roles": dict(kwargs)}),
+    )
+    monkeypatch.setattr(
+        update_runtime,
+        "_provision_neovim_after_update",
+        lambda: calls.append({"neovim": True}),
+    )
+
+    code = update_runtime.maybe_handle_post_update_command(
+        [update_runtime.POST_UPDATE_COMMAND, "--from-version", "6.0.7", "--to-version", "6.0.8"],
+        script_root=install_dir,
+    )
+
+    assert code == 0
+    assert calls == [{"roles": {"install_dir": install_dir}}, {"neovim": True}]
+
+
+def test_entrypoint_routes_internal_post_update_command(monkeypatch, tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        entrypoint_runtime,
+        "maybe_handle_post_update_command",
+        lambda tokens, *, script_root: calls.append({"tokens": list(tokens), "script_root": script_root}) or 0,
+    )
+
+    code = entrypoint_runtime.run_cli_entrypoint(
+        [update_runtime.POST_UPDATE_COMMAND, "--from-version", "6.0.7"],
+        version="6.0.8",
+        script_root=tmp_path / "install",
+        cwd=tmp_path,
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert code == 0
+    assert calls == [
+        {
+            "tokens": [update_runtime.POST_UPDATE_COMMAND, "--from-version", "6.0.7"],
+            "script_root": tmp_path / "install",
+        }
+    ]
+
+
+def test_post_update_required_env_accepts_roles_without_prompt(monkeypatch, tmp_path: Path) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.setenv("CCB_POST_UPDATE_REQUIRED", "1")
+    rows = (
+        {
+            "role_id": "agentroles.archi",
+            "status": "current",
+            "version": "0.2.0",
+            "installed_version": "0.2.0",
+        },
+    )
+
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            raise AssertionError("required post-update roles should not prompt")
+
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(update_runtime, "role_catalog_status", lambda **_kwargs: rows)
+    monkeypatch.setattr(
+        update_runtime,
+        "cmd_roles",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("current roles should not update")),
+    )
+
+    code = update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
+
+    assert code == 0
+    assert "Refresh installed Agent Roles" not in stdout.getvalue()
+    assert "Installed Role Packs already match the catalog" in stdout.getvalue()
 
 
 def test_update_roles_prompt_accepts_interactive_default(monkeypatch, tmp_path: Path) -> None:
@@ -241,6 +628,40 @@ def test_update_roles_prompt_accepts_interactive_default(monkeypatch, tmp_path: 
     assert "Role Pack updated: agentroles.archi" in stdout.getvalue()
     assert "New Agent Roles available" in stdout.getvalue()
     assert "agentroles.new v0.1.0" in stdout.getvalue()
+
+
+def test_update_roles_current_status_does_not_run_update_hooks(monkeypatch, tmp_path: Path) -> None:
+    rows = (
+        {
+            "role_id": "agentroles.archi",
+            "status": "current",
+            "version": "0.2.0",
+            "installed_version": "0.2.0",
+            "name": "Architecture Reviewer",
+            "description": "Reviews architecture drift.",
+        },
+    )
+
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            return "\n"
+
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    stdout = _TtyOutput()
+    monkeypatch.setattr(update_runtime.sys, "stdout", stdout)
+    monkeypatch.setattr(update_runtime, "role_catalog_status", lambda **_kwargs: rows)
+    monkeypatch.setattr(
+        update_runtime,
+        "cmd_roles",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not update current roles")),
+    )
+
+    update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
+
+    assert "Installed Role Packs already match the catalog" in stdout.getvalue()
 
 
 def test_update_roles_prompt_declines_without_update(monkeypatch, tmp_path: Path) -> None:
@@ -351,6 +772,23 @@ def test_update_neovim_prompt_accepts_interactive_yes(monkeypatch, capsys) -> No
     assert calls == [{"required": False}]
     assert "Install/refresh the default Neovim + LazyVim tool window now?" in stdout.getvalue()
     assert "Neovim tool ready" in stdout.getvalue()
+
+
+def test_post_update_required_env_makes_neovim_required_without_prompt(monkeypatch) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.setenv("CCB_POST_UPDATE_REQUIRED", "1")
+
+    class _TtyInput:
+        def isatty(self) -> bool:
+            return True
+
+        def readline(self) -> str:
+            raise AssertionError("required post-update neovim should not prompt")
+
+    monkeypatch.setattr(update_runtime.sys, "stdin", _TtyInput())
+    monkeypatch.setattr(update_runtime.sys, "stdout", _TtyOutput())
+
+    assert update_runtime._neovim_install_choice() == "required"
 
 
 def test_update_neovim_prompt_declines_without_provisioning(monkeypatch, capsys) -> None:
@@ -478,6 +916,7 @@ def test_update_via_tarball_uses_macos_release_artifact(monkeypatch, tmp_path: P
     monkeypatch.setattr(update_runtime, "download_tarball", _fake_download)
     monkeypatch.setattr(update_runtime, "get_version_info", lambda _install_dir: {"version": "6.0.8"})
     monkeypatch.setattr(update_runtime, "_print_update_outcome", lambda old_info, new_info: None)
+    monkeypatch.setattr(update_runtime, "_run_post_update_with_new_entrypoint", lambda **_kwargs: True)
 
     def _fake_run_staged(action: str, *, source_dir: Path, install_dir: Path, extra_env: dict[str, str] | None = None) -> int:
         calls["action"] = action

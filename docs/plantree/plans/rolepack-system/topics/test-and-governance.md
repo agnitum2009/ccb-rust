@@ -151,6 +151,12 @@ A role PR should include:
 - permission declaration
 - changelog entry when behavior changes
 
+CCB config or usage changes that affect how users add, bind, name, ask, or
+diagnose Role Pack agents must also update the inherited `ccb-config` skill and
+its `references/ccb-config.md` copies for Codex and Claude. This prevents CCB
+agents from generating stale config such as new `ccb.archi` bindings after the
+canonical role id moved to `agentroles.archi`.
+
 Role content PRs belong in `agent-roles-spec`. CCB PRs should reject
 production role package content under the CCB source tree and should instead
 change catalog consumption, adapter behavior, projection, diagnostics, or test
