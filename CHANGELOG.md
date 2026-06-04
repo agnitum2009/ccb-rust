@@ -1,6 +1,6 @@
 # Changelog
 
-## v7.3.0 (2026-06-05)
+## v7.3.1 (2026-06-05)
 
 ### Agent Roles, Artifact Ask, And Shared Workspace Release
 
@@ -56,10 +56,22 @@
 - **Test Gates Stabilized**: Role Pack tests now use a fake Agent Roles CLI that
   does not require `tomllib`, `tomli`, or `toml` in the subprocess interpreter,
   and inherited ask skill template checks remain stable across line wrapping.
+- **WSL Root Test Assertions Stabilized**: Claude command tests that verify
+  ordinary non-root command tails now force the mocked root detector to false,
+  keeping remote WSL/root runners from appending root compatibility flags to
+  non-root expectations.
 - **v7.2.x Hotfixes Included**: this release also carries the v7.2.x fixes for
   Antigravity runtime follow-up, source checkout guards, WSL mounted-drive smoke
   roots, provider blackbox wait timing, Role Pack CI fixtures, post-update role
   migration, and release artifact dispatch.
+
+## v7.3.0 (2026-06-05)
+
+### Superseded Prerelease
+
+- Superseded by v7.3.1 after the remote WSL Tests workflow exposed root-sensitive
+  Claude command assertions. The GitHub release was kept as a prerelease and did
+  not upload official Linux/macOS release artifacts.
 
 ## v7.2.12 (2026-06-04)
 

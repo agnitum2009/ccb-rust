@@ -860,6 +860,7 @@ def test_ensure_agent_runtime_launches_named_claude_session(monkeypatch, tmp_pat
     monkeypatch.setattr('cli.services.runtime_launch._inside_tmux', lambda: True)
     monkeypatch.setattr('cli.services.runtime_launch.shutil.which', lambda name: f'/usr/bin/{name}')
     monkeypatch.setattr('cli.services.runtime_launch.TmuxBackend', FakeTmuxBackend)
+    monkeypatch.setattr(claude_launcher, 'is_root_user', lambda: False)
     monkeypatch.setattr(
         claude_launcher,
         '_resolve_claude_restore_target',
@@ -1926,6 +1927,7 @@ def test_claude_launcher_build_start_cmd_uses_overlay_and_drops_dead_local_user_
     command = ParsedStartCommand(project=None, agent_names=('reviewer',), restore=True, auto_permission=True)
 
     monkeypatch.setattr('provider_backends.claude.launcher.Path.home', lambda: home_dir)
+    monkeypatch.setattr(claude_launcher, 'is_root_user', lambda: False)
     monkeypatch.setattr('provider_backends.claude.launcher.local_tcp_listener_available', lambda host, port: False)
     monkeypatch.setattr(
         claude_launcher,
@@ -2868,6 +2870,7 @@ def test_claude_launcher_build_start_cmd_uses_agent_settings_overlay_when_presen
     command = ParsedStartCommand(project=None, agent_names=('reviewer',), restore=True, auto_permission=False)
 
     monkeypatch.setattr('provider_backends.claude.launcher.Path.home', lambda: tmp_path / 'home')
+    monkeypatch.setattr(claude_launcher, 'is_root_user', lambda: False)
     monkeypatch.setattr(
         claude_launcher,
         '_resolve_claude_restore_target',

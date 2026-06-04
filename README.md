@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.3.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.3.1-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -519,13 +519,21 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
-<summary><b>v7.3.0</b> - Agent Roles, Artifact Ask, And Shared Workspace Release</summary>
+<summary><b>v7.3.1</b> - Agent Roles, Artifact Ask, And Shared Workspace Release</summary>
 
 - Adds daemon-managed ask artifact transport with `--artifact-request`, `--artifact-reply`, and `--artifact-io`, including callback-compatible artifact replies for long outputs.
 - Finalizes the Agent Roles store path around the external `agent-roles` manager and `.roles/installed`, while preserving `ccb.archi` compatibility for `agentroles.archi`.
 - Adds shared workspace controls with `workspace_path` and `workspace_group`, plus `provider_command_template` for wrapping the CCB-built provider command without breaking resume handling.
 - Fixes Claude startup under root, OpenCode `ccb clear` submit timing after restored sessions, and managed Neovim activation so the original runtime path is preserved.
 - Refreshes inherited `ask` and `ccb-config` skills for submit-only ask rules, artifact modes, windows-first config, shared workspaces, and provider command templates.
+- Stabilizes WSL/root release tests by making non-root Claude command assertions independent from the runner UID.
+
+</details>
+
+<details>
+<summary><b>v7.3.0</b> - Superseded Prerelease</summary>
+
+- Superseded by v7.3.1 after the remote WSL Tests workflow exposed root-sensitive Claude command assertions. The v7.3.0 GitHub release was kept as a prerelease and did not upload official release artifacts.
 
 </details>
 
