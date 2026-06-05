@@ -366,6 +366,20 @@ require_command() {
   fi
 }
 
+env_value_is_true() {
+  case "${1:-}" in
+    1|true|TRUE|True|yes|YES|Yes|on|ON|On) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+env_value_is_false() {
+  case "${1:-}" in
+    0|false|FALSE|False|no|NO|No|off|OFF|Off) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 PYTHON_BIN="${CCB_PYTHON_BIN:-}"
 PYTHON_CANDIDATE_COMMANDS=(
   python3
@@ -424,6 +438,107 @@ require_python_version() {
     exit 1
   fi
   echo "OK: Python $version ($PYTHON_BIN)"
+}
+
+python_supports_role_tool_venv() {
+  "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
+import importlib.util
+import sys
+
+for module_name in ("venv", "ensurepip"):
+    if importlib.util.find_spec(module_name) is None:
+        raise SystemExit(1)
+raise SystemExit(0)
+PY
+}
+
+print_git_install_hint() {
+  local platform
+  platform="$(detect_platform)"
+  case "$platform" in
+    macos)
+      if command -v brew >/dev/null 2>&1; then
+        echo "   macOS: brew install git"
+      else
+        echo "   macOS: install Xcode Command Line Tools with 'xcode-select --install', or install Homebrew then run 'brew install git'"
+      fi
+      ;;
+    linux)
+      if command -v apt-get >/dev/null 2>&1; then
+        echo "   Debian/Ubuntu: sudo apt-get update && sudo apt-get install -y git"
+      elif command -v dnf >/dev/null 2>&1; then
+        echo "   Fedora/CentOS/RHEL: sudo dnf install -y git"
+      elif command -v yum >/dev/null 2>&1; then
+        echo "   CentOS/RHEL: sudo yum install -y git"
+      elif command -v pacman >/dev/null 2>&1; then
+        echo "   Arch/Manjaro: sudo pacman -S git"
+      elif command -v apk >/dev/null 2>&1; then
+        echo "   Alpine: sudo apk add git"
+      elif command -v zypper >/dev/null 2>&1; then
+        echo "   openSUSE: sudo zypper install -y git"
+      else
+        echo "   Linux: install git with your distro's package manager"
+      fi
+      ;;
+    *)
+      echo "   Install git and ensure it is on PATH"
+      ;;
+  esac
+}
+
+print_python_venv_install_hint() {
+  local platform
+  platform="$(detect_platform)"
+  case "$platform" in
+    macos)
+      echo "   macOS: install or repair Python 3.10+; Homebrew users can run 'brew install python'"
+      ;;
+    linux)
+      if command -v apt-get >/dev/null 2>&1; then
+        echo "   Debian/Ubuntu: sudo apt-get update && sudo apt-get install -y python3-venv python3-pip"
+      elif command -v dnf >/dev/null 2>&1; then
+        echo "   Fedora/CentOS/RHEL: sudo dnf install -y python3 python3-pip"
+      elif command -v yum >/dev/null 2>&1; then
+        echo "   CentOS/RHEL: sudo yum install -y python3 python3-pip"
+      elif command -v pacman >/dev/null 2>&1; then
+        echo "   Arch/Manjaro: sudo pacman -S python python-pip"
+      elif command -v apk >/dev/null 2>&1; then
+        echo "   Alpine: sudo apk add python3 py3-pip"
+      elif command -v zypper >/dev/null 2>&1; then
+        echo "   openSUSE: sudo zypper install -y python3 python3-pip"
+      else
+        echo "   Linux: install Python venv/ensurepip support with your distro's package manager"
+      fi
+      ;;
+    *)
+      echo "   Install Python venv/ensurepip support for Python 3.10+"
+      ;;
+  esac
+}
+
+check_role_pack_dependencies() {
+  local mode="${1:-warn}"
+  local label="WARN"
+  if [[ "$mode" == "required" ]]; then
+    label="ERROR"
+  fi
+  local missing=0
+  if ! command -v git >/dev/null 2>&1; then
+    echo "$label: Missing dependency for Role Pack provisioning: git"
+    print_git_install_hint
+    missing=1
+  fi
+  if ! python_supports_role_tool_venv; then
+    echo "$label: Missing Python support for Role Pack tool dependencies: venv/ensurepip"
+    print_python_venv_install_hint
+    missing=1
+  fi
+  if [[ "$missing" -eq 0 ]]; then
+    return 0
+  fi
+  echo "   Install the missing dependencies above, then re-run ./install.sh install."
+  echo "   To install CCB without Role Pack provisioning now, set CCB_INSTALL_ROLES=0."
+  return 1
 }
 
 selected_python_executable() {
@@ -2678,6 +2793,9 @@ install_requirements() {
   check_wsl_compatibility
   confirm_backend_env_wsl
   require_python_version
+  if env_value_is_true "${CCB_INSTALL_ROLES:-ask}"; then
+    check_role_pack_dependencies required
+  fi
   if use_managed_venv; then
     echo "INFO: Python package dependencies will be installed inside the managed Python venv"
   else
@@ -2780,11 +2898,14 @@ install_all() {
 
 provision_role_packs() {
   local requested="${CCB_INSTALL_ROLES:-ask}"
-  if [[ "$requested" == "0" || "$requested" == "false" || "$requested" == "off" || "$requested" == "no" ]]; then
+  if env_value_is_false "$requested"; then
     echo "INFO: Role Pack provisioning skipped by CCB_INSTALL_ROLES=0"
     return 0
   fi
-  if [[ "$requested" != "1" && "$requested" != "true" && "$requested" != "on" && "$requested" != "yes" ]]; then
+  local required=0
+  if env_value_is_true "$requested"; then
+    required=1
+  else
     if [[ ! -t 0 || ! -t 1 ]]; then
       echo "INFO: Role Pack provisioning skipped in non-interactive install."
       echo "      Run 'ccb roles install agentroles.archi' later to install roles and dependencies."
@@ -2801,6 +2922,13 @@ provision_role_packs() {
         ;;
       *) ;;
     esac
+  fi
+  local dependency_mode="warn"
+  if [[ "$required" == "1" ]]; then
+    dependency_mode="required"
+  fi
+  if ! check_role_pack_dependencies "$dependency_mode"; then
+    [[ "$required" == "1" ]] && return 1 || return 0
   fi
   local ccb_entry
   if install_uses_live_source; then
@@ -2830,7 +2958,7 @@ provision_role_packs() {
   echo "WARN: Role Pack provisioning failed"
   sed 's/^/   /' "$log_file" 2>/dev/null || true
   rm -f "$log_file"
-  return 0
+  [[ "$required" == "1" ]] && return 1 || return 0
 }
 
 provision_neovim_tool() {
