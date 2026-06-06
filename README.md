@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.3.3-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.3.4-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -519,14 +519,23 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
-<summary><b>v7.3.3</b> - Architec NPM Tooling And Provider Stability Patch</summary>
+<summary><b>v7.3.4</b> - Architec NPM Tooling And Sidebar Focus Patch</summary>
 
 - Simplifies `agentroles.archi` tooling around the global `@seemseam/archi` npm package; CCB no longer manages separate Hippo, llmgateway, pip, venv, git, or editable Archi dependencies.
 - Aligns `ccb roles install/update/doctor agentroles.archi` with the npm-provided `archi` CLI and bundled Hippo/llmgateway capabilities.
 - Updates `bin/ccb-arch` to forward to `archi`, with a clear `npm install -g @seemseam/archi` hint when the CLI is missing.
+- Fixes sidebar focus/refresh handling so selecting agents from the sidebar no longer restarts panes unnecessarily.
+- Adds the guarded `ccb_test` source entrypoint for isolated source-checkout validation without affecting installed CCB.
 - Disables OpenCode autoupdate for managed panes through `opencode.json` and `OPENCODE_DISABLE_AUTOUPDATE=true`.
 - Refreshes inherited `ccb-config` skills for config-only use, language-following behavior, YAML description quoting, clearer menu grouping, and sidebar pane restart guidance.
 - Adds the config-designer UI plan tree and includes the main-branch `@percent` layout token plus Antigravity lifecycle cleanup updates.
+
+</details>
+
+<details>
+<summary><b>v7.3.3</b> - Withdrawn Draft</summary>
+
+- Withdrawn before stable rollout because it carried a sidebar focus/refresh regression. It is not the recommended release and should not be used for upgrades; use v7.3.4 or newer.
 
 </details>
 

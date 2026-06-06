@@ -1,8 +1,8 @@
 # Changelog
 
-## v7.3.3 (2026-06-06)
+## v7.3.4 (2026-06-07)
 
-### Architec NPM Tooling And Provider Stability Patch
+### Architec NPM Tooling And Sidebar Focus Patch
 
 - **Archi Role Tooling Simplified**: `agentroles.archi` now uses the global
   `@seemseam/archi` npm package as the single Architec tool source. CCB no
@@ -15,6 +15,12 @@
 - **Legacy `ccb-arch` Forwarder Updated**: `bin/ccb-arch` forwards directly to
   `archi` when available and otherwise prints the required
   `npm install -g @seemseam/archi` command.
+- **Sidebar Focus Restart Fixed**: sidebar-driven focus changes no longer
+  restart agent panes unnecessarily, preserving live provider state while still
+  allowing explicit pane restarts for refresh workflows.
+- **Guarded Source Test Entrypoint Added**: `ccb_test` provides a guarded
+  source-checkout entrypoint for isolated development validation without
+  modifying or shadowing the installed CCB runtime.
 - **OpenCode Autoupdate Disabled In Managed Panes**: generated `opencode.json`
   now sets `autoupdate = false`, and managed OpenCode launches include
   `OPENCODE_DISABLE_AUTOUPDATE=true` so CCB-owned panes do not self-update
@@ -29,6 +35,14 @@
 - **Layout And Antigravity Updates Included**: this release carries the main
   branch `@percent` layout split token support and Antigravity lifecycle/zombie
   cleanup updates.
+
+## v7.3.3 (2026-06-06)
+
+### Withdrawn Draft
+
+- v7.3.3 was withdrawn before stable rollout because it carried a sidebar
+  focus/refresh regression. It is not the recommended release and should not be
+  used for upgrades; use v7.3.4 or newer.
 
 ## v7.3.2 (2026-06-05)
 
