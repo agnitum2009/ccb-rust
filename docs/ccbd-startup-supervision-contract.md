@@ -251,7 +251,7 @@ Managed provider startup mutation rules:
   - `build_session_payload` receives the same final `prepared_state` used by
     command assembly
 - provider bootstrap config needed for managed launches must live under `.ccb/agents/<agent>/provider-state/<provider>/` or an explicit validated provider-profile runtime home
-- managed OpenCode startup writes `.ccb/agents/<agent>/provider-state/opencode/opencode.json` as a generated `OPENCODE_CONFIG` file; it reads and merges project `opencode.json` without modifying that project file, and it uses project-relative memory instructions through `.ccb/runtime/memory/<agent>.md`
+- managed OpenCode startup writes `.ccb/agents/<agent>/provider-state/opencode/opencode.json` as a generated `OPENCODE_CONFIG` file; it reads and merges project `opencode.json` without modifying that project file, uses project-relative memory instructions through `.ccb/runtime/memory/<agent>.md`, and disables OpenCode autoupdate for managed panes so startup and job delivery cannot be blocked by an interactive update prompt
 - agent workspaces may still be created or reconciled as workspace mounts, but provider configuration/trust state must remain inside the managed provider boundary rather than the project worktree
 - a configured `git-worktree` workspace requires the project root to be a git repository; startup must fail rather than silently copying a non-git project tree
 - the project control plane (`ccb`, keeper, `ccbd`) must not inherit provider-runtime session identity or managed-home variables from the caller shell:

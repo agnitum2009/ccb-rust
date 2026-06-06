@@ -110,12 +110,14 @@ $XDG_DATA_HOME/ccb/tools/<tool-id>/
 $XDG_CACHE_HOME/ccb/tools/<tool-id>/
 ```
 
-For example, `agentroles.archi` should prefer a CCB-owned venv and a wrapper
-such as `ccb-archi` instead of requiring a global `pip install --user`.
+For example, `agentroles.archi` installs Archi through the global npm package
+`@seemseam/architec`. CCB must not split Hippo or llmgateway into separate
+pip, venv, git, or editable installs because those capabilities are provided
+by the Architec package.
 
 Tool lifecycle hooks:
 
-- `install`: prepare required binaries, venvs, or wrappers.
+- `install`: prepare required binaries or wrappers without vendoring secrets.
 - `doctor`: check readiness without mutating when possible.
 - `update`: refresh tool dependencies.
 - `repair`: optional, safe remediation for known broken states.
@@ -129,9 +131,9 @@ inside the installed role snapshot.
 ## Secrets
 
 Role tools may require external configuration, but the Role Pack must not store
-secrets. For Architec, `llmgateway` configuration should remain in the
-appropriate external config location and doctor should report missing config
-without printing secrets.
+secrets. For Architec, doctor may check whether bundled llmgateway capability is
+available, but remediation should point to `npm install -g @seemseam/architec`
+or updating that package rather than separate llmgateway installation steps.
 
 ## Removal
 

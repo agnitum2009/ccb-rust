@@ -19,7 +19,7 @@ from project_memory import load_memory_sources
 from provider_profiles.codex_home_config import materialize_codex_home_config
 from rolepacks.manifest import RoleManifestError, load_role_manifest
 from rolepacks.runtime_lookup import tree_digest
-from rolepacks.service import builtin_role_root, install_role, load_installed_role, role_status, sync_roles_from_path, update_role
+from rolepacks.service import builtin_role_root, install_role, load_installed_role, role_status, run_role_tool_hooks, sync_roles_from_path, update_role
 from rolepacks.sources import (
     DEFAULT_AGENT_ROLES_SPEC_GIT_URL,
     add_role_source,
@@ -528,18 +528,22 @@ def _write_agent_roles_archi_fixture(catalog: Path) -> Path:
         encoding='utf-8',
     )
     (role / 'memory.md').write_text(
-        'Architecture Reviewer Memory\nArchitec is the architecture analysis CLI.\n',
+        'Architecture Reviewer Memory\n'
+        'Architec is the architecture analysis CLI installed from the @seemseam/architec npm package.\n'
+        'The package also provides the Hippo and llmgateway capabilities Archi uses.\n',
         encoding='utf-8',
     )
     (role / 'adapters' / 'ccb' / 'memory.md').write_text(
         'CCB Adapter Memory\n'
-        'Use the managed Architec wrapper named `ccb-archi`.\n'
+        'Use the `archi` CLI provided by the global `@seemseam/architec` npm package.\n'
+        'If Archi, Hippo, or llmgateway commands are missing, install or update `@seemseam/architec`.\n'
+        'Do not split Hippo or llmgateway into CCB-managed pip, venv, git, or editable installs.\n'
         'Do not copy llmgateway secrets into role memory.\n',
         encoding='utf-8',
     )
     for action in ('install', 'update'):
         (role / 'adapters' / 'ccb' / 'tools' / f'{action}.py').write_text(
-            f'print("architec_status: ok\\naction: {action}")\n',
+            f'print("architec_status: ok\\naction: {action}\\npackage: @seemseam/architec\\ninstall_command: npm install -g @seemseam/architec")\n',
             encoding='utf-8',
         )
     (role / 'adapters' / 'ccb' / 'tools' / 'doctor.py').write_text(
@@ -547,32 +551,43 @@ def _write_agent_roles_archi_fixture(catalog: Path) -> Path:
             [
                 'from __future__ import annotations',
                 '',
-                'import os',
-                'from pathlib import Path',
                 'import shutil',
+                'import subprocess',
                 '',
                 '',
-                'def _is_executable(path: Path) -> bool:',
-                '    return path.is_file() and os.access(path, os.X_OK)',
+                'def _probe(path: str | None) -> str:',
+                '    if not path:',
+                "        return 'missing'",
+                '    try:',
+                "        result = subprocess.run([path, '--help'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=20, check=False)",
+                '    except Exception:',
+                "        return 'failed'",
+                "    return 'ok' if result.returncode == 0 else 'failed'",
                 '',
                 '',
                 'def main() -> int:',
-                "    data_home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local' / 'share')",
-                "    root = data_home / 'ccb' / 'tools' / 'architec'",
-                "    wrapper = root / 'bin' / 'ccb-archi'",
-                "    archi_binary = root / 'venv' / 'bin' / 'archi'",
-                '    managed_wrapper_exists = _is_executable(wrapper)',
-                '    managed_archi_binary_exists = _is_executable(archi_binary)',
                 "    path_archi = shutil.which('archi')",
-                "    llmgateway = Path.home() / '.llmgateway' / 'config.yaml'",
-                "    selected_kind = 'managed_wrapper' if managed_wrapper_exists else ('path_archi' if path_archi else 'none')",
-                "    status = 'ok' if managed_wrapper_exists and managed_archi_binary_exists else ('degraded' if path_archi else 'missing')",
+                "    archi_help = _probe(path_archi)",
+                "    help_text = ''",
+                "    if path_archi:",
+                '        result = subprocess.run([path_archi, "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=20, check=False)',
+                "        help_text = (result.stdout + result.stderr).lower()",
+                "    bundled_hippo = 'available' if '--refresh-from-hippos' in help_text or 'hippo' in help_text else 'unknown'",
+                "    bundled_llmgateway = 'available' if '--check' in help_text or '--full' in help_text or 'llm' in help_text else 'unknown'",
+                "    if not path_archi or archi_help == 'failed':",
+                "        status = 'missing' if not path_archi else 'failed'",
+                "    elif bundled_hippo != 'available' or bundled_llmgateway != 'available':",
+                "        status = 'degraded'",
+                '    else:',
+                "        status = 'ok'",
                 "    print(f'architec_status: {status}')",
-                "    print(f'managed_wrapper_exists: {managed_wrapper_exists}')",
-                "    print(f'managed_archi_binary_exists: {managed_archi_binary_exists}')",
-                "    print(f'selected_kind: {selected_kind}')",
-                "    print('llmgateway_config: ' + ('present' if llmgateway.is_file() else 'missing'))",
-                "    return 0 if status == 'ok' else 1",
+                "    print('package: @seemseam/architec')",
+                "    print('install_command: npm install -g @seemseam/architec')",
+                "    print('archi_binary: ' + (path_archi or ''))",
+                "    print('archi_help: ' + archi_help)",
+                "    print('bundled_hippo: ' + bundled_hippo)",
+                "    print('bundled_llmgateway: ' + bundled_llmgateway)",
+                "    return 0 if status in {'ok', 'degraded'} else 1",
                 '',
                 '',
                 "raise SystemExit(main())",
@@ -1686,18 +1701,18 @@ def test_roles_install_repairs_drifted_content_addressed_target(tmp_path: Path, 
     assert second['digest'] == f'sha256:{tree_digest(target)}'
 
 
-def test_archi_doctor_degrades_when_managed_wrapper_missing(tmp_path: Path, monkeypatch) -> None:
-    home = tmp_path / 'home'
+def test_archi_doctor_accepts_bundled_capabilities_from_main_cli(tmp_path: Path, monkeypatch) -> None:
     fake_bin = tmp_path / 'bin'
     fake_bin.mkdir()
-    (home / '.llmgateway').mkdir(parents=True)
-    (home / '.llmgateway' / 'config.yaml').write_text('version: 1\n', encoding='utf-8')
     fake_archi = fake_bin / 'archi'
-    fake_archi.write_text('#!/usr/bin/env sh\nexit 0\n', encoding='utf-8')
+    fake_archi.write_text(
+        '#!/usr/bin/env sh\n'
+        'if [ "$1" = "--help" ]; then echo "archi --refresh-from-hippos --check --full"; exit 0; fi\n'
+        'exit 0\n',
+        encoding='utf-8',
+    )
     fake_archi.chmod(0o755)
-    monkeypatch.setenv('HOME', str(home))
-    monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'xdg-data'))
-    monkeypatch.setenv('PATH', str(fake_bin))
+    monkeypatch.setenv('PATH', os.pathsep.join((str(fake_bin), os.environ.get('PATH', ''))))
 
     result = subprocess.run(
         [sys.executable, str(_agent_roles_archi() / 'adapters' / 'ccb' / 'tools' / 'doctor.py')],
@@ -1709,13 +1724,70 @@ def test_archi_doctor_degrades_when_managed_wrapper_missing(tmp_path: Path, monk
         check=False,
     )
 
-    assert result.returncode == 1
+    assert result.returncode == 0
     assert result.stderr == ''
-    assert 'architec_status: degraded' in result.stdout
-    assert 'managed_wrapper_exists: False' in result.stdout
-    assert 'managed_archi_binary_exists: False' in result.stdout
-    assert 'selected_kind: path_archi' in result.stdout
-    assert 'llmgateway_config: present' in result.stdout
+    assert 'architec_status: ok' in result.stdout
+    assert 'package: @seemseam/architec' in result.stdout
+    assert 'install_command: npm install -g @seemseam/architec' in result.stdout
+    assert f'archi_binary: {fake_archi}' in result.stdout
+    assert 'bundled_hippo: available' in result.stdout
+    assert 'bundled_llmgateway: available' in result.stdout
+
+
+def test_archi_tool_install_uses_global_npm_package(tmp_path: Path, monkeypatch) -> None:
+    fake_bin = tmp_path / 'bin'
+    fake_bin.mkdir()
+    calls = tmp_path / 'npm-calls.txt'
+    npm = fake_bin / 'npm'
+    npm.write_text(
+        '#!/usr/bin/env sh\n'
+        'printf "%s\\n" "$@" > "$NPM_CALLS"\n'
+        'echo npm-ok\n',
+        encoding='utf-8',
+    )
+    npm.chmod(0o755)
+    monkeypatch.setenv('PATH', os.pathsep.join((str(fake_bin), os.environ.get('PATH', ''))))
+    monkeypatch.setenv('NPM_CALLS', str(calls))
+
+    manifest = load_role_manifest(_agent_roles_archi())
+
+    results = run_role_tool_hooks(manifest, action='install', fail_required=True)
+
+    assert len(results) == 1
+    assert results[0]['tool_id'] == 'architec'
+    assert results[0]['status'] == 'ok'
+    assert calls.read_text(encoding='utf-8').splitlines() == ['install', '-g', '@seemseam/architec']
+    assert 'package: @seemseam/architec' in str(results[0]['stdout'])
+    assert 'install_command:' in str(results[0]['stdout'])
+    assert 'npm-ok' in str(results[0]['stdout'])
+
+
+def test_archi_tool_doctor_checks_bundled_capabilities_without_install(tmp_path: Path, monkeypatch) -> None:
+    fake_bin = tmp_path / 'bin'
+    fake_bin.mkdir()
+    binary = fake_bin / 'archi'
+    binary.write_text(
+        '#!/usr/bin/env sh\n'
+        'if [ "$1" = "--help" ]; then echo "archi --refresh-from-hippos --check --full"; exit 0; fi\n'
+        'exit 0\n',
+        encoding='utf-8',
+    )
+    binary.chmod(0o755)
+    monkeypatch.setenv('PATH', os.pathsep.join((str(fake_bin), os.environ.get('PATH', ''))))
+
+    manifest = load_role_manifest(_agent_roles_archi())
+
+    results = run_role_tool_hooks(manifest, action='doctor', fail_required=True)
+
+    assert len(results) == 1
+    assert results[0]['tool_id'] == 'architec'
+    assert results[0]['status'] == 'ok'
+    stdout = str(results[0]['stdout'])
+    assert 'architec_status: ok' in stdout
+    assert f'archi_binary: {fake_bin / "archi"}' in stdout
+    assert 'bundled_hippo: available' in stdout
+    assert 'bundled_llmgateway: available' in stdout
+    assert 'install_command: npm install -g @seemseam/architec' in stdout
 
 
 def test_roles_update_cli_runs_tool_hooks_by_default(tmp_path: Path, monkeypatch) -> None:
@@ -1943,7 +2015,8 @@ def test_role_memory_is_included_before_agent_private_memory(tmp_path: Path, mon
     assert len(role_sources) == 2
     assert 'architecture reviewer' in role_memory.lower()
     assert 'Architec is the architecture analysis CLI' in role_memory
-    assert 'managed Architec wrapper named `ccb-archi`' in role_memory
+    assert '@seemseam/architec' in role_memory
+    assert 'Do not split Hippo or llmgateway into CCB-managed pip, venv, git, or editable installs' in role_memory
     assert 'llmgateway secrets' in role_memory
 
 

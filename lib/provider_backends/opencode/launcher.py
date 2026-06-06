@@ -87,7 +87,10 @@ def build_start_cmd(
     if project_root is None:
         raise RuntimeError('OpenCode launch requires prepare_launch_context before build_start_cmd')
     profile = load_resolved_provider_profile(runtime_dir)
-    memory_env = _opencode_memory_env(_path_or_none(launch_context.get('opencode_config_path')), profile)
+    opencode_env = {
+        'OPENCODE_DISABLE_AUTOUPDATE': 'true',
+        **_opencode_memory_env(_path_or_none(launch_context.get('opencode_config_path')), profile),
+    }
     cmd_parts = provider_start_parts('opencode')
     if command.restore:
         cmd_parts.append('--continue')
@@ -96,7 +99,7 @@ def build_start_cmd(
     cmd = apply_provider_command_template(cmd, spec.provider_command_template)
     env_prefix = join_env_prefix(
         export_env_clause(provider_user_session_env()),
-        export_env_clause(memory_env),
+        export_env_clause(opencode_env),
         export_env_clause(
             caller_context_env(actor=spec.name, runtime_dir=runtime_dir, launch_session_id=launch_session_id)
         ),
@@ -354,6 +357,7 @@ def _render_opencode_config(*, project_root: Path, memory_instruction: str) -> _
             merge_reason = type(exc).__name__
             warnings.append(f'opencode_config_merge_failed: {type(exc).__name__}: {exc}')
     payload.setdefault('$schema', 'https://opencode.ai/config.json')
+    payload['autoupdate'] = False
     payload['instructions'] = _merge_instruction_entries(payload.get('instructions'), memory_instruction)
     text = json.dumps(payload, ensure_ascii=False, indent=2) + '\n'
     return _RenderedOpenCodeConfig(
