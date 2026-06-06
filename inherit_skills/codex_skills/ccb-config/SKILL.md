@@ -1,6 +1,6 @@
 ---
 name: ccb-config
-description: Design, edit, or migrate CCB project teams by updating .ccb/ccb.config. Use when the user wants to configure agents, providers, roles, workspaces, windows topology, managed tool windows, sidebar behavior, model/API shortcuts, provider command templates, or runtime policy. This skill is config-only: it must not edit workflow memory, provider-state homes, installed roles, or runtime state.
+description: "Design, edit, or migrate CCB project teams by updating .ccb/ccb.config. Use when the user wants to configure agents, providers, roles, workspaces, windows topology, managed tool windows, sidebar behavior, model/API shortcuts, provider command templates, or runtime policy. This skill is config-only: it must not edit workflow memory, provider-state homes, installed roles, or runtime state."
 ---
 
 # CCB Config
