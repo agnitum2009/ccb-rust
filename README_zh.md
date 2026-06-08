@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.3.7-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.3.8-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **中文** | [English](README.md)
@@ -527,6 +527,16 @@ v7 线重点：
 - 加固 tmux、Ghostty、release helper、Codex trust 和 provider 会话恢复路径。
 
 <details open>
+<summary><b>v7.3.8</b> - AGY adapter 与项目 tmux history</summary>
+
+- 新增 Antigravity (`agy`) `pane_quiet` execution adapter，包含协议解析、命令分发、轮询和配套文档，可作为 CCB 托管 provider 运行。
+- CCB 托管项目 tmux session 默认保留 50000 行 scrollback history，并覆盖 project namespace 创建/复用和 detached runtime fallback 路径。
+- 在 authoritative project session 存在后，稳定重放 tmux mouse、vi key、clipboard、focus 和 history 策略。
+- Claude startup 会尽量以内联 JSON 传递 `--settings`，避免非 ASCII source path 在 provider 启动链路中失效。
+
+</details>
+
+<details>
 <summary><b>v7.3.7</b> - Ask 参数策略与 skill 指引</summary>
 
 - inherited Claude、Codex、Droid ask skills 改为先按结果意图选择参数：`--silence`、`--compact`、`--artifact-reply` 或普通 `ask`。

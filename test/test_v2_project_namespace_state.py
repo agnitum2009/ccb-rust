@@ -338,6 +338,11 @@ class _FakeTmuxBackend:
         if len(args) >= 5 and args[:2] == ['set-window-option', '-t']:
             self.window_options.setdefault(args[2], {})[args[3]] = args[4]
             return SimpleNamespace(returncode=0, stdout='', stderr='')
+        if len(args) >= 4 and args[:2] == ['set-window-option', '-g']:
+            self.window_options.setdefault('__global__', {})[args[2]] = args[3]
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
+        if args[:1] == ['bind-key']:
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
         if len(args) >= 5 and args[:2] == ['set-hook', '-t']:
             self.hooks.setdefault(args[2], {})[args[3]] = args[4]
             return SimpleNamespace(returncode=0, stdout='', stderr='')

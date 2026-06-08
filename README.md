@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.3.7-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.3.8-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -536,6 +536,16 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
+<summary><b>v7.3.8</b> - AGY Adapter And Project Tmux History</summary>
+
+- Adds the Antigravity (`agy`) `pane_quiet` execution adapter with protocol parsing, command dispatch, polling, and docs for managed provider operation.
+- Preserves 50000 lines of scrollback history for CCB-managed project tmux sessions, including project namespace create/reuse and detached runtime fallback paths.
+- Keeps tmux mouse, vi key, clipboard, focus, and history policies consistently reapplied after the authoritative project session exists.
+- Hardens Claude startup by passing inline `--settings` JSON when possible, preserving non-ASCII source paths through provider launch.
+
+</details>
+
+<details>
 <summary><b>v7.3.7</b> - Ask Parameter Policy And Skill Guidance</summary>
 
 - Updates inherited Claude, Codex, and Droid ask skills to choose flags from result intent first: `--silence`, `--compact`, `--artifact-reply`, or plain `ask`.
