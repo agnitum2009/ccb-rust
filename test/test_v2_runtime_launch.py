@@ -231,6 +231,11 @@ def _assert_caller_env_exports(start_cmd: str, *, actor: str, runtime_dir: Path,
     assert f'CCB_SESSION_ID={shlex.quote(session_id)}' in start_cmd
 
 
+def _claude_settings_arg(start_cmd: str) -> str:
+    parts = shlex.split(start_cmd)
+    return parts[parts.index('--settings') + 1]
+
+
 def _write_codex_plugin_source(
     home: Path,
     *,
@@ -906,17 +911,18 @@ def test_ensure_agent_runtime_launches_named_claude_session(monkeypatch, tmp_pat
         runtime_dir=ctx.paths.agent_dir('reviewer') / 'provider-runtime' / 'claude',
         session_id=payload['ccb_session_id'],
     )
-    assert payload['start_cmd'].endswith(
-        f'claude --setting-sources user,project,local --settings '
-        f'{shlex.quote(str(ctx.paths.agent_dir("reviewer") / "provider-runtime" / "claude" / "claude-settings.json"))} '
-        '--permission-mode bypassPermissions --continue'
-    )
     settings_payload = json.loads(
         (ctx.paths.agent_dir('reviewer') / 'provider-runtime' / 'claude' / 'claude-settings.json').read_text(
             encoding='utf-8'
         )
     )
     assert settings_payload['skipDangerousModePermissionPrompt'] is True
+    assert json.loads(_claude_settings_arg(payload['start_cmd'])) == settings_payload
+    assert payload['start_cmd'].endswith(
+        f'claude --setting-sources user,project,local --settings '
+        f'{shlex.quote(json.dumps(settings_payload, ensure_ascii=False))} '
+        '--permission-mode bypassPermissions --continue'
+    )
     assert tmux_state['title'] == ('%44', 'reviewer')
     assert tmux_state['user_option'] == ('%44', '@ccb_project_id', ctx.project.project_id)
 
@@ -1184,6 +1190,7 @@ def test_ensure_agent_runtime_falls_back_to_detached_tmux_session(monkeypatch, t
     assert any(name == 'start-server' for name, _ in calls)
     assert any(name == 'set-option' for name, _ in calls)
     assert ('set-option', ('set-option', '-g', 'mouse', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'history-limit', '50000')) in calls
     assert ('set-option', ('set-option', '-g', 'set-clipboard', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'focus-events', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'escape-time', '10')) in calls
@@ -1364,6 +1371,7 @@ def test_ensure_agent_runtime_outside_tmux_relaunches_stale_binding_via_detached
     assert ('kill', ('sock-dead', '%44')) in calls
     assert any(name == 'start-server' for name, _ in calls)
     assert ('set-option', ('set-option', '-g', 'mouse', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'history-limit', '50000')) in calls
     assert ('set-option', ('set-option', '-g', 'set-clipboard', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'focus-events', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'escape-time', '10')) in calls
@@ -1589,6 +1597,7 @@ def test_ensure_agent_runtime_falls_back_when_created_pane_is_too_small(monkeypa
     assert any(name == 'start-server' for name, _ in calls)
     assert any(name == 'set-option' for name, _ in calls)
     assert ('set-option', ('set-option', '-g', 'mouse', 'on')) in calls
+    assert ('set-option', ('set-option', '-g', 'history-limit', '50000')) in calls
     assert ('set-option', ('set-option', '-g', 'set-clipboard', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'focus-events', 'on')) in calls
     assert ('set-option', ('set-option', '-g', 'escape-time', '10')) in calls
@@ -1952,12 +1961,13 @@ def test_claude_launcher_build_start_cmd_uses_overlay_and_drops_dead_local_user_
         runtime_dir=runtime_dir,
         session_id='claude-sess-1',
     )
-    assert start_cmd.endswith(
-        f'claude --setting-sources user,project,local --settings {shlex.quote(str(runtime_dir / "claude-settings.json"))} '
-        '--permission-mode bypassPermissions --continue'
-    )
     settings_payload = json.loads((runtime_dir / 'claude-settings.json').read_text(encoding='utf-8'))
     assert settings_payload['skipDangerousModePermissionPrompt'] is True
+    assert json.loads(_claude_settings_arg(start_cmd)) == settings_payload
+    assert start_cmd.endswith(
+        f'claude --setting-sources user,project,local --settings {shlex.quote(json.dumps(settings_payload, ensure_ascii=False))} '
+        '--permission-mode bypassPermissions --continue'
+    )
 
 
 def test_claude_launcher_provider_command_template_wraps_command_after_env_prefix(
@@ -2835,10 +2845,11 @@ def test_claude_launcher_build_start_cmd_uses_isolated_profile_api_env(monkeypat
     assert 'unset ANTHROPIC_AUTH_TOKEN' in start_cmd
     assert f'ANTHROPIC_AUTH_TOKEN={shlex.quote("profile-token")}' in start_cmd
     assert 'https://example.invalid/claude' not in start_cmd
-    assert f'--settings {shlex.quote(str(runtime_dir / "claude-settings.json"))}' in start_cmd
-    assert '--permission-mode bypassPermissions' in start_cmd
     settings_payload = json.loads((runtime_dir / 'claude-settings.json').read_text(encoding='utf-8'))
     assert settings_payload['skipDangerousModePermissionPrompt'] is True
+    assert json.loads(_claude_settings_arg(start_cmd)) == settings_payload
+    assert f'--settings {shlex.quote(json.dumps(settings_payload, ensure_ascii=False))}' in start_cmd
+    assert '--permission-mode bypassPermissions' in start_cmd
 
 
 def test_claude_launcher_build_start_cmd_uses_agent_settings_overlay_when_present(monkeypatch, tmp_path: Path) -> None:
@@ -2894,10 +2905,13 @@ def test_claude_launcher_build_start_cmd_uses_agent_settings_overlay_when_presen
         runtime_dir=runtime_dir,
         session_id='claude-sess-local',
     )
+    settings_payload = json.loads(settings_path.read_text(encoding='utf-8'))
+    assert settings_payload == {'model': 'opus'}
+    assert json.loads(_claude_settings_arg(start_cmd)) == settings_payload
     assert start_cmd.endswith(
-        f'claude --setting-sources user,project,local --settings {shlex.quote(str(settings_path))}'
+        f'claude --setting-sources user,project,local --settings '
+        f'{shlex.quote(json.dumps(settings_payload, ensure_ascii=False))}'
     )
-    assert json.loads(settings_path.read_text(encoding='utf-8')) == {'model': 'opus'}
 
 
 def test_claude_launcher_build_start_cmd_ignores_profile_runtime_home(monkeypatch, tmp_path: Path) -> None:

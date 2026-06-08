@@ -338,6 +338,11 @@ class _FakeTmuxBackend:
         if len(args) >= 5 and args[:2] == ['set-window-option', '-t']:
             self.window_options.setdefault(args[2], {})[args[3]] = args[4]
             return SimpleNamespace(returncode=0, stdout='', stderr='')
+        if len(args) >= 4 and args[:2] == ['set-window-option', '-g']:
+            self.window_options.setdefault('__global__', {})[args[2]] = args[3]
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
+        if args[:1] == ['bind-key']:
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
         if len(args) >= 5 and args[:2] == ['set-hook', '-t']:
             self.hooks.setdefault(args[2], {})[args[3]] = args[4]
             return SimpleNamespace(returncode=0, stdout='', stderr='')
@@ -783,6 +788,7 @@ def test_project_namespace_controller_applies_server_policy_when_reusing_session
     assert namespace.created_this_call is False
     assert (['set-option', '-g', 'destroy-unattached', 'off'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'mouse', 'on'], True) in backend.tmux_calls
+    assert (['set-option', '-g', 'history-limit', '50000'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'set-clipboard', 'on'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'focus-events', 'on'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'escape-time', '10'], True) in backend.tmux_calls
@@ -1153,6 +1159,7 @@ def test_project_namespace_controller_uses_silent_server_commands(tmp_path: Path
     assert (['start-server'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'destroy-unattached', 'off'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'mouse', 'on'], True) in backend.tmux_calls
+    assert (['set-option', '-g', 'history-limit', '50000'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'set-clipboard', 'on'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'focus-events', 'on'], True) in backend.tmux_calls
     assert (['set-option', '-g', 'escape-time', '10'], True) in backend.tmux_calls

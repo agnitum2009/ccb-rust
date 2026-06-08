@@ -125,6 +125,7 @@ def prepare_detached_tmux_server(backend) -> None:
     best_effort_tmux_run(backend, ['start-server'])
     best_effort_tmux_run(backend, ['set-option', '-g', 'destroy-unattached', 'off'])
     best_effort_tmux_run(backend, ['set-option', '-g', 'mouse', 'on'])
+    best_effort_tmux_run(backend, ['set-option', '-g', 'history-limit', '50000'])
     best_effort_tmux_run(backend, ['set-option', '-g', 'set-clipboard', 'on'])
     best_effort_tmux_run(backend, ['set-option', '-g', 'focus-events', 'on'])
     best_effort_tmux_run(backend, ['set-option', '-g', 'escape-time', '10'])
