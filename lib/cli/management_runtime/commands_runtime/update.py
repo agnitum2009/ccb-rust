@@ -29,6 +29,7 @@ from .matching import find_matching_version, latest_version
 POST_UPDATE_COMMAND = "__post-update"
 POST_UPDATE_TIMEOUT_SECONDS = 300.0
 ENTRYPOINT_SMOKE_TIMEOUT_SECONDS = 30.0
+DEFAULT_CATALOG_ROLE_IDS = ('agentroles.archi', 'agentroles.ccb_self')
 
 
 def set_tmux_ui_active(active: bool) -> None:
@@ -402,20 +403,26 @@ def _update_catalog_roles_after_update(*, install_dir: Path) -> int:
         return 1
     if choice == 'declined':
         print('ℹ️  Role Pack update skipped.')
-        _print_catalog_followups(rows)
+        _print_catalog_followups(rows, include_default_roles=True)
         return 0
     if choice == 'noninteractive-skip':
         print('ℹ️  Role Pack update skipped in non-interactive update.')
-        _print_catalog_followups(rows)
+        _print_catalog_followups(rows, include_default_roles=True)
         return 0
     failures = _refresh_installed_catalog_roles(rows, install_dir=install_dir)
-    try:
-        refreshed_rows = tuple(role_catalog_status(refresh_default=True))
-    except Exception:
-        refreshed_rows = rows
+    refreshed_rows = _refresh_catalog_rows(rows)
+    failures += _install_default_catalog_roles(refreshed_rows, install_dir=install_dir)
+    refreshed_rows = _refresh_catalog_rows(refreshed_rows)
     _print_catalog_followups(refreshed_rows)
     failures += _install_new_catalog_roles_interactive(refreshed_rows, install_dir=install_dir)
     return failures
+
+
+def _refresh_catalog_rows(fallback: tuple[dict[str, object], ...]) -> tuple[dict[str, object], ...]:
+    try:
+        return tuple(role_catalog_status(refresh_default=True))
+    except Exception:
+        return fallback
 
 
 def _refresh_installed_catalog_roles(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> int:
@@ -445,19 +452,53 @@ def _refresh_installed_catalog_roles(rows: tuple[dict[str, object], ...], *, ins
     return failures
 
 
-def _print_catalog_followups(rows: tuple[dict[str, object], ...]) -> None:
-    available = [row for row in rows if row.get('status') == 'available']
+def _install_default_catalog_roles(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> int:
+    default_ids = set(DEFAULT_CATALOG_ROLE_IDS)
+    available = [
+        row
+        for row in rows
+        if row.get('status') == 'available' and str(row.get('role_id') or '').strip() in default_ids
+    ]
+    if not available:
+        return 0
+    stdout = sys.stdout
+    stderr = sys.stderr
+    failures = 0
+    for role_id in DEFAULT_CATALOG_ROLE_IDS:
+        if not any(str(row.get('role_id') or '').strip() == role_id for row in available):
+            continue
+        code = cmd_roles(['install', role_id], script_root=install_dir, cwd=Path.cwd(), stdout=stdout, stderr=stderr)
+        if code == 0:
+            print(f'✅ Default Role Pack installed: {role_id}')
+        else:
+            failures += 1
+            print(f'⚠️  Default Role Pack install failed: {role_id}')
+    if failures:
+        print(f'⚠️  Default Role Pack installs had {failures} failure(s).')
+    return failures
+
+
+def _print_catalog_followups(rows: tuple[dict[str, object], ...], *, include_default_roles: bool = False) -> None:
+    default_ids = set(DEFAULT_CATALOG_ROLE_IDS)
+    available_rows = [
+        row
+        for row in rows
+        if row.get('status') == 'available'
+    ]
+    recommended = [
+        row
+        for row in available_rows
+        if include_default_roles and str(row.get('role_id') or '').strip() in default_ids
+    ]
+    available = [row for row in available_rows if str(row.get('role_id') or '').strip() not in default_ids]
     missing = [row for row in rows if row.get('status') == 'installed_source_missing']
+    if recommended:
+        print('⭐ Recommended Agent Roles available:')
+        _print_catalog_role_rows(recommended)
+        print('   Install with `ccb roles install <role-id>`; bind with `ccb roles add <role-id>:<provider>`.')
     if available:
         print('🆕 New Agent Roles available:')
-        for index, row in enumerate(available, start=1):
-            role_id = str(row.get('role_id') or '').strip()
-            version = str(row.get('version') or '').strip()
-            name = str(row.get('name') or '').strip()
-            description = _short_catalog_text(str(row.get('description') or '').strip())
-            label = f'{role_id} v{version}' if version else role_id
-            details = ' - '.join(item for item in (name, description) if item)
-            print(f'   {index}. {label}' + (f': {details}' if details else ''))
+        _print_catalog_role_rows(available)
         print('   Install with `ccb roles install <role-id>`; bind with `ccb roles add <role-id>:<provider>`.')
     for row in missing:
         role_id = str(row.get('role_id') or '').strip()
@@ -465,8 +506,24 @@ def _print_catalog_followups(rows: tuple[dict[str, object], ...]) -> None:
         print(f'⚠️  Installed Role Pack source missing: {role_id}' + (f' ({source_path})' if source_path else ''))
 
 
+def _print_catalog_role_rows(rows: list[dict[str, object]]) -> None:
+    for index, row in enumerate(rows, start=1):
+        role_id = str(row.get('role_id') or '').strip()
+        version = str(row.get('version') or '').strip()
+        name = str(row.get('name') or '').strip()
+        description = _short_catalog_text(str(row.get('description') or '').strip())
+        label = f'{role_id} v{version}' if version else role_id
+        details = ' - '.join(item for item in (name, description) if item)
+        print(f'   {index}. {label}' + (f': {details}' if details else ''))
+
+
 def _install_new_catalog_roles_interactive(rows: tuple[dict[str, object], ...], *, install_dir: Path) -> int:
-    available = [row for row in rows if row.get('status') == 'available']
+    available = [
+        row
+        for row in rows
+        if row.get('status') == 'available'
+        and str(row.get('role_id') or '').strip() not in DEFAULT_CATALOG_ROLE_IDS
+    ]
     if not available or not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
         return 0
     print('Install newly available Agent Roles now? Enter numbers, all, or blank to skip: ', end='', flush=True)
@@ -536,7 +593,7 @@ def _roles_update_choice() -> str:
         return 'accepted'
     if not _stream_is_tty(sys.stdin) or not _stream_is_tty(sys.stdout):
         return 'noninteractive-skip'
-    print('Refresh installed Agent Roles from the catalog now? [Y/n] ', end='', flush=True)
+    print('Refresh installed and recommended Agent Roles from the catalog now? [Y/n] ', end='', flush=True)
     try:
         answer = sys.stdin.readline()
     except Exception:

@@ -2941,25 +2941,44 @@ provision_role_packs() {
     echo "WARN: Role Pack provisioning skipped; ccb entrypoint not executable: $ccb_entry"
     return 0
   fi
-  local log_file
-  log_file="$(mktemp "${TMPDIR:-/tmp}/ccb-roles-install.XXXXXX")"
-  if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles update agentroles.archi >"$log_file" 2>&1; then
-    rm -f "$log_file"
+  local failures=0
+  local role_id
+  for role_id in agentroles.archi agentroles.ccb_self; do
+    if provision_default_role_pack "$ccb_entry" "$role_id"; then
+      continue
+    fi
+    failures=$((failures + 1))
+  done
+  if [[ "$failures" == "0" ]]; then
     echo "OK: Role Packs ready"
     return 0
   fi
+  echo "WARN: Role Pack provisioning failed for $failures default role(s)"
+  [[ "$required" == "1" ]] && return 1 || return 0
+}
+
+provision_default_role_pack() {
+  local ccb_entry="$1"
+  local role_id="$2"
+  local log_file
+  log_file="$(mktemp "${TMPDIR:-/tmp}/ccb-roles-install.XXXXXX")"
+  if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles update "$role_id" >"$log_file" 2>&1; then
+    rm -f "$log_file"
+    echo "OK: Role Pack ready: $role_id"
+    return 0
+  fi
   if grep -qiE 'role .*not installed|run .*roles install|run agent-roles install' "$log_file" 2>/dev/null; then
-    echo "INFO: Role Pack not installed yet; installing agentroles.archi."
-    if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles install agentroles.archi >"$log_file" 2>&1; then
+    echo "INFO: Role Pack not installed yet; installing $role_id."
+    if CODEX_BIN_DIR="$BIN_DIR" "$ccb_entry" roles install "$role_id" >"$log_file" 2>&1; then
       rm -f "$log_file"
-      echo "OK: Role Packs ready"
+      echo "OK: Role Pack ready: $role_id"
       return 0
     fi
   fi
-  echo "WARN: Role Pack provisioning failed"
+  echo "WARN: Role Pack provisioning failed: $role_id"
   sed 's/^/   /' "$log_file" 2>/dev/null || true
   rm -f "$log_file"
-  [[ "$required" == "1" ]] && return 1 || return 0
+  return 1
 }
 
 provision_neovim_tool() {

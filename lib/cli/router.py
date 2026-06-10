@@ -99,6 +99,9 @@ def print_start_help(*, file=None) -> None:
 
             Roles:
               ccb roles list
+              ccb roles install agentroles.ccb_self
+              ccb roles update agentroles.ccb_self
+              ccb roles add agentroles.ccb_self:codex
               ccb roles install agentroles.archi
               ccb roles update agentroles.archi
               ccb roles sync [path]
@@ -371,6 +374,10 @@ _COMMAND_HELP = {
 
         Role Pack management:
           ccb roles list
+          ccb roles show agentroles.ccb_self
+          ccb roles install agentroles.ccb_self
+          ccb roles update agentroles.ccb_self
+          ccb roles add agentroles.ccb_self:codex
           ccb roles show agentroles.archi
           ccb roles install agentroles.archi
           ccb roles update agentroles.archi

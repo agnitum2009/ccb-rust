@@ -112,6 +112,7 @@ def test_install_role_pack_provisioning_runs_by_default_without_prompt(tmp_path:
     assert "Install catalog Role Packs and dependencies now?" not in completed.stdout
     assert "Role Pack provisioning skipped in non-interactive install" not in completed.stdout
     assert "roles update agentroles.archi" in completed.stdout
+    assert "roles update agentroles.ccb_self" in completed.stdout
 
 
 def test_install_neovim_provisioning_runs_by_default_without_prompt(tmp_path: Path) -> None:

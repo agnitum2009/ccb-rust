@@ -1,6 +1,6 @@
 # CCB Self Role Roadmap
 
-Date: 2026-06-09
+Date: 2026-06-10
 
 ## Done
 
@@ -73,17 +73,25 @@ Date: 2026-06-09
   `/home/bfly/.ccb/deprecated/ccb-config-public-20260610T081814+0800` and
   verified the current project now exposes `ccb-config` only through the
   Role-owned `ccb_self` private skill symlink.
+- Added the CCB-side 7.4.0 provisioning direction: `install.sh install` now
+  attempts to install or refresh `agentroles.ccb_self` as a recommended default
+  Role Pack, post-update Role Pack provisioning installs missing recommended
+  roles, and docs strongly recommend explicit project binding with
+  `ccb roles add agentroles.ccb_self:codex`.
+- Recorded the default install boundary in
+  [decisions/004-default-recommended-install.md](decisions/004-default-recommended-install.md):
+  role assets are prepared by default, but project topology changes remain
+  explicit.
 
 ## In Progress
 
-- Wire the materialized Role into CCB role mounting/runtime behavior.
+- Finish 7.4.0 release validation and push after review.
 
 ## Next
 
-1. Add CCB-side `roles install/show/add/doctor agentroles.ccb_self` validation.
-2. Decide whether to add a separate non-self delegation stub; the full inherited
+1. Decide whether to add a separate non-self delegation stub; the full inherited
    `ccb-config` source has been removed.
-3. Add the v1 structured MCP/control-plane diagnostic helper contracts.
+2. Add the v1 structured MCP/control-plane diagnostic helper contracts.
 
 ## Deferred
 

@@ -47,6 +47,9 @@ business task executor.
   of shipping it as a universally inherited skill.
 - [decisions/003-bounded-autonomy.md](decisions/003-bounded-autonomy.md):
   decision to give `ccb_self` stronger bounded autonomy for maintenance tasks.
+- [decisions/004-default-recommended-install.md](decisions/004-default-recommended-install.md):
+  decision to install or refresh `agentroles.ccb_self` by default while keeping
+  project binding explicit.
 - [drafts/agentroles.ccb_self/](drafts/agentroles.ccb_self/): reviewable draft
   Role Pack payload for `agentroles.ccb_self`; production content should move
   to the role catalog or an accepted local role source after review.

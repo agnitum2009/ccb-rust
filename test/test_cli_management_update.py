@@ -497,6 +497,13 @@ def test_post_update_required_selected_new_role_install_failure_returns_failure(
     monkeypatch.setenv("CCB_INSTALL_ROLES", "1")
     rows = (
         {
+            "role_id": "agentroles.ccb_self",
+            "status": "available",
+            "version": "0.1.0",
+            "name": "CCB Self",
+            "description": "Maintains CCB projects.",
+        },
+        {
             "role_id": "agentroles.new",
             "status": "available",
             "version": "0.1.0",
@@ -526,6 +533,34 @@ def test_post_update_required_selected_new_role_install_failure_returns_failure(
     output = stdout.getvalue() + captured.out
     assert "Role Pack install failed: agentroles.new" in output
     assert "Role Pack installs had 1 failure" in output
+
+
+def test_post_update_required_default_role_install_failure_returns_failure(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    _clear_post_update_env(monkeypatch)
+    monkeypatch.setenv("CCB_INSTALL_ROLES", "1")
+    rows = (
+        {
+            "role_id": "agentroles.ccb_self",
+            "status": "available",
+            "version": "0.1.0",
+            "name": "CCB Self",
+            "description": "Maintains CCB projects.",
+        },
+    )
+    monkeypatch.setattr(update_runtime, "role_catalog_status", lambda **_kwargs: rows)
+    monkeypatch.setattr(update_runtime, "cmd_roles", lambda *_args, **_kwargs: 42)
+    monkeypatch.setattr(update_runtime, "_provision_neovim_after_update", lambda: None)
+
+    code = update_runtime._run_post_update_provisioning(install_dir=tmp_path / "install")
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "Default Role Pack install failed: agentroles.ccb_self" in captured.out
+    assert "Default Role Pack installs had 1 failure" in captured.out
 
 
 def test_post_update_internal_command_runs_new_process_provisioning(monkeypatch, tmp_path: Path) -> None:
@@ -627,6 +662,13 @@ def test_update_roles_prompt_accepts_interactive_default(monkeypatch, tmp_path: 
             "description": "Reviews architecture drift.",
         },
         {
+            "role_id": "agentroles.ccb_self",
+            "status": "available",
+            "version": "0.1.0",
+            "name": "CCB Self",
+            "description": "Maintains CCB projects.",
+        },
+        {
             "role_id": "agentroles.new",
             "status": "available",
             "version": "0.1.0",
@@ -656,9 +698,13 @@ def test_update_roles_prompt_accepts_interactive_default(monkeypatch, tmp_path: 
 
     update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
 
-    assert calls == [{"argv": ["update", "agentroles.archi"], "script_root": tmp_path / "install", "cwd": Path.cwd()}]
-    assert "Refresh installed Agent Roles from the catalog now?" in stdout.getvalue()
+    assert calls == [
+        {"argv": ["update", "agentroles.archi"], "script_root": tmp_path / "install", "cwd": Path.cwd()},
+        {"argv": ["install", "agentroles.ccb_self"], "script_root": tmp_path / "install", "cwd": Path.cwd()},
+    ]
+    assert "Refresh installed and recommended Agent Roles from the catalog now?" in stdout.getvalue()
     assert "Role Pack updated: agentroles.archi" in stdout.getvalue()
+    assert "Default Role Pack installed: agentroles.ccb_self" in stdout.getvalue()
     assert "New Agent Roles available" in stdout.getvalue()
     assert "agentroles.new v0.1.0" in stdout.getvalue()
 
@@ -700,6 +746,13 @@ def test_update_roles_current_status_does_not_run_update_hooks(monkeypatch, tmp_
 def test_update_roles_prompt_declines_without_update(monkeypatch, tmp_path: Path) -> None:
     rows = (
         {
+            "role_id": "agentroles.ccb_self",
+            "status": "available",
+            "version": "0.1.0",
+            "name": "CCB Self",
+            "description": "Maintains CCB projects.",
+        },
+        {
             "role_id": "agentroles.new",
             "status": "available",
             "version": "0.1.0",
@@ -728,11 +781,20 @@ def test_update_roles_prompt_declines_without_update(monkeypatch, tmp_path: Path
     update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
 
     assert "Role Pack update skipped" in stdout.getvalue()
+    assert "Recommended Agent Roles available" in stdout.getvalue()
+    assert "agentroles.ccb_self v0.1.0" in stdout.getvalue()
     assert "agentroles.new v0.1.0" in stdout.getvalue()
 
 
 def test_update_roles_noninteractive_skips_without_prompt(monkeypatch, tmp_path: Path) -> None:
     rows = (
+        {
+            "role_id": "agentroles.ccb_self",
+            "status": "available",
+            "version": "0.1.0",
+            "name": "CCB Self",
+            "description": "Maintains CCB projects.",
+        },
         {
             "role_id": "agentroles.new",
             "status": "available",
@@ -759,6 +821,8 @@ def test_update_roles_noninteractive_skips_without_prompt(monkeypatch, tmp_path:
     update_runtime._update_builtin_roles_after_update(install_dir=tmp_path / "install")
 
     assert "non-interactive update" in stdout.getvalue()
+    assert "Recommended Agent Roles available" in stdout.getvalue()
+    assert "agentroles.ccb_self v0.1.0" in stdout.getvalue()
     assert "agentroles.new v0.1.0" in stdout.getvalue()
 
 

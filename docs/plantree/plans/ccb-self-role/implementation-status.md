@@ -4,10 +4,11 @@ Date: 2026-06-10
 
 ## Current Phase
 
-Preview Role is mounted in the current CCB project as `ccb_self`. Public
-inherited `ccb-config` residue has been collected into a deprecation archive,
-and the current `ccb_self` Codex home now exposes the Role-owned private
-`ccb-config` skill only.
+7.4.0 release validation is in progress. The preview Role is mounted in the
+current CCB project as `ccb_self`; public inherited `ccb-config` residue has
+been collected; and the current implementation now prepares
+`agentroles.ccb_self` as a recommended default Role Pack during install/update
+provisioning while keeping project binding explicit.
 
 ## Last Landed
 
@@ -45,22 +46,28 @@ and the current `ccb_self` Codex home now exposes the Role-owned private
   `/home/bfly/.ccb/deprecated/ccb-config-public-20260610T081814+0800`, then
   restored only `ccb_self` with a Role-owned private `ccb-config` symlink and
   projection marker.
+- 2026-06-10: Added the 7.4.0 default install direction for
+  `agentroles.ccb_self`: install/update Role Pack provisioning installs or
+  refreshes recommended default roles, README/README_zh strongly recommend
+  adding `agentroles.ccb_self:codex`, and
+  [decisions/004-default-recommended-install.md](decisions/004-default-recommended-install.md)
+  records that project topology changes remain explicit.
 
 ## Active TODO
 
-1. Add CCB-side install/show/add/mount validation for
-   `agentroles.ccb_self`.
-2. Add handoff matrix tests for diagnose/recover/chain/config routing.
-3. Define or implement the first structured MCP/control-plane helper surface.
-4. Decide whether non-self agents need a separate delegation stub; the full
+1. Finish targeted and full 7.4.0 source validation.
+2. Commit and re-review the default recommended install delta before pushing.
+3. Add handoff matrix tests for diagnose/recover/chain/config routing.
+4. Define or implement the first structured MCP/control-plane helper surface.
+5. Decide whether non-self agents need a separate delegation stub; the full
    public inherited `ccb-config` source has been removed.
 
 ## Blocked By
 
-- `ccb -n` was blocked by dirty managed worktrees (`archi`, `worker1`,
-  `worker2`, `worker3`), so the current project cleanup used deprecation
-  collection plus a targeted Role-owned symlink repair for `ccb_self` instead
-  of a full runtime rebuild.
+- No current implementation blocker. Full current-project rebuild was skipped
+  earlier because dirty managed worktrees (`archi`, `worker1`, `worker2`,
+  `worker3`) made `ccb -n` unsafe; the cleanup used deprecation collection plus
+  targeted Role-owned `ccb_self` symlink repair instead.
 
 ## Last Verified
 

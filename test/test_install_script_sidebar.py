@@ -36,9 +36,11 @@ def test_install_script_provisions_role_packs_softly() -> None:
     assert 'check_role_pack_dependencies required' in text
     assert 'Role Pack provisioning enabled by default' in text
     assert 'Install catalog Role Packs and dependencies now?' not in text
-    assert 'roles update agentroles.archi' in text
-    assert 'Role Pack not installed yet; installing agentroles.archi.' in text
-    assert 'roles install agentroles.archi' in text
+    assert 'for role_id in agentroles.archi agentroles.ccb_self' in text
+    assert 'provision_default_role_pack "$ccb_entry" "$role_id"' in text
+    assert 'roles update "$role_id"' in text
+    assert 'Role Pack not installed yet; installing $role_id.' in text
+    assert 'roles install "$role_id"' in text
     assert 'Missing dependency for Role Pack provisioning: git' in text
     assert 'Missing dependency for Role Pack provisioning: npm' in text
     assert 'nodejs npm' in text

@@ -1,5 +1,21 @@
 # Changelog
 
+## v7.4.0 (2026-06-10)
+
+### ccb_self Maintenance Role
+
+- **CCB Self Role Added**: `agentroles.ccb_self` is the dedicated CCB
+  self-maintenance role for runtime diagnosis, guarded recovery, chain repair,
+  CCB configuration ownership, and single-agent restart assistance.
+- **Private ccb-config Ownership**: full `ccb-config` now lives inside the
+  `ccb_self` Role Pack instead of being inherited by every managed agent.
+- **Recommended Role Provisioning**: install/update Role Pack provisioning now
+  installs or refreshes recommended default roles, including
+  `agentroles.ccb_self`, by default.
+- **Project Adoption Guidance**: README guidance now strongly recommends adding
+  `agentroles.ccb_self:codex` to CCB projects that should have a dedicated
+  maintenance assistant while keeping project topology changes explicit.
+
 ## v7.3.8 (2026-06-08)
 
 ### AGY Adapter And Project Tmux History

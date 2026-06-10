@@ -10,7 +10,7 @@
 
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-7.3.8-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-7.4.0-orange.svg)]()
 [![Release](https://img.shields.io/badge/install-release--first-orange.svg)]()
 
 **English** | [中文](README_zh.md)
@@ -274,17 +274,29 @@ responsibilities, memory, provider-specific skills, tool hooks, and dependency
 setup. This keeps project config short and makes specialized agents reusable
 instead of copying long role instructions into every project.
 
-The current catalog role is `agentroles.archi`, an architecture reviewer role
-from `agent-roles-spec` backed by Architec. More specialized roles will be
-added over time. `install.sh install` automatically attempts to install or
-refresh catalog roles by default; `ccb update` refreshes already installed roles
-and reports new catalog roles. You can also refresh manually:
+The recommended default catalog roles are `agentroles.ccb_self`, the CCB
+self-maintenance role, and `agentroles.archi`, an architecture reviewer role
+from `agent-roles-spec` backed by Architec. `install.sh install` automatically
+attempts to install or refresh these recommended roles by default; `ccb update`
+refreshes installed roles and installs missing recommended roles when Role Pack
+provisioning is accepted. You can also refresh manually:
 
 ```bash
+ccb roles update agentroles.ccb_self
 ccb roles update agentroles.archi
 ```
 
-To use the role in a project, add it as a window leaf:
+`ccb_self` is strongly recommended for CCB projects because it owns CCB config
+maintenance, runtime diagnostics, guarded recovery, and single-agent restart
+assistance without taking over product work. Add it explicitly to each project
+where you want that maintenance agent:
+
+```bash
+ccb roles add agentroles.ccb_self:codex
+ccb reload
+```
+
+To use `agentroles.archi` in a project, add it as a window leaf:
 
 ```bash
 ccb roles add agentroles.archi:codex
@@ -385,14 +397,13 @@ Do not commit real API keys to a public repository. `key` / `url` are agent-loca
 
 ## Use ccb_self For CCB Config
 
-The full `ccb-config` skill belongs to the `agentroles.ccb_self` role. It is not a globally inherited skill for every agent.
+The full `ccb-config` skill belongs to the `agentroles.ccb_self` role. It is not a globally inherited skill for every agent. CCB installs or refreshes this Role Pack by default, but it does not silently add a `ccb_self` agent to existing projects; bind it where you want the maintenance assistant.
 
 If you do not want to hand-write `.ccb/ccb.config`, add `ccb_self` and describe your project goal, parallelism, window grouping, worktree isolation, provider/model/API preferences. `ccb_self` uses its built-in `ccb-config` skill to discuss the shape with you and propose a complete config.
 
 Example:
 
 ```bash
-ccb roles install agentroles.ccb_self
 ccb roles add agentroles.ccb_self:codex
 ccb reload
 ccb ask ccb_self "Design a team for a Python library: main coordinates work, three workers implement in worktrees, and one reviewer checks regressions and risks. Recommend whether this should stay single-window or become main/work/review windows."
@@ -541,6 +552,21 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
+<summary><b>v7.4.0</b> - ccb_self Maintenance Role</summary>
+
+- Adds the `agentroles.ccb_self` self-maintenance Role Pack path for CCB config
+  ownership, diagnostics, guarded recovery, chain repair, and single-agent
+  restart assistance.
+- Moves full `ccb-config` into the private `ccb_self` Role skill instead of a
+  globally inherited skill.
+- Installs or refreshes recommended default Role Packs, including
+  `agentroles.ccb_self`, during install/update Role Pack provisioning.
+- Recommends adding `agentroles.ccb_self:codex` to CCB projects that should
+  have a dedicated maintenance assistant.
+
+</details>
+
+<details>
 <summary><b>v7.3.8</b> - AGY Adapter And Project Tmux History</summary>
 
 - Adds the Antigravity (`agy`) `pane_quiet` execution adapter with protocol parsing, command dispatch, polling, and docs for managed provider operation.
