@@ -1,0 +1,77 @@
+[package]
+name = "ccb-providers"
+version.workspace = true
+edition.workspace = true
+autotests = false
+
+[[test]]
+name = "execution_tests"
+path = "tests/execution_tests.rs"
+
+[[test]]
+name = "opencode_tests"
+path = "tests/opencode_tests.rs"
+
+[[test]]
+name = "provider_codex_tests"
+path = "tests/provider_codex_tests.rs"
+
+[[test]]
+name = "provider_droid_tests"
+path = "tests/provider_droid_tests.rs"
+
+[[test]]
+name = "provider_gemini_tests"
+path = "tests/provider_gemini_tests.rs"
+
+[[test]]
+name = "provider_agy_tests"
+path = "tests/provider_agy_tests.rs"
+
+[[test]]
+name = "runtime_tests"
+path = "tests/runtime_tests.rs"
+
+[[test]]
+name = "provider_opencode_tests"
+path = "tests/provider_opencode_tests.rs"
+
+[[test]]
+name = "provider_codebuddy_tests"
+path = "tests/provider_codebuddy_tests.rs"
+
+[[test]]
+name = "provider_copilot_tests"
+path = "tests/provider_copilot_tests.rs"
+
+[[test]]
+name = "provider_qwen_tests"
+path = "tests/provider_qwen_tests.rs"
+
+[[test]]
+name = "provider_kimi_tests"
+path = "tests/provider_kimi_tests.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+camino = { workspace = true }
+tempfile = { workspace = true }
+libc = "0.2"
+ccb-storage = { workspace = true }
+ccb-types = { workspace = true }
+ccb-provider-core = { workspace = true }
+ccb-completion = { workspace = true }
+ccb-mailbox = { workspace = true }
+ccb-agents = { workspace = true }
+ccb-terminal = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
