@@ -325,6 +325,23 @@ pub fn looks_like_kimi_non_answer(text: &str) -> bool {
         "user requests",
         "user requested",
         "the user wants",
+        "the user asks",
+        "the user requested",
+        "let me ",
+        "let's ",
+        "i'll ",
+        "i will ",
+        "i can ",
+        "i am ",
+        "i'm ",
+        "i need",
+        "i should",
+        "we need",
+        "need ",
+        "now need",
+        "good. ",
+        "no docs lint script",
+        "the task",
     ];
     progress_prefixes
         .iter()

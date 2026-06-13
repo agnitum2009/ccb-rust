@@ -166,6 +166,12 @@ fn test_k2_7_input_box_readiness() {
 fn test_non_answer_progress_detection() {
     assert!(looks_like_kimi_non_answer("Run focused tests."));
     assert!(looks_like_kimi_non_answer("Using Read"));
+    assert!(looks_like_kimi_non_answer(
+        "Let me start by reading the scoped CCB context file"
+    ));
+    assert!(looks_like_kimi_non_answer(
+        "No docs lint script. We can note."
+    ));
     assert!(!looks_like_kimi_non_answer(
         "Implementation Receipt\n\nChanged files\n- src/a.rs"
     ));
@@ -252,7 +258,7 @@ fn test_load_project_session() {
     let session = load_project_session(tmp.path(), None).unwrap();
     assert_eq!(session.kimi_session_id(), "s1");
     assert_eq!(session.kimi_context_path(), "/repo/context.md");
-    assert_eq!(session.session_file, PathBuf::from(session_path));
+    assert_eq!(session.session_file, session_path);
 }
 
 #[test]
