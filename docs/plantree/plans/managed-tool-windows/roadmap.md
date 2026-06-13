@@ -34,6 +34,12 @@ Date: 2026-05-30
 - Completed the automatic matrix for config loading, project view/sidebar,
   namespace materialization, reload dry-run/apply, Neovim provisioning, Rust
   sidebar parsing/rendering, and plan-tree link consistency.
+- Completed an isolated Linux/tmux Neovim plugin lab for folder opening,
+  Markdown rendering, image handling, browser preview, parser runtime paths,
+  opener, and clipboard capability checks. Results are recorded in
+  [history/neovim-local-plugin-lab-2026-06-13.md](history/neovim-local-plugin-lab-2026-06-13.md).
+- Recorded managed Neovim enhancement defaults in
+  [decisions/003-neovim-enhancement-defaults.md](decisions/003-neovim-enhancement-defaults.md).
 
 ## In Progress
 
@@ -47,8 +53,15 @@ Date: 2026-05-30
    and `ccb ask` still routes through the daemon.
 2. Record any live tmux/Neovim compatibility issues in the test matrix or manual
    issue log.
-3. Review whether `ccb tools doctor neovim` should surface richer clipboard and
-   first-run LazyVim health diagnostics.
+3. Implement the managed Neovim system-optimization foundation from
+   [topics/neovim-system-optimization.md](topics/neovim-system-optimization.md):
+   preserve parser runtime paths, add read-only capability diagnostics, and
+   keep doctor from mutating parser/plugin state.
+4. Prototype the first enhanced profile overlay in this order: Snacks folder
+   baseline with watcher disabled, in-buffer Markdown rendering gated on parser
+   readiness, image external-open fallback, then clipboard/opener keymaps.
+5. Add macOS, WSL home, and WSL mounted-drive manual checks before enabling
+   rich media defaults beyond Linux/tmux.
 
 ## Deferred
 

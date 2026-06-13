@@ -11,6 +11,8 @@ _PROVIDER_START_ENV_VARS = {
     'opencode': 'OPENCODE_START_CMD',
     'droid': 'DROID_START_CMD',
     'agy': 'AGY_START_CMD',
+    'kimi': 'KIMI_START_CMD',
+    'deepseek': 'DEEPSEEK_START_CMD',
 }
 
 _PROVIDER_DEFAULT_EXECUTABLES = {
@@ -20,6 +22,8 @@ _PROVIDER_DEFAULT_EXECUTABLES = {
     'opencode': 'opencode',
     'droid': 'droid',
     'agy': 'agy',
+    'kimi': 'kimi',
+    'deepseek': 'deepcode',
 }
 
 PROVIDER_COMMAND_PLACEHOLDER = '{command}'

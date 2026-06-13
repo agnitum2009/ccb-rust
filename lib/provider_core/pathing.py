@@ -12,6 +12,8 @@ PROVIDER_SESSION_FILENAMES = {
     'opencode': '.opencode-session',
     'droid': '.droid-session',
     'agy': '.agy-session',
+    'kimi': '.kimi-session',
+    'deepseek': '.deepseek-session',
 }
 
 

@@ -35,5 +35,5 @@ update wording, tmux scope, platform wording, and presentation style.
 - Exact diagnostics commands still need verification before publication.
 - Later decision
   [003-readme-final-publication-choices.md](003-readme-final-publication-choices.md)
-  fixes screenshot style, release-first install wording, and native Windows
+  fixes screenshot style, npm-first install wording, and native Windows
   v5-only support wording.

@@ -52,6 +52,18 @@ def test_load_valid_project_config(tmp_path: Path) -> None:
     assert result.config.maintenance_heartbeat.assessor == 'ccb_self'
 
 
+def test_load_project_config_accepts_kimi_and_deepseek_providers(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-native-providers'
+    config_path = project_root / '.ccb' / 'ccb.config'
+    _write(config_path, 'cmd; kimi_agent:kimi, deep_agent:deepseek\n')
+
+    result = load_project_config(project_root)
+
+    assert result.config.agents['kimi_agent'].provider == 'kimi'
+    assert result.config.agents['deep_agent'].provider == 'deepseek'
+    assert result.config.layout_spec == 'cmd; kimi_agent:kimi, deep_agent:deepseek'
+
+
 def test_load_project_config_supports_maintenance_heartbeat_table(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-maintenance'
     config_path = project_root / '.ccb' / 'ccb.config'

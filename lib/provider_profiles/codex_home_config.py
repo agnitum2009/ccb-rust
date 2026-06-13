@@ -54,6 +54,8 @@ _CODEX_ACTIVITY_HOOK_EVENTS = (
     'Stop',
 )
 _CODEX_ACTIVITY_HOOK_TIMEOUT_S = 5
+_CODEX_INHERITED_HOOK_EVENTS = frozenset({'SessionStart', 'UserPromptSubmit', 'Stop'})
+_CODEX_INHERITED_HOOK_COMMAND_MARKERS = ('.hindsight/codex/scripts/',)
 _TOML_TABLE_HEADER_RE = re.compile(r'^\s*\[{1,2}[^\]]+\]{1,2}\s*(?:#.*)?$')
 
 
@@ -155,6 +157,7 @@ def materialize_codex_home_config(
     _install_codex_activity_hooks(
         target_home,
         target_config,
+        source_home=source_home,
         project_root=project_root,
         agent_name=agent_name,
         runtime_dir=runtime_dir,
@@ -173,15 +176,18 @@ def materialize_codex_home_config(
 def repair_codex_activity_hooks(
     target_home: Path,
     *,
+    source_home: Path | None = None,
     project_root: Path | None,
     agent_name: str | None,
     runtime_dir: Path | None,
     workspace_path: Path | None,
 ) -> None:
     target_home = Path(target_home).expanduser()
+    source_home = Path(source_home).expanduser() if source_home is not None else _system_codex_home()
     _install_codex_activity_hooks(
         target_home,
         target_home / 'config.toml',
+        source_home=source_home,
         project_root=project_root,
         agent_name=agent_name,
         runtime_dir=runtime_dir,
@@ -725,6 +731,7 @@ def _install_codex_activity_hooks(
     target_home: Path,
     target_config: Path,
     *,
+    source_home: Path | None = None,
     project_root: Path | None,
     agent_name: str | None,
     runtime_dir: Path | None,
@@ -743,6 +750,10 @@ def _install_codex_activity_hooks(
         workspace_path=Path(workspace_path).expanduser(),
     )
     event_groups = _codex_activity_hook_events(command)
+    event_groups = _merge_codex_hook_groups(
+        event_groups,
+        _allowed_inherited_codex_hooks(source_home),
+    )
     hooks_payload = {'hooks': event_groups}
     hooks_path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(
@@ -803,6 +814,113 @@ def _codex_activity_hook_events(command: str) -> dict[str, list[dict[str, object
         ]
         for event_name in _CODEX_ACTIVITY_HOOK_EVENTS
     }
+
+
+def _allowed_inherited_codex_hooks(source_home: Path | None) -> dict[str, list[dict[str, object]]]:
+    if source_home is None:
+        return {}
+    hooks_path = Path(source_home).expanduser() / 'hooks.json'
+    try:
+        payload = json.loads(hooks_path.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+    hooks = payload.get('hooks') if isinstance(payload, dict) else None
+    if not isinstance(hooks, dict):
+        return {}
+
+    selected: dict[str, list[dict[str, object]]] = {}
+    for event_name, raw_groups in hooks.items():
+        event = str(event_name)
+        if event not in _CODEX_INHERITED_HOOK_EVENTS or not isinstance(raw_groups, list):
+            continue
+        groups: list[dict[str, object]] = []
+        for raw_group in raw_groups:
+            group = _allowed_inherited_codex_hook_group(raw_group)
+            if group is not None:
+                groups.append(group)
+        if groups:
+            selected[event] = groups
+    return selected
+
+
+def _allowed_inherited_codex_hook_group(raw_group: object) -> dict[str, object] | None:
+    if not isinstance(raw_group, dict):
+        return None
+    raw_handlers = raw_group.get('hooks')
+    if not isinstance(raw_handlers, list):
+        return None
+    handlers: list[dict[str, object]] = []
+    for raw_handler in raw_handlers:
+        handler = _allowed_inherited_codex_hook_handler(raw_handler)
+        if handler is None:
+            return None
+        handlers.append(handler)
+    if not handlers:
+        return None
+    group: dict[str, object] = {'hooks': handlers}
+    if raw_group.get('matcher') is not None:
+        group['matcher'] = str(raw_group.get('matcher') or '')
+    return group
+
+
+def _allowed_inherited_codex_hook_handler(raw_handler: object) -> dict[str, object] | None:
+    if not isinstance(raw_handler, dict):
+        return None
+    if str(raw_handler.get('type') or '') != 'command':
+        return None
+    command = str(raw_handler.get('command') or '')
+    normalized_command = command.replace('\\', '/')
+    if not any(marker in normalized_command for marker in _CODEX_INHERITED_HOOK_COMMAND_MARKERS):
+        return None
+    handler: dict[str, object] = {
+        'type': 'command',
+        'command': command,
+    }
+    if raw_handler.get('timeout') is not None:
+        try:
+            handler['timeout'] = int(raw_handler.get('timeout') or 0)
+        except (TypeError, ValueError):
+            return None
+    if raw_handler.get('async') is not None:
+        handler['async'] = bool(raw_handler.get('async'))
+    if raw_handler.get('statusMessage') is not None:
+        handler['statusMessage'] = str(raw_handler.get('statusMessage') or '')
+    return handler
+
+
+def _merge_codex_hook_groups(
+    base: dict[str, list[dict[str, object]]],
+    inherited: dict[str, list[dict[str, object]]],
+) -> dict[str, list[dict[str, object]]]:
+    merged: dict[str, list[dict[str, object]]] = {
+        event: [_clone_mapping(group) for group in groups]
+        for event, groups in base.items()
+    }
+    seen_commands = {
+        _codex_hook_group_command_identity(group)
+        for groups in merged.values()
+        for group in groups
+    }
+    for event, groups in inherited.items():
+        event_groups = merged.setdefault(event, [])
+        for group in groups:
+            identity = _codex_hook_group_command_identity(group)
+            if identity in seen_commands:
+                continue
+            event_groups.append(_clone_mapping(group))
+            seen_commands.add(identity)
+    return merged
+
+
+def _codex_hook_group_command_identity(group: dict[str, object]) -> tuple[str, ...]:
+    handlers = group.get('hooks')
+    if not isinstance(handlers, list):
+        return ()
+    return tuple(
+        str(handler.get('command') or '')
+        for handler in handlers
+        if isinstance(handler, dict)
+    )
 
 
 def _merge_codex_activity_hook_state(

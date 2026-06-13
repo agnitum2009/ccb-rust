@@ -1,0 +1,70 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ccb-storage",
+    "crates/ccb-types",
+    "crates/ccb-provider-core",
+    "crates/ccb-terminal",
+    "crates/ccb-mailbox",
+    "crates/ccb-agents",
+    "crates/ccb-cli",
+    "crates/ccb-daemon",
+    "crates/ccb-providers",
+    "crates/ccb-completion",
+    "crates/ccb-memory",
+    "crates/ccb-heartbeat",
+    "crates/ccb-provider-hooks",
+    "crates/ccb-provider-profiles",
+    "crates/ccb-provider-sessions",
+    "tools/ccb-release-checker",
+    "tools/ccb-mcp-server",
+    "tools/ccb-release-builder",
+]
+
+[workspace.package]
+version = "7.4.3"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+regex = "1"
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+camino = { version = "1", features = ["serde1"] }
+fs2 = "0.4"
+tempfile = "3"
+sha2 = "0.10"
+hex = "0.4"
+tar = "0.4"
+flate2 = "1"
+walkdir = "2"
+
+# Internal crates
+ccb-storage = { path = "crates/ccb-storage" }
+ccb-types = { path = "crates/ccb-types" }
+ccb-provider-core = { path = "crates/ccb-provider-core" }
+ccb-terminal = { path = "crates/ccb-terminal" }
+ccb-mailbox = { path = "crates/ccb-mailbox" }
+ccb-agents = { path = "crates/ccb-agents" }
+ccb-cli = { path = "crates/ccb-cli" }
+ccb-daemon = { path = "crates/ccb-daemon" }
+ccb-providers = { path = "crates/ccb-providers" }
+ccb-completion = { path = "crates/ccb-completion" }
+ccb-memory = { path = "crates/ccb-memory" }
+ccb-heartbeat = { path = "crates/ccb-heartbeat" }
+ccb-provider-hooks = { path = "crates/ccb-provider-hooks" }
+ccb-provider-profiles = { path = "crates/ccb-provider-profiles" }
+ccb-provider-sessions = { path = "crates/ccb-provider-sessions" }
+
+[profile.release]
+strip = true
+lto = true

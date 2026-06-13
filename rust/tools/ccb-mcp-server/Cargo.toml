@@ -1,0 +1,20 @@
+[package]
+name = "ccb-mcp-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ccb-mcp-server"
+path = "src/main.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+camino = { workspace = true }
+ccb-cli = { workspace = true }
+ccb-storage = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -27,12 +27,22 @@ authority for the feature.
 - [topics/neovim-lazyvim-provisioning.md](topics/neovim-lazyvim-provisioning.md):
   install/update provisioning for a CCB-managed Neovim and LazyVim profile,
   including tmux compatibility.
+- [topics/neovim-system-optimization.md](topics/neovim-system-optimization.md):
+  second-phase plan for making the managed Neovim profile useful and
+  diagnosable across Linux, macOS, and WSL, including folders, Markdown,
+  images, clipboard, and opener behavior.
+- [history/neovim-local-plugin-lab-2026-06-13.md](history/neovim-local-plugin-lab-2026-06-13.md):
+  isolated local Linux/tmux plugin lab for folder, Markdown, image, parser,
+  browser-preview, opener, and clipboard capability checks.
 - [topics/test-matrix.md](topics/test-matrix.md): automatic and manual tests,
   including `test_ccb2` validation.
 - [decisions/001-tool-windows-are-not-agents.md](decisions/001-tool-windows-are-not-agents.md):
   decision record for keeping tool windows out of agent/provider runtime.
 - [decisions/002-isolated-managed-neovim-profile.md](decisions/002-isolated-managed-neovim-profile.md):
   decision record for installing Neovim/LazyVim into CCB-owned isolated paths.
+- [decisions/003-neovim-enhancement-defaults.md](decisions/003-neovim-enhancement-defaults.md):
+  decision record for capability-gated Neovim folder, Markdown, image,
+  browser-preview, clipboard, and plugin-pinning defaults.
 
 ## Related Sources
 

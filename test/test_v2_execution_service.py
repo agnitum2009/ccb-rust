@@ -410,6 +410,73 @@ def test_execution_service_claude_adapter_completes_on_turn_duration_without_don
     assert update.items[-1].payload['last_agent_message'] == 'final without done'
 
 
+def test_execution_service_claude_adapter_emits_boundary_on_end_turn_without_done_marker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from provider_execution import claude as claude_adapter_module
+
+    fixed_req_id = '20260318-000000-000-3-end-turn'
+
+    class FakeBackend:
+        def send_text(self, pane_id: str, text: str) -> None:
+            del pane_id, text
+
+        def is_alive(self, pane_id: str) -> bool:
+            return pane_id == '%2'
+
+    class FakeSession:
+        data = {}
+        claude_session_path = str(tmp_path / 'claude-session.jsonl')
+        work_dir = str(tmp_path)
+
+        def ensure_pane(self):
+            return True, '%2'
+
+    class FakeReader:
+        def __init__(self, *args, **kwargs) -> None:
+            del args, kwargs
+            self._events = [
+                {'role': 'user', 'text': f'CCB_REQ_ID: {fixed_req_id}\n\nprompt', 'entry_type': 'user'},
+                {
+                    'role': 'assistant',
+                    'text': 'final via end turn',
+                    'entry_type': 'assistant',
+                    'uuid': 'assistant-1',
+                    'stop_reason': 'end_turn',
+                },
+            ]
+
+        def set_preferred_session(self, session_path) -> None:
+            del session_path
+
+        def capture_state(self):
+            return {'session_path': str(tmp_path / 'claude-session.jsonl'), 'offset': 0}
+
+        def try_get_entries(self, state):
+            index = int(state.get('index', 0))
+            if index >= len(self._events):
+                return [], state
+            return [self._events[index]], {**state, 'index': index + 1}
+
+    monkeypatch.setattr(claude_adapter_module, 'load_project_session', lambda work_dir, instance=None: FakeSession())
+    monkeypatch.setattr(claude_adapter_module, 'get_backend_for_session', lambda data: FakeBackend())
+    monkeypatch.setattr(claude_adapter_module, 'ClaudeLogReader', FakeReader)
+
+    service = ExecutionService(build_default_execution_registry(), clock=lambda: '2026-03-18T00:00:00Z')
+    service.start(_anchored_job_for_provider('claude', fixed_req_id, body='real claude'), runtime_context=_runtime_context(tmp_path))
+    update = service.poll()[0]
+
+    assert [item.kind for item in update.items] == [
+        CompletionItemKind.ANCHOR_SEEN,
+        CompletionItemKind.ASSISTANT_CHUNK,
+        CompletionItemKind.TURN_BOUNDARY,
+    ]
+    assert update.items[-1].payload['reason'] == 'assistant_end_turn'
+    assert update.items[-1].payload['stop_reason'] == 'end_turn'
+    assert update.items[-1].payload['assistant_uuid'] == 'assistant-1'
+    assert update.items[-1].payload['last_agent_message'] == 'final via end turn'
+
+
 def test_execution_service_claude_adapter_prefers_exact_hook_artifact(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -581,6 +648,7 @@ def test_execution_service_claude_adapter_ignores_subagent_turn_boundary(
                     'entry_type': 'assistant',
                     'uuid': 'assistant-child',
                     'subagent_id': 'child-1',
+                    'stop_reason': 'end_turn',
                 },
                 {'role': 'system', 'text': '', 'entry_type': 'system', 'subtype': 'turn_duration', 'parent_uuid': 'assistant-child'},
             ]

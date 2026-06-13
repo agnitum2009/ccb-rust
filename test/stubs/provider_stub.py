@@ -47,6 +47,28 @@ def _project_hash(path: Path) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def _kimi_project_hash(path: Path) -> str:
+    try:
+        normalized = str(path.expanduser().absolute())
+    except Exception:
+        normalized = str(path)
+    return hashlib.md5(normalized.encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def _deepseek_project_code(path: Path) -> str:
+    try:
+        normalized = str(path.expanduser().absolute())
+    except Exception:
+        normalized = str(path)
+    legacy = normalized.replace("\\", "-").replace("/", "-").replace(":", "")
+    if len(legacy) <= 64:
+        return legacy
+    digest = hashlib.sha256(normalized.encode("utf-8", "surrogateescape")).hexdigest()[:16]
+    basename = re.sub(r"[^A-Za-z0-9_.-]", "-", Path(normalized).name).strip("-.") or "project"
+    prefix = basename[: max(1, 64 - len(digest) - 1)].rstrip("-.") or "project"
+    return f"{prefix}-{digest}"
+
+
 def _claude_project_key(path: Path) -> str:
     return re.sub(r"[^A-Za-z0-9]", "-", str(path))
 
@@ -204,6 +226,8 @@ def _looks_like_exact_turn_prompt(provider: str, line: str, current_lines: list[
             return False
         body_lines = [item for item in current_lines[1:] if item.strip()]
         return bool(body_lines)
+    if provider in {"agy", "kimi", "deepseek"}:
+        return line.strip() == "- Avoid raw logs and background unless explicitly requested."
     return False
 
 
@@ -430,13 +454,123 @@ def _handle_droid(req_id: str, prompt: str, delay_s: float, session_path: Path, 
     _append_jsonl(session_path, assistant_entry)
 
 
+def _handle_pane_quiet(req_id: str, delay_s: float) -> None:
+    if delay_s:
+        time.sleep(delay_s)
+    print(f"stub reply for {req_id}", flush=True)
+    print(f"CCB_DONE: {req_id}", flush=True)
+
+
+def _handle_kimi(req_id: str, prompt: str, delay_s: float) -> None:
+    if delay_s:
+        time.sleep(delay_s)
+    reply = f"stub reply for {req_id}"
+    sid = (os.environ.get("CCB_SESSION_ID") or "").strip() or "stub-kimi"
+    wire = Path.home() / ".kimi" / "sessions" / _kimi_project_hash(Path.cwd()) / sid / "wire.jsonl"
+    _append_jsonl(
+        wire,
+        {
+            "timestamp": _now_iso(),
+            "message": {
+                "type": "TurnBegin",
+                "payload": {"user_input": [{"type": "text", "text": prompt}]},
+            },
+        },
+    )
+    _append_jsonl(
+        wire,
+        {
+            "timestamp": _now_iso(),
+            "message": {"type": "ContentPart", "payload": {"type": "text", "text": reply}},
+        },
+    )
+    _append_jsonl(
+        wire,
+        {
+            "timestamp": _now_iso(),
+            "message": {"type": "StatusUpdate", "payload": {"message_id": f"msg-{req_id}"}},
+        },
+    )
+    _append_jsonl(wire, {"timestamp": _now_iso(), "message": {"type": "TurnEnd", "payload": {}}})
+    print(reply, flush=True)
+
+
+def _handle_deepseek(req_id: str, prompt: str, delay_s: float) -> None:
+    if delay_s:
+        time.sleep(delay_s)
+    reply = f"stub reply for {req_id}"
+    sid = (os.environ.get("CCB_SESSION_ID") or "").strip() or "stub-deepseek"
+    root = Path.home() / ".deepcode" / "projects" / _deepseek_project_code(Path.cwd())
+    index_path = root / "sessions-index.json"
+    session_path = root / f"{sid}.jsonl"
+    _write_json_atomic(
+        index_path,
+        {"sessions": [{"id": sid, "status": "completed", "assistantReply": reply, "updateTime": _now_iso()}]},
+    )
+    _append_jsonl(session_path, {"id": f"user-{req_id}", "role": "user", "content": prompt})
+    _append_jsonl(session_path, {"id": f"assistant-{req_id}", "role": "assistant", "content": reply})
+    print(reply, flush=True)
+
+
+def _handle_agy(req_id: str, prompt: str, delay_s: float) -> None:
+    if delay_s:
+        time.sleep(delay_s)
+    reply = f"stub reply for {req_id}"
+    cid = (os.environ.get("CCB_SESSION_ID") or "").strip() or "stub-agy"
+    transcript = (
+        Path.home()
+        / ".gemini"
+        / "antigravity-cli"
+        / "brain"
+        / cid
+        / ".system_generated"
+        / "logs"
+        / "transcript.jsonl"
+    )
+    _append_jsonl(
+        transcript,
+        {
+            "step_index": 1,
+            "source": "USER_EXPLICIT",
+            "type": "USER_INPUT",
+            "status": "DONE",
+            "created_at": _now_iso(),
+            "content": prompt,
+        },
+    )
+    _append_jsonl(
+        transcript,
+        {
+            "step_index": 2,
+            "source": "MODEL",
+            "type": "PLANNER_RESPONSE",
+            "status": "DONE",
+            "created_at": _now_iso(),
+            "content": reply,
+        },
+    )
+    print(reply, flush=True)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--provider", default="")
     args, _unknown = parser.parse_known_args(argv[1:])
 
     provider = (args.provider or Path(argv[0]).name).strip().lower()
-    if provider not in ("codex", "gemini", "claude", "opencode", "droid", "copilot", "codebuddy", "qwen"):
+    if provider not in (
+        "codex",
+        "gemini",
+        "claude",
+        "opencode",
+        "droid",
+        "agy",
+        "kimi",
+        "deepseek",
+        "copilot",
+        "codebuddy",
+        "qwen",
+    ):
         print(f"[stub] unknown provider: {provider}", file=sys.stderr)
         return 2
 
@@ -510,6 +644,11 @@ def main(argv: list[str]) -> int:
             qwen_session_path = root / slug / f"qwen-{qwen_session_id}.jsonl"
         _ensure_droid_session_start(qwen_session_path, qwen_session_id, os.getcwd())
 
+    if provider == "kimi":
+        print("Welcome to Kimi Code CLI!", flush=True)
+        print("── input ─────────", flush=True)
+        print("agent (stub-kimi ○)", flush=True)
+
     def _handle_request(req_id: str, prompt: str) -> None:
         if provider == "codex":
             _handle_codex(req_id, prompt, delay_s)
@@ -536,6 +675,15 @@ def main(argv: list[str]) -> int:
         if provider == "droid":
             assert droid_session_path is not None
             _handle_droid(req_id, prompt, delay_s, droid_session_path, droid_session_id)
+            return
+        if provider == "agy":
+            _handle_agy(req_id, prompt, delay_s)
+            return
+        if provider == "kimi":
+            _handle_kimi(req_id, prompt, delay_s)
+            return
+        if provider == "deepseek":
+            _handle_deepseek(req_id, prompt, delay_s)
             return
         if provider == "copilot":
             assert copilot_session_path is not None

@@ -23,14 +23,14 @@ def pytest_configure() -> None:
 def _write_provider_stub_launchers(bin_dir: Path) -> None:
     stub_path = (repo_root / "test" / "stubs" / "provider_stub.py").resolve()
     python_exe = sys.executable
-    providers = ("codex", "gemini", "claude", "opencode", "droid")
+    providers = ("codex", "gemini", "claude", "opencode", "droid", "agy", "kimi", "deepcode")
     for provider in providers:
         posix_launcher = bin_dir / provider
         posix_launcher.write_text(
             "\n".join(
                 [
                     "#!/bin/sh",
-                    f'exec "{python_exe}" "{stub_path}" --provider {provider} "$@"',
+                    f'exec "{python_exe}" "{stub_path}" --provider {_stub_provider_name(provider)} "$@"',
                     "",
                 ]
             ),
@@ -40,9 +40,13 @@ def _write_provider_stub_launchers(bin_dir: Path) -> None:
 
         windows_launcher = bin_dir / f"{provider}.cmd"
         windows_launcher.write_text(
-            f'@"{python_exe}" "{stub_path}" --provider {provider} %*\r\n',
+            f'@"{python_exe}" "{stub_path}" --provider {_stub_provider_name(provider)} %*\r\n',
             encoding="utf-8",
         )
+
+
+def _stub_provider_name(provider: str) -> str:
+    return "deepseek" if provider == "deepcode" else provider
 
 
 @pytest.fixture(autouse=True)

@@ -35,10 +35,11 @@ Keep the checker read-only. Git writes, GitHub Release writes, workflow reruns, 
 From the CCB repo root, run the bundled checker before and after release work:
 
 ```bash
-CHECKER="dev_tools/skills/ccb-github/scripts/check_release_state.py"
+CHECKER="rust/target/release/ccb-release-checker"
+# Or during development: cargo run -p ccb-release-checker --
 
-python "$CHECKER" --phase prepare --repo SeemSeam/claude_codex_bridge
-python "$CHECKER" --phase published --repo SeemSeam/claude_codex_bridge --wait-seconds 1800
+"$CHECKER" check-release-state --phase prepare --repo SeemSeam/claude_codex_bridge
+"$CHECKER" check-release-state --phase published --repo SeemSeam/claude_codex_bridge --wait-seconds 1800
 ```
 
 The checker is read-only. It catches mechanical drift, but still manually inspect the top of `README.md` and `README_zh.md` because stale "What's New" prose can be semantically wrong even when version numbers are correct.
@@ -46,7 +47,7 @@ The checker is read-only. It catches mechanical drift, but still manually inspec
 Use `--phase dev` for ordinary CCB development or maintainer tooling changes that are not intended to create a package release. Use `--wait-seconds 0` for lightweight commit/push work where the user did not ask to wait for GitHub Actions:
 
 ```bash
-python "$CHECKER" --phase dev --repo SeemSeam/claude_codex_bridge --wait-seconds 0
+"$CHECKER" check-release-state --phase dev --repo SeemSeam/claude_codex_bridge --wait-seconds 0
 ```
 
 `--phase dev` checks that the worktree is clean, the branch is pushed, and the change set is classified as development-only vs package/release-impacting. When `--wait-seconds` is greater than 0, it also waits for required GitHub workflows.
@@ -74,7 +75,7 @@ Use this for CCB development changes, including `dev_tools`, tests, docs, CI, an
 4. Push the branch.
 5. Run:
    ```bash
-   python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase dev --repo SeemSeam/claude_codex_bridge --wait-seconds 0
+   rust/target/release/ccb-release-checker check-release-state --phase dev --repo SeemSeam/claude_codex_bridge --wait-seconds 0
    ```
 6. If `--phase dev` reports runtime/package changes and the user wants a published package, switch to the Release Preparation Checklist and Publish Sequence.
 7. If the change is development-only, do not create a tag or GitHub Release.
@@ -85,7 +86,7 @@ Use this for CCB development changes, including `dev_tools`, tests, docs, CI, an
 
 Default to the smallest verification set that gives meaningful signal for the files changed. Do not run full-suite tests for small edits unless the user asks, the change crosses shared runtime boundaries, or targeted checks reveal risk.
 
-- README, image, and docs-only edits: run `git diff --check`; optionally run `check_release_state.py --phase dev --wait-seconds 0` after commit/push.
+- README, image, and docs-only edits: run `git diff --check`; optionally run `ccb-release-checker check-release-state --phase dev --wait-seconds 0` after commit/push.
 - Skill edits or skill migration: run `quick_validate.py <skill-dir>` and compare source/active copies with `diff -ru`, excluding caches; do not run pytest for skill-only edits.
 - Installer or shell edits: run `bash -n install.sh` or the relevant shell syntax check, plus focused installer tests that cover the changed behavior.
 - `lib/`, `ccbd`, provider runtime, startup, tmux, or shared behavior edits: run targeted pytest for the touched module and adjacent contract tests; broaden only when the change affects cross-module behavior.
@@ -126,7 +127,7 @@ Use this full local gate only for release/tag/package work, or when runtime/pack
 pytest -q
 python -m compileall -q lib ccb
 git diff --check
-python scripts/build_linux_release.py --allow-dirty --output-dir dist-release-local
+cargo run --manifest-path rust/Cargo.toml -p ccb-release-builder -- build --platform linux --allow-dirty --output-dir dist-release-local
 ```
 
 For startup, tmux, ccbd, provider auth, or release asset changes, add the relevant targeted tests or smoke commands before publishing.
@@ -138,7 +139,7 @@ Use this when the latest release exists but GitHub's repository homepage is stal
 1. Update `README.md`, `README_zh.md`, GitHub metadata, or `dev_tools` release checks.
 2. Run:
    ```bash
-   python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase prepare --repo SeemSeam/claude_codex_bridge
+   rust/target/release/ccb-release-checker check-release-state --phase prepare --repo SeemSeam/claude_codex_bridge
    ```
 3. Commit and push the maintenance branch.
 4. Merge the maintenance branch into the default branch so GitHub homepage README changes are visible:
@@ -151,7 +152,7 @@ Use this when the latest release exists but GitHub's repository homepage is stal
 5. Wait for default-branch `Tests`, `CCBD Real Platform Smoke`, and `Cross-Platform Compatibility Test`.
 6. Run:
    ```bash
-   python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase published --repo SeemSeam/claude_codex_bridge --wait-seconds 1800
+   rust/target/release/ccb-release-checker check-release-state --phase published --repo SeemSeam/claude_codex_bridge --wait-seconds 1800
    ```
 
 Do not create a new release tag for README-only homepage maintenance unless runtime/package contents changed and the user explicitly wants a new release.
@@ -211,7 +212,7 @@ Run:
 ```bash
 gh release view vX.Y.Z --repo SeemSeam/claude_codex_bridge --json tagName,url,assets
 gh run list --repo SeemSeam/claude_codex_bridge --limit 10
-python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase published --repo SeemSeam/claude_codex_bridge --wait-seconds 1800
+rust/target/release/ccb-release-checker check-release-state --phase published --repo SeemSeam/claude_codex_bridge --wait-seconds 1800
 git status --short --branch
 ```
 

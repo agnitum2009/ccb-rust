@@ -93,11 +93,16 @@ Examples:
 - `cmd; agent1:codex, agent2:claude`
 - `cmd, agent1:codex; agent2:codex, agent3:claude`
 - `cmd, agent1:codex; agent2:codex, (agent3:claude; agent4:gemini)`
+- `cmd; kimi_agent:kimi, deep_agent:deepseek`
 
 ## 4. Semantic Rules
 
 - `cmd` is reserved and must not declare a provider.
 - Each configured agent must appear exactly once in the layout.
+- Built-in provider keys are currently `codex`, `claude`, `gemini`,
+  `opencode`, `droid`, `agy`, `kimi`, and `deepseek`. The `deepseek`
+  provider key launches the DeepSeek-oriented Deep Code CLI command
+  `deepcode` by default.
 - `cmd` may appear at most once.
 - When `cmd` is enabled, `cmd` must be the first leaf in layout traversal so the invoking pane remains the command pane anchor.
 - Compact config leaf order defines `default_agents`.

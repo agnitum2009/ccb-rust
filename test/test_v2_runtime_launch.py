@@ -1609,6 +1609,10 @@ def test_provider_start_parts_respect_env_override(monkeypatch: pytest.MonkeyPat
     assert runtime_launch._provider_start_parts('claude') == ['/tmp/stub-claude']
     assert runtime_launch._provider_start_parts('codex') == ['/tmp/stub-codex', '--profile', 'test']
     assert runtime_launch._provider_start_parts('agy') == ['/tmp/stub-agy', '--profile', 'test']
+    monkeypatch.setenv('KIMI_START_CMD', '/tmp/stub-kimi --profile test')
+    monkeypatch.setenv('DEEPSEEK_START_CMD', '/tmp/stub-deepcode --profile test')
+    assert runtime_launch._provider_start_parts('kimi') == ['/tmp/stub-kimi', '--profile', 'test']
+    assert runtime_launch._provider_start_parts('deepseek') == ['/tmp/stub-deepcode', '--profile', 'test']
     assert runtime_launch._provider_executable('codex') == '/tmp/stub-codex'
 
 
@@ -1617,11 +1621,15 @@ def test_provider_start_parts_fall_back_to_default_binary(monkeypatch: pytest.Mo
     monkeypatch.delenv('CLAUDE_START_CMD', raising=False)
     monkeypatch.delenv('CODEX_START_CMD', raising=False)
     monkeypatch.delenv('AGY_START_CMD', raising=False)
+    monkeypatch.delenv('KIMI_START_CMD', raising=False)
+    monkeypatch.delenv('DEEPSEEK_START_CMD', raising=False)
 
     assert runtime_launch._provider_start_parts('gemini') == ['gemini']
     assert runtime_launch._provider_start_parts('claude') == ['claude']
     assert runtime_launch._provider_start_parts('codex') == ['codex']
     assert runtime_launch._provider_start_parts('agy') == ['agy']
+    assert runtime_launch._provider_start_parts('kimi') == ['kimi']
+    assert runtime_launch._provider_start_parts('deepseek') == ['deepcode']
 
 
 def test_ensure_agent_runtime_falls_back_when_created_pane_is_too_small(monkeypatch, tmp_path: Path) -> None:

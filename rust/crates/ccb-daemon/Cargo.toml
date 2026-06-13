@@ -1,0 +1,32 @@
+[package]
+name = "ccb-daemon"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+ccb-storage = { workspace = true }
+ccb-types = { workspace = true }
+ccb-provider-core = { workspace = true }
+ccb-terminal = { workspace = true }
+ccb-mailbox = { workspace = true }
+ccb-agents = { workspace = true }
+ccb-providers = { workspace = true }
+ccb-completion = { workspace = true }
+camino = { workspace = true }
+ctrlc = { version = "3", features = ["termination"] }
+
+[[bin]]
+name = "ccbd"
+path = "src/main.rs"
+
+[dev-dependencies]
+tempfile = "3"

@@ -29,6 +29,8 @@ def test_default_provider_catalog_contains_expected_profiles() -> None:
         'opencode',
         'droid',
         'agy',
+        'kimi',
+        'deepseek',
     }
     codex = catalog.resolve_completion_manifest('codex', RuntimeMode.PANE_BACKED)
     assert codex.completion_family is CompletionFamily.PROTOCOL_TURN
@@ -42,7 +44,20 @@ def test_default_provider_catalog_contains_expected_profiles() -> None:
     assert fake_gemini.completion_family is CompletionFamily.ANCHORED_SESSION_STABILITY
     assert catalog.get('agy').supports_resume is True
     agy = catalog.resolve_completion_manifest('agy', RuntimeMode.PANE_BACKED)
-    assert agy.completion_family is CompletionFamily.TERMINAL_TEXT_QUIET
+    assert agy.completion_family is CompletionFamily.SESSION_BOUNDARY
+    assert agy.completion_source_kind is CompletionSourceKind.SESSION_EVENT_LOG
+    assert agy.supports_observed_completion is True
+    assert agy.supports_anchor_binding is True
+    kimi = catalog.resolve_completion_manifest('kimi', RuntimeMode.PANE_BACKED)
+    assert kimi.completion_family is CompletionFamily.SESSION_BOUNDARY
+    assert kimi.completion_source_kind is CompletionSourceKind.SESSION_EVENT_LOG
+    assert kimi.supports_observed_completion is True
+    assert kimi.supports_anchor_binding is True
+    deepseek = catalog.resolve_completion_manifest('deepseek', RuntimeMode.PANE_BACKED)
+    assert deepseek.completion_family is CompletionFamily.SESSION_BOUNDARY
+    assert deepseek.completion_source_kind is CompletionSourceKind.SESSION_SNAPSHOT
+    assert deepseek.supports_observed_completion is True
+    assert deepseek.supports_anchor_binding is True
     fake_legacy = catalog.resolve_completion_manifest('fake-legacy', RuntimeMode.PANE_BACKED)
     assert fake_legacy.completion_family is CompletionFamily.TERMINAL_TEXT_QUIET
 
@@ -85,4 +100,4 @@ def test_provider_catalog_can_build_core_only_catalog() -> None:
     catalog = build_default_provider_catalog(include_optional=False, include_test_doubles=False)
     assert set(catalog.providers()) == set(CORE_PROVIDER_NAMES)
     assert set(CORE_PROVIDER_NAMES) == {'codex', 'claude', 'gemini'}
-    assert set(OPTIONAL_PROVIDER_NAMES) == {'opencode', 'droid', 'agy'}
+    assert set(OPTIONAL_PROVIDER_NAMES) == {'opencode', 'droid', 'agy', 'kimi', 'deepseek'}

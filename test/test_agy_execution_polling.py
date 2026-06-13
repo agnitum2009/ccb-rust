@@ -1,78 +1,100 @@
 from __future__ import annotations
 
-from completion.models import CompletionSourceKind, CompletionStatus
-from provider_backends.agy.comm import AgyPaneReader
+import json
+from pathlib import Path
+
+from completion.models import CompletionItemKind, CompletionSourceKind
 from provider_backends.agy.execution_runtime.poll import poll_submission
 from provider_execution.base import ProviderSubmission
 
 
 class _Backend:
-    def __init__(self, text: str) -> None:
-        self._text = text
-
-    def get_pane_content(self, pane_id: str, *, lines: int) -> str:
-        del pane_id, lines
-        return self._text
+    pass
 
 
-def _submission(text: str) -> ProviderSubmission:
-    req_id = 'job_agyempty123'
-    backend = _Backend(text)
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        ''.join(json.dumps(row, ensure_ascii=False) + '\n' for row in rows),
+        encoding='utf-8',
+    )
+
+
+def _submission(work_dir: Path, home: Path) -> ProviderSubmission:
+    req_id = 'job_agynative123'
     return ProviderSubmission(
         job_id=req_id,
         agent_name='agy1',
         provider='agy',
-        accepted_at='2026-04-06T00:00:00Z',
-        ready_at='2026-04-06T00:00:00Z',
-        source_kind=CompletionSourceKind.TERMINAL_TEXT,
+        accepted_at='2026-06-13T00:00:00Z',
+        ready_at='2026-06-13T00:00:00Z',
+        source_kind=CompletionSourceKind.SESSION_EVENT_LOG,
         reply='',
         runtime_state={
-            'reader': AgyPaneReader(backend=backend, pane_id='%9', lines=200),
-            'backend': backend,
+            'mode': 'native_transcript_log',
+            'backend': _Backend(),
             'pane_id': '%9',
             'req_id': req_id,
-            'started_at': '2026-04-06T00:00:00Z',
-            'last_change_at': '2026-04-06T00:00:00Z',
+            'request_anchor': req_id,
+            'work_dir': str(work_dir),
+            'agy_home': str(home),
+            'started_at': '2026-06-13T00:00:00Z',
+            'last_poll_at': '2026-06-13T00:00:00Z',
             'next_seq': 1,
+            'anchor_emitted': False,
+            'reply_buffer': '',
+            'last_reply_signature': '',
+            'turn_boundary_ref': '',
+            'session_path': '',
         },
     )
 
 
-def test_agy_poll_marks_done_marker_with_empty_reply_incomplete() -> None:
-    text = (
-        'CCB_REQ_ID: job_agyempty123\n'
-        'IMPORTANT: when you finish answering\n'
-        'CCB_DONE: job_agyempty123\n'
-        'CCB_DONE: job_agyempty123\n'
+def test_agy_poll_completes_from_native_transcript(tmp_path: Path) -> None:
+    home = tmp_path / 'home'
+    work_dir = tmp_path / 'project'
+    work_dir.mkdir()
+    transcript = (
+        home
+        / '.gemini'
+        / 'antigravity-cli'
+        / 'brain'
+        / 'conv-1'
+        / '.system_generated'
+        / 'logs'
+        / 'transcript.jsonl'
+    )
+    _write_jsonl(
+        transcript,
+        [
+            {
+                'step_index': 1,
+                'source': 'USER_EXPLICIT',
+                'type': 'USER_INPUT',
+                'status': 'DONE',
+                'created_at': '2026-06-13T00:00:01Z',
+                'content': 'CCB_REQ_ID: job_agynative123\nhello',
+            },
+            {
+                'step_index': 2,
+                'source': 'MODEL',
+                'type': 'PLANNER_RESPONSE',
+                'status': 'DONE',
+                'created_at': '2026-06-13T00:00:03Z',
+                'content': 'native agy reply',
+            },
+        ],
     )
 
-    result = poll_submission(_submission(text), now='2026-04-06T00:00:03Z')
+    result = poll_submission(_submission(work_dir, home), now='2026-06-13T00:00:05Z')
 
     assert result is not None
-    assert result.decision is not None
-    assert result.decision.status is CompletionStatus.INCOMPLETE
-    assert result.decision.reason == 'pane_done_empty_reply'
-    assert result.decision.reply == ''
-    assert result.decision.diagnostics['done_seen'] is True
-    assert result.decision.diagnostics['reply_chars'] == 0
-    assert result.decision.diagnostics['empty_reply'] is True
-    assert result.decision.diagnostics['error_type'] == 'empty_provider_reply'
-    assert 'without assistant reply text' in result.decision.diagnostics['diagnosis']
-
-
-def test_agy_poll_completes_done_marker_with_reply() -> None:
-    text = (
-        'CCB_REQ_ID: job_agyempty123\n'
-        'IMPORTANT: when you finish answering\n'
-        'CCB_DONE: job_agyempty123\n'
-        'final answer\n'
-        'CCB_DONE: job_agyempty123\n'
-    )
-
-    result = poll_submission(_submission(text), now='2026-04-06T00:00:03Z')
-
-    assert result is not None
-    assert result.decision is not None
-    assert result.decision.status is CompletionStatus.COMPLETED
-    assert result.decision.reason == 'pane_done_marker'
-    assert result.decision.reply == 'final answer'
+    assert result.decision is None
+    assert result.submission.reply == 'native agy reply'
+    assert [item.kind for item in result.items] == [
+        CompletionItemKind.SESSION_ROTATE,
+        CompletionItemKind.ANCHOR_SEEN,
+        CompletionItemKind.ASSISTANT_FINAL,
+        CompletionItemKind.TURN_BOUNDARY,
+    ]
+    assert result.items[-1].payload['reason'] == 'agy_transcript_response_done'

@@ -47,7 +47,41 @@ def test_handle_assistant_event_appends_chunk_and_turn_boundary() -> None:
     assert poll.last_assistant_uuid == "assistant-1"
     assert poll.reached_turn_boundary is True
     assert poll.items[0].payload["assistant_uuid"] == "assistant-1"
+    assert poll.items[1].payload["reason"] == "task_complete"
     assert poll.items[1].payload["last_agent_message"] == "hello world"
+
+
+def test_handle_assistant_event_appends_boundary_on_main_end_turn_without_done_marker() -> None:
+    poll = ClaudePollState(
+        request_anchor="job_1",
+        next_seq=1,
+        anchor_seen=True,
+        reply_buffer="",
+        raw_buffer="",
+        session_path="/tmp/session.jsonl",
+        last_assistant_uuid="",
+    )
+
+    handle_assistant_event(
+        _submission(),
+        poll,
+        {
+            "text": "final answer",
+            "uuid": "assistant-1",
+            "stop_reason": "end_turn",
+        },
+        now="2026-04-06T00:01:00Z",
+    )
+
+    assert [item.kind for item in poll.items] == [
+        CompletionItemKind.ASSISTANT_CHUNK,
+        CompletionItemKind.TURN_BOUNDARY,
+    ]
+    assert poll.items[1].payload["reason"] == "assistant_end_turn"
+    assert poll.items[1].payload["last_agent_message"] == "final answer"
+    assert poll.items[1].payload["assistant_uuid"] == "assistant-1"
+    assert poll.items[1].payload["stop_reason"] == "end_turn"
+    assert poll.reached_turn_boundary is True
 
 
 def test_handle_assistant_event_keeps_primary_uuid_for_subagent_chunks() -> None:
@@ -68,10 +102,64 @@ def test_handle_assistant_event_keeps_primary_uuid_for_subagent_chunks() -> None
             "text": "subagent update",
             "uuid": "subagent-uuid",
             "subagent_id": "worker-1",
+            "stop_reason": "end_turn",
         },
         now="2026-04-06T00:01:00Z",
     )
 
     assert poll.last_assistant_uuid == "primary-uuid"
+    assert [item.kind for item in poll.items] == [CompletionItemKind.ASSISTANT_CHUNK]
     assert poll.items[0].payload["assistant_uuid"] == "subagent-uuid"
     assert poll.items[0].payload["subagent_id"] == "worker-1"
+
+
+def test_handle_assistant_event_does_not_complete_tool_use_stop_reason() -> None:
+    poll = ClaudePollState(
+        request_anchor="job_1",
+        next_seq=1,
+        anchor_seen=True,
+        reply_buffer="",
+        raw_buffer="",
+        session_path="/tmp/session.jsonl",
+        last_assistant_uuid="",
+    )
+
+    handle_assistant_event(
+        _submission(),
+        poll,
+        {
+            "text": "I need to inspect a file.",
+            "uuid": "assistant-1",
+            "stop_reason": "tool_use",
+        },
+        now="2026-04-06T00:01:00Z",
+    )
+
+    assert [item.kind for item in poll.items] == [CompletionItemKind.ASSISTANT_CHUNK]
+    assert poll.reached_turn_boundary is False
+
+
+def test_handle_assistant_event_does_not_complete_empty_end_turn() -> None:
+    poll = ClaudePollState(
+        request_anchor="job_1",
+        next_seq=1,
+        anchor_seen=True,
+        reply_buffer="",
+        raw_buffer="",
+        session_path="/tmp/session.jsonl",
+        last_assistant_uuid="",
+    )
+
+    handle_assistant_event(
+        _submission(),
+        poll,
+        {
+            "text": "   ",
+            "uuid": "assistant-1",
+            "stop_reason": "end_turn",
+        },
+        now="2026-04-06T00:01:00Z",
+    )
+
+    assert poll.items == []
+    assert poll.reached_turn_boundary is False

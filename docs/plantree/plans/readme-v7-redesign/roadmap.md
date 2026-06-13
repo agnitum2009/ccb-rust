@@ -1,6 +1,6 @@
 # README v7 Redesign Roadmap
 
-Date: 2026-05-26
+Date: 2026-06-12
 
 ## Done
 
@@ -46,7 +46,7 @@ Date: 2026-05-26
   covering section order, visible/folded split, screenshot captions, tmux
   guidance, config examples, and `ccb-config` skill copy.
 - Recorded final maintainer decisions: regenerate real terminal screenshots for
-  public README media, use release-first install/update wording, and document
+  public README media, use npm-first install plus `ccb update` wording, and document
   native Windows support as v5-only with newer versions unsupported natively.
 - Captured real dark terminal screenshots from `ccb_test2` and generated
   annotated Chinese/English README hero images under `assets/readme_v7/`.
@@ -64,14 +64,63 @@ Date: 2026-05-26
   lighter first-read path.
 - Simplified the opening multi-agent meaning/comparison copy and folded the
   detailed tradeoff tables to reduce first-read weight.
+- Captured maintainer feedback on 2026-06-12 that the current homepage remains
+  too text-heavy, visually plain, and unfocused for a GitHub first screen.
+- Added the homepage-specific polish plan in
+  [topics/homepage-showcase-polish.md](topics/homepage-showcase-polish.md),
+  using the new `assets/ccb-promo.png` image and external README structure
+  patterns as design inputs.
+- Received reviewer1 homepage polish review and recorded it in
+  [history/reviewer1-homepage-polish-2026-06-12.md](history/reviewer1-homepage-polish-2026-06-12.md).
+- Resolved the blocking hero asset ambiguity with
+  [decisions/004-homepage-hero-asset-strategy.md](decisions/004-homepage-hero-asset-strategy.md):
+  public READMEs should use canonical language-specific hero images under
+  `assets/readme_v7/`; `assets/ccb-promo.png` remains promotional/reference
+  material unless a later decision changes that.
+- Added public README links to the user and developer manuals, and strengthened
+  the `ccb_self` positioning as CCB's built-in self-understanding expert for
+  usage, config design, diagnostics, recovery, and workflow repair.
+- Changed the recommended first-install path from GitHub release packages to
+  npm package install with `npm install -g @seemseam/ccb`; release packages now
+  remain a fallback when npm is unavailable.
+- Clarified that subsequent updates use `ccb update`, not another npm install
+  command.
+- Stabilized the README homepage design direction in
+  [decisions/005-readme-design-non-drift-contract.md](decisions/005-readme-design-non-drift-contract.md)
+  so future edits do not drift back to rationale-first, old install-default, or
+  screenshot-late layouts.
+- Generated canonical first-screen hero assets:
+  `assets/readme_v7/ccb-hero-zh.png` and
+  `assets/readme_v7/ccb-hero-en.png`.
+- Rewrote the top of `README_zh.md` and `README.md` into the stable
+  product-first order: hero, three values, npm new install plus `ccb update`,
+  UI tour, `CCB 是什么` / `What Is CCB`, then rationale and comparison.
+- Replaced the homepage hero pair with the newer promo-style CCB composition,
+  including Chinese and English variants under `assets/readme_v7/`, and kept
+  `assets/ccb-promo.png` as source/reference material rather than the direct
+  README path.
+- Added a compact first-screen supported-CLI logo/badge strip for Codex,
+  Claude, Gemini, Kimi, OpenCode, Antigravity, and Droid.
+- Follow-up release review blocked npm-first publication until the source tree
+  restored the `@seemseam/ccb` npm package surface.
+- Earlier chose `7.4.4` as the next patch version instead of reusing the
+  existing `v7.4.3` tag; the combined release candidate now targets `v7.5.0`.
+- Added the npm package manifest, npm CLI runner wrappers, and tag-triggered
+  Trusted Publishing workflow needed to support the README's npm-first install
+  guidance.
+- Aligned npm license metadata with the repository license using SPDX
+  `AGPL-3.0-only`.
 
 ## In Progress
 
-- Maintainer review of the first README implementation patch.
+- Validate the restored npm package surface with `npm pack --dry-run`, version
+  synchronization checks, and release workflow review.
+- Send the updated release candidate back through reviewer/archi review.
+- Preserve the promo-style canonical hero pair and supported-CLI strip during
+  release-surface validation edits.
 
 ## Next
 
-- Apply maintainer wording corrections, if any.
 - Optionally tighten release asset naming after the release packaging path is
   confirmed against the final public assets.
 - Later pass: resume deferred demo/video design.

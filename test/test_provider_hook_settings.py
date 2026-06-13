@@ -506,6 +506,73 @@ command = "echo external-hook"
     assert not (workspace / '.codex').exists()
 
 
+def test_prepare_provider_workspace_preserves_allowed_codex_hindsight_hooks(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    project_root = tmp_path / 'repo'
+    workspace = project_root / 'workspace'
+    system_home = tmp_path / 'system-home'
+    system_codex = system_home / '.codex'
+    hindsight_root = system_home / '.hindsight' / 'codex' / 'scripts'
+    system_codex.mkdir(parents=True, exist_ok=True)
+    hindsight_root.mkdir(parents=True, exist_ok=True)
+    (system_codex / 'AGENTS.md').write_text('system codex memory\n', encoding='utf-8')
+    (system_codex / 'config.toml').write_text('model = "gpt-test"\n', encoding='utf-8')
+    (system_codex / 'hooks.json').write_text(
+        json.dumps(
+            {
+                'hooks': {
+                    'SessionStart': [
+                        {'hooks': [{'type': 'command', 'command': f'python3 "{hindsight_root / "session_start.py"}"', 'timeout': 5}]}
+                    ],
+                    'UserPromptSubmit': [
+                        {'hooks': [{'type': 'command', 'command': f'python3 "{hindsight_root / "recall.py"}"', 'timeout': 12}]}
+                    ],
+                    'Stop': [
+                        {'hooks': [{'type': 'command', 'command': f'python3 "{hindsight_root / "retain.py"}"', 'timeout': 30}]}
+                    ],
+                    'PostToolUse': [
+                        {'hooks': [{'type': 'command', 'command': 'echo unmanaged-root-hook'}]}
+                    ],
+                }
+            },
+            indent=2,
+        ),
+        encoding='utf-8',
+    )
+    project_root.mkdir(parents=True, exist_ok=True)
+    _write_project_memory(project_root, 'shared ccb memory\n')
+    monkeypatch.setenv('CODEX_HOME', str(system_codex))
+    layout = PathLayout(project_root)
+    runtime_dir = layout.agent_provider_runtime_dir('agent1', 'codex')
+
+    prepare_provider_workspace(
+        layout=layout,
+        spec=_spec('agent1', provider='codex'),
+        workspace_path=workspace,
+        completion_dir=runtime_dir / 'completion',
+        agent_name='agent1',
+        refresh_profile=True,
+    )
+
+    codex_home = project_root / '.ccb' / 'agents' / 'agent1' / 'provider-state' / 'codex' / 'home'
+    hooks_payload = json.loads((codex_home / 'hooks.json').read_text(encoding='utf-8'))
+    user_prompt_commands = [
+        hook['command']
+        for group in hooks_payload['hooks']['UserPromptSubmit']
+        for hook in group['hooks']
+    ]
+    assert any('ccb-provider-activity-hook' in command for command in user_prompt_commands)
+    assert any('.hindsight/codex/scripts/recall.py' in command for command in user_prompt_commands)
+    assert not any('unmanaged-root-hook' in command for commands in hooks_payload['hooks'].values() for group in commands for command in [group['hooks'][0]['command']])
+
+    config = tomllib.loads((codex_home / 'config.toml').read_text(encoding='utf-8'))
+    state = config['hooks']['state']
+    assert any(key.endswith(':user_prompt_submit:1:0') for key in state)
+    assert len(state) == 9
+
+
 def test_prepare_provider_workspace_respects_codex_explicit_runtime_home(
     tmp_path: Path,
     monkeypatch,

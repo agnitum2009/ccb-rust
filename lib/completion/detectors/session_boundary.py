@@ -20,6 +20,16 @@ class SessionBoundaryDetector(BaseCompletionDetector):
             reply = first_non_empty(item.payload, 'last_agent_message', 'reply', 'text') or ''
             if reply:
                 self._record_reply(item, reply, stable=True)
+            elif not self._state.reply_started:
+                self._set_terminal(
+                    status=CompletionStatus.INCOMPLETE,
+                    reason='task_complete_empty_reply',
+                    confidence=CompletionConfidence.OBSERVED,
+                    finished_at=item.timestamp,
+                    reply='',
+                    diagnostics=self._empty_boundary_diagnostics(item),
+                )
+                return
             self._set_terminal(
                 status=CompletionStatus.COMPLETED,
                 reason=first_non_empty(item.payload, 'reason', 'completion_reason') or 'turn_duration',
@@ -50,3 +60,16 @@ class SessionBoundaryDetector(BaseCompletionDetector):
             return
 
         self._set_pending()
+
+    def _empty_boundary_diagnostics(self, item: CompletionItem) -> dict:
+        diagnostics = self._terminal_diagnostics_from_item(item)
+        diagnosis = (
+            'Provider session boundary reported completion without assistant reply text; '
+            'inspect the provider session log, pane state, and authentication/API output.'
+        )
+        diagnostics.setdefault('provider_terminal_reason', first_non_empty(item.payload, 'reason', 'completion_reason') or 'turn_duration')
+        diagnostics.setdefault('empty_reply', True)
+        diagnostics.setdefault('error_type', 'empty_provider_reply')
+        diagnostics.setdefault('message', diagnosis)
+        diagnostics.setdefault('diagnosis', diagnosis)
+        return diagnostics

@@ -1,0 +1,20 @@
+[package]
+name = "ccb-completion"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+camino = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+ccb-storage = { workspace = true }
+ccb-types = { workspace = true }
+ccb-provider-core = { workspace = true }
+ccb-agents = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

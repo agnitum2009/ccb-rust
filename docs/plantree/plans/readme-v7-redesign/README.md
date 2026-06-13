@@ -49,6 +49,10 @@ This plan is subordinate to the project baseline and runtime contracts:
 - [topics/readme-rewrite-execution-plan.md](topics/readme-rewrite-execution-plan.md)
   defines the edit-ready rewrite strategy, target section order, visible/folded
   split, and clarification dependencies.
+- [topics/homepage-showcase-polish.md](topics/homepage-showcase-polish.md)
+  defines the 2026-06-12 homepage polish pass after maintainer feedback that
+  the public README first screen is too text-heavy, visually weak, and
+  unfocused.
 - [topics/multi-agent-positioning-and-comparison.md](topics/multi-agent-positioning-and-comparison.md)
   defines the opening multi-agent necessity discussion and comparison against
   provider-native orchestration and Hive.
@@ -72,10 +76,20 @@ This plan is subordinate to the project baseline and runtime contracts:
   and folding policy.
 - [decisions/003-readme-final-publication-choices.md](decisions/003-readme-final-publication-choices.md)
   records final maintainer decisions for real terminal screenshots,
-  release-first install wording, and native Windows v5-only support wording.
+  npm-first install wording, and native Windows v5-only support wording.
+- [decisions/004-homepage-hero-asset-strategy.md](decisions/004-homepage-hero-asset-strategy.md)
+  records the homepage polish decision to use canonical language-specific hero
+  images under `assets/readme_v7/` instead of directly referencing the generated
+  `assets/ccb-promo.png` in public READMEs.
+- [decisions/005-readme-design-non-drift-contract.md](decisions/005-readme-design-non-drift-contract.md)
+  records the stable README homepage design contract that future edits must
+  preserve unless an explicit replacement decision is made.
+- [history/reviewer1-homepage-polish-2026-06-12.md](history/reviewer1-homepage-polish-2026-06-12.md)
+  records the reviewer1 design review that unblocked first-screen ordering and
+  identified hero asset strategy as the blocking issue.
 
 ## Reading Order
 
-Read the decision first, then the information architecture topic, then the
-implementation blueprint, then the roadmap. Use implementation status only when
-resuming active edits.
+Read the latest non-drift decision first, then the hero asset decision, then the
+information architecture topic, then the implementation blueprint, then the
+roadmap. Use implementation status only when resuming active edits.

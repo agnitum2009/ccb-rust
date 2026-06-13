@@ -3,9 +3,9 @@
 This directory contains maintainer-only tools for developing and releasing CCB.
 
 `dev_tools/` is intentionally excluded from official release artifacts by
-`scripts/build_release.py`. The exclusion is covered by
-`test/test_build_linux_release_script.py`, so these files can be versioned in
-git without being shipped to users.
+`rust/tools/ccb-release-builder/`. The exclusion is covered by the release
+builder's integration tests, so these files can be versioned in git without
+being shipped to users.
 
 Keep user-facing runtime code, installer code, and packaged assets outside this
 directory. Tools here may support release, CI, documentation, or repository
@@ -28,12 +28,13 @@ mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
 ln -sfn "$PWD/dev_tools/skills/ccb-github" "${CODEX_HOME:-$HOME/.codex}/skills/ccb-github"
 ```
 
-The `ccb-github` checker can also be run directly from the repo root:
+The `ccb-github` checker can also be run directly from the repo root (after building the Rust workspace):
 
 ```bash
-python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase dev --wait-seconds 900
-python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase prepare
-python dev_tools/skills/ccb-github/scripts/check_release_state.py --phase published
+cargo build -p ccb-release-checker
+rust/target/debug/ccb-release-checker check-release-state --phase dev --wait-seconds 900
+rust/target/debug/ccb-release-checker check-release-state --phase prepare
+rust/target/debug/ccb-release-checker check-release-state --phase published
 ```
 
 ## Maintenance Rules

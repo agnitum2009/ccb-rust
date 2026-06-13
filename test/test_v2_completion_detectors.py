@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from completion.detectors.anchored_session_stability import AnchoredSessionStabilityDetector
+from completion.detectors.session_boundary import SessionBoundaryDetector
 from completion.detectors.terminal_text_quiet import TerminalTextQuietDetector
 from completion.detectors.protocol_turn import ProtocolTurnDetector
 from completion.detectors.structured_result import StructuredResultDetector
@@ -83,6 +84,32 @@ def test_protocol_turn_detector_marks_empty_task_complete_incomplete() -> None:
     assert decision.reply == ''
     assert decision.provider_turn_ref == 'turn-empty'
     assert decision.diagnostics['provider_terminal_reason'] == 'task_complete'
+    assert decision.diagnostics['empty_reply'] is True
+    assert decision.diagnostics['error_type'] == 'empty_provider_reply'
+    assert 'without assistant reply text' in decision.diagnostics['diagnosis']
+
+
+def test_session_boundary_detector_marks_empty_boundary_incomplete() -> None:
+    detector = SessionBoundaryDetector()
+    detector.bind(_ctx(), _cursor(0))
+    detector.ingest(_item(CompletionItemKind.ANCHOR_SEEN, 1, '2026-03-18T00:00:01Z'))
+    detector.ingest(
+        _item(
+            CompletionItemKind.TURN_BOUNDARY,
+            2,
+            '2026-03-18T00:00:02Z',
+            {'reason': 'assistant_end_turn', 'turn_id': 'turn-empty'},
+        )
+    )
+
+    decision = detector.decision()
+    assert decision.terminal is True
+    assert decision.status is CompletionStatus.INCOMPLETE
+    assert decision.reason == 'task_complete_empty_reply'
+    assert decision.confidence is CompletionConfidence.OBSERVED
+    assert decision.reply == ''
+    assert decision.provider_turn_ref == 'turn-empty'
+    assert decision.diagnostics['provider_terminal_reason'] == 'assistant_end_turn'
     assert decision.diagnostics['empty_reply'] is True
     assert decision.diagnostics['error_type'] == 'empty_provider_reply'
     assert 'without assistant reply text' in decision.diagnostics['diagnosis']

@@ -17,9 +17,10 @@ def wrap_agy_prompt(message: str, req_id: str) -> str:
     return (
         f'{REQ_ID_PREFIX} {req_id}\n\n'
         f'{rendered}\n\n'
-        'IMPORTANT: when you finish answering, write this exact line on its '
-        'own line as the final line of your reply (no quoting, no code fence):\n'
-        f'{DONE_PREFIX} {req_id}\n'
+        'CCB reply guidance:\n'
+        '- Answer directly and concisely.\n'
+        '- Include only relevant conclusions, blockers, risks, evidence, and next actions.\n'
+        '- Avoid raw logs and background unless explicitly requested.\n'
     )
 
 
@@ -49,12 +50,16 @@ def _done_anywhere_re(req_id: str) -> re.Pattern[str]:
 
 
 def extract_reply_for_req(text: str, req_id: str) -> tuple[str, bool]:
-    """Return (reply, done_seen) extracted from a pane snapshot.
+    """Return (reply, done_seen) extracted from a legacy pane snapshot.
+
+    The current AGY execution adapter completes from native transcript logs and
+    no longer asks the model to print CCB_DONE. This helper is retained for
+    compatibility with old pane snapshots and shared cleanup tests.
 
     Antigravity's TUI renders both the echoed prompt and the model response
     with the same 2-space indentation, so echo-DONE and model-DONE are
     indistinguishable by line prefix. We rely on order instead: the prompt
-    instructs the model to write CCB_DONE as the final line, so the LAST
+    used to instruct the model to write CCB_DONE as the final line, so the LAST
     CCB_DONE occurrence is the model's; the one before it (if any) is the
     echoed prompt's tail.
 

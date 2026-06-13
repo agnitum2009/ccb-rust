@@ -576,10 +576,10 @@ Default rule:
   `task_complete` boundaries with no boundary reply and no prior
   assistant-visible reply evidence into terminal `incomplete` decisions with
   the same empty-reply diagnostic shape.
-- Pane-quiet providers such as Antigravity (`agy`) must normalize visible
-  request done markers with no extracted assistant reply into terminal
-  `incomplete` decisions immediately, rather than completing or waiting for a
-  long quiet timeout.
+- Native-transcript providers such as Antigravity (`agy`) must normalize
+  native completed/finished evidence with no extracted assistant reply into
+  terminal `incomplete` decisions immediately, rather than completing or
+  waiting for a long timeout.
 
 #### 10.2.3 API Failure And Long-Thinking Need Closure
 

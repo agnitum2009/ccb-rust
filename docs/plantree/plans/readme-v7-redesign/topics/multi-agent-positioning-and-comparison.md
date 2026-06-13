@@ -248,8 +248,8 @@ Positioning:
 CCB's opening claim should emphasize:
 
 - named agents, not anonymous hidden workers;
-- provider mixing across Codex, Claude, Gemini, OpenCode, and other supported
-  CLIs;
+- provider mixing across Codex, Claude, Gemini, Kimi, OpenCode, and other
+  supported CLIs;
 - visible terminal panes plus v7 sidebar;
 - `/ask`, `$ask`, callback, and broadcast-style coordination;
 - project-scoped config, memory, worktree isolation, startup, attach, recovery,

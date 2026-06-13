@@ -1,19 +1,31 @@
 # Implementation Status
 
-Date: 2026-05-26
+Date: 2026-06-13
 
 ## Current Phase
 
-First README implementation patch landed. `README_zh.md` and `README.md` now
-follow the v7 task-first structure, use real dark terminal screenshots from
-`ccb_test2`, and link full release history to `CHANGELOG.md`.
+Homepage polish implementation patch prepared, with release-surface follow-up
+in progress. The first v7 README implementation existed, but maintainer
+feedback said the GitHub first screen was too text-heavy, visually plain, and
+unfocused. Reviewer1 endorsed the product-first order, the hero strategy was
+resolved, and maintainer follow-up selected the newer promo-style CCB image as
+the canonical hero composition. The top of both public README files now follows
+the stable non-drift contract, including language-specific promo-style heroes
+and a supported-CLI badge strip. Archi then blocked the commit because
+npm-first README wording requires the `@seemseam/ccb` package surface to exist
+in source before release.
 
 ## Active TODO
 
-- Maintainer review of the new README structure and public wording.
-- Optional follow-up polish after review: install asset naming, platform wording,
-  or comparison phrasing if the maintainer wants a narrower claim.
-- Video/demo planning remains deferred until the later media pass.
+- Preserve
+  [decisions/005-readme-design-non-drift-contract.md](decisions/005-readme-design-non-drift-contract.md)
+  as the first planning reference before editing `README_zh.md` or `README.md`.
+- Re-run release-surface validation after adding npm package metadata,
+  npm runner wrappers, and npm publishing workflow.
+- Send the updated dirty tree back through review after validation.
+- Keep bilingual section order in sync during any follow-up wording changes.
+- Preserve the newer promo-style hero pair and supported-CLI strip during any
+  follow-up README or release-surface edits.
 
 ## Done This Phase
 
@@ -69,7 +81,7 @@ follow the v7 task-first structure, use real dark terminal screenshots from
   clarification dependencies.
 - Recorded final maintainer decisions in
   [decisions/003-readme-final-publication-choices.md](decisions/003-readme-final-publication-choices.md):
-  regenerate real terminal screenshots, use release-first install/update
+  regenerate real terminal screenshots, use npm-first install plus `ccb update`
   wording, and document native Windows as v5-only with newer versions
   unsupported natively.
 - Added maintainer screenshot style preference: use the existing dark terminal
@@ -86,7 +98,7 @@ follow the v7 task-first structure, use real dark terminal screenshots from
   `ccb-test2-terminal.png`, `ccb-test2-terminal-annotated.png`, and
   `ccb-test2-terminal-annotated-en.png`.
 - Rewrote `README_zh.md` around the agreed structure: multi-agent necessity,
-  Claude Code / Hive / CCB comparison, CCB v7 UI tour, release-first quick
+  Claude Code / Hive / CCB comparison, CCB v7 UI tour, npm-first quick
   start, daily operations, tmux common shortcuts, config examples,
   `ccb-config` workflow, ask/callback collaboration, platform notes, FAQ, and
   credits.
@@ -105,18 +117,61 @@ follow the v7 task-first structure, use real dark terminal screenshots from
   the visible path now uses shorter summary tables, while single-agent limits
   and detailed Claude Code / Hive / CCB tradeoffs are folded under
   `<details>`.
+- Added top-level README links to `docs/manuals/user-guide/` and
+  `docs/manuals/developer-guide/`.
+- Strengthened `ccb_self` README positioning as CCB's built-in
+  self-understanding expert for CCB usage, active layout explanation, config
+  design, runtime diagnostics, recovery, and workflow repair.
+- Updated `README_zh.md` and `README.md` to recommend
+  `npm install -g @seemseam/ccb` for new installs and `ccb update` for later
+  updates, with GitHub release packages and source checkout installs documented
+  as fallbacks.
+- Added
+  [decisions/005-readme-design-non-drift-contract.md](decisions/005-readme-design-non-drift-contract.md)
+  as the stable README homepage design contract covering first-screen order,
+  badges, manual links, hero policy, npm-first install, `ccb_self` positioning,
+  and drift checks.
+- Generated canonical README hero assets from the existing annotated v7
+  screenshots: `assets/readme_v7/ccb-hero-zh.png` and
+  `assets/readme_v7/ccb-hero-en.png`.
+- Rewrote the public README first-read path in both languages:
+  product title, quiet badges, manual links, canonical hero, three value points,
+  npm new install plus `ccb update`, v7 UI tour, product definition,
+  multi-agent rationale, and approach comparison.
+- Replaced the older screenshot-derived canonical hero pair with the newer
+  promo-style image and matching English version under `assets/readme_v7/`, with
+  `ccb_self` callouts preserved in both languages.
+- Added a compact supported-CLI logo/badge strip near the README first screen,
+  showing Codex, Claude, Gemini, Kimi, OpenCode, Antigravity, and Droid.
+- Received reviewer2 README/release-surface review with PASS_WITH_NITS and no
+  blocking defects.
+- Received archi release review with blocking findings: do not reuse existing
+  `v7.4.3`, restore source-controlled npm package surface before npm-first
+  README publication, and add public release notes for the Claude
+  `stop_reason=end_turn` repair.
+- Earlier chose the safer patch path for the next release: bump to `7.4.4`
+  instead of moving or recreating the existing `v7.4.3` tag. The current
+  combined release candidate now targets `v7.5.0` after the native CLI provider
+  scope was added.
+- Restored the source npm surface using the previously published package shape:
+  `package.json`, Node CLI wrappers, postinstall artifact downloader, and a
+  tag-triggered npm Trusted Publishing workflow that waits for GitHub release
+  assets.
+- Fixed follow-up archi blocker by aligning npm license metadata with the
+  repository license: `package.json` now uses SPDX `AGPL-3.0-only`.
 
 ## Blockers
 
-- No owner-decision blockers remain for README direction.
-- No owner-decision blockers remain for screenshot style, install/update
-  positioning, or platform wording.
-- No first-patch blockers remain.
+- No owner-decision blockers remain for README direction, screenshot style,
+  install/update positioning, or platform wording.
+- Release-surface blocker has a working-tree repair with local validation
+  passing; final status depends on follow-up reviewer/archi sign-off.
 
 ## Next Commit Target
 
-Commit the rewritten README files, v7 screenshot assets, and updated plan-tree
-status after maintainer review.
+Commit the homepage README rewrite, canonical hero assets, npm release surface,
+Claude P0 runtime fix, and updated plan-tree notes after validation and
+follow-up review.
 
 ## Last Verified Commands
 
@@ -141,6 +196,29 @@ status after maintainer review.
 - `python - <<'PY' ... generate annotated/cropped README screenshots ... PY`
 - `python - <<'PY' ... README local links/images OK ... PY`
 - `git diff --check -- README.md README_zh.md docs/plantree/plans/readme-v7-redesign`
+- `sed -n '1,260p' .ccb/ccbd/artifacts/text/completion-reply/job_6092320a91e1-art_89d691bcc11a49a2.txt`
+- `test -d docs/manuals/user-guide && test -d docs/manuals/developer-guide`
+- `rg -n "release-first|Release first|Release 优先|seemseam@ccb|@seemseam/ccb@latest|New users should start from a release package|首次安装推荐使用 \\[GitHub Releases\\]" README.md README_zh.md docs/plantree/plans/readme-v7-redesign/README.md docs/plantree/plans/readme-v7-redesign/roadmap.md docs/plantree/plans/readme-v7-redesign/topics`
+- `rg -n '^#{1,3} ' README.md README_zh.md`
+- `test -f assets/readme_v7/ccb-hero-en.png && test -f assets/readme_v7/ccb-hero-zh.png && test -d docs/manuals/user-guide && test -d docs/manuals/developer-guide`
+- `npm pack --dry-run`
+- `npm view @seemseam/ccb version dist-tags --json`
+- `git ls-remote --tags origin refs/tags/v7.4.4`
+- `git tag --list 'v7.5.0'`
+- `python -m pytest -q test/test_claude_assistant_events.py test/test_v2_completion_detectors.py test/test_v2_completion_tracker.py test/test_v2_completion_orchestration.py test/test_v2_execution_service.py test/test_provider_hook_transcript.py test/test_provider_finish_hook_script.py test/test_claude_hook_results.py test/test_claude_execution_polling.py`
+- `python -m compileall -q lib bin ccb`
+- `git diff --check`
+- Markdown local link check over public READMEs and active plan roots
+- `/home/bfly/yunwei/ccb_source/ccb_test --diagnose` from
+  `/home/bfly/yunwei/test_ccb2`
+- `HOME=/home/bfly/yunwei/test_ccb2/source_home CCB_SOURCE_HOME=/home/bfly/yunwei/test_ccb2/source_home /home/bfly/yunwei/ccb_source/ccb_test --version`
+- `HOME=/home/bfly/yunwei/test_ccb2/source_home CCB_SOURCE_HOME=/home/bfly/yunwei/test_ccb2/source_home /home/bfly/yunwei/ccb_source/ccb_test config validate`
+- `python - <<'PY' ... license_metadata_ok AGPL-3.0-only ... PY`
+- `file assets/readme_v7/ccb-hero-zh.png assets/readme_v7/ccb-hero-en.png`
+- `rg -n "release-first|Release first|Release 优先|seemseam@ccb|@seemseam/ccb@latest|New users should start from a release package|首次安装推荐使用 \\[GitHub Releases\\]" README.md README_zh.md docs/plantree/plans/readme-v7-redesign/README.md docs/plantree/plans/readme-v7-redesign/roadmap.md docs/plantree/plans/readme-v7-redesign/topics`
+- `rg -n "Supported CLIs|支持的 CLI|docs/manuals/user-guide|docs/manuals/developer-guide|ccb_self|assets/readme_v7/ccb-hero" README.md README_zh.md docs/plantree/plans/readme-v7-redesign/decisions docs/plantree/plans/readme-v7-redesign/topics docs/plantree/plans/readme-v7-redesign/roadmap.md docs/plantree/plans/readme-v7-redesign/implementation-status.md`
+- `git diff --check -- README.md README_zh.md assets/readme_v7/ccb-hero-en.png assets/readme_v7/ccb-hero-zh.png docs/plantree/plans/readme-v7-redesign`
+- Shields badge URL smoke check with `curl -L -s -o /dev/null -w '%{http_code}'`.
 
 ## Handoff Notes
 

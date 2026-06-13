@@ -7,6 +7,7 @@ from provider_execution.base import ProviderRuntimeContext, ProviderSubmission
 from provider_execution.common import error_submission, send_prompt_to_runtime_target
 
 from ..comm import AgyPaneReader
+from ..native_log import agy_home_from_start_cmd
 from ..protocol import wrap_agy_prompt
 from ..session import load_project_session
 from .helpers import resolve_work_dir
@@ -28,7 +29,7 @@ def start_submission(
             job,
             provider=provider,
             now=now,
-            source_kind=CompletionSourceKind.TERMINAL_TEXT,
+            source_kind=CompletionSourceKind.SESSION_EVENT_LOG,
             reason='runtime_unavailable',
             error='work_dir_missing',
         )
@@ -48,7 +49,7 @@ def start_submission(
             job,
             provider=provider,
             now=now,
-            source_kind=CompletionSourceKind.TERMINAL_TEXT,
+            source_kind=CompletionSourceKind.SESSION_EVENT_LOG,
             reason='runtime_unavailable',
             error=load_error or 'agy_session_file_missing',
         )
@@ -59,7 +60,7 @@ def start_submission(
             job,
             provider=provider,
             now=now,
-            source_kind=CompletionSourceKind.TERMINAL_TEXT,
+            source_kind=CompletionSourceKind.SESSION_EVENT_LOG,
             reason='pane_unavailable',
             error='pane_id_missing_in_session',
         )
@@ -77,7 +78,7 @@ def start_submission(
             job,
             provider=provider,
             now=now,
-            source_kind=CompletionSourceKind.TERMINAL_TEXT,
+            source_kind=CompletionSourceKind.SESSION_EVENT_LOG,
             reason='backend_unavailable',
             error=backend_error or 'terminal_backend_unavailable',
         )
@@ -95,7 +96,7 @@ def start_submission(
 
     diagnostics: dict[str, object] = {
         'provider': provider,
-        'mode': 'pane_quiet',
+        'mode': 'native_transcript_log',
         'pane_id': pane_id,
         'req_id': req_id,
         'task_id': job.request.task_id,
@@ -110,15 +111,19 @@ def start_submission(
         provider=provider,
         accepted_at=now,
         ready_at=now,
-        source_kind=CompletionSourceKind.TERMINAL_TEXT,
+        source_kind=CompletionSourceKind.SESSION_EVENT_LOG,
         reply='',
         diagnostics=diagnostics,
         runtime_state={
-            'mode': 'pane_quiet',
+            'mode': 'native_transcript_log',
             'reader': reader,
             'backend': backend,
             'pane_id': pane_id,
             'req_id': req_id,
+            'request_anchor': req_id,
+            'work_dir': str(work_dir),
+            'runtime_dir': str(session.runtime_dir),
+            'agy_home': str(agy_home_from_start_cmd(session.start_cmd) or ''),
             'pane_lines': _PANE_LINES_DEFAULT,
             'started_at': now,
             'last_hash': None,

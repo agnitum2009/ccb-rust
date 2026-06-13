@@ -42,7 +42,7 @@ Recommended approach:
 | one-line tmux copy/paste | Replace | Add `tmux 常规操作` with `<prefix>` convention, English input-method note, copy/paste, pane/window operations, and folded advanced keys. |
 | `配置控制` | Rewrite | Explain config precedence, compact layout, v7 `[windows]`, sidebar options, worktree, model/key/url, and `ccb config validate`. |
 | `配置设计 Skill` | Rewrite | Use current `ccb-config` spelling; explain propose/confirm/write/validate/restart flow. |
-| `如何安装` | Rewrite around release-first path | Use release as the default recommended path; keep source checkout install as development/fallback guidance. |
+| `如何安装` | Rewrite around npm-first path | Use `npm install -g @seemseam/ccb` as the default new-install path, then `ccb update` for later updates; keep GitHub release packages and source checkout install as fallback/development guidance. |
 | `如何使用` | Rewrite | Keep `/ask`, `$ask`, callback, and `--silence`; add short practical examples. |
 | `编辑器集成` | Keep but compress | Keep one screenshot and one concise workflow paragraph. |
 | `新版本记录` | Move/link | Keep latest v7 summary plus `CHANGELOG.md`; do not keep old history as the main README body. |
@@ -138,7 +138,8 @@ Already decided by
 
 - final README media should use real terminal screenshots, not the current
   text-rendered annotated draft;
-- release install/update is the default recommended path;
+- npm install is the default recommended new-install path, and `ccb update` is
+  the normal update path after installation;
 - native Windows support only applies to the v5 line; newer versions are not
   supported natively on Windows.
 
@@ -159,9 +160,11 @@ Resolved for the first README patch:
 
 Use this direction in the README draft:
 
-- Default path: install or update to the latest stable release.
+- Default new-install path: install through npm using `@seemseam/ccb`.
+- Default update path after installation: `ccb update`.
+- GitHub release package path: fallback when npm is unavailable.
 - Source checkout path: development/fallback path, folded or placed after the
-  recommended release path.
+  recommended npm path.
 - Linux/macOS/WSL: current recommended environment for new versions.
 - Native Windows: legacy v5-only support; current/new v7 line is not supported
   natively on Windows. Recommend WSL for Windows users who want current versions.

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from typing import Callable
 
-_ZOMBIE_SESSION_PATTERN = re.compile(r"^(codex|gemini|opencode|claude|droid|agy)-(\d+)-")
+_ZOMBIE_SESSION_PATTERN = re.compile(r"^(codex|gemini|opencode|claude|droid|agy|kimi|deepseek)-(\d+)-")
 
 
 def find_all_zombie_sessions(

@@ -1,6 +1,6 @@
 # Open Questions
 
-Date: 2026-05-26
+Date: 2026-06-12
 
 ## Deferred Until Video Pass
 

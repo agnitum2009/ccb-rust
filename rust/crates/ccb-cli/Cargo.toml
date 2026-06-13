@@ -1,0 +1,28 @@
+[package]
+name = "ccb-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ccb"
+path = "src/main.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+camino = { workspace = true }
+ccb-storage = { workspace = true }
+ccb-types = { workspace = true }
+ccb-provider-core = { workspace = true }
+ccb-agents = { workspace = true }
+ccb-mailbox = { workspace = true }
+ccb-terminal = { workspace = true }
+
+[dev-dependencies]
+ccb-daemon = { workspace = true }
+tempfile = { workspace = true }

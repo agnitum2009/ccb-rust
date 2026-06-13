@@ -1,0 +1,59 @@
+{
+  "name": "@seemseam/ccb",
+  "version": "7.5.0",
+  "description": "Visible, controllable multi-agent CLI workspace for Codex, Claude, Gemini, Kimi, OpenCode, Antigravity, and Droid.",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/SeemSeam/claude_codex_bridge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SeemSeam/claude_codex_bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SeemSeam/claude_codex_bridge/issues"
+  },
+  "keywords": [
+    "ccb",
+    "multi-agent",
+    "codex",
+    "claude",
+    "gemini",
+    "tmux",
+    "cli"
+  ],
+  "bin": {
+    "ccb": "bin/ccb.js",
+    "ask": "bin/ask.js",
+    "autonew": "bin/autonew.js",
+    "ctx-transfer": "bin/ctx-transfer.js"
+  },
+  "files": [
+    "bin/ccb.js",
+    "bin/ask.js",
+    "bin/autonew.js",
+    "bin/ctx-transfer.js",
+    "bin/ccb-npm-install.js",
+    "bin/ccb-npm-runner.js",
+    "README.md",
+    "README_zh.md",
+    "LICENSE",
+    "VERSION"
+  ],
+  "scripts": {
+    "postinstall": "node bin/ccb-npm-install.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
