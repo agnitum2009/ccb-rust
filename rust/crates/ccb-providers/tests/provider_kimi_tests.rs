@@ -172,6 +172,12 @@ fn test_non_answer_progress_detection() {
     assert!(looks_like_kimi_non_answer(
         "No docs lint script. We can note."
     ));
+    assert!(looks_like_kimi_non_answer(
+        "User says previous reply was just process fragment"
+    ));
+    assert!(looks_like_kimi_non_answer(
+        "They want final Documentation Receipt only."
+    ));
     assert!(!looks_like_kimi_non_answer(
         "Implementation Receipt\n\nChanged files\n- src/a.rs"
     ));

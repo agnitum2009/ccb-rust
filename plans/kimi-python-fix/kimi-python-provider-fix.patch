@@ -1,7 +1,7 @@
 diff -ruN a/lib/provider_backends/kimi/execution.py b/lib/provider_backends/kimi/execution.py
 --- lib/provider_backends/kimi/execution.py	1970-01-01 08:00:00.000000000 +0800
-+++ lib/provider_backends/kimi/execution.py	2026-06-13 18:49:57.671676231 +0800
-@@ -0,0 +1,752 @@
++++ lib/provider_backends/kimi/execution.py	2026-06-13 18:51:33.588672842 +0800
+@@ -0,0 +1,759 @@
 +from __future__ import annotations
 +
 +import hashlib
@@ -642,11 +642,16 @@ diff -ruN a/lib/provider_backends/kimi/execution.py b/lib/provider_backends/kimi
 +            "thinking",
 +            "user wants",
 +            "user asks",
++            "user says",
 +            "user requests",
 +            "user requested",
 +            "the user wants",
 +            "the user asks",
++            "the user says",
 +            "the user requested",
++            "they want",
++            "they ask",
++            "they request",
 +            "let me ",
 +            "let's ",
 +            "i'll ",
@@ -656,6 +661,8 @@ diff -ruN a/lib/provider_backends/kimi/execution.py b/lib/provider_backends/kimi
 +            "i'm ",
 +            "i need",
 +            "i should",
++            "should ",
++            "we have",
 +            "we need",
 +            "need ",
 +            "now need",
@@ -756,7 +763,7 @@ diff -ruN a/lib/provider_backends/kimi/execution.py b/lib/provider_backends/kimi
 +__all__ = ["KimiProviderAdapter", "build_execution_adapter"]
 diff -ruN a/lib/provider_backends/kimi/launcher.py b/lib/provider_backends/kimi/launcher.py
 --- lib/provider_backends/kimi/launcher.py	1970-01-01 08:00:00.000000000 +0800
-+++ lib/provider_backends/kimi/launcher.py	2026-06-13 18:49:57.672710451 +0800
++++ lib/provider_backends/kimi/launcher.py	2026-06-13 18:51:33.589526267 +0800
 @@ -0,0 +1,186 @@
 +from __future__ import annotations
 +
@@ -946,7 +953,7 @@ diff -ruN a/lib/provider_backends/kimi/launcher.py b/lib/provider_backends/kimi/
 +__all__ = ["build_runtime_launcher", "build_start_cmd", "prepare_launch_context"]
 diff -ruN a/test/test_native_cli_completion.py b/test/test_native_cli_completion.py
 --- test/test_native_cli_completion.py	1970-01-01 08:00:00.000000000 +0800
-+++ test/test_native_cli_completion.py	2026-06-13 18:49:57.673751106 +0800
++++ test/test_native_cli_completion.py	2026-06-13 18:51:33.590322658 +0800
 @@ -0,0 +1,477 @@
 +from __future__ import annotations
 +
@@ -1427,7 +1434,7 @@ diff -ruN a/test/test_native_cli_completion.py b/test/test_native_cli_completion
 +    assert result.items[-1].payload["reason"] == "agy_transcript_response_done"
 diff -ruN a/test/test_native_cli_providers.py b/test/test_native_cli_providers.py
 --- test/test_native_cli_providers.py	1970-01-01 08:00:00.000000000 +0800
-+++ test/test_native_cli_providers.py	2026-06-13 18:49:57.675085308 +0800
++++ test/test_native_cli_providers.py	2026-06-13 18:51:33.591076529 +0800
 @@ -0,0 +1,138 @@
 +from __future__ import annotations
 +
