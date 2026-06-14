@@ -1,20 +1,58 @@
-use std::path::PathBuf;
-
 use ccb_completion::models::{
-    CompletionConfidence, CompletionItemKind, CompletionSourceKind, CompletionStatus, JobRecord,
+    CompletionItemKind, CompletionSourceKind, CompletionStatus, JobRecord,
 };
 use ccb_provider_core::manifest::RuntimeMode;
-use ccb_providers::execution::{ExecutionAdapter, ProviderRuntimeContext};
-use ccb_providers::providers::kimi::{
-    backend, clean_kimi_pane_reply, extract_reply_for_req, find_project_session_file, is_done_text,
-    kimi_context_path, load_project_session, looks_like_kimi_input_box_line,
-    looks_like_kimi_non_answer, manifest, wrap_kimi_prompt, KimiExecutionAdapter,
-    KimiProjectSession, KimiRequest, KimiResult, PROVIDER_NAME,
+use ccb_provider_core::protocol;
+use ccb_providers::execution::{
+    with_prompt_target_override, ExecutionAdapter, PromptTarget, ProviderRuntimeContext,
 };
-use serde_json::Value;
+use ccb_providers::providers::kimi::{
+    backend, manifest, wrap_kimi_prompt, KimiExecutionAdapter, PROVIDER_NAME,
+};
+use std::io::Write;
+use std::sync::{Arc, Mutex};
 
 fn fake_now() -> String {
     "2025-01-01T00:00:00Z".to_string()
+}
+
+fn write_lines(path: &std::path::Path, lines: &[&str]) {
+    let mut file = std::fs::File::create(path).unwrap();
+    for line in lines {
+        writeln!(file, "{}", line).unwrap();
+    }
+}
+
+/// Mock prompt target that records sent text and reports pane readiness.
+#[derive(Default, Clone)]
+struct MockTarget {
+    sent: Arc<Mutex<Vec<(String, String)>>>,
+    ready: Arc<Mutex<bool>>,
+}
+
+impl PromptTarget for MockTarget {
+    fn send_text(&self, pane_id: &str, text: &str) -> Result<(), String> {
+        self.sent
+            .lock()
+            .unwrap()
+            .push((pane_id.to_string(), text.to_string()));
+        Ok(())
+    }
+
+    fn get_pane_content(&self, _pane_id: &str, _lines: usize) -> Result<String, String> {
+        if *self.ready.lock().unwrap() {
+            Ok("── input\nagent (\n".to_string())
+        } else {
+            Ok("not ready".to_string())
+        }
+    }
+}
+
+impl MockTarget {
+    fn ready(self) -> Self {
+        *self.ready.lock().unwrap() = true;
+        self
+    }
 }
 
 #[test]
@@ -49,228 +87,158 @@ fn test_execution_adapter_provider_name() {
 }
 
 #[test]
-fn test_start_creates_active_submission_with_context_pointer() {
-    let adapter = KimiExecutionAdapter;
-    let job = JobRecord::new("j1", "slot1_claude", PROVIDER_NAME);
-    let ctx = ProviderRuntimeContext {
-        agent_name: "slot1_claude".to_string(),
-        workspace_path: Some("/repo".to_string()),
-        ..Default::default()
-    };
-    let submission = adapter.start(&job, Some(&ctx), &fake_now());
+fn test_start_creates_native_turn_log_submission() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let work_dir = tmp.path().join("workspace");
+    std::fs::create_dir(&work_dir).unwrap();
+    std::fs::write(work_dir.join(".kimi-agent1-session"), r#"{"pane_id":"%1"}"#).unwrap();
+
+    let target = Arc::new(MockTarget::default().ready());
+    let submission = with_prompt_target_override(target.clone(), || {
+        let adapter = KimiExecutionAdapter;
+        let job = JobRecord::new("j1", "agent1", PROVIDER_NAME);
+        let ctx = ProviderRuntimeContext {
+            agent_name: "agent1".to_string(),
+            workspace_path: Some(work_dir.to_string_lossy().to_string()),
+            ..Default::default()
+        };
+        adapter.start(&job, Some(&ctx), &fake_now())
+    });
 
     assert_eq!(submission.job_id, "j1");
-    assert_eq!(submission.agent_name, "slot1_claude");
+    assert_eq!(submission.agent_name, "agent1");
     assert_eq!(submission.provider, PROVIDER_NAME);
     assert_eq!(
         submission.source_kind,
-        CompletionSourceKind::ProtocolEventStream
+        CompletionSourceKind::SessionEventLog
     );
     assert!(!submission.is_terminal());
 
     let state = &submission.runtime_state;
-    let context_path =
-        "/repo/.ccb/agents/slot1_claude/provider-state/kimi/home/CCB_KIMI_CONTEXT.md";
-    assert_eq!(state.get("mode").unwrap(), "active");
-    assert_eq!(state.get("kimi_context_path").unwrap(), context_path);
-    assert_eq!(state.get("kimi_context_projection").unwrap(), "file");
+    assert_eq!(state.get("mode").unwrap(), "native_turn_log");
+    assert_eq!(state.get("pane_id").unwrap(), "%1");
     assert!(state
-        .get("prompt_text")
+        .get("pending_prompt")
         .unwrap()
         .as_str()
         .unwrap()
-        .contains(context_path));
+        .contains(protocol::REQ_ID_PREFIX));
+    assert!(state.get("prompt_sent").and_then(|v| v.as_bool()).unwrap());
+    assert_eq!(state.get("backend_type").unwrap(), "tmux");
 }
 
 #[test]
-fn test_poll_returns_none_without_done_marker() {
+fn test_start_fails_without_session() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let work_dir = tmp.path().join("workspace");
+    std::fs::create_dir(&work_dir).unwrap();
+
     let adapter = KimiExecutionAdapter;
     let job = JobRecord::new("j2", "agent2", PROVIDER_NAME);
-    let submission = adapter.start(&job, None, &fake_now());
-    assert!(adapter.poll(&submission, &fake_now()).is_none());
+    let ctx = ProviderRuntimeContext {
+        workspace_path: Some(work_dir.to_string_lossy().to_string()),
+        ..Default::default()
+    };
+    let submission = adapter.start(&job, Some(&ctx), &fake_now());
+    assert!(submission
+        .runtime_state
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .contains("kimi_session_file_missing"));
 }
 
 #[test]
-fn test_poll_emits_terminal_decision_on_done_marker() {
+fn test_poll_returns_none_before_anchor() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let work_dir = tmp.path().join("workspace");
+    std::fs::create_dir(&work_dir).unwrap();
+    std::fs::write(work_dir.join(".kimi-agent3-session"), r#"{"pane_id":"%1"}"#).unwrap();
+
+    let target = Arc::new(MockTarget::default().ready());
     let adapter = KimiExecutionAdapter;
     let job = JobRecord::new("j3", "agent3", PROVIDER_NAME);
-    let mut submission = adapter.start(&job, None, &fake_now());
+    let ctx = ProviderRuntimeContext {
+        workspace_path: Some(work_dir.to_string_lossy().to_string()),
+        ..Default::default()
+    };
+    let submission = with_prompt_target_override(target.clone(), || {
+        adapter.start(&job, Some(&ctx), &fake_now())
+    });
+    assert!(with_prompt_target_override(target, || {
+        adapter.poll(&submission, &fake_now()).is_none()
+    }));
+}
 
-    let req_id = ccb_provider_core::protocol::make_req_id(&job.job_id);
-    let reply = format!(
-        "{}\nImplementation Receipt\n\nChanged files\n- a.rs\n{}",
-        req_id,
-        ccb_provider_core::protocol::done_marker(&req_id)
+#[test]
+fn test_poll_emits_terminal_decision_on_completed_turn() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let work_dir = tmp.path().join("workspace");
+    std::fs::create_dir(&work_dir).unwrap();
+    std::fs::write(work_dir.join(".kimi-agent4-session"), r#"{"pane_id":"%1"}"#).unwrap();
+
+    let req_id = protocol::request_anchor_for_job("j4");
+    let kimi_home = tmp.path().join(".kimi");
+    let sessions_root =
+        kimi_home
+            .join("sessions")
+            .join(ccb_providers::kimi::native_log::kimi_project_hash(
+                &work_dir,
+            ));
+    std::fs::create_dir_all(&sessions_root).unwrap();
+    let wire_path = sessions_root.join("sess1").join("wire.jsonl");
+    std::fs::create_dir(wire_path.parent().unwrap()).unwrap();
+    write_lines(
+        &wire_path,
+        &[
+            &format!(
+                r#"{{"type":"turn.prompt","payload":{{"user_input":[{{"text":"{} {}"}}],"turnId":"turn-1"}}}}"#,
+                protocol::REQ_ID_PREFIX,
+                req_id
+            )
+            .replace("\\n\\n", "\n\n"),
+            r#"{"type":"ContentPart","payload":{"text":"Implementation Receipt"}}"#,
+            r#"{"type":"ContentPart","payload":{"text":"\n\nChanged files\n- a.rs"}}"#,
+            r#"{"type":"TurnEnd"}"#,
+        ],
     );
-    submission
-        .runtime_state
-        .insert("reply_buffer".to_string(), Value::String(reply));
 
-    let result = adapter
-        .poll(&submission, &fake_now())
-        .expect("expected poll result");
-    assert_eq!(result.items.len(), 1);
-    assert_eq!(result.items[0].kind, CompletionItemKind::AssistantFinal);
-    assert_eq!(
-        result.items[0]
-            .payload
-            .get("reply")
-            .unwrap()
-            .as_str()
-            .unwrap(),
-        "Implementation Receipt\n\nChanged files\n- a.rs"
-    );
+    let target = Arc::new(MockTarget::default().ready());
+    let adapter = KimiExecutionAdapter;
+    let job = JobRecord::new("j4", "agent4", PROVIDER_NAME);
+    let ctx = ProviderRuntimeContext {
+        workspace_path: Some(work_dir.to_string_lossy().to_string()),
+        ..Default::default()
+    };
 
-    let decision = result.decision.expect("expected terminal decision");
+    std::env::set_var("KIMI_HOME", &kimi_home);
+    let result = with_prompt_target_override(target.clone(), || {
+        let submission = adapter.start(&job, Some(&ctx), &fake_now());
+        adapter.poll(&submission, &fake_now())
+    });
+    std::env::remove_var("KIMI_HOME");
+
+    let result = result.expect("expected poll result");
+    assert!(result.decision.is_some());
+    let decision = result.decision.unwrap();
     assert!(decision.terminal);
     assert_eq!(decision.status, CompletionStatus::Completed);
-    assert_eq!(decision.confidence, Some(CompletionConfidence::Exact));
     assert_eq!(
         decision.reply,
-        "Implementation Receipt\n\nChanged files\n- a.rs"
+        "Implementation Receipt\n\n\nChanged files\n- a.rs"
     );
+
+    let assistant_final = result
+        .items
+        .iter()
+        .find(|i| i.kind == CompletionItemKind::AssistantFinal);
+    assert!(assistant_final.is_some());
 }
 
 #[test]
 fn test_wrap_kimi_prompt_format() {
-    let context_path =
-        PathBuf::from("/repo/.ccb/agents/slot/provider-state/kimi/home/CCB_KIMI_CONTEXT.md");
-    let wrapped = wrap_kimi_prompt("do the thing", "req-12345678", Some(&context_path));
+    let wrapped = wrap_kimi_prompt("do the thing", "req-12345678");
     assert!(wrapped.contains("req-12345678"));
     assert!(wrapped.contains("do the thing"));
-    assert!(wrapped.contains("CCB_KIMI_CONTEXT.md"));
-    assert!(wrapped.contains("IMPORTANT:"));
-    assert!(wrapped.contains("<<DONE:"));
-    assert!(wrapped.ends_with('\n'));
-}
-
-#[test]
-fn test_kimi_context_path() {
-    assert_eq!(
-        kimi_context_path(std::path::Path::new("/repo"), "slot1_claude"),
-        PathBuf::from(
-            "/repo/.ccb/agents/slot1_claude/provider-state/kimi/home/CCB_KIMI_CONTEXT.md"
-        )
-    );
-}
-
-#[test]
-fn test_k2_7_input_box_readiness() {
-    assert!(looks_like_kimi_input_box_line(
-        "│ >                                      K2.7 Code  context: 42%"
-    ));
-    assert!(!looks_like_kimi_input_box_line("│ > waiting"));
-}
-
-#[test]
-fn test_non_answer_progress_detection() {
-    assert!(looks_like_kimi_non_answer("Run focused tests."));
-    assert!(looks_like_kimi_non_answer("Using Read"));
-    assert!(looks_like_kimi_non_answer(
-        "Let me start by reading the scoped CCB context file"
-    ));
-    assert!(looks_like_kimi_non_answer(
-        "No docs lint script. We can note."
-    ));
-    assert!(looks_like_kimi_non_answer(
-        "User says previous reply was just process fragment"
-    ));
-    assert!(looks_like_kimi_non_answer(
-        "They want final Documentation Receipt only."
-    ));
-    assert!(!looks_like_kimi_non_answer(
-        "Implementation Receipt\n\nChanged files\n- src/a.rs"
-    ));
-}
-
-#[test]
-fn test_clean_kimi_pane_reply_removes_done_and_input_box() {
-    let text = "result\n│ >                                      K2.7 Code  context: 42%\n<<DONE:req-12345678>>";
-    assert_eq!(clean_kimi_pane_reply(text, "req-12345678"), "result");
-}
-
-#[test]
-fn test_extract_reply_uses_first_req_id_and_keeps_multiline_receipt() {
-    let text = "noise\nreq-12345678\nImplementation Receipt\n\nChanged files\n- a.rs\n\nCCB_REQ_ID: req-12345678\nCommands / results\n- pass\n<<DONE:req-12345678>>";
-    assert_eq!(
-        extract_reply_for_req(text, "req-12345678"),
-        "Implementation Receipt\n\nChanged files\n- a.rs\n\nCCB_REQ_ID: req-12345678\nCommands / results\n- pass"
-    );
-}
-
-#[test]
-fn test_extract_reply_rejects_progress_only_text() {
-    let text = "req-12345678\nRun focused tests.\n<<DONE:req-12345678>>";
-    assert_eq!(extract_reply_for_req(text, "req-12345678"), "");
-}
-
-#[test]
-fn test_is_done_text() {
-    let text = "some text <<DONE:req-12345678>> more";
-    assert!(is_done_text(text));
-}
-
-#[test]
-fn test_request_and_result_defaults() {
-    let req = KimiRequest {
-        client_id: "client-1".into(),
-        work_dir: "/tmp/test".into(),
-        timeout_s: 60.0,
-        quiet: false,
-        message: "hello".into(),
-        req_id: None,
-        caller: "claude".into(),
-    };
-    assert_eq!(req.client_id, "client-1");
-    assert_eq!(req.caller, "claude");
-    assert!(req.req_id.is_none());
-
-    let result = KimiResult {
-        exit_code: 0,
-        reply: "test reply".into(),
-        req_id: "abc123".into(),
-        session_key: "kimi:xyz".into(),
-        done_seen: true,
-        done_ms: Some(1500),
-        anchor_seen: false,
-        fallback_scan: false,
-        anchor_ms: None,
-    };
-    assert_eq!(result.exit_code, 0);
-    assert!(result.done_seen);
-    assert!(!result.anchor_seen);
-}
-
-#[test]
-fn test_find_project_session_file() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    let session_path = tmp.path().join(".kimi-session");
-    std::fs::write(&session_path, "{}").unwrap();
-
-    let found = find_project_session_file(tmp.path(), None).unwrap();
-    assert_eq!(found, session_path);
-}
-
-#[test]
-fn test_load_project_session() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    let session_path = tmp.path().join(".kimi-session");
-    std::fs::write(
-        &session_path,
-        r#"{"kimi_session_id":"s1","kimi_context_path":"/repo/context.md"}"#,
-    )
-    .unwrap();
-
-    let session = load_project_session(tmp.path(), None).unwrap();
-    assert_eq!(session.kimi_session_id(), "s1");
-    assert_eq!(session.kimi_context_path(), "/repo/context.md");
-    assert_eq!(session.session_file, session_path);
-}
-
-#[test]
-fn test_project_session_default() {
-    let session = KimiProjectSession::default();
-    assert!(session.kimi_session_id().is_empty());
-    assert!(session.kimi_session_path().is_empty());
-    assert!(session.kimi_context_path().is_empty());
+    assert!(wrapped.starts_with(protocol::REQ_ID_PREFIX));
 }

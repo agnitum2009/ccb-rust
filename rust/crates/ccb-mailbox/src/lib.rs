@@ -11,6 +11,49 @@ pub mod reply_payloads;
 pub mod stores;
 pub mod targets;
 
+// Re-export the public surface that Python `lib/mailbox_kernel/__init__.py`
+// exposes at package root, so the Rust crate has the same ergonomic boundary.
+pub use crate::kernel::MailboxKernelService;
+pub use crate::models::{
+    DeliveryLease, InboundEventRecord, InboundEventStatus, InboundEventType, LeaseState,
+    MailboxRecord, MailboxState, SCHEMA_VERSION,
+};
+pub use crate::stores::{DeliveryLeaseStore, InboundEventStore, MailboxStore};
+
+#[cfg(test)]
+mod re_export_tests {
+pub mod claiming;
+pub mod leasing;
+pub mod mailbox;
+pub mod model_codecs;
+pub mod model_enums;
+pub mod queries;
+pub mod service;
+pub mod service_state;
+pub mod summary;
+pub mod terminal;
+pub mod transitions;
+    // Compile-only test: every item in Python `lib/mailbox_kernel/__init__.py`
+    // must be reachable from the crate root.
+    use super::*;
+
+    #[test]
+    fn mailbox_kernel_public_items_re_exported() {
+        let _: Option<DeliveryLease> = None;
+        let _: Option<DeliveryLeaseStore> = None;
+        let _: Option<InboundEventRecord> = None;
+        let _: Option<InboundEventStatus> = None;
+        let _: Option<InboundEventStore> = None;
+        let _: Option<InboundEventType> = None;
+        let _: Option<LeaseState> = None;
+        let _: Option<MailboxKernelService> = None;
+        let _: Option<MailboxRecord> = None;
+        let _: Option<MailboxState> = None;
+        let _: Option<MailboxStore> = None;
+        let _ = SCHEMA_VERSION;
+    }
+}
+
 use thiserror::Error;
 
 #[derive(Error, Debug)]

@@ -12,7 +12,10 @@ tracing = { workspace = true }
 chrono = { workspace = true }
 ccb-storage = { workspace = true }
 ccb-types = { workspace = true }
+ccb-stdio-runtime = { workspace = true }
 regex = { workspace = true }
+sha2 = { workspace = true }
+shell-words = { workspace = true }
 libc = "0.2"
 rand = "0.8"
 

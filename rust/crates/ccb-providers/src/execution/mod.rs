@@ -9,6 +9,7 @@ pub mod restore;
 pub mod service;
 pub mod snapshots;
 pub mod state_store;
+pub mod target;
 
 pub use adapter::{AdapterBox, ExecutionAdapter};
 pub use common::{
@@ -25,3 +26,8 @@ pub use reliability::{
 };
 pub use service::ExecutionService;
 pub use state_store::ExecutionStateStore;
+pub use target::{
+    backend_config_from_session_data, resolve_prompt_target, resolve_prompt_target_for_session,
+    store_backend_config, with_prompt_target_override, BackendConfig, PromptTarget,
+    TmuxPromptTarget,
+};

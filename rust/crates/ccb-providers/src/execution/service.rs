@@ -94,6 +94,28 @@ impl ExecutionService {
         active_runtime_snapshots(&self.handle)
     }
 
+    /// Return the job ids and runtime contexts for all active submissions.
+    pub fn active_contexts(&self) -> Vec<(String, super::models::ProviderRuntimeContext)> {
+        self.handle
+            .runtime_contexts
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
+    }
+
+    /// Patch the runtime state of an active submission.
+    pub fn feed_runtime_state(
+        &mut self,
+        job_id: &str,
+        patch: std::collections::HashMap<String, serde_json::Value>,
+    ) {
+        if let Some(submission) = self.handle.active.get_mut(job_id) {
+            for (key, value) in patch {
+                submission.runtime_state.insert(key, value);
+            }
+        }
+    }
+
     fn interrupt_active_submission(&self, submission: &ProviderSubmission) {
         let backend = submission.runtime_state.get("backend");
         let pane_id = submission

@@ -10,7 +10,19 @@ const PROVIDER_START_ENV_VARS: &[(&str, &str)] = &[
     ("opencode", "OPENCODE_START_CMD"),
     ("droid", "DROID_START_CMD"),
     ("agy", "AGY_START_CMD"),
+    ("qwen", "QWEN_START_CMD"),
+    ("copilot", "COPILOT_START_CMD"),
+    ("codebuddy", "CODEBUDDY_START_CMD"),
+    ("cursor", "CURSOR_START_CMD"),
+    ("crush", "CRUSH_START_CMD"),
+    ("kiro", "KIRO_START_CMD"),
+    ("pi", "PI_START_CMD"),
+    ("kimi", "KIMI_START_CMD"),
+    ("deepseek", "DEEPSEEK_START_CMD"),
+    ("mimo", "MIMO_START_CMD"),
 ];
+
+const PROVIDER_DEFAULT_EXECUTABLES: &[(&str, &str)] = &[("deepseek", "deepcode"), ("mimo", "mimo")];
 
 /// Placeholder token used in provider command templates.
 pub const PROVIDER_COMMAND_PLACEHOLDER: &str = "{command}";
@@ -18,7 +30,7 @@ pub const PROVIDER_COMMAND_PLACEHOLDER: &str = "{command}";
 /// Return the start command parts for a provider.
 ///
 /// First checks `<PROVIDER>_START_CMD`, otherwise falls back to the provider
-/// name as the executable.
+/// default executable (usually the provider name).
 pub fn provider_start_parts(provider: &str) -> Vec<String> {
     let normalized = provider.trim().to_lowercase();
     let env_map: HashMap<&str, &str> = PROVIDER_START_ENV_VARS.iter().copied().collect();
@@ -30,7 +42,13 @@ pub fn provider_start_parts(provider: &str) -> Vec<String> {
             }
         }
     }
-    vec![normalized]
+    let default_exec_map: HashMap<&str, &str> =
+        PROVIDER_DEFAULT_EXECUTABLES.iter().copied().collect();
+    let executable = default_exec_map
+        .get(normalized.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or(normalized);
+    vec![executable]
 }
 
 /// Apply a wrapper template to a command.

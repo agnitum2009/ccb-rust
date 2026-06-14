@@ -62,9 +62,7 @@ impl CompletionReliabilityPolicy {
 pub fn adapter_reliability_policy(
     adapter: &dyn super::adapter::ExecutionAdapter,
 ) -> Option<&CompletionReliabilityPolicy> {
-    // Adapters may attach a policy via a helper method in the future.
-    let _ = adapter;
-    None
+    adapter.reliability_policy()
 }
 
 const SEMANTIC_PROGRESS_ITEM_KINDS: &[CompletionItemKind] = &[

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use thiserror::Error;
 
+use crate::panes::{TmuxRunOutput, TmuxRunner};
 use crate::tmux;
 
 #[derive(Error, Debug)]
@@ -106,7 +107,7 @@ impl TmuxBackend {
             cmd.arg(arg);
         }
         cmd.env_clear();
-        for (key, value) in isolated_tmux_env() {
+        for (key, value) in crate::env::isolated_tmux_env() {
             cmd.env(key, value);
         }
         if input_bytes.is_some() {
@@ -175,19 +176,163 @@ impl TmuxBackend {
     pub fn env_tmux_pane(&self) -> String {
         std::env::var("TMUX_PANE").unwrap_or_default()
     }
+
+    /// Ensure the pane is not in copy mode, cancelling it if necessary.
+    ///
+    /// Mirrors Python `TmuxBackend._ensure_not_in_copy_mode`.
+    pub fn ensure_not_in_copy_mode(&self, pane_id: &str) {
+        let Ok(output) = self.tmux_run(
+            &["display-message", "-p", "-t", pane_id, "#{pane_in_mode}"],
+            false,
+            true,
+            None,
+            None,
+        ) else {
+            return;
+        };
+        if tmux::copy_mode_is_active(&output.stdout)
+            && self
+                .tmux_run(
+                    &["send-keys", "-t", pane_id, "-X", "cancel"],
+                    false,
+                    false,
+                    None,
+                    None,
+                )
+                .is_err()
+        {
+            // Best-effort cancellation.
+        }
+    }
+
+    fn env_float(&self, name: &str, default: f64) -> f64 {
+        crate::env::env_float(name, default)
+    }
+
+    fn pane_service(&self) -> crate::panes::TmuxPaneService {
+        let backend = self.clone();
+        crate::panes::TmuxPaneService::new(
+            move |args: &[&str], check: bool, capture: bool| -> anyhow::Result<TmuxRunOutput> {
+                let output = backend
+                    .tmux_run(args, check, capture, None, None)
+                    .map_err(|e| anyhow::anyhow!(e))?;
+                if check && !output.success() {
+                    return Err(anyhow::anyhow!(
+                        "tmux command failed ({}): {}",
+                        output.status.code().unwrap_or(-1),
+                        output.stderr
+                    ));
+                }
+                Ok(TmuxRunOutput {
+                    stdout: output.stdout,
+                    stderr: output.stderr,
+                    returncode: output.status.code().unwrap_or(-1),
+                })
+            },
+        )
+    }
+
+    /// Create a detached session and return its root pane id.
+    fn create_detached_root_pane(&self, cwd: &str) -> Result<String> {
+        let session_name = tmux::default_detached_session_name(
+            cwd,
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs_f64(),
+        );
+        let mut args = vec![
+            "new-session".to_string(),
+            "-d".to_string(),
+            "-s".to_string(),
+            session_name.clone(),
+            "-c".to_string(),
+            cwd.to_string(),
+        ];
+        args.extend(tmux::pane_placeholder_argv());
+        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        self.tmux_run(&args_ref, true, false, None, None)?;
+        let output = self.tmux_run(
+            &["list-panes", "-t", &session_name, "-F", "#{pane_id}"],
+            true,
+            true,
+            None,
+            None,
+        )?;
+        let pane_id = output
+            .stdout
+            .lines()
+            .map(|l| l.trim())
+            .find(|l| !l.is_empty())
+            .unwrap_or("")
+            .to_string();
+        if pane_id.starts_with('%') {
+            Ok(pane_id)
+        } else {
+            Err(TerminalError::CommandFailed(
+                "tmux failed to resolve root pane_id for detached session".to_string(),
+            ))
+        }
+    }
+
+    fn respawn_service(&self) -> crate::respawn::TmuxRespawnService {
+        let backend = self.clone();
+        crate::respawn::TmuxRespawnService::new(
+            Box::new(backend),
+            |_pane_id| {},
+            std::env::vars().collect(),
+        )
+    }
+}
+
+impl TmuxRunner for TmuxBackend {
+    fn run(&self, args: &[&str], check: bool, capture: bool) -> anyhow::Result<TmuxRunOutput> {
+        let output = self
+            .tmux_run(args, check, capture, None, None)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        Ok(TmuxRunOutput {
+            stdout: output.stdout,
+            stderr: output.stderr,
+            returncode: output.status.code().unwrap_or(-1),
+        })
+    }
+
+    fn run_with_input(
+        &self,
+        args: &[&str],
+        check: bool,
+        capture: bool,
+        input_bytes: Option<&[u8]>,
+    ) -> anyhow::Result<TmuxRunOutput> {
+        let output = self
+            .tmux_run(args, check, capture, input_bytes, None)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        Ok(TmuxRunOutput {
+            stdout: output.stdout,
+            stderr: output.stderr,
+            returncode: output.status.code().unwrap_or(-1),
+        })
+    }
 }
 
 impl TerminalBackend for TmuxBackend {
     fn send_text(&self, pane_id: &str, text: &str) -> Result<()> {
-        let pane_id = self.require_pane_id(pane_id, "send_text")?;
-        self.tmux_run(
-            &["send-keys", "-t", &pane_id, "-l", text],
-            true,
-            false,
-            None,
-            None,
-        )?;
-        Ok(())
+        // Delegate to the Python-mirroring buffer-based sender. It accepts both tmux
+        // pane targets and session names and uses `load-buffer`/`paste-buffer` for
+        // multi-line or large payloads.
+        let backend_for_copy_mode = self.clone();
+        let backend_for_env = self.clone();
+        let sender = crate::input::TmuxTextSender::new(
+            Box::new(self.clone()),
+            move |pid| {
+                backend_for_copy_mode.ensure_not_in_copy_mode(pid);
+            },
+            move |name, default| backend_for_env.env_float(name, default),
+        );
+        sender
+            .send_text(pane_id, text)
+            .map_err(|e| TerminalError::CommandFailed(e.to_string()))
     }
 
     fn is_alive(&self, pane_id: &str) -> Result<bool> {
@@ -251,30 +396,103 @@ impl TerminalBackend for TmuxBackend {
         percent: u32,
         parent_pane: Option<&str>,
     ) -> Result<String> {
-        let (flag, _) = tmux::normalize_split_direction(direction);
-        let percent = percent.clamp(1, 99);
-        let mut args = vec![
-            "split-window".to_string(),
-            flag.to_string(),
-            "-p".to_string(),
-            percent.to_string(),
-            "-c".to_string(),
-            cwd.to_string(),
-        ];
-        if let Some(parent) = parent_pane {
-            args.push("-t".to_string());
-            args.push(parent.to_string());
-        }
-        args.push(cmd.to_string());
+        let cmd = cmd.trim();
+        let cwd = cwd.trim();
+        let cwd = if cwd.is_empty() { "." } else { cwd };
 
-        let output = self.tmux_run(
-            &args.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-            false,
-            true,
-            None,
-            None,
-        )?;
-        Ok(output.stdout.trim().to_string())
+        // Resolve parent pane: explicit parent, current tmux pane, or none (detached session).
+        let base = parent_pane
+            .map(|p| p.trim())
+            .filter(|p| !p.is_empty())
+            .map(|p| p.to_string())
+            .or_else(|| {
+                self.pane_service()
+                    .get_current_pane_id(&self.env_tmux_pane())
+                    .ok()
+            })
+            .unwrap_or_default();
+
+        let pane_id = if !base.is_empty() {
+            self.pane_service()
+                .split_pane(&base, direction, percent, None, Some(cwd))
+                .map_err(|e| TerminalError::CommandFailed(e.to_string()))?
+        } else {
+            self.create_detached_root_pane(cwd)?
+        };
+
+        if !cmd.is_empty() {
+            self.respawn_service()
+                .respawn_pane(&pane_id, cmd, Some(cwd), None, false)
+                .map_err(|e| TerminalError::CommandFailed(e.to_string()))?;
+        }
+
+        Ok(pane_id)
+    }
+}
+
+impl crate::layouts::TmuxLayoutBackend for TmuxBackend {
+    fn get_current_pane_id(&self) -> anyhow::Result<String> {
+        self.pane_service()
+            .get_current_pane_id(&self.env_tmux_pane())
+    }
+
+    fn is_alive(&self, pane_id: &str) -> bool {
+        self.pane_service().is_pane_alive(pane_id)
+    }
+
+    fn create_pane(
+        &self,
+        cmd: &str,
+        cwd: &str,
+        direction: &str,
+        percent: u32,
+        parent_pane: Option<&str>,
+    ) -> anyhow::Result<String> {
+        TerminalBackend::create_pane(self, cmd, cwd, direction, percent, parent_pane)
+            .map_err(|e| anyhow::anyhow!(e))
+    }
+
+    fn split_pane(
+        &self,
+        parent_pane_id: &str,
+        direction: &str,
+        percent: u32,
+    ) -> anyhow::Result<String> {
+        self.pane_service()
+            .split_pane(parent_pane_id, direction, percent, None, None)
+    }
+
+    fn set_pane_title(&self, pane_id: &str, title: &str) {
+        self.pane_service().set_pane_title(pane_id, title);
+    }
+
+    fn set_pane_user_option(&self, pane_id: &str, name: &str, value: &str) {
+        self.pane_service()
+            .set_pane_user_option(pane_id, name, value);
+    }
+
+    fn set_pane_style(
+        &self,
+        pane_id: &str,
+        border_style: Option<&str>,
+        active_border_style: Option<&str>,
+    ) {
+        self.pane_service()
+            .set_pane_style(pane_id, border_style, active_border_style);
+    }
+
+    fn tmux_run(&self, args: &[&str], check: bool, capture: bool) -> anyhow::Result<String> {
+        let output = self
+            .tmux_run(args, check, capture, None, None)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        if check && !output.success() {
+            return Err(anyhow::anyhow!(
+                "tmux command failed ({}): {}",
+                output.status.code().unwrap_or(-1),
+                output.stderr
+            ));
+        }
+        Ok(output.stdout)
     }
 }
 
@@ -320,34 +538,12 @@ fn expanduser(path: &str) -> String {
     path.to_string()
 }
 
-/// Build an isolated tmux environment.
+/// Build an isolated tmux environment as a vector of pairs.
+///
+/// This preserves the original return type for backwards compatibility;
+/// the canonical implementation lives in [`crate::env::isolated_tmux_env`].
 pub fn isolated_tmux_env() -> Vec<(String, String)> {
-    let base = tmux_compatible_env();
-    let remove = [
-        "TMUX",
-        "TMUX_PANE",
-        "CCB_TMUX_SOCKET",
-        "CCB_TMUX_SOCKET_PATH",
-    ];
-    base.into_iter()
-        .filter(|(k, _)| !remove.contains(&k.as_str()))
-        .collect()
-}
-
-fn tmux_compatible_env() -> Vec<(String, String)> {
-    let mut compatible: Vec<(String, String)> = std::env::vars().collect();
-    let term = std::env::var("TERM")
-        .unwrap_or_default()
-        .trim()
-        .to_lowercase();
-    if term == "xterm-ghostty" {
-        if let Some(idx) = compatible.iter().position(|(k, _)| k == "TERM") {
-            compatible[idx].1 = "xterm-256color".to_string();
-        } else {
-            compatible.push(("TERM".to_string(), "xterm-256color".to_string()));
-        }
-    }
-    compatible
+    crate::env::isolated_tmux_env().into_iter().collect()
 }
 
 /// Backend selection that mimics Python `TerminalBackendSelection`.
@@ -361,11 +557,23 @@ impl TerminalBackendSelection {
         Self { cached: None }
     }
 
+    /// Always return a tmux backend regardless of terminal type.
     pub fn get_backend(&mut self) -> &TmuxBackend {
         if self.cached.is_none() {
             self.cached = Some(TmuxBackend::new(None, None));
         }
         self.cached.as_ref().unwrap()
+    }
+
+    /// Resolve a backend given an explicit terminal type.
+    ///
+    /// Only `"tmux"` is supported by this selection; other values leave the
+    /// cache empty and return `None`.
+    pub fn get_backend_by_type(&mut self, terminal_type: &str) -> Option<&TmuxBackend> {
+        if self.cached.is_none() && terminal_type == "tmux" {
+            self.cached = Some(TmuxBackend::new(None, None));
+        }
+        self.cached.as_ref()
     }
 
     pub fn get_backend_for_session(&self, session: &crate::registry::UserSession) -> TmuxBackend {

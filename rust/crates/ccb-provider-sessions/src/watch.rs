@@ -57,6 +57,21 @@ impl SessionFileWatcher {
         }
     }
 
+    /// Alias for [`SessionFileWatcher::with_predicate`] with the predicate as an
+    /// explicit optional argument. Mirrors Python's single constructor shape.
+    pub fn new_with_predicate<P, C>(
+        project_dir: PathBuf,
+        callback: C,
+        recursive: bool,
+        predicate: Option<P>,
+    ) -> Self
+    where
+        P: Fn(&Path) -> bool + Send + Sync + 'static,
+        C: Fn(PathBuf) + Send + Sync + 'static,
+    {
+        Self::with_predicate(project_dir, callback, recursive, predicate)
+    }
+
     pub fn start(&mut self) {
         if self.running.swap(true, Ordering::SeqCst) {
             return;

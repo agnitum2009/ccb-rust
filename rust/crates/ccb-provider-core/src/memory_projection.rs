@@ -1,10 +1,33 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use camino::Utf8Path;
+use camino::{Utf8Path, Utf8PathBuf};
+use ccb_storage::atomic::atomic_write_text;
+use ccb_storage::paths::PathLayout;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::error::{ProviderCoreError, Result};
+
+const DEFAULT_PROJECT_MEMORY: &str = r"# CCB Project Memory
+
+This project uses CCB for visible multi-agent collaboration.
+
+## Collaboration
+
+- You are one agent in a CCB-managed project team.
+- Use CCB `ask` for project-level collaboration with configured agents.
+- Delegate with the goal, scope/files, assumptions, expected output, and verification needs.
+- Reply concisely with findings, changes, verification, blockers, and risks when relevant.
+";
+
+#[derive(Debug, Clone)]
+struct MemorySource {
+    title: String,
+    path: PathBuf,
+    content: String,
+    exists: bool,
+    warning: String,
+}
 
 /// Result of a memory projection operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -195,6 +218,220 @@ pub fn text_file_sha256(path: &Path) -> String {
     }
 }
 
+fn to_utf8_path(path: &Path) -> Result<Utf8PathBuf> {
+    Utf8PathBuf::from_path_buf(path.to_path_buf()).map_err(|path| {
+        ProviderCoreError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("path is not valid utf-8: {}", path.display()),
+        ))
+    })
+}
+
+fn utf8_path_buf(path: &Path) -> Utf8PathBuf {
+    to_utf8_path(path).unwrap_or_else(|_| Utf8PathBuf::from(path.to_string_lossy().as_ref()))
+}
+
+fn ensure_project_memory(root: &PathLayout) -> String {
+    let path = root.project_memory_path();
+    if !path.exists() {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(&path, DEFAULT_PROJECT_MEMORY);
+        return String::new();
+    }
+    String::new()
+}
+
+fn read_source(title: &str, path: &Path, _include_missing: bool) -> MemorySource {
+    if !path.is_file() {
+        return MemorySource {
+            title: title.to_string(),
+            path: path.to_path_buf(),
+            content: String::new(),
+            exists: false,
+            warning: String::new(),
+        };
+    }
+    match std::fs::read_to_string(path) {
+        Ok(content) => MemorySource {
+            title: title.to_string(),
+            path: path.to_path_buf(),
+            content,
+            exists: true,
+            warning: String::new(),
+        },
+        Err(e) => MemorySource {
+            title: title.to_string(),
+            path: path.to_path_buf(),
+            content: String::new(),
+            exists: true,
+            warning: format!("failed_to_read_memory_source: {e}"),
+        },
+    }
+}
+
+fn render_source_section(source: &MemorySource) -> Vec<String> {
+    let content = source.content.trim_end();
+    let mut lines = vec![
+        format!("## {}", source.title),
+        format!("source: {}", source.path.display()),
+    ];
+    if !source.warning.is_empty() {
+        lines.push(format!("warning: {}", source.warning));
+    }
+    lines.push(String::new());
+    if !content.is_empty() {
+        lines.push(content.to_string());
+        lines.push(String::new());
+    }
+    lines
+}
+
+fn render_memory_bundle(
+    project_root: &Path,
+    agent_name: &str,
+    provider: &str,
+    sources: &[MemorySource],
+    workspace_path: Option<&Path>,
+) -> String {
+    let mut lines: Vec<String> = vec![
+        "# CCB Managed Agent Memory".to_string(),
+        String::new(),
+        "<!-- ccb-memory-bundle schema_version=1".to_string(),
+        "generated_by: ccb".to_string(),
+        "do_not_edit: true".to_string(),
+        format!("agent: {agent_name}"),
+        format!("provider: {provider}"),
+        format!("project_root: {}", resolve_path(project_root).display()),
+    ];
+    if let Some(ws) = workspace_path {
+        lines.push(format!("workspace_path: {}", resolve_path(ws).display()));
+    }
+    lines.extend([
+        "-->".to_string(),
+        String::new(),
+        "## CCB Runtime Coordination Rules".to_string(),
+        String::new(),
+        "- CCB `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.".to_string(),
+        "- Prefer `/ask <agent> <message>` when available.".to_string(),
+        String::new(),
+    ]);
+    for source in sources {
+        if !source.exists && source.warning.is_empty() {
+            continue;
+        }
+        if source.content.trim().is_empty() && source.warning.is_empty() {
+            continue;
+        }
+        lines.extend(render_source_section(source));
+    }
+    format!("{}\n", lines.join("\n").trim_end())
+}
+
+fn resolve_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Materialize the provider memory file for an agent.
+///
+/// This is a self-contained Rust implementation that mirrors Python's
+/// `materialize_provider_memory_file`. It does not depend on `ccb-memory`
+/// (which depends on this crate), so it replicates the essential source
+/// loading and rendering behavior locally.
+pub fn materialize_provider_memory_file(
+    project_root: &Path,
+    agent_name: &str,
+    provider: &str,
+    target: &Path,
+    provider_memory_path: &Path,
+    provider_memory_title: &str,
+    workspace_path: Option<&Path>,
+) -> MemoryProjectionResult {
+    let project_root_utf8 = utf8_path_buf(project_root);
+    let root = PathLayout::new(project_root_utf8);
+    let mut warnings: Vec<String> = Vec::new();
+
+    let warning = ensure_project_memory(&root);
+    if !warning.is_empty() {
+        warnings.push(warning);
+    }
+
+    let sources: Vec<MemorySource> = vec![
+        read_source(
+            "CCB Shared Project Memory",
+            root.project_memory_path().as_ref(),
+            true,
+        ),
+        read_source(provider_memory_title, provider_memory_path, false),
+        read_source(
+            "Agent Private Memory",
+            root.agent_private_memory_path(agent_name).as_ref(),
+            true,
+        ),
+    ];
+
+    warnings.extend(
+        sources
+            .iter()
+            .filter(|s| !s.warning.is_empty())
+            .map(|s| s.warning.clone()),
+    );
+
+    let rendered =
+        render_memory_bundle(project_root, agent_name, provider, &sources, workspace_path);
+    let digest = sha256_text(&rendered);
+
+    if text_file_sha256(target) == digest {
+        return memory_projection_result(
+            "skipped",
+            "unchanged",
+            target,
+            Some(&digest),
+            Some(sources.len() as i64),
+            Some(&warnings),
+            None,
+        );
+    }
+
+    let target_utf8 = match to_utf8_path(target) {
+        Ok(p) => p,
+        Err(e) => {
+            return memory_projection_result(
+                "failed",
+                "invalid_target_path",
+                target,
+                None,
+                Some(sources.len() as i64),
+                Some(&warnings),
+                Some(&e.to_string()),
+            )
+        }
+    };
+
+    if let Err(e) = atomic_write_text(&target_utf8, &rendered) {
+        return memory_projection_result(
+            "failed",
+            "write_error",
+            target,
+            None,
+            Some(sources.len() as i64),
+            Some(&warnings),
+            Some(&e.to_string()),
+        );
+    }
+
+    memory_projection_result(
+        "ok",
+        "written",
+        target,
+        Some(&digest),
+        Some(sources.len() as i64),
+        Some(&warnings),
+        None,
+    )
+}
+
 fn sha256_text(text: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -227,5 +464,68 @@ mod tests {
         assert_eq!(result.status, "failed");
         assert_eq!(result.warnings, vec!["warn", "also-warn"]);
         assert_eq!(result.error_detail, "");
+    }
+
+    #[test]
+    fn test_materialize_provider_memory_file_writes_and_skips() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let project_root = tmp.path().join("project");
+        std::fs::create_dir(&project_root).unwrap();
+        let provider_memory_path = project_root.join("AGENTS.md");
+        std::fs::write(&provider_memory_path, "# Agent instructions\n").unwrap();
+        let target = project_root.join("runtime-memory.md");
+
+        let result = materialize_provider_memory_file(
+            &project_root,
+            "claude",
+            "claude",
+            &target,
+            &provider_memory_path,
+            "Provider-Native Project Memory",
+            None,
+        );
+        assert_eq!(result.status, "ok");
+        assert_eq!(result.reason, "written");
+        assert!(target.exists());
+        assert!(result.source_count >= 2);
+        assert!(!result.sha256.is_empty());
+
+        let second = materialize_provider_memory_file(
+            &project_root,
+            "claude",
+            "claude",
+            &target,
+            &provider_memory_path,
+            "Provider-Native Project Memory",
+            None,
+        );
+        assert_eq!(second.status, "skipped");
+        assert_eq!(second.reason, "unchanged");
+        assert_eq!(second.sha256, result.sha256);
+    }
+
+    #[test]
+    fn test_materialize_provider_memory_file_includes_provider_memory() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let project_root = tmp.path().join("project");
+        std::fs::create_dir(&project_root).unwrap();
+        let provider_memory_path = project_root.join("GEMINI.md");
+        std::fs::write(&provider_memory_path, "## Gemini notes\n").unwrap();
+        let target = project_root.join("bundle.md");
+
+        let result = materialize_provider_memory_file(
+            &project_root,
+            "gemini",
+            "gemini",
+            &target,
+            &provider_memory_path,
+            "Provider User Memory",
+            Some(&project_root),
+        );
+        assert_eq!(result.status, "ok");
+        let content = std::fs::read_to_string(&target).unwrap();
+        assert!(content.contains("## Gemini notes"));
+        assert!(content.contains("agent: gemini"));
+        assert!(content.contains("workspace_path"));
     }
 }

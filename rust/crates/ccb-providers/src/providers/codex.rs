@@ -11,9 +11,11 @@ use ccb_provider_core::contracts::{
     LaunchMode, ProviderBackend, ProviderRuntimeLauncher, ProviderSessionBinding,
 };
 use ccb_provider_core::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};
+use ccb_provider_core::pathing::{find_session_file_for_work_dir, session_filename_for_instance};
 use ccb_provider_core::protocol::{
     request_anchor_for_job, strip_done_text, wrap_codex_prompt, REQ_ID_PREFIX,
 };
+use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
 
 use crate::execution::{
@@ -22,6 +24,87 @@ use crate::execution::{
 };
 
 pub const PROVIDER_NAME: &str = "codex";
+
+const SESSION_FILENAME: &str = ".codex-session";
+const SESSION_ID_PATTERN: &str = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/// A Codex project session loaded from disk.
+#[derive(Debug, Clone)]
+pub struct CodexProjectSession {
+    pub session_file: PathBuf,
+    pub data: HashMap<String, Value>,
+}
+
+impl CodexProjectSession {
+    pub fn codex_session_path(&self) -> Option<&str> {
+        self.data
+            .get("codex_session_path")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+    }
+
+    pub fn codex_session_root(&self) -> Option<&str> {
+        self.data
+            .get("codex_session_root")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+    }
+
+    pub fn codex_home(&self) -> Option<&str> {
+        self.data
+            .get("codex_home")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+    }
+
+    pub fn codex_session_id(&self) -> Option<&str> {
+        self.data
+            .get("codex_session_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+    }
+
+    pub fn work_dir(&self) -> Option<&str> {
+        self.data
+            .get("work_dir")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+    }
+}
+
+/// Find the Codex project session file for a work directory.
+pub fn find_project_session_file(work_dir: &Path, instance: Option<&str>) -> Option<PathBuf> {
+    let filename = session_filename_for_instance(SESSION_FILENAME, instance);
+    find_session_file_for_work_dir(work_dir, &filename)
+}
+
+/// Load the Codex project session for a work directory.
+pub fn load_project_session(
+    work_dir: &Path,
+    instance: Option<&str>,
+) -> Option<CodexProjectSession> {
+    let session_file = find_project_session_file(work_dir, instance)?;
+    let data = read_session_json(&session_file)?;
+    if data.is_empty() {
+        return None;
+    }
+    Some(CodexProjectSession { session_file, data })
+}
+
+fn read_session_json(path: &Path) -> Option<HashMap<String, Value>> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    let raw = raw.strip_prefix('\u{feff}').unwrap_or(&raw);
+    let value: Value = serde_json::from_str(raw).ok()?;
+    value
+        .as_object()
+        .cloned()
+        .map(|obj| obj.into_iter().collect())
+}
 
 /// Build the Codex provider manifest.
 ///
@@ -140,16 +223,31 @@ fn start_active_submission(
         );
     }
 
-    let session_path = context
-        .and_then(|c| c.session_ref.as_deref())
-        .filter(|s| s.ends_with(".jsonl") || s.ends_with(".log"))
+    let workspace_path_buf = PathBuf::from(&workspace_path);
+    let session = load_project_session(&workspace_path_buf, None);
+
+    let session_path = session
+        .as_ref()
+        .and_then(|s| s.codex_session_path())
         .map(|s| s.to_string())
+        .or_else(|| {
+            context
+                .and_then(|c| c.session_ref.as_deref())
+                .filter(|s| s.ends_with(".jsonl") || s.ends_with(".log"))
+                .map(|s| s.to_string())
+        })
         .unwrap_or_else(|| format!("{}/codex-session.jsonl", workspace_path));
 
     let pane_id = context
         .and_then(|c| c.runtime_ref.as_deref())
         .unwrap_or("")
         .to_string();
+
+    let session_root = session
+        .as_ref()
+        .and_then(|s| codex_session_root_path(&s.data))
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_default();
 
     let prompt = if no_wrap {
         job.request.body.clone()
@@ -201,6 +299,12 @@ fn start_active_submission(
         "session_path".to_string(),
         Value::String(session_path.clone()),
     );
+    if !session_root.is_empty() {
+        runtime_state.insert(
+            "codex_session_root".to_string(),
+            Value::String(session_root),
+        );
+    }
     runtime_state.insert("workspace_path".to_string(), Value::String(workspace_path));
     runtime_state.insert("no_wrap".to_string(), Value::Bool(no_wrap));
     runtime_state.insert(
@@ -316,33 +420,45 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     if get_str(&submission.runtime_state, "mode") != "active" {
         return None;
     }
-    let mut poll = build_poll_state(submission);
+
+    if let Some(failure) = delivery_acceptance_guard(submission, now) {
+        return Some(failure);
+    }
+
+    let runtime_state = refresh_runtime_state(submission, now);
+    let submission = ProviderSubmission {
+        runtime_state,
+        ..submission.clone()
+    };
+
+    let mut poll = build_poll_state(&submission);
     let session_path = poll.session_path.clone();
     if session_path.is_empty() {
         return None;
     }
 
-    let path = PathBuf::from(expand_tilde(&session_path));
     let state = submission
         .runtime_state
         .get("state")
         .cloned()
         .unwrap_or_else(|| Value::Object(Map::new()));
-    let offset = state.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-    let (entries, new_offset) = read_log_entries(&path, offset).unwrap_or_default();
 
     let current_log_path = state_session_path(&state).unwrap_or(session_path);
-    apply_session_rotation(submission, &mut poll, &current_log_path, now);
+    apply_session_rotation(&submission, &mut poll, &current_log_path, now);
+
+    let path = PathBuf::from(expand_tilde(&current_log_path));
+    let offset = state.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+    let (entries, new_offset) = read_log_entries(&path, offset).unwrap_or_default();
 
     for entry in entries {
         update_binding_refs(&mut poll, &entry);
         match entry.role.as_str() {
-            "user" => handle_user_entry(submission, &mut poll, &entry.text, now),
+            "user" => handle_user_entry(&submission, &mut poll, &entry.text, now),
             "assistant" if poll.anchor_seen => {
-                handle_assistant_entry(submission, &mut poll, &entry, now);
+                handle_assistant_entry(&submission, &mut poll, &entry, now);
             }
             "system" if poll.anchor_seen => {
-                handle_terminal_entry(submission, &mut poll, &entry, now);
+                handle_terminal_entry(&submission, &mut poll, &entry, now);
             }
             _ => {}
         }
@@ -361,7 +477,7 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     );
     current_state.insert("offset".to_string(), Value::Number(new_offset.into()));
 
-    finalize_poll_result(submission, poll, Value::Object(current_state), now)
+    finalize_poll_result(&submission, poll, Value::Object(current_state), now)
 }
 
 #[derive(Debug, Clone)]
@@ -875,6 +991,17 @@ fn build_terminal_decision(
         CompletionConfidence::Observed
     };
     let source_cursor = poll.items.last().map(|item| item.cursor.clone());
+    let mut diagnostics = Map::new();
+    diagnostics.insert(
+        "reason".to_string(),
+        Value::String(poll.terminal_reason.clone()),
+    );
+    diagnostics.insert("status".to_string(), Value::String(format!("{:?}", status)));
+    diagnostics.insert("reply_empty".to_string(), Value::Bool(reply.is_empty()));
+    diagnostics.insert("anchor_seen".to_string(), Value::Bool(poll.anchor_seen));
+    if let Some(delivery_state) = submission.runtime_state.get("delivery_state") {
+        diagnostics.insert("delivery_state".to_string(), delivery_state.clone());
+    }
     CompletionDecision {
         terminal: true,
         status,
@@ -887,8 +1014,610 @@ fn build_terminal_decision(
         provider_turn_ref: Some(request_anchor),
         source_cursor,
         finished_at: Some(now.to_string()),
-        diagnostics: Map::new(),
+        diagnostics,
     }
+}
+
+// ---------------------------------------------------------------------------
+// Delivery acceptance guard
+// ---------------------------------------------------------------------------
+
+fn delivery_acceptance_guard(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let state = &submission.runtime_state;
+    if get_str(state, "mode") != "active" {
+        return None;
+    }
+    if get_bool(state, "anchor_seen") || get_bool(state, "no_wrap") {
+        return None;
+    }
+    if get_str(state, "delivery_state") != "pending_anchor" {
+        return None;
+    }
+    if get_str(state, "delivery_target_pane_id").is_empty() {
+        return None;
+    }
+
+    let failure_kind = delivery_failure_kind(state, submission, now);
+    let failure_kind = failure_kind.as_deref()?;
+
+    let work_dir = submission_work_dir(submission, state)?;
+    let session = load_project_session(&work_dir, None)?;
+    let current_log = current_session_log(&session)?;
+    if !current_log.exists() {
+        return None;
+    }
+
+    let poll_state = state
+        .get("state")
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let offset = poll_state
+        .get("offset")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    if !current_log_is_drained(&current_log, offset) {
+        return None;
+    }
+    if active_anchor_fallback_log(state).is_some() {
+        return None;
+    }
+    if anchor_fallback_log(
+        submission,
+        state,
+        &poll_state,
+        &session,
+        &work_dir,
+        &current_log,
+    )
+    .is_some()
+    {
+        return None;
+    }
+
+    Some(delivery_failure_result(
+        submission,
+        now,
+        failure_kind,
+        &current_log,
+        codex_session_root_path(&session.data).as_deref(),
+        &work_dir,
+    ))
+}
+
+fn delivery_failure_kind(
+    state: &HashMap<String, Value>,
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<String> {
+    if delivery_timeout_elapsed(state, submission, now) {
+        Some("delivery_anchor_missing".to_string())
+    } else {
+        None
+    }
+}
+
+fn delivery_timeout_elapsed(
+    state: &HashMap<String, Value>,
+    submission: &ProviderSubmission,
+    now: &str,
+) -> bool {
+    let timeout_s = delivery_timeout_s(state);
+    if timeout_s <= 0.0 {
+        return false;
+    }
+    let started_at = {
+        let raw = get_str(state, "delivery_started_at");
+        if !raw.is_empty() {
+            raw
+        } else if !submission.ready_at.is_empty() {
+            submission.ready_at.clone()
+        } else if !submission.accepted_at.is_empty() {
+            submission.accepted_at.clone()
+        } else {
+            return false;
+        }
+    };
+    if started_at.is_empty() {
+        return false;
+    }
+    let started = parse_timestamp(&started_at);
+    let now_ts = parse_timestamp(now);
+    match (started, now_ts) {
+        (Some(s), Some(n)) => {
+            let elapsed = (n - s).num_seconds() as f64;
+            elapsed >= timeout_s
+        }
+        _ => false,
+    }
+}
+
+fn delivery_timeout_s(state: &HashMap<String, Value>) -> f64 {
+    state
+        .get("delivery_timeout_s")
+        .and_then(|v| v.as_f64())
+        .unwrap_or_else(resolved_delivery_timeout_s)
+        .max(0.0)
+}
+
+fn delivery_failure_result(
+    submission: &ProviderSubmission,
+    now: &str,
+    failure_kind: &str,
+    current_log: &Path,
+    checked_root: Option<&Path>,
+    work_dir: &Path,
+) -> ProviderPollResult {
+    let reason = "codex_prompt_delivery_failed";
+    let state = &submission.runtime_state;
+    let seq = get_u64(state, "next_seq", 1);
+    let request_anchor = request_anchor_from_runtime_state(state, &submission.job_id);
+    let mut diagnostics = Map::new();
+    if let Some(existing) = submission.diagnostics.as_ref() {
+        if let Some(obj) = existing.as_object() {
+            for (k, v) in obj {
+                diagnostics.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    diagnostics.insert("reason".to_string(), Value::String(reason.to_string()));
+    diagnostics.insert(
+        "delivery_failure_kind".to_string(),
+        Value::String(failure_kind.to_string()),
+    );
+    diagnostics.insert("delivery_retryable".to_string(), Value::Bool(true));
+    diagnostics.insert(
+        "delivery_state".to_string(),
+        Value::String("failed".to_string()),
+    );
+    diagnostics.insert(
+        "delivery_started_at".to_string(),
+        Value::String(get_str(state, "delivery_started_at")),
+    );
+    diagnostics.insert(
+        "delivery_timeout_s".to_string(),
+        Value::Number(
+            serde_json::Number::from_f64(delivery_timeout_s(state)).unwrap_or_else(|| 0.into()),
+        ),
+    );
+    diagnostics.insert(
+        "delivery_checked_session_root".to_string(),
+        Value::String(
+            checked_root
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| {
+                    current_log
+                        .parent()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                }),
+        ),
+    );
+    diagnostics.insert(
+        "delivery_current_log_path".to_string(),
+        Value::String(current_log.to_string_lossy().to_string()),
+    );
+    diagnostics.insert(
+        "delivery_workspace_path".to_string(),
+        Value::String(work_dir.to_string_lossy().to_string()),
+    );
+    diagnostics.insert("delivery_anchor_seen".to_string(), Value::Bool(false));
+
+    let mut payload = HashMap::new();
+    payload.insert("reason".to_string(), Value::String(reason.to_string()));
+    payload.insert(
+        "delivery_failure_kind".to_string(),
+        Value::String(failure_kind.to_string()),
+    );
+    payload.insert("delivery_retryable".to_string(), Value::Bool(true));
+    let item = build_item(submission, CompletionItemKind::Error, now, seq, payload);
+
+    let mut runtime_state = state.clone();
+    runtime_state.insert("mode".to_string(), Value::String("passive".to_string()));
+    runtime_state.insert(
+        "next_seq".to_string(),
+        Value::Number((item.cursor.event_seq.unwrap_or(seq) + 1).into()),
+    );
+    runtime_state.insert(
+        "delivery_state".to_string(),
+        Value::String("failed".to_string()),
+    );
+    runtime_state.insert(
+        "delivery_failure_kind".to_string(),
+        Value::String(failure_kind.to_string()),
+    );
+    runtime_state.insert(
+        "delivery_failed_at".to_string(),
+        Value::String(now.to_string()),
+    );
+
+    let updated = ProviderSubmission {
+        runtime_state,
+        diagnostics: Some(Value::Object(diagnostics.clone())),
+        ..submission.clone()
+    };
+    let decision = CompletionDecision {
+        terminal: true,
+        status: CompletionStatus::Failed,
+        reason: Some(reason.to_string()),
+        confidence: Some(CompletionConfidence::Degraded),
+        reply: String::new(),
+        anchor_seen: false,
+        reply_started: false,
+        reply_stable: false,
+        provider_turn_ref: Some(request_anchor),
+        source_cursor: Some(item.cursor.clone()),
+        finished_at: Some(now.to_string()),
+        diagnostics,
+    };
+    ProviderPollResult::new(updated, vec![item], Some(decision))
+}
+
+fn parse_timestamp(value: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc))
+}
+
+fn submission_work_dir(
+    submission: &ProviderSubmission,
+    state: &HashMap<String, Value>,
+) -> Option<PathBuf> {
+    let raw = state
+        .get("workspace_path")
+        .and_then(|v| v.as_str())
+        .or_else(|| {
+            submission
+                .diagnostics
+                .as_ref()
+                .and_then(|d| d.get("workspace_path"))
+                .and_then(|v| v.as_str())
+        })?;
+    if raw.is_empty() {
+        return None;
+    }
+    Some(PathBuf::from(expand_tilde(raw)))
+}
+
+fn current_session_log(session: &CodexProjectSession) -> Option<PathBuf> {
+    session
+        .codex_session_path()
+        .map(|s| PathBuf::from(expand_tilde(s)))
+        .filter(|p| !p.as_os_str().is_empty())
+}
+
+fn current_log_is_drained(log_path: &Path, offset: u64) -> bool {
+    match std::fs::metadata(log_path) {
+        Ok(meta) => meta.len() <= offset,
+        Err(_) => false,
+    }
+}
+
+fn current_log_has_unread_data(log_path: &Path, offset: u64) -> bool {
+    match std::fs::metadata(log_path) {
+        Ok(meta) => meta.len() > offset,
+        Err(_) => false,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Session refresh / anchor fallback scanning
+// ---------------------------------------------------------------------------
+
+fn refresh_runtime_state(submission: &ProviderSubmission, _now: &str) -> HashMap<String, Value> {
+    let state = &submission.runtime_state;
+    if get_str(state, "mode") != "active" {
+        return state.clone();
+    }
+    let work_dir = match submission_work_dir(submission, state) {
+        Some(p) => p,
+        None => return state.clone(),
+    };
+    let session = match load_project_session(&work_dir, None) {
+        Some(s) => s,
+        None => return state.clone(),
+    };
+
+    let mut runtime_state = state.clone();
+    if let Some(root) = codex_session_root_path(&session.data) {
+        runtime_state.insert(
+            "codex_session_root".to_string(),
+            Value::String(root.to_string_lossy().to_string()),
+        );
+    }
+
+    let current_log = match current_session_log(&session) {
+        Some(p) => p,
+        None => return runtime_state,
+    };
+
+    let mut poll_state = state
+        .get("state")
+        .and_then(|v| v.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let poll_state_log_str =
+        normalized_path_string(poll_state.get("log_path").unwrap_or(&Value::Null));
+
+    let fallback_log = active_anchor_fallback_log(state).or_else(|| {
+        anchor_fallback_log(
+            submission,
+            &runtime_state,
+            &poll_state,
+            &session,
+            &work_dir,
+            &current_log,
+        )
+    });
+
+    let target_log = if let Some(fallback) = fallback_log {
+        let fallback_str = normalized_path_string_path(&fallback);
+        if fallback_str != poll_state_log_str {
+            runtime_state.insert(
+                "codex_anchor_fallback_log".to_string(),
+                Value::String(fallback_str.clone()),
+            );
+            if let Some(session_id) = extract_session_id(&fallback) {
+                runtime_state.insert(
+                    "codex_anchor_fallback_session_id".to_string(),
+                    Value::String(session_id),
+                );
+            }
+        }
+        fallback
+    } else {
+        current_log
+    };
+
+    let target_log_str = normalized_path_string_path(&target_log);
+    if target_log_str != poll_state_log_str {
+        poll_state.insert("log_path".to_string(), Value::String(target_log_str));
+        poll_state.insert("offset".to_string(), Value::Number(0.into()));
+        poll_state.insert("last_rescan".to_string(), Value::Number(0.into()));
+        runtime_state.insert("state".to_string(), Value::Object(poll_state));
+    }
+
+    runtime_state
+}
+
+fn active_anchor_fallback_log(state: &HashMap<String, Value>) -> Option<PathBuf> {
+    let raw = get_str(state, "codex_anchor_fallback_log");
+    if raw.is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(expand_tilde(&raw));
+    if path.is_file() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+fn anchor_fallback_log(
+    submission: &ProviderSubmission,
+    state: &HashMap<String, Value>,
+    poll_state: &Map<String, Value>,
+    session: &CodexProjectSession,
+    work_dir: &Path,
+    current_log: &Path,
+) -> Option<PathBuf> {
+    if get_bool(state, "anchor_seen") || get_bool(state, "no_wrap") {
+        return None;
+    }
+    let offset = poll_state
+        .get("offset")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    if current_log_has_unread_data(current_log, offset) {
+        return None;
+    }
+    let request_anchor = request_anchor_from_runtime_state(state, &submission.job_id);
+    if request_anchor.is_empty() {
+        return None;
+    }
+    let root = codex_session_root_path(&session.data)?;
+    if !root.is_dir() {
+        return None;
+    }
+    let target_work_dir = normalize_work_dir(work_dir)?;
+
+    let current_path = normalized_resolved_path(current_log);
+    let mut matches: Vec<PathBuf> = Vec::new();
+    let candidates = walk_jsonl_files(&root);
+    for candidate in candidates {
+        if normalized_resolved_path(&candidate) == current_path {
+            continue;
+        }
+        if !log_matches_work_dir(&candidate, &target_work_dir) {
+            continue;
+        }
+        if extract_session_id(&candidate).is_none() {
+            continue;
+        }
+        if log_contains_request_anchor(&candidate, &request_anchor) {
+            matches.push(candidate);
+            if matches.len() > 1 {
+                return None;
+            }
+        }
+    }
+    if matches.len() != 1 {
+        return None;
+    }
+    matches.into_iter().next()
+}
+
+fn walk_jsonl_files(root: &Path) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    let mut queue = vec![root.to_path_buf()];
+    while let Some(dir) = queue.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let meta = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if meta.is_dir() {
+                queue.push(path);
+            } else if meta.is_file() && path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                result.push(path);
+            }
+        }
+    }
+    result.sort();
+    result
+}
+
+fn log_matches_work_dir(log_path: &Path, target_work_dir: &str) -> bool {
+    let raw = extract_cwd_from_log_file(log_path);
+    let raw = match raw {
+        Some(r) => r,
+        None => return false,
+    };
+    let normalized = normalize_work_dir(&PathBuf::from(expand_tilde(&raw)));
+    normalized.as_deref() == Some(target_work_dir)
+}
+
+fn log_contains_request_anchor(log_path: &Path, request_anchor: &str) -> bool {
+    let needle = format!("{} {}", REQ_ID_PREFIX, request_anchor);
+    let file = match File::open(log_path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let reader = std::io::BufReader::new(file);
+    for line in reader.lines().map_while(Result::ok) {
+        if line.contains(&needle) {
+            return true;
+        }
+    }
+    false
+}
+
+fn extract_cwd_from_log_file(log_path: &Path) -> Option<String> {
+    let file = File::open(log_path).ok()?;
+    let mut reader = std::io::BufReader::new(file);
+    let mut line = String::new();
+    reader.read_line(&mut line).ok()?;
+    if line.is_empty() {
+        return None;
+    }
+    let value: Value = serde_json::from_str(&line).ok()?;
+    let entry_type = value.get("type").and_then(|v| v.as_str())?;
+    if entry_type != "session_meta" {
+        return None;
+    }
+    let cwd = value
+        .get("payload")
+        .and_then(|v| v.as_object())
+        .and_then(|p| p.get("cwd"))
+        .and_then(|v| v.as_str())?;
+    let cwd = cwd.trim();
+    if cwd.is_empty() {
+        None
+    } else {
+        Some(cwd.to_string())
+    }
+}
+
+fn extract_session_id(log_path: &Path) -> Option<String> {
+    let name = log_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    if let Some(m) = regex::Regex::new(SESSION_ID_PATTERN).ok()?.find(name) {
+        return Some(m.as_str().to_lowercase());
+    }
+    let file = File::open(log_path).ok()?;
+    let mut reader = std::io::BufReader::new(file);
+    let mut line = String::new();
+    reader.read_line(&mut line).ok()?;
+    if line.is_empty() {
+        return None;
+    }
+    let m = regex::Regex::new(SESSION_ID_PATTERN).ok()?.find(&line)?;
+    Some(m.as_str().to_lowercase())
+}
+
+fn normalize_work_dir(work_dir: &Path) -> Option<String> {
+    let expanded = PathBuf::from(expand_tilde(work_dir.to_str().unwrap_or("")));
+    let canonical = expanded.canonicalize().unwrap_or(expanded);
+    let s = canonical.to_string_lossy().to_string();
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
+
+fn codex_session_root_path(data: &HashMap<String, Value>) -> Option<PathBuf> {
+    if let Some(raw) = data
+        .get("codex_session_root")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        return Some(PathBuf::from(expand_tilde(raw)));
+    }
+    if let Some(raw) = data
+        .get("codex_home")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        return Some(PathBuf::from(expand_tilde(raw)).join("sessions"));
+    }
+    if let Some(raw) = data
+        .get("codex_session_path")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        let path = PathBuf::from(expand_tilde(raw));
+        for parent in
+            std::iter::once(path.parent().unwrap_or(&path)).chain(path.ancestors().skip(1))
+        {
+            if parent.file_name().and_then(|s| s.to_str()) == Some("sessions") {
+                return Some(parent.to_path_buf());
+            }
+        }
+    }
+    let default = PathBuf::from(std::env::var("CODEX_SESSION_ROOT").unwrap_or_else(|_| {
+        format!(
+            "{}/.codex/sessions",
+            std::env::var("HOME").unwrap_or_default()
+        )
+    }));
+    Some(default)
+}
+
+fn normalized_path_string(value: &Value) -> String {
+    match value {
+        Value::String(s) => normalized_path_string_str(s),
+        _ => String::new(),
+    }
+}
+
+fn normalized_path_string_str(value: &str) -> String {
+    if value.is_empty() {
+        return String::new();
+    }
+    expand_tilde(value)
+}
+
+fn normalized_path_string_path(value: &Path) -> String {
+    normalized_path_string_str(value.to_string_lossy().as_ref())
+}
+
+fn normalized_resolved_path(value: &Path) -> String {
+    value
+        .canonicalize()
+        .unwrap_or_else(|_| value.to_path_buf())
+        .to_string_lossy()
+        .to_string()
 }
 
 // ---------------------------------------------------------------------------

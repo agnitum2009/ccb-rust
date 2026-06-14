@@ -105,7 +105,8 @@ pub fn pane_id_by_title_marker_output(stdout: &str, marker: &str) -> Option<Stri
     select_marker_match(&exact_matches, &prefix_matches)
 }
 
-fn collect_pane_title_matches(stdout: &str, marker: &str) -> (Vec<String>, Vec<String>) {
+/// Collect exact and prefix pane-title matches from `list-panes` stdout.
+pub fn collect_pane_title_matches(stdout: &str, marker: &str) -> (Vec<String>, Vec<String>) {
     let mut exact_matches: Vec<String> = Vec::new();
     let mut prefix_matches: Vec<String> = Vec::new();
     for line in stdout.lines() {
@@ -122,7 +123,8 @@ fn collect_pane_title_matches(stdout: &str, marker: &str) -> (Vec<String>, Vec<S
     (exact_matches, prefix_matches)
 }
 
-fn record_pane_title_match(
+/// Record a single pane title match into the exact/prefix buckets.
+pub fn record_pane_title_match(
     pid: &str,
     title: &str,
     marker: &str,
@@ -136,7 +138,8 @@ fn record_pane_title_match(
     }
 }
 
-fn select_marker_match(exact_matches: &[String], prefix_matches: &[String]) -> Option<String> {
+/// Select the unique marker match, if any.
+pub fn select_marker_match(exact_matches: &[String], prefix_matches: &[String]) -> Option<String> {
     if exact_matches.len() == 1 {
         return exact_matches.first().cloned();
     }
@@ -158,11 +161,13 @@ pub fn default_detached_session_name(cwd: &str, pid: u32, now_ts: f64) -> String
     format!("ccb-{dir_name}-{}-{pid}", (now_ts as i64) % 100000)
 }
 
-fn normalized_marker(marker: &str) -> String {
+/// Normalize a title marker string.
+pub fn normalized_marker(marker: &str) -> String {
     marker.trim().to_string()
 }
 
-fn parse_pane_title_line(line: &str) -> Option<(String, String)> {
+/// Parse a `pane_id title` line from `list-panes -F` output.
+pub fn parse_pane_title_line(line: &str) -> Option<(String, String)> {
     let line = line.trim();
     if line.is_empty() {
         return None;
@@ -175,7 +180,8 @@ fn parse_pane_title_line(line: &str) -> Option<(String, String)> {
     Some((pid.to_string(), title.trim().to_string()))
 }
 
-fn split_pane_title_line(line: &str) -> (&str, &str) {
+/// Split a pane title line into (pane_id, title).
+pub fn split_pane_title_line(line: &str) -> (&str, &str) {
     if let Some((pid, title)) = line.split_once('\t') {
         return (pid, title);
     }
@@ -478,5 +484,67 @@ mod tests {
                 "vim"
             ]
         );
+    }
+
+    #[test]
+    fn test_collect_pane_title_matches() {
+        let stdout = "%1\tCCB-a\n%2\tCCB-b\n%3\tCCB\n";
+        let (exact, prefix) = collect_pane_title_matches(stdout, "CCB");
+        assert_eq!(exact, vec!["%3"]);
+        assert_eq!(prefix, vec!["%1", "%2"]);
+    }
+
+    #[test]
+    fn test_record_pane_title_match_buckets() {
+        let mut exact = Vec::new();
+        let mut prefix = Vec::new();
+        record_pane_title_match("%1", "CCB", "CCB", &mut exact, &mut prefix);
+        record_pane_title_match("%2", "CCB-codex", "CCB", &mut exact, &mut prefix);
+        assert_eq!(exact, vec!["%1"]);
+        assert_eq!(prefix, vec!["%2"]);
+    }
+
+    #[test]
+    fn test_select_marker_match_prefers_unique_exact() {
+        assert_eq!(
+            select_marker_match(&["%1".to_string()], &[]),
+            Some("%1".to_string())
+        );
+        assert_eq!(
+            select_marker_match(&["%1".to_string(), "%2".to_string()], &[]),
+            None
+        );
+        assert_eq!(
+            select_marker_match(&[], &["%3".to_string()]),
+            Some("%3".to_string())
+        );
+        assert_eq!(select_marker_match(&[] as &[String], &[]), None);
+    }
+
+    #[test]
+    fn test_normalized_marker_trims() {
+        assert_eq!(normalized_marker("  CCB  "), "CCB");
+        assert_eq!(normalized_marker(""), "");
+    }
+
+    #[test]
+    fn test_parse_pane_title_line() {
+        assert_eq!(
+            parse_pane_title_line("%1\tCCB-a"),
+            Some(("%1".to_string(), "CCB-a".to_string()))
+        );
+        assert_eq!(
+            parse_pane_title_line("%1 CCB-a"),
+            Some(("%1".to_string(), "CCB-a".to_string()))
+        );
+        assert_eq!(parse_pane_title_line("notapane CCB-a"), None);
+        assert_eq!(parse_pane_title_line(""), None);
+    }
+
+    #[test]
+    fn test_split_pane_title_line() {
+        assert_eq!(split_pane_title_line("%1\tCCB-a"), ("%1", "CCB-a"));
+        assert_eq!(split_pane_title_line("%1 CCB-a"), ("%1", "CCB-a"));
+        assert_eq!(split_pane_title_line("%1"), ("%1", ""));
     }
 }

@@ -14,11 +14,23 @@ pub struct HeartbeatStateStore {
     json_store: JsonStore,
 }
 
+impl std::fmt::Debug for HeartbeatStateStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HeartbeatStateStore")
+            .field("layout", &self.layout)
+            .finish_non_exhaustive()
+    }
+}
+
 impl HeartbeatStateStore {
     pub fn new(layout: PathLayout) -> Self {
+        Self::with_store(layout, None)
+    }
+
+    pub fn with_store(layout: PathLayout, json_store: Option<JsonStore>) -> Self {
         Self {
             layout,
-            json_store: JsonStore::new(),
+            json_store: json_store.unwrap_or_default(),
         }
     }
 
@@ -196,17 +208,40 @@ pub struct MaintenanceHeartbeatStore {
     jsonl_store: JsonlStore,
 }
 
+impl std::fmt::Debug for MaintenanceHeartbeatStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MaintenanceHeartbeatStore")
+            .field("layout", &self.layout)
+            .field("project_id", &self.project_id)
+            .finish_non_exhaustive()
+    }
+}
+
 impl MaintenanceHeartbeatStore {
     pub fn new(layout: PathLayout, project_id: &str) -> Result<Self, StorageError> {
+        Self::with_stores(layout, project_id, None, None).map_err(|e| match e {
+            crate::HeartbeatError::Storage(storage_err) => storage_err,
+            crate::HeartbeatError::Validation(msg) => StorageError::Corrupt(msg),
+        })
+    }
+
+    pub fn with_stores(
+        layout: PathLayout,
+        project_id: &str,
+        json_store: Option<JsonStore>,
+        jsonl_store: Option<JsonlStore>,
+    ) -> crate::Result<Self> {
         let project_id = project_id.trim().to_string();
         if project_id.is_empty() {
-            return Err(StorageError::Corrupt("project_id cannot be empty".into()));
+            return Err(crate::HeartbeatError::Validation(
+                "project_id cannot be empty".into(),
+            ));
         }
         Ok(Self {
             layout,
             project_id,
-            json_store: JsonStore::new(),
-            jsonl_store: JsonlStore::new(),
+            json_store: json_store.unwrap_or_default(),
+            jsonl_store: jsonl_store.unwrap_or_default(),
         })
     }
 

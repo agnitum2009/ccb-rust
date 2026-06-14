@@ -19,12 +19,15 @@ pub fn pane_visual(
     is_cmd: bool,
     role: &str,
 ) -> TmuxPaneVisual {
-    let _ = (project_id, slot_key, order_index, is_cmd, role);
-    TmuxPaneVisual {
-        label_style: "default".to_string(),
-        border_style: "default".to_string(),
-        active_border_style: "default".to_string(),
-    }
+    crate::theme::pane_visual(
+        Some(project_id),
+        Some(slot_key),
+        order_index.map(|i| i as usize),
+        is_cmd,
+        Some(role),
+        None,
+        None,
+    )
 }
 
 /// Apply CCB identity metadata to a tmux pane.

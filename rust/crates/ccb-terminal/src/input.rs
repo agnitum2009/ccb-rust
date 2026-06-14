@@ -78,7 +78,7 @@ impl TmuxTextSender {
         Ok(())
     }
 
-    fn paste_via_buffer(&self, target: &str, _text: &str, pane_target: bool) -> anyhow::Result<()> {
+    fn paste_via_buffer(&self, target: &str, text: &str, pane_target: bool) -> anyhow::Result<()> {
         let buffer_name = build_buffer_name(
             std::process::id(),
             SystemTime::now()
@@ -87,11 +87,12 @@ impl TmuxTextSender {
                 .as_millis() as u64,
             rand::thread_rng().gen_range(1000..10000),
         );
-        // Note: load-buffer with stdin requires passing bytes; this abstraction assumes
-        // the runner handles stdin for load-buffer internally or the caller uses a backend.
-        let _ = self
-            .tmux_run
-            .run(&["load-buffer", "-b", &buffer_name, "-"], true, false);
+        self.tmux_run.run_with_input(
+            &["load-buffer", "-b", &buffer_name, "-"],
+            true,
+            false,
+            Some(text.as_bytes()),
+        )?;
         let result = if pane_target {
             self.tmux_run.run(
                 &["paste-buffer", "-p", "-t", target, "-b", &buffer_name],
@@ -171,6 +172,90 @@ mod tests {
                 vec!["send-keys", "-t", "session-x", "-l", "hello"],
                 vec!["send-keys", "-t", "session-x", "Enter"],
             ]
+        );
+    }
+
+    #[test]
+    fn test_tmux_text_sender_passes_text_to_load_buffer_for_pane_targets() {
+        #[derive(Debug, Clone)]
+        struct Capture {
+            args: Vec<Vec<String>>,
+            inputs: Vec<Option<Vec<u8>>>,
+        }
+
+        struct CaptureRunner {
+            capture: std::sync::Arc<std::sync::Mutex<Capture>>,
+        }
+
+        impl TmuxRunner for CaptureRunner {
+            fn run(
+                &self,
+                args: &[&str],
+                _check: bool,
+                _capture: bool,
+            ) -> anyhow::Result<TmuxRunOutput> {
+                self.capture
+                    .lock()
+                    .unwrap()
+                    .args
+                    .push(args.iter().map(|s| s.to_string()).collect());
+                self.capture.lock().unwrap().inputs.push(None);
+                Ok(ok())
+            }
+
+            fn run_with_input(
+                &self,
+                args: &[&str],
+                _check: bool,
+                _capture: bool,
+                input_bytes: Option<&[u8]>,
+            ) -> anyhow::Result<TmuxRunOutput> {
+                self.capture
+                    .lock()
+                    .unwrap()
+                    .args
+                    .push(args.iter().map(|s| s.to_string()).collect());
+                self.capture
+                    .lock()
+                    .unwrap()
+                    .inputs
+                    .push(input_bytes.map(|b| b.to_vec()));
+                Ok(ok())
+            }
+        }
+
+        let capture = std::sync::Arc::new(std::sync::Mutex::new(Capture {
+            args: Vec::new(),
+            inputs: Vec::new(),
+        }));
+        let runner: Box<dyn TmuxRunner> = Box::new(CaptureRunner {
+            capture: capture.clone(),
+        });
+        let sender = TmuxTextSender::new(runner, |_pane_id| {}, |_name, default| default);
+
+        sender.send_text("%1", "line one\nline two").unwrap();
+
+        let cap = capture.lock().unwrap();
+        assert_eq!(
+            cap.args.len(),
+            4,
+            "expected load-buffer, paste-buffer, send-keys, delete-buffer"
+        );
+        assert_eq!(
+            cap.args[0],
+            vec!["load-buffer", "-b", cap.args[0][2].as_str(), "-"]
+        );
+        assert_eq!(
+            cap.inputs[0]
+                .as_ref()
+                .map(|v| String::from_utf8_lossy(v).to_string()),
+            Some("line one\nline two".to_string())
+        );
+        assert_eq!(cap.args[1][0], "paste-buffer");
+        assert_eq!(cap.args[2], vec!["send-keys", "-t", "%1", "Enter"]);
+        assert_eq!(
+            cap.args[3],
+            vec!["delete-buffer", "-b", cap.args[0][2].as_str()]
         );
     }
 }

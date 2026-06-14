@@ -23,3 +23,9 @@ pub enum CompletionError {
 }
 
 pub type Result<T> = std::result::Result<T, CompletionError>;
+
+/// Alias matching Python `CompletionValidationError`.
+///
+/// In Rust, validation failures are represented by the `Validation` variant of
+/// `CompletionError`; this alias lets callers reference the Python-named type.
+pub type CompletionValidationError = CompletionError;

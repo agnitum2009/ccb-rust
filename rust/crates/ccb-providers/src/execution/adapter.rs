@@ -21,6 +21,17 @@ pub trait ExecutionAdapter: Send + Sync {
 
     fn poll(&self, submission: &ProviderSubmission, now: &str) -> Option<ProviderPollResult>;
 
+    /// Cancel an in-flight submission.
+    ///
+    /// Default implementation is a no-op; adapters that spawn subprocesses
+    /// should override this to terminate the running process.
+    fn cancel(&self, _submission: &ProviderSubmission) {}
+
+    /// Return the reliability policy for this adapter, if any.
+    fn reliability_policy(&self) -> Option<&super::reliability::CompletionReliabilityPolicy> {
+        None
+    }
+
     /// Export the runtime state of a submission for persistence.
     fn export_runtime_state(
         &self,

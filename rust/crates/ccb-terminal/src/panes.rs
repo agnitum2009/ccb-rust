@@ -58,6 +58,21 @@ impl TmuxRunOutput {
 /// Trait for running tmux commands inside services.
 pub trait TmuxRunner: Send + Sync {
     fn run(&self, args: &[&str], check: bool, capture: bool) -> anyhow::Result<TmuxRunOutput>;
+
+    /// Run a tmux command with optional stdin bytes.
+    ///
+    /// The default implementation delegates to [`run`] and ignores input bytes;
+    /// real backends should override this to pipe `input_bytes` into the child
+    /// process (required for `load-buffer -` to function correctly).
+    fn run_with_input(
+        &self,
+        args: &[&str],
+        check: bool,
+        capture: bool,
+        _input_bytes: Option<&[u8]>,
+    ) -> anyhow::Result<TmuxRunOutput> {
+        self.run(args, check, capture)
+    }
 }
 
 impl<F> TmuxRunner for F

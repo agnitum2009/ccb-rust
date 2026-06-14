@@ -7,7 +7,19 @@ use crate::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};
 pub const CORE_PROVIDER_NAMES: &[&str] = &["claude", "codex", "gemini"];
 
 /// Provider names that are optionally included.
-pub const OPTIONAL_PROVIDER_NAMES: &[&str] = &["opencode", "droid", "agy"];
+/// Mirrors Python `provider_core.registry_runtime.OPTIONAL_PROVIDER_NAMES`.
+pub const OPTIONAL_PROVIDER_NAMES: &[&str] = &["opencode", "droid", "agy", "kimi", "deepseek"];
+
+/// Additional Rust-only optional providers kept for backward compatibility.
+pub const EXTRA_PROVIDER_NAMES: &[&str] = &[
+    "qwen",
+    "copilot",
+    "codebuddy",
+    "cursor",
+    "crush",
+    "kiro",
+    "pi",
+];
 
 /// Provider names used as test doubles.
 pub const TEST_DOUBLE_PROVIDER_NAMES: &[&str] = &[
@@ -64,6 +76,34 @@ impl ProviderBackendRegistry {
     /// Return true if the registry is empty.
     pub fn is_empty(&self) -> bool {
         self.backends.is_empty()
+    }
+
+    /// Return references to all registered execution adapters.
+    pub fn execution_adapters(&self) -> Vec<&dyn crate::execution::ExecutionAdapter> {
+        self.backends
+            .values()
+            .filter_map(|b| b.execution_adapter.as_ref().map(|ea| ea.as_ref()))
+            .collect()
+    }
+
+    /// Return a map of provider names to session bindings.
+    pub fn session_bindings(
+        &self,
+    ) -> std::collections::HashMap<&str, &crate::contracts::ProviderSessionBinding> {
+        self.backends
+            .values()
+            .filter_map(|b| b.session_binding.as_ref().map(|sb| (b.provider(), sb)))
+            .collect()
+    }
+
+    /// Return a map of provider names to runtime launchers.
+    pub fn runtime_launchers(
+        &self,
+    ) -> std::collections::HashMap<&str, &crate::contracts::ProviderRuntimeLauncher> {
+        self.backends
+            .values()
+            .filter_map(|b| b.runtime_launcher.as_ref().map(|rl| (b.provider(), rl)))
+            .collect()
     }
 }
 
@@ -156,6 +196,14 @@ fn build_builtin_backends(include_optional: bool) -> Vec<ProviderBackend> {
                 runtime_launcher: None,
             });
         }
+        for provider in EXTRA_PROVIDER_NAMES {
+            backends.push(ProviderBackend {
+                manifest: default_manifest(provider),
+                execution_adapter: None,
+                session_binding: None,
+                runtime_launcher: None,
+            });
+        }
     }
     backends
 }
@@ -239,6 +287,16 @@ mod tests {
         let reg = build_default_backend_registry(true, true);
         assert!(reg.get("claude").is_some());
         assert!(reg.get("opencode").is_some());
+        assert!(reg.get("kimi").is_some());
+        assert!(reg.get("deepseek").is_some());
         assert!(reg.get("fake").is_some());
+    }
+
+    #[test]
+    fn test_registry_aggregator_methods() {
+        let reg = build_default_backend_registry(true, true);
+        assert!(reg.execution_adapters().is_empty());
+        assert!(reg.session_bindings().is_empty());
+        assert!(reg.runtime_launchers().is_empty());
     }
 }

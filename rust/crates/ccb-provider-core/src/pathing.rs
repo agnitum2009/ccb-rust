@@ -12,7 +12,16 @@ pub fn provider_session_filenames() -> HashMap<String, String> {
         ("opencode", ".opencode-session"),
         ("droid", ".droid-session"),
         ("agy", ".agy-session"),
+        ("qwen", ".qwen-session"),
+        ("copilot", ".copilot-session"),
+        ("codebuddy", ".codebuddy-session"),
+        ("cursor", ".cursor-session"),
+        ("crush", ".crush-session"),
+        ("kiro", ".kiro-session"),
+        ("pi", ".pi-session"),
         ("kimi", ".kimi-session"),
+        ("deepseek", ".deepseek-session"),
+        ("mimo", ".mimo-session"),
     ]
     .iter()
     .map(|(k, v)| (k.to_string(), v.to_string()))

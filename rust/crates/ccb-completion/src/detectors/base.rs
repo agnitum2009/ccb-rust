@@ -20,6 +20,18 @@ pub trait CompletionDetector {
     fn finalize_timeout(&mut self, _now: &str, _cursor: Option<&CompletionCursor>) {}
 }
 
+/// Marker trait for detectors that support tick/finalize timeout.
+///
+/// Mirrors Python `TickableCompletionDetector`. Because the base trait already
+/// provides default no-op implementations, every `CompletionDetector` is also
+/// tickable.
+pub trait TickableCompletionDetector: CompletionDetector {}
+
+impl<T: CompletionDetector> TickableCompletionDetector for T {}
+
+/// Alias matching the Python name `BaseCompletionDetector`.
+pub type BaseCompletionDetector = BaseDetector;
+
 /// Shared state and helper methods used by concrete detectors.
 pub struct BaseDetector {
     request_ctx: Option<CompletionRequestContext>,
@@ -244,6 +256,32 @@ impl BaseDetector {
     }
 }
 
+impl CompletionDetector for BaseDetector {
+    fn bind(&mut self, request_ctx: CompletionRequestContext, baseline: CompletionCursor) {
+        BaseDetector::bind(self, request_ctx, baseline);
+    }
+
+    fn ingest(&mut self, item: &CompletionItem) {
+        self.consume_common_item(item);
+    }
+
+    fn decision(&self) -> CompletionDecision {
+        BaseDetector::decision(self)
+    }
+
+    fn state(&self) -> CompletionState {
+        BaseDetector::state(self)
+    }
+
+    fn tick(&mut self, now: &str, cursor: Option<&CompletionCursor>) {
+        self.base_tick(now, cursor);
+    }
+
+    fn finalize_timeout(&mut self, now: &str, cursor: Option<&CompletionCursor>) {
+        self.base_finalize_timeout(now, cursor);
+    }
+}
+
 impl CompletionStatus {
     pub fn from_record_str(value: &str) -> Self {
         match value {
@@ -252,5 +290,18 @@ impl CompletionStatus {
             "failed" => CompletionStatus::Failed,
             _ => CompletionStatus::Incomplete,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base_completion_detector_alias_and_tickable_trait() {
+        // Compile-only check that the Python-named alias and marker trait exist.
+        fn assert_tickable<T: TickableCompletionDetector>() {}
+        assert_tickable::<BaseCompletionDetector>();
+        let _: BaseCompletionDetector = BaseDetector::new();
     }
 }

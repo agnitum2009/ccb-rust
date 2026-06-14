@@ -7,6 +7,12 @@ pub const MAINTENANCE_HEARTBEAT_STATUS_RECORD_TYPE: &str = "maintenance_heartbea
 pub const MAINTENANCE_HEARTBEAT_ACTIVATION_RECORD_TYPE: &str = "maintenance_heartbeat_activation";
 pub const MAINTENANCE_HEARTBEAT_RUNNER_RECORD_TYPE: &str = "maintenance_heartbeat_runner";
 
+// Python-public aliases for the maintenance heartbeat record types.
+pub const SCHEDULE_RECORD_TYPE: &str = MAINTENANCE_HEARTBEAT_SCHEDULE_RECORD_TYPE;
+pub const STATUS_RECORD_TYPE: &str = MAINTENANCE_HEARTBEAT_STATUS_RECORD_TYPE;
+pub const ACTIVATION_RECORD_TYPE: &str = MAINTENANCE_HEARTBEAT_ACTIVATION_RECORD_TYPE;
+pub const RUNNER_RECORD_TYPE: &str = MAINTENANCE_HEARTBEAT_RUNNER_RECORD_TYPE;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HeartbeatAction {
@@ -62,6 +68,41 @@ pub struct HeartbeatState {
 }
 
 impl HeartbeatState {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        subject_kind: impl Into<String>,
+        subject_id: impl Into<String>,
+        owner: impl Into<String>,
+        last_progress_at: impl Into<String>,
+        last_notice_at: Option<String>,
+        heartbeat_started_at: Option<String>,
+        notice_count: u32,
+        updated_at: impl Into<String>,
+    ) -> crate::Result<Self> {
+        let subject_kind = subject_kind.into();
+        let subject_id = subject_id.into();
+        let owner = owner.into();
+        let last_progress_at = last_progress_at.into();
+        let updated_at = updated_at.into();
+
+        require_non_empty("subject_kind", &subject_kind)?;
+        require_non_empty("subject_id", &subject_id)?;
+        require_non_empty("owner", &owner)?;
+        require_non_empty("last_progress_at", &last_progress_at)?;
+        require_non_empty("updated_at", &updated_at)?;
+
+        Ok(Self {
+            subject_kind,
+            subject_id,
+            owner,
+            last_progress_at,
+            last_notice_at,
+            heartbeat_started_at,
+            notice_count,
+            updated_at,
+        })
+    }
+
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -123,6 +164,25 @@ pub struct MaintenanceHeartbeatSchedule {
 }
 
 impl MaintenanceHeartbeatSchedule {
+    pub fn new(
+        project_id: impl Into<String>,
+        next_run_at: Option<String>,
+        reason: Option<String>,
+        updated_at: Option<String>,
+        updated_by: Option<String>,
+    ) -> crate::Result<Self> {
+        let project_id = project_id.into();
+        require_non_empty("project_id", &project_id)?;
+
+        Ok(Self {
+            project_id,
+            next_run_at,
+            reason,
+            updated_at,
+            updated_by,
+        })
+    }
+
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -187,6 +247,76 @@ pub struct MaintenanceHeartbeatStatus {
 }
 
 impl MaintenanceHeartbeatStatus {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        project_id: impl Into<String>,
+        last_tick_status: Option<String>,
+        last_tick_at: Option<String>,
+        last_ok_at: Option<String>,
+        last_error: Option<String>,
+        unknown_streak: u32,
+        updated_at: Option<String>,
+        source_kind: Option<String>,
+        recommended_action: Option<String>,
+        next_heartbeat_after_s: Option<u32>,
+        needs_user: bool,
+        summary: Option<serde_json::Value>,
+        evidence: Vec<serde_json::Value>,
+        last_activation_status: Option<String>,
+        last_activation_id: Option<String>,
+        last_activation_job_id: Option<String>,
+        last_activation_target: Option<String>,
+        last_activation_dedup_key: Option<String>,
+    ) -> crate::Result<Self> {
+        let project_id = project_id.into();
+        require_non_empty("project_id", &project_id)?;
+
+        if let Some(secs) = next_heartbeat_after_s {
+            if secs == 0 {
+                return Err(crate::HeartbeatError::Validation(
+                    "next_heartbeat_after_s must be positive".into(),
+                ));
+            }
+        }
+
+        if let Some(value) = &summary {
+            if !value.is_object() {
+                return Err(crate::HeartbeatError::Validation(
+                    "summary must be an object".into(),
+                ));
+            }
+        }
+
+        for (i, item) in evidence.iter().enumerate() {
+            if !item.is_object() {
+                return Err(crate::HeartbeatError::Validation(format!(
+                    "evidence[{i}] must be an object"
+                )));
+            }
+        }
+
+        Ok(Self {
+            project_id,
+            last_tick_status,
+            last_tick_at,
+            last_ok_at,
+            last_error,
+            unknown_streak,
+            updated_at,
+            source_kind,
+            recommended_action,
+            next_heartbeat_after_s,
+            needs_user,
+            summary,
+            evidence,
+            last_activation_status,
+            last_activation_id,
+            last_activation_job_id,
+            last_activation_target,
+            last_activation_dedup_key,
+        })
+    }
+
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -265,6 +395,55 @@ fn default_state() -> String {
 }
 
 impl MaintenanceHeartbeatRunner {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        project_id: impl Into<String>,
+        runner_id: impl Into<String>,
+        pid: Option<u32>,
+        state: impl Into<String>,
+        source: Option<String>,
+        started_at: Option<String>,
+        last_seen_at: Option<String>,
+        last_wake_at: Option<String>,
+        last_tick_at: Option<String>,
+        last_tick_status: Option<String>,
+        observed_next_run_at: Option<String>,
+        sleep_until: Option<String>,
+        exit_reason: Option<String>,
+    ) -> crate::Result<Self> {
+        let project_id = project_id.into();
+        let runner_id = runner_id.into();
+        let state = state.into();
+
+        require_non_empty("project_id", &project_id)?;
+        require_non_empty("runner_id", &runner_id)?;
+        require_non_empty("state", &state)?;
+
+        if let Some(pid) = pid {
+            if pid == 0 {
+                return Err(crate::HeartbeatError::Validation(
+                    "pid must be positive".into(),
+                ));
+            }
+        }
+
+        Ok(Self {
+            project_id,
+            runner_id,
+            pid,
+            state,
+            source,
+            started_at,
+            last_seen_at,
+            last_wake_at,
+            last_tick_at,
+            last_tick_status,
+            observed_next_run_at,
+            sleep_until,
+            exit_reason,
+        })
+    }
+
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -343,6 +522,101 @@ fn default_created_by() -> String {
 }
 
 impl MaintenanceHeartbeatActivation {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        project_id: impl Into<String>,
+        activation_id: impl Into<String>,
+        status: impl Into<String>,
+        condition_kind: impl Into<String>,
+        trigger_kind: impl Into<String>,
+        source: impl Into<String>,
+        observed_at: impl Into<String>,
+        target_agent: impl Into<String>,
+        delivery_mode: impl Into<String>,
+        payload_kind: impl Into<String>,
+        dedup_key: impl Into<String>,
+        reason: impl Into<String>,
+        created_by: impl Into<String>,
+        not_before: Option<String>,
+        expires_at: Option<String>,
+        job_id: Option<String>,
+        submitted_at: Option<String>,
+        suppressed_reason: Option<String>,
+        error: Option<String>,
+        repeat_count: u32,
+        payload_summary: Option<serde_json::Value>,
+        evidence: Vec<serde_json::Value>,
+    ) -> crate::Result<Self> {
+        let project_id = project_id.into();
+        let activation_id = activation_id.into();
+        let status = status.into();
+        let condition_kind = condition_kind.into();
+        let trigger_kind = trigger_kind.into();
+        let source = source.into();
+        let observed_at = observed_at.into();
+        let target_agent = target_agent.into();
+        let delivery_mode = delivery_mode.into();
+        let payload_kind = payload_kind.into();
+        let dedup_key = dedup_key.into();
+        let reason = reason.into();
+        let created_by = created_by.into();
+
+        require_non_empty("project_id", &project_id)?;
+        require_non_empty("activation_id", &activation_id)?;
+        require_non_empty("status", &status)?;
+        require_non_empty("condition_kind", &condition_kind)?;
+        require_non_empty("trigger_kind", &trigger_kind)?;
+        require_non_empty("source", &source)?;
+        require_non_empty("observed_at", &observed_at)?;
+        require_non_empty("target_agent", &target_agent)?;
+        require_non_empty("delivery_mode", &delivery_mode)?;
+        require_non_empty("payload_kind", &payload_kind)?;
+        require_non_empty("dedup_key", &dedup_key)?;
+        require_non_empty("reason", &reason)?;
+        require_non_empty("created_by", &created_by)?;
+
+        if let Some(value) = &payload_summary {
+            if !value.is_object() {
+                return Err(crate::HeartbeatError::Validation(
+                    "payload_summary must be an object".into(),
+                ));
+            }
+        }
+
+        for (i, item) in evidence.iter().enumerate() {
+            if !item.is_object() {
+                return Err(crate::HeartbeatError::Validation(format!(
+                    "evidence[{i}] must be an object"
+                )));
+            }
+        }
+
+        Ok(Self {
+            project_id,
+            activation_id,
+            status,
+            condition_kind,
+            trigger_kind,
+            source,
+            observed_at,
+            target_agent,
+            delivery_mode,
+            payload_kind,
+            dedup_key,
+            reason,
+            created_by,
+            not_before,
+            expires_at,
+            job_id,
+            submitted_at,
+            suppressed_reason,
+            error,
+            repeat_count,
+            payload_summary,
+            evidence,
+        })
+    }
+
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -413,4 +687,13 @@ fn normalize_optional_text(value: Option<String>) -> Option<String> {
             Some(trimmed.to_string())
         }
     })
+}
+
+fn require_non_empty(name: &str, value: &str) -> crate::Result<()> {
+    if value.trim().is_empty() {
+        return Err(crate::HeartbeatError::Validation(format!(
+            "{name} cannot be empty"
+        )));
+    }
+    Ok(())
 }

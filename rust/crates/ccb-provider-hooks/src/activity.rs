@@ -138,7 +138,14 @@ pub fn write_activity(
         agent_name: agent_name.trim().into(),
         provider: provider.trim().to_lowercase(),
         state: normalized_state.into(),
-        source: source.trim().into(),
+        source: {
+            let trimmed = source.trim();
+            if trimmed.is_empty() {
+                "provider_hook".into()
+            } else {
+                trimmed.into()
+            }
+        },
         event_name: optional_text(event_name),
         ccb_session_id: optional_text(ccb_session_id),
         runtime_dir: runtime.to_string(),
@@ -207,7 +214,8 @@ pub fn read_activity_evidence(
     let reason = reason(&payload, &state);
     let diagnostics = payload
         .get("diagnostics")
-        .and_then(|v| v.as_object().cloned());
+        .and_then(|v| v.as_object().cloned())
+        .unwrap_or_else(Map::new);
     Some(ProviderActivityEvidence {
         state,
         source,
@@ -233,7 +241,7 @@ pub fn read_activity_evidence(
             .and_then(|v| v.as_str())
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty()),
-        diagnostics,
+        diagnostics: Some(diagnostics),
     })
 }
 
@@ -676,5 +684,91 @@ mod tests {
         assert!(!safe.contains_key("api_key"));
         assert!(!safe.contains_key("token"));
         assert_eq!(safe["reason"], "api_error");
+    }
+
+    #[test]
+    fn test_write_activity_defaults_empty_source_to_provider_hook() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "tool",
+            "   ",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:00Z"),
+        )
+        .unwrap();
+
+        let payload = load_activity(&runtime).unwrap();
+        assert_eq!(payload["source"], "provider_hook");
+
+        let evidence = read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "codex",
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:05Z"),
+            30.0,
+        )
+        .unwrap();
+        assert_eq!(evidence.source, "provider_hook");
+    }
+
+    #[test]
+    fn test_read_activity_evidence_missing_diagnostics_is_empty_object() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        write_activity(
+            "claude",
+            "project-1",
+            "agent3",
+            &runtime,
+            "waiting",
+            "claude_hook",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:00Z"),
+        )
+        .unwrap();
+
+        let evidence = read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent3",
+            "claude",
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:05Z"),
+            30.0,
+        )
+        .unwrap();
+
+        assert_eq!(evidence.diagnostics, Some(Map::new()));
     }
 }

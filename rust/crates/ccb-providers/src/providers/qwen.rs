@@ -11,11 +11,15 @@ use ccb_provider_core::contracts::{
 use ccb_provider_core::manifest::ProviderManifest;
 use ccb_provider_core::pathing::{find_session_file_for_work_dir, session_filename_for_instance};
 use ccb_provider_core::protocol;
+use ccb_provider_core::runtime_shared::provider_start_parts;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::execution::{
     build_item, ExecutionAdapter, ProviderPollResult, ProviderRuntimeContext, ProviderSubmission,
+};
+use crate::native_cli_support::{
+    NativeCliExecutionAdapter, NativeCliExecutionConfig, NativeCliExecutionRequest, OutputKind,
 };
 use crate::providers::pane_backed_manifest;
 
@@ -52,7 +56,49 @@ pub fn backend() -> ProviderBackend {
 }
 
 // ---------------------------------------------------------------------------
-// Execution adapter
+// Native CLI execution adapter
+// ---------------------------------------------------------------------------
+
+/// Build a generic native CLI execution adapter configured for Qwen.
+pub fn build_execution_adapter() -> NativeCliExecutionAdapter {
+    NativeCliExecutionAdapter::new(
+        NativeCliExecutionConfig::new(PROVIDER_NAME, _build_command)
+            .with_env_builder(_build_env)
+            .with_output_kind(OutputKind::Jsonl)
+            .with_reason("start_failed", "qwen_run_start_failed")
+            .with_reason("failed", "qwen_run_failed")
+            .with_reason("empty", "qwen_empty_reply")
+            .with_reason("run_error", "qwen_run_error")
+            .with_reason("complete", "qwen_run_stop")
+            .with_reason("process_exit_complete", "qwen_run_exit")
+            .with_reason("timeout", "qwen_run_timeout"),
+    )
+}
+
+fn _build_command(request: NativeCliExecutionRequest) -> Vec<String> {
+    let mut cmd = provider_start_parts(PROVIDER_NAME);
+    cmd.push("--bare".to_string());
+    cmd.push("--output-format".to_string());
+    cmd.push("stream-json".to_string());
+    cmd.push("--session-id".to_string());
+    cmd.push(request.job_id.clone());
+    cmd.push(request.prompt.clone());
+    cmd
+}
+
+fn _build_env(request: &NativeCliExecutionRequest) -> HashMap<String, String> {
+    let qwen_home = request.state_path("qwen_home", "home");
+    let _ = std::fs::create_dir_all(&qwen_home);
+    let mut env = HashMap::new();
+    env.insert(
+        "QWEN_HOME".to_string(),
+        qwen_home.to_string_lossy().to_string(),
+    );
+    env
+}
+
+// ---------------------------------------------------------------------------
+// Legacy stub execution adapter (kept for direct test compatibility)
 // ---------------------------------------------------------------------------
 
 /// Qwen execution adapter.

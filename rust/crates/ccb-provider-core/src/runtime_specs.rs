@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 use serde::{Deserialize, Serialize};
 
 /// Runtime metadata for a provider service.
@@ -73,142 +76,270 @@ fn build_client_spec(provider_key: &str, session_filename: &str) -> ProviderClie
     }
 }
 
+macro_rules! define_runtime_spec {
+    ($name:ident, $key:literal) => {
+        /// Runtime spec constant.
+        pub static $name: LazyLock<ProviderRuntimeSpec> =
+            LazyLock::new(|| build_runtime_spec($key));
+    };
+}
+
+macro_rules! define_client_spec {
+    ($name:ident, $key:literal, $filename:literal) => {
+        /// Client spec constant.
+        pub static $name: LazyLock<ProviderClientSpec> =
+            LazyLock::new(|| build_client_spec($key, $filename));
+    };
+}
+
 /// Runtime spec for Codex.
 pub fn codex_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("codex")
 }
+define_runtime_spec!(CODEX_RUNTIME_SPEC, "codex");
 
 /// Runtime spec for Gemini.
 pub fn gemini_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("gemini")
 }
+define_runtime_spec!(GEMINI_RUNTIME_SPEC, "gemini");
 
 /// Runtime spec for OpenCode.
 pub fn opencode_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("opencode")
 }
+define_runtime_spec!(OPENCODE_RUNTIME_SPEC, "opencode");
 
 /// Runtime spec for Claude.
 pub fn claude_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("claude")
 }
+define_runtime_spec!(CLAUDE_RUNTIME_SPEC, "claude");
 
 /// Runtime spec for Droid.
 pub fn droid_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("droid")
 }
+define_runtime_spec!(DROID_RUNTIME_SPEC, "droid");
 
 /// Runtime spec for AGY.
 pub fn agy_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("agy")
 }
+define_runtime_spec!(AGY_RUNTIME_SPEC, "agy");
+
+/// Runtime spec for Kimi.
+pub fn kimi_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("kimi")
+}
+define_runtime_spec!(KIMI_RUNTIME_SPEC, "kimi");
+
+/// Runtime spec for DeepSeek.
+pub fn deepseek_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("deepseek")
+}
+define_runtime_spec!(DEEPSEEK_RUNTIME_SPEC, "deepseek");
+
+/// Runtime spec for Mimo.
+pub fn mimo_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("mimo")
+}
+define_runtime_spec!(MIMO_RUNTIME_SPEC, "mimo");
 
 /// Runtime spec for Copilot.
 pub fn copilot_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("copilot")
 }
+define_runtime_spec!(COPILOT_RUNTIME_SPEC, "copilot");
 
 /// Runtime spec for Codebuddy.
 pub fn codebuddy_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("codebuddy")
 }
+define_runtime_spec!(CODEBUDDY_RUNTIME_SPEC, "codebuddy");
 
 /// Runtime spec for Qwen.
 pub fn qwen_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("qwen")
 }
+define_runtime_spec!(QWEN_RUNTIME_SPEC, "qwen");
+
+/// Runtime spec for Cursor.
+pub fn cursor_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("cursor")
+}
+define_runtime_spec!(CURSOR_RUNTIME_SPEC, "cursor");
+
+/// Runtime spec for Crush.
+pub fn crush_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("crush")
+}
+define_runtime_spec!(CRUSH_RUNTIME_SPEC, "crush");
+
+/// Runtime spec for Kiro.
+pub fn kiro_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("kiro")
+}
+define_runtime_spec!(KIRO_RUNTIME_SPEC, "kiro");
+
+/// Runtime spec for Pi.
+pub fn pi_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("pi")
+}
+define_runtime_spec!(PI_RUNTIME_SPEC, "pi");
 
 /// Client spec for Codex.
 pub fn codex_client_spec() -> ProviderClientSpec {
     build_client_spec("codex", ".codex-session")
 }
+define_client_spec!(CODEX_CLIENT_SPEC, "codex", ".codex-session");
 
 /// Client spec for Gemini.
 pub fn gemini_client_spec() -> ProviderClientSpec {
     build_client_spec("gemini", ".gemini-session")
 }
+define_client_spec!(GEMINI_CLIENT_SPEC, "gemini", ".gemini-session");
 
 /// Client spec for OpenCode.
 pub fn opencode_client_spec() -> ProviderClientSpec {
     build_client_spec("opencode", ".opencode-session")
 }
+define_client_spec!(OPENCODE_CLIENT_SPEC, "opencode", ".opencode-session");
 
 /// Client spec for Claude.
 pub fn claude_client_spec() -> ProviderClientSpec {
     build_client_spec("claude", ".claude-session")
 }
+define_client_spec!(CLAUDE_CLIENT_SPEC, "claude", ".claude-session");
 
 /// Client spec for Droid.
 pub fn droid_client_spec() -> ProviderClientSpec {
     build_client_spec("droid", ".droid-session")
 }
+define_client_spec!(DROID_CLIENT_SPEC, "droid", ".droid-session");
 
 /// Client spec for AGY.
 pub fn agy_client_spec() -> ProviderClientSpec {
     build_client_spec("agy", ".agy-session")
 }
+define_client_spec!(AGY_CLIENT_SPEC, "agy", ".agy-session");
+
+/// Client spec for Kimi.
+pub fn kimi_client_spec() -> ProviderClientSpec {
+    build_client_spec("kimi", ".kimi-session")
+}
+define_client_spec!(KIMI_CLIENT_SPEC, "kimi", ".kimi-session");
+
+/// Client spec for DeepSeek.
+pub fn deepseek_client_spec() -> ProviderClientSpec {
+    build_client_spec("deepseek", ".deepseek-session")
+}
+define_client_spec!(DEEPSEEK_CLIENT_SPEC, "deepseek", ".deepseek-session");
+
+/// Client spec for Mimo.
+pub fn mimo_client_spec() -> ProviderClientSpec {
+    build_client_spec("mimo", ".mimo-session")
+}
+define_client_spec!(MIMO_CLIENT_SPEC, "mimo", ".mimo-session");
 
 /// Client spec for Copilot.
 pub fn copilot_client_spec() -> ProviderClientSpec {
     build_client_spec("copilot", ".copilot-session")
 }
+define_client_spec!(COPILOT_CLIENT_SPEC, "copilot", ".copilot-session");
 
 /// Client spec for Codebuddy.
 pub fn codebuddy_client_spec() -> ProviderClientSpec {
     build_client_spec("codebuddy", ".codebuddy-session")
 }
+define_client_spec!(CODEBUDDY_CLIENT_SPEC, "codebuddy", ".codebuddy-session");
 
 /// Client spec for Qwen.
 pub fn qwen_client_spec() -> ProviderClientSpec {
     build_client_spec("qwen", ".qwen-session")
 }
+define_client_spec!(QWEN_CLIENT_SPEC, "qwen", ".qwen-session");
+
+/// Client spec for Cursor.
+pub fn cursor_client_spec() -> ProviderClientSpec {
+    build_client_spec("cursor", ".cursor-session")
+}
+define_client_spec!(CURSOR_CLIENT_SPEC, "cursor", ".cursor-session");
+
+/// Client spec for Crush.
+pub fn crush_client_spec() -> ProviderClientSpec {
+    build_client_spec("crush", ".crush-session")
+}
+define_client_spec!(CRUSH_CLIENT_SPEC, "crush", ".crush-session");
+
+/// Client spec for Kiro.
+pub fn kiro_client_spec() -> ProviderClientSpec {
+    build_client_spec("kiro", ".kiro-session")
+}
+define_client_spec!(KIRO_CLIENT_SPEC, "kiro", ".kiro-session");
+
+/// Client spec for Pi.
+pub fn pi_client_spec() -> ProviderClientSpec {
+    build_client_spec("pi", ".pi-session")
+}
+define_client_spec!(PI_CLIENT_SPEC, "pi", ".pi-session");
 
 /// All runtime specs keyed by provider name.
-pub fn runtime_specs_by_provider() -> Vec<(&'static str, ProviderRuntimeSpec)> {
-    vec![
-        ("codex", codex_runtime_spec()),
-        ("gemini", gemini_runtime_spec()),
-        ("opencode", opencode_runtime_spec()),
-        ("claude", claude_runtime_spec()),
-        ("droid", droid_runtime_spec()),
-        ("agy", agy_runtime_spec()),
-        ("copilot", copilot_runtime_spec()),
-        ("codebuddy", codebuddy_runtime_spec()),
-        ("qwen", qwen_runtime_spec()),
-    ]
-}
+pub static RUNTIME_SPECS_BY_PROVIDER: LazyLock<HashMap<&'static str, ProviderRuntimeSpec>> =
+    LazyLock::new(|| {
+        let mut map = HashMap::new();
+        map.insert("codex", CODEX_RUNTIME_SPEC.clone());
+        map.insert("gemini", GEMINI_RUNTIME_SPEC.clone());
+        map.insert("opencode", OPENCODE_RUNTIME_SPEC.clone());
+        map.insert("claude", CLAUDE_RUNTIME_SPEC.clone());
+        map.insert("droid", DROID_RUNTIME_SPEC.clone());
+        map.insert("agy", AGY_RUNTIME_SPEC.clone());
+        map.insert("kimi", KIMI_RUNTIME_SPEC.clone());
+        map.insert("deepseek", DEEPSEEK_RUNTIME_SPEC.clone());
+        map.insert("mimo", MIMO_RUNTIME_SPEC.clone());
+        map.insert("copilot", COPILOT_RUNTIME_SPEC.clone());
+        map.insert("codebuddy", CODEBUDDY_RUNTIME_SPEC.clone());
+        map.insert("qwen", QWEN_RUNTIME_SPEC.clone());
+        map.insert("cursor", CURSOR_RUNTIME_SPEC.clone());
+        map.insert("crush", CRUSH_RUNTIME_SPEC.clone());
+        map.insert("kiro", KIRO_RUNTIME_SPEC.clone());
+        map.insert("pi", PI_RUNTIME_SPEC.clone());
+        map
+    });
 
 /// All client specs keyed by provider name.
-pub fn client_specs_by_provider() -> Vec<(&'static str, ProviderClientSpec)> {
-    vec![
-        ("codex", codex_client_spec()),
-        ("gemini", gemini_client_spec()),
-        ("opencode", opencode_client_spec()),
-        ("claude", claude_client_spec()),
-        ("droid", droid_client_spec()),
-        ("agy", agy_client_spec()),
-        ("copilot", copilot_client_spec()),
-        ("codebuddy", codebuddy_client_spec()),
-        ("qwen", qwen_client_spec()),
-    ]
-}
+pub static CLIENT_SPECS_BY_PROVIDER: LazyLock<HashMap<&'static str, ProviderClientSpec>> =
+    LazyLock::new(|| {
+        let mut map = HashMap::new();
+        map.insert("codex", CODEX_CLIENT_SPEC.clone());
+        map.insert("gemini", GEMINI_CLIENT_SPEC.clone());
+        map.insert("opencode", OPENCODE_CLIENT_SPEC.clone());
+        map.insert("claude", CLAUDE_CLIENT_SPEC.clone());
+        map.insert("droid", DROID_CLIENT_SPEC.clone());
+        map.insert("agy", AGY_CLIENT_SPEC.clone());
+        map.insert("kimi", KIMI_CLIENT_SPEC.clone());
+        map.insert("deepseek", DEEPSEEK_CLIENT_SPEC.clone());
+        map.insert("mimo", MIMO_CLIENT_SPEC.clone());
+        map.insert("copilot", COPILOT_CLIENT_SPEC.clone());
+        map.insert("codebuddy", CODEBUDDY_CLIENT_SPEC.clone());
+        map.insert("qwen", QWEN_CLIENT_SPEC.clone());
+        map.insert("cursor", CURSOR_CLIENT_SPEC.clone());
+        map.insert("crush", CRUSH_CLIENT_SPEC.clone());
+        map.insert("kiro", KIRO_CLIENT_SPEC.clone());
+        map.insert("pi", PI_CLIENT_SPEC.clone());
+        map
+    });
 
 /// Look up a runtime spec by provider key.
 pub fn runtime_spec_by_provider(provider_key: &str) -> Option<ProviderRuntimeSpec> {
     let key = provider_key.trim().to_lowercase();
-    runtime_specs_by_provider()
-        .into_iter()
-        .find(|(k, _)| *k == key)
-        .map(|(_, s)| s)
+    RUNTIME_SPECS_BY_PROVIDER.get(key.as_str()).cloned()
 }
 
 /// Look up a client spec by provider key.
 pub fn client_spec_by_provider(provider_key: &str) -> Option<ProviderClientSpec> {
     let key = provider_key.trim().to_lowercase();
-    client_specs_by_provider()
-        .into_iter()
-        .find(|(k, _)| *k == key)
-        .map(|(_, s)| s)
+    CLIENT_SPECS_BY_PROVIDER.get(key.as_str()).cloned()
 }
 
 /// Split a qualified provider key such as `claude:reviewer` into its base
@@ -310,5 +441,34 @@ mod tests {
         let spec = client_spec_by_provider("claude").unwrap();
         assert_eq!(spec.session_filename, ".claude-session");
         assert_eq!(spec.enabled_env, "CCB_CLAUDE");
+    }
+
+    #[test]
+    fn test_kimi_specs() {
+        let runtime = runtime_spec_by_provider("kimi").unwrap();
+        assert_eq!(runtime.provider_key, "kimi");
+        assert_eq!(runtime.state_file_name, "kimi-runtime.json");
+        assert_eq!(runtime.idle_timeout_env, "CCB_KIMI_RUNTIME_IDLE_TIMEOUT_S");
+
+        let client = client_spec_by_provider("kimi").unwrap();
+        assert_eq!(client.session_filename, ".kimi-session");
+        assert_eq!(client.enabled_env, "CCB_KIMI");
+
+        assert_eq!(KIMI_RUNTIME_SPEC.provider_key, "kimi");
+        assert_eq!(KIMI_CLIENT_SPEC.provider_key, "kimi");
+    }
+
+    #[test]
+    fn test_specs_by_provider_include_all_providers() {
+        let runtime_keys: std::collections::HashSet<_> =
+            RUNTIME_SPECS_BY_PROVIDER.keys().copied().collect();
+        let client_keys: std::collections::HashSet<_> =
+            CLIENT_SPECS_BY_PROVIDER.keys().copied().collect();
+        assert!(runtime_keys.contains("kimi"));
+        assert!(runtime_keys.contains("cursor"));
+        assert!(client_keys.contains("kimi"));
+        assert!(client_keys.contains("pi"));
+        assert_eq!(runtime_keys.len(), 16);
+        assert_eq!(client_keys.len(), 16);
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use ccb_completion::models::{
     CompletionConfidence, CompletionCursor, CompletionDecision, CompletionItem, CompletionItemKind,
@@ -9,17 +10,18 @@ use ccb_provider_core::contracts::{
     LaunchMode, ProviderBackend, ProviderRuntimeLauncher, ProviderSessionBinding,
 };
 use ccb_provider_core::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};
-use ccb_provider_core::pathing::{find_session_file_for_work_dir, session_filename_for_instance};
 use ccb_provider_core::protocol::{
     extract_reply_for_req as protocol_extract_reply_for_req, is_done_text, make_req_id,
     request_anchor_for_job,
 };
 use serde_json::Value;
 
-use crate::execution::common::{build_item, no_wrap_requested, request_anchor_from_runtime_state};
+use crate::claude::{load_project_session, ClaudeLogReader};
+use crate::execution::resolve_prompt_target_for_session;
 use crate::execution::{
-    ExecutionAdapter, PersistedExecutionState, ProviderPollResult, ProviderRuntimeContext,
-    ProviderSubmission,
+    backend_config_from_session_data, build_item, error_submission, no_wrap_requested,
+    request_anchor_from_runtime_state, store_backend_config, CompletionReliabilityPolicy,
+    ExecutionAdapter, ProviderPollResult, ProviderRuntimeContext, ProviderSubmission,
 };
 
 pub const PROVIDER_NAME: &str = "claude";
@@ -28,10 +30,8 @@ const CLAUDE_REQ_ID_PREFIX: &str = "CCB_REQ_ID:";
 const CLAUDE_BEGIN_PREFIX: &str = "<<BEGIN:";
 const CLAUDE_DONE_PREFIX: &str = "<<DONE:";
 
-const CLAUDE_SESSION_FILENAME: &str = ".claude-session";
-const SESSION_ID_ATTR: &str = "claude_session_id";
-const SESSION_PATH_ATTR: &str = "claude_session_path";
 const DEFAULT_READY_TIMEOUT_S: f64 = 8.0;
+const PANE_CONTENT_LINES: usize = 120;
 
 // ---------------------------------------------------------------------------
 // Manifest
@@ -85,14 +85,25 @@ pub fn backend() -> ProviderBackend {
         execution_adapter: None,
         session_binding: Some(ProviderSessionBinding {
             provider: PROVIDER_NAME.to_string(),
-            session_id_attr: SESSION_ID_ATTR.to_string(),
-            session_path_attr: SESSION_PATH_ATTR.to_string(),
+            session_id_attr: "claude_session_id".to_string(),
+            session_path_attr: "claude_session_path".to_string(),
         }),
         runtime_launcher: Some(ProviderRuntimeLauncher {
             provider: PROVIDER_NAME.to_string(),
             launch_mode: LaunchMode::SimpleTmux,
         }),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Reliability policy
+// ---------------------------------------------------------------------------
+
+fn claude_reliability_policy() -> &'static CompletionReliabilityPolicy {
+    static POLICY: OnceLock<CompletionReliabilityPolicy> = OnceLock::new();
+    POLICY.get_or_init(|| {
+        CompletionReliabilityPolicy::new(PROVIDER_NAME, 900.0, "hook_artifact_or_session_event_log")
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +144,7 @@ impl ExecutionAdapter for ClaudeExecutionAdapter {
         _job: &JobRecord,
         submission: &ProviderSubmission,
         context: Option<&ProviderRuntimeContext>,
-        _persisted_state: &PersistedExecutionState,
+        _persisted_state: &crate::execution::PersistedExecutionState,
         _now: &str,
     ) -> Option<ProviderSubmission> {
         if context.is_none() || context.and_then(|c| c.workspace_path.as_ref()).is_none() {
@@ -145,6 +156,10 @@ impl ExecutionAdapter for ClaudeExecutionAdapter {
             .insert("mode".to_string(), Value::String("active".to_string()));
         Some(resumed)
     }
+
+    fn reliability_policy(&self) -> Option<&CompletionReliabilityPolicy> {
+        Some(claude_reliability_policy())
+    }
 }
 
 fn start_active_submission(
@@ -152,6 +167,44 @@ fn start_active_submission(
     context: Option<&ProviderRuntimeContext>,
     now: &str,
 ) -> ProviderSubmission {
+    let workspace_path = context
+        .and_then(|c| c.workspace_path.as_deref())
+        .map(PathBuf::from);
+
+    if let Some(ws) = &workspace_path {
+        if ws.as_os_str().is_empty() || !ws.exists() {
+            return error_submission(
+                job,
+                PROVIDER_NAME,
+                now,
+                CompletionSourceKind::SessionEventLog,
+                "missing_workspace",
+                "workspace path missing or does not exist",
+            );
+        }
+    }
+
+    let instance = agent_instance(&job.agent_name);
+    let session = workspace_path.as_ref().and_then(|ws| {
+        if let Some(inst) = &instance {
+            if let Some(s) = load_project_session(ws, Some(inst)) {
+                return Some(s);
+            }
+        }
+        load_project_session(ws, None)
+    });
+
+    if workspace_path.is_some() && session.is_none() {
+        return error_submission(
+            job,
+            PROVIDER_NAME,
+            now,
+            CompletionSourceKind::SessionEventLog,
+            "missing_claude_session",
+            "claude session file not found",
+        );
+    }
+
     let request_anchor = request_anchor_for_job(&job.job_id);
     let no_wrap = no_wrap_requested(job.provider_options.get("no_wrap").or_else(|| {
         job.provider_options
@@ -168,23 +221,67 @@ fn start_active_submission(
         .to_lowercase()
         == "reply_delivery";
 
-    let (session_path, completion_dir) = context
-        .and_then(|c| c.workspace_path.as_ref())
-        .and_then(|ws| load_project_session(Path::new(ws), None))
-        .map(|session| {
-            let path = session.claude_session_path();
-            let dir = session.completion_dir();
-            (path, dir)
-        })
+    let session_path = session
+        .as_ref()
+        .and_then(|s| s.claude_session_path())
+        .map(PathBuf::from);
+    let claude_projects_root = session.as_ref().and_then(|s| s.claude_projects_root());
+    let completion_dir = session.as_ref().and_then(|s| s.completion_dir());
+    let pane_id = session
+        .as_ref()
+        .and_then(|s| s.pane_id())
+        .map(|s| s.to_string());
+    let backend_config = session
+        .as_ref()
+        .map(|s| backend_config_from_session_data(&s.data));
+
+    let reader_state = session
+        .as_ref()
+        .map(|s| ClaudeLogReader::from_session(s).capture_state())
         .unwrap_or_default();
 
     let prompt = if no_wrap {
         job.request.body.clone()
-    } else if completion_dir.is_empty() {
-        wrap_claude_prompt(&job.request.body, &make_req_id(&job.job_id))
-    } else {
+    } else if completion_dir.is_some() {
         wrap_claude_turn_prompt(&job.request.body, &make_req_id(&job.job_id))
+    } else {
+        wrap_claude_prompt(&job.request.body, &make_req_id(&job.job_id))
     };
+
+    let mut prompt_sent = false;
+    let mut prompt_deferred_for_ready = false;
+    let mut send_error: Option<String> = None;
+
+    if let (Some(pane_id), Some(_backend_config)) = (&pane_id, &backend_config) {
+        if let Some(target) = resolve_prompt_target_for_session(&session.as_ref().unwrap().data) {
+            match target.get_pane_content(pane_id, PANE_CONTENT_LINES) {
+                Ok(content) if looks_ready(&content) => {
+                    if let Err(err) = target.send_text(pane_id, &prompt) {
+                        send_error = Some(err);
+                    } else {
+                        prompt_sent = true;
+                    }
+                }
+                _ => {
+                    prompt_deferred_for_ready = true;
+                }
+            }
+        } else {
+            prompt_deferred_for_ready = true;
+        }
+    }
+
+    let mut diagnostics = serde_json::json!({
+        "provider": PROVIDER_NAME,
+        "mode": "active",
+        "workspace_path": workspace_path.as_ref().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+    });
+    if let Some(err) = &send_error {
+        diagnostics["send_error"] = Value::String(err.clone());
+    }
+    if prompt_deferred_for_ready {
+        diagnostics["prompt_deferred_for_ready"] = Value::Bool(true);
+    }
 
     let mut runtime_state = HashMap::new();
     runtime_state.insert("mode".to_string(), Value::String("active".to_string()));
@@ -193,11 +290,37 @@ fn start_active_submission(
     runtime_state.insert("anchor_seen".to_string(), Value::Bool(no_wrap));
     runtime_state.insert("reply_buffer".to_string(), Value::String(String::new()));
     runtime_state.insert("raw_buffer".to_string(), Value::String(String::new()));
-    runtime_state.insert("session_path".to_string(), Value::String(session_path));
-    runtime_state.insert("completion_dir".to_string(), Value::String(completion_dir));
+    runtime_state.insert(
+        "session_path".to_string(),
+        session_path
+            .map(|p| Value::String(p.to_string_lossy().to_string()))
+            .unwrap_or(Value::Null),
+    );
+    runtime_state.insert(
+        "completion_dir".to_string(),
+        completion_dir
+            .map(|p| Value::String(p.to_string_lossy().to_string()))
+            .unwrap_or(Value::String(String::new())),
+    );
+    if let Some(root) = &claude_projects_root {
+        runtime_state.insert(
+            "claude_projects_root".to_string(),
+            Value::String(root.to_string_lossy().to_string()),
+        );
+    }
+    if let Some(ws) = &workspace_path {
+        runtime_state.insert(
+            "workspace_path".to_string(),
+            Value::String(ws.to_string_lossy().to_string()),
+        );
+    }
     runtime_state.insert("no_wrap".to_string(), Value::Bool(no_wrap));
     runtime_state.insert("prompt_text".to_string(), Value::String(prompt));
-    runtime_state.insert("prompt_sent".to_string(), Value::Bool(false));
+    runtime_state.insert("prompt_sent".to_string(), Value::Bool(prompt_sent));
+    runtime_state.insert(
+        "prompt_deferred_for_ready".to_string(),
+        Value::Bool(prompt_deferred_for_ready),
+    );
     runtime_state.insert(
         "reply_delivery_complete_on_dispatch".to_string(),
         Value::Bool(reply_delivery),
@@ -216,12 +339,19 @@ fn start_active_submission(
             serde_json::Number::from_f64(resolve_ready_timeout_s()).unwrap_or_else(|| 0.into()),
         ),
     );
-
-    let diagnostics = serde_json::json!({
-        "provider": PROVIDER_NAME,
-        "mode": "active",
-        "workspace_path": context.and_then(|c| c.workspace_path.clone()).unwrap_or_default(),
-    });
+    runtime_state.insert(
+        "reader_state".to_string(),
+        Value::Object(reader_state.into_iter().collect()),
+    );
+    if let Some(pane_id) = &pane_id {
+        runtime_state.insert("pane_id".to_string(), Value::String(pane_id.clone()));
+    }
+    if let Some(backend_config) = &backend_config {
+        store_backend_config(&mut runtime_state, backend_config);
+    }
+    if let Some(err) = send_error {
+        runtime_state.insert("send_error".to_string(), Value::String(err));
+    }
 
     ProviderSubmission {
         job_id: job.job_id.clone(),
@@ -239,9 +369,27 @@ fn start_active_submission(
     }
 }
 
+fn agent_instance(agent_name: &str) -> Option<String> {
+    let name = agent_name.trim();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_lowercase())
+    }
+}
+
 fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<ProviderPollResult> {
+    if submission.is_terminal() {
+        return None;
+    }
+
     if !runtime_bool(&submission.runtime_state, "prompt_sent") {
-        return Some(dispatch_deferred_prompt(submission, now));
+        if runtime_str(&submission.runtime_state, "pane_id").is_empty()
+            || runtime_str(&submission.runtime_state, "backend_type").is_empty()
+        {
+            return Some(dispatch_deferred_prompt(submission, now));
+        }
+        return dispatch_deferred_prompt_when_ready(submission, now);
     }
 
     if runtime_bool(
@@ -255,11 +403,45 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
         return Some(result);
     }
 
-    if let Some(result) = process_pending_events(submission, now) {
+    if let Some(result) = poll_event_batches(submission, now) {
         return Some(result);
     }
 
     None
+}
+
+fn dispatch_deferred_prompt_when_ready(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let pane_id = runtime_str(&submission.runtime_state, "pane_id");
+    let prompt = runtime_str(&submission.runtime_state, "prompt_text");
+    if pane_id.is_empty() || prompt.is_empty() {
+        return None;
+    }
+
+    let ready =
+        if let Some(target) = crate::execution::resolve_prompt_target(&submission.runtime_state) {
+            target
+                .get_pane_content(&pane_id, PANE_CONTENT_LINES)
+                .map(|content| looks_ready(&content))
+                .unwrap_or(true)
+        } else {
+            true
+        };
+
+    if !ready && !ready_wait_timed_out(submission, now) {
+        let mut updated = submission.clone();
+        updated
+            .runtime_state
+            .insert("prompt_deferred_for_ready".to_string(), Value::Bool(true));
+        return None;
+    }
+
+    if let Some(target) = crate::execution::resolve_prompt_target(&submission.runtime_state) {
+        let _ = target.send_text(&pane_id, &prompt);
+    }
+    Some(dispatch_deferred_prompt(submission, now))
 }
 
 fn dispatch_deferred_prompt(submission: &ProviderSubmission, now: &str) -> ProviderPollResult {
@@ -303,31 +485,44 @@ fn dispatch_deferred_prompt(submission: &ProviderSubmission, now: &str) -> Provi
         } else {
             Some(session_path.clone())
         };
-        if let Ok(mut item) = CompletionItem::new(
+        let mut payload = HashMap::new();
+        payload.insert("turn_id".to_string(), Value::String(request_anchor));
+        payload.insert(
+            "session_path".to_string(),
+            session_path_opt.map(Value::String).unwrap_or(Value::Null),
+        );
+        items.push(build_item(
+            &updated,
             CompletionItemKind::AnchorSeen,
-            now.to_string(),
-            CompletionCursor {
-                source_kind: updated.source_kind,
-                event_seq: Some(next_seq),
-                updated_at: Some(now.to_string()),
-                session_path: session_path_opt.clone(),
-                ..Default::default()
-            },
-            &updated.provider,
-            &updated.agent_name,
-            &updated.job_id,
-        ) {
-            item.payload
-                .insert("turn_id".to_string(), Value::String(request_anchor));
-            item.payload.insert(
-                "session_path".to_string(),
-                session_path_opt.map(Value::String).unwrap_or(Value::Null),
-            );
-            items.push(item);
-        }
+            now,
+            next_seq,
+            payload,
+        ));
     }
 
     ProviderPollResult::new(updated, items, None)
+}
+
+fn ready_wait_timed_out(submission: &ProviderSubmission, now: &str) -> bool {
+    let started_at = runtime_str(&submission.runtime_state, "ready_wait_started_at");
+    if started_at.is_empty() {
+        return true;
+    }
+    let timeout_s = runtime_f64(
+        &submission.runtime_state,
+        "ready_timeout_s",
+        DEFAULT_READY_TIMEOUT_S,
+    );
+    if timeout_s <= 0.0 {
+        return true;
+    }
+    let Ok(start) = ccb_completion::utils::parse_timestamp(&started_at) else {
+        return true;
+    };
+    let Ok(end) = ccb_completion::utils::parse_timestamp(now) else {
+        return true;
+    };
+    (end - start).num_milliseconds() as f64 / 1000.0 >= timeout_s
 }
 
 fn reply_delivery_terminal_result(
@@ -341,6 +536,22 @@ fn reply_delivery_terminal_result(
         provider_turn_ref
     };
 
+    let diagnostics = serde_json::Map::from_iter([
+        ("reply_delivery".to_string(), Value::Bool(true)),
+        (
+            "delivery_status".to_string(),
+            Value::String("sent".to_string()),
+        ),
+        (
+            "provider".to_string(),
+            Value::String(PROVIDER_NAME.to_string()),
+        ),
+        (
+            "submission_mode".to_string(),
+            Value::String("active".to_string()),
+        ),
+    ]);
+
     let decision = CompletionDecision {
         terminal: true,
         status: CompletionStatus::Completed,
@@ -353,21 +564,7 @@ fn reply_delivery_terminal_result(
         provider_turn_ref: Some(provider_turn_ref),
         source_cursor: None,
         finished_at: Some(now.to_string()),
-        diagnostics: serde_json::Map::from_iter([
-            ("reply_delivery".to_string(), Value::Bool(true)),
-            (
-                "delivery_status".to_string(),
-                Value::String("sent".to_string()),
-            ),
-            (
-                "provider".to_string(),
-                Value::String(PROVIDER_NAME.to_string()),
-            ),
-            (
-                "submission_mode".to_string(),
-                Value::String("active".to_string()),
-            ),
-        ]),
+        diagnostics,
     };
 
     let mut updated = submission.clone();
@@ -401,7 +598,7 @@ fn poll_exact_hook(submission: &ProviderSubmission, now: &str) -> Option<Provide
         .get("status")
         .and_then(|v| v.as_str())
         .unwrap_or("completed");
-    let status = match status_str.to_lowercase().as_str() {
+    let mut status = match status_str.to_lowercase().as_str() {
         "failed" => CompletionStatus::Failed,
         "cancelled" => CompletionStatus::Cancelled,
         "incomplete" => CompletionStatus::Incomplete,
@@ -411,7 +608,35 @@ fn poll_exact_hook(submission: &ProviderSubmission, now: &str) -> Option<Provide
         .get("diagnostics")
         .cloned()
         .unwrap_or_else(|| Value::Object(Default::default()));
-    let diagnostics_map = diagnostics.as_object().cloned().unwrap_or_default();
+    let mut diagnostics_map = diagnostics.as_object().cloned().unwrap_or_default();
+
+    if reply.is_empty()
+        && (status == CompletionStatus::Completed || status == CompletionStatus::Incomplete)
+    {
+        status = CompletionStatus::Incomplete;
+        diagnostics_map
+            .entry("reason".to_string())
+            .or_insert_with(|| Value::String("hook_stop_empty_reply".to_string()));
+        diagnostics_map
+            .entry("empty_reply".to_string())
+            .or_insert(Value::Bool(true));
+        diagnostics_map
+            .entry("error_type".to_string())
+            .or_insert_with(|| Value::String("empty_provider_reply".to_string()));
+        diagnostics_map.entry("message".to_string()).or_insert_with(|| {
+            Value::String(
+                "Provider completion hook fired without assistant reply text; inspect the provider transcript, pane state, and authentication/API output.".to_string(),
+            )
+        });
+        let message = diagnostics_map
+            .get("message")
+            .cloned()
+            .unwrap_or(Value::Null);
+        diagnostics_map
+            .entry("diagnosis".to_string())
+            .or_insert(message);
+    }
+
     let reason = diagnostics_map
         .get("reason")
         .and_then(|v| v.as_str())
@@ -433,41 +658,37 @@ fn poll_exact_hook(submission: &ProviderSubmission, now: &str) -> Option<Provide
         ..Default::default()
     };
 
-    let item = match CompletionItem::new(
-        CompletionItemKind::AssistantFinal,
-        timestamp.to_string(),
-        cursor,
-        &submission.provider,
-        &submission.agent_name,
-        &submission.job_id,
-    ) {
-        Ok(mut item) => {
-            let mut payload = serde_json::Map::new();
-            payload.insert("reply".to_string(), Value::String(reply.clone()));
-            payload.insert("text".to_string(), Value::String(reply.clone()));
-            payload.insert("turn_id".to_string(), Value::String(request_anchor.clone()));
-            payload.insert(
-                "provider_turn_ref".to_string(),
-                Value::String(provider_turn_ref.clone()),
-            );
-            payload.insert(
-                "completion_source".to_string(),
-                Value::String("hook_artifact".to_string()),
-            );
-            payload.insert(
-                "hook_event_name".to_string(),
-                obj.get("hook_event_name").cloned().unwrap_or(Value::Null),
-            );
-            payload.insert("status".to_string(), Value::String(status_str.to_string()));
-            for (k, v) in &diagnostics_map {
-                if !payload.contains_key(k) {
-                    payload.insert(k.clone(), v.clone());
-                }
-            }
-            item.payload = payload;
-            item
+    let mut item_payload = serde_json::Map::new();
+    item_payload.insert("reply".to_string(), Value::String(reply.clone()));
+    item_payload.insert("text".to_string(), Value::String(reply.clone()));
+    item_payload.insert("turn_id".to_string(), Value::String(request_anchor.clone()));
+    item_payload.insert(
+        "provider_turn_ref".to_string(),
+        Value::String(provider_turn_ref.clone()),
+    );
+    item_payload.insert(
+        "completion_source".to_string(),
+        Value::String("hook_artifact".to_string()),
+    );
+    item_payload.insert(
+        "hook_event_name".to_string(),
+        obj.get("hook_event_name").cloned().unwrap_or(Value::Null),
+    );
+    item_payload.insert("status".to_string(), Value::String(status_str.to_string()));
+    for (k, v) in &diagnostics_map {
+        if !item_payload.contains_key(k) {
+            item_payload.insert(k.clone(), v.clone());
         }
-        Err(_) => return None,
+    }
+
+    let item = CompletionItem {
+        kind: CompletionItemKind::AssistantFinal,
+        timestamp: timestamp.to_string(),
+        cursor,
+        provider: submission.provider.clone(),
+        agent_name: submission.agent_name.clone(),
+        req_id: submission.job_id.clone(),
+        payload: item_payload,
     };
 
     let mut updated = submission.clone();
@@ -494,39 +715,60 @@ fn poll_exact_hook(submission: &ProviderSubmission, now: &str) -> Option<Provide
     Some(ProviderPollResult::new(updated, vec![item], Some(decision)))
 }
 
-fn process_pending_events(
-    submission: &ProviderSubmission,
-    now: &str,
-) -> Option<ProviderPollResult> {
-    let events_value = submission.runtime_state.get("pending_events")?.clone();
-    let events = events_value.as_array()?;
-    if events.is_empty() {
+fn poll_event_batches(submission: &ProviderSubmission, now: &str) -> Option<ProviderPollResult> {
+    // Legacy test seam: if pending_events is present, process them directly.
+    if submission.runtime_state.contains_key("pending_events") {
+        return process_pending_events(submission, now);
+    }
+
+    let session_path = runtime_str(&submission.runtime_state, "session_path");
+    let work_dir = runtime_str(&submission.runtime_state, "workspace_path");
+    if session_path.is_empty() && work_dir.is_empty() {
         return None;
     }
+
+    let reader = build_reader(submission);
+    let prev_state: HashMap<String, Value> = submission
+        .runtime_state
+        .get("reader_state")
+        .and_then(|v| v.as_object().cloned().map(|m| m.into_iter().collect()))
+        .unwrap_or_else(|| reader.capture_state());
+
+    let (entries, new_state) = reader.try_get_entries(&prev_state);
 
     let mut poll = PollState::from_submission(submission);
     let mut items = Vec::new();
 
-    for event in events {
-        let obj = event.as_object()?;
+    let new_session_path = new_state
+        .get("session_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&session_path)
+        .to_string();
+    if !new_session_path.is_empty() && new_session_path != poll.session_path {
+        apply_session_rotation(submission, &mut poll, &new_session_path, now, &mut items);
+    }
+
+    for entry in entries {
+        let obj = entry.to_value().as_object().cloned()?;
         let role = obj.get("role").and_then(|v| v.as_str()).unwrap_or("");
         match role {
-            "user" => handle_user_event(submission, &mut poll, obj, now, &mut items),
+            "user" => handle_user_event(submission, &mut poll, &obj, now, &mut items),
             "system" => {
                 if let Some(result) =
-                    handle_system_event(submission, &mut poll, obj, now, &mut items)
+                    handle_system_event(submission, &mut poll, &obj, now, &mut items)
                 {
                     let mut updated = submission.clone();
                     updated.reply = poll.reply_buffer.clone();
                     updated.runtime_state = apply_poll_state(&updated.runtime_state, &poll);
-                    updated
-                        .runtime_state
-                        .insert("pending_events".to_string(), Value::Array(Vec::new()));
+                    updated.runtime_state.insert(
+                        "reader_state".to_string(),
+                        Value::Object(new_state.into_iter().collect()),
+                    );
                     return Some(merge_items(result, items));
                 }
             }
             "assistant" if poll.anchor_seen => {
-                handle_assistant_event(submission, &mut poll, obj, now, &mut items);
+                handle_assistant_event(submission, &mut poll, &obj, now, &mut items);
             }
             _ => {}
         }
@@ -538,14 +780,33 @@ fn process_pending_events(
     let mut updated = submission.clone();
     updated.reply = poll.reply_buffer.clone();
     updated.runtime_state = apply_poll_state(&updated.runtime_state, &poll);
-    updated
-        .runtime_state
-        .insert("pending_events".to_string(), Value::Array(Vec::new()));
+    updated.runtime_state.insert(
+        "reader_state".to_string(),
+        Value::Object(new_state.into_iter().collect()),
+    );
 
     if items.is_empty() {
         return None;
     }
     Some(ProviderPollResult::new(updated, items, None))
+}
+
+fn build_reader(submission: &ProviderSubmission) -> ClaudeLogReader {
+    let session_path = runtime_str(&submission.runtime_state, "session_path");
+    let work_dir = runtime_str(&submission.runtime_state, "workspace_path");
+    let projects_root = runtime_str(&submission.runtime_state, "claude_projects_root");
+
+    let mut reader = if !projects_root.is_empty() {
+        ClaudeLogReader::new(Some(Path::new(&projects_root)), Path::new(&work_dir))
+    } else if !work_dir.is_empty() {
+        ClaudeLogReader::new(None, Path::new(&work_dir))
+    } else {
+        ClaudeLogReader::new(None, Path::new("."))
+    };
+    if !session_path.is_empty() {
+        reader.set_preferred_session(Some(PathBuf::from(&session_path)));
+    }
+    reader
 }
 
 fn merge_items(
@@ -554,6 +815,43 @@ fn merge_items(
 ) -> ProviderPollResult {
     prefix_items.extend(result.items);
     ProviderPollResult::new(result.submission, prefix_items, result.decision)
+}
+
+fn apply_session_rotation(
+    submission: &ProviderSubmission,
+    poll: &mut PollState,
+    new_session_path: &str,
+    now: &str,
+    items: &mut Vec<CompletionItem>,
+) {
+    let mut payload = HashMap::new();
+    payload.insert(
+        "session_path".to_string(),
+        Value::String(new_session_path.to_string()),
+    );
+    payload.insert(
+        "provider_session_id".to_string(),
+        Value::String(
+            PathBuf::from(new_session_path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string(),
+        ),
+    );
+    items.push(build_item(
+        submission,
+        CompletionItemKind::SessionRotate,
+        now,
+        poll.next_seq,
+        payload,
+    ));
+    poll.next_seq += 1;
+    poll.session_path = new_session_path.to_string();
+    poll.anchor_seen = runtime_bool(&submission.runtime_state, "no_wrap");
+    poll.reply_buffer.clear();
+    poll.raw_buffer.clear();
+    poll.last_assistant_uuid.clear();
 }
 
 struct PollState {
@@ -617,32 +915,28 @@ fn handle_user_event(
 ) {
     let text = event.get("text").and_then(|v| v.as_str()).unwrap_or("");
     if !poll.request_anchor.is_empty() && text.contains(&poll.request_anchor) && !poll.anchor_seen {
-        if let Ok(mut item) = CompletionItem::new(
-            CompletionItemKind::AnchorSeen,
-            now.to_string(),
-            CompletionCursor {
-                source_kind: submission.source_kind,
-                event_seq: Some(poll.next_seq),
-                updated_at: Some(now.to_string()),
-                session_path: if poll.session_path.is_empty() {
-                    None
-                } else {
-                    Some(poll.session_path.clone())
-                },
-                ..Default::default()
+        let mut payload = HashMap::new();
+        payload.insert(
+            "turn_id".to_string(),
+            Value::String(poll.request_anchor.clone()),
+        );
+        payload.insert(
+            "session_path".to_string(),
+            if poll.session_path.is_empty() {
+                Value::Null
+            } else {
+                Value::String(poll.session_path.clone())
             },
-            &submission.provider,
-            &submission.agent_name,
-            &submission.job_id,
-        ) {
-            item.payload.insert(
-                "turn_id".to_string(),
-                Value::String(poll.request_anchor.clone()),
-            );
-            items.push(item);
-            poll.next_seq += 1;
-            poll.anchor_seen = true;
-        }
+        );
+        items.push(build_item(
+            submission,
+            CompletionItemKind::AnchorSeen,
+            now,
+            poll.next_seq,
+            payload,
+        ));
+        poll.next_seq += 1;
+        poll.anchor_seen = true;
     }
 }
 
@@ -677,14 +971,13 @@ fn handle_system_event(
             payload.insert(k.clone(), v.clone());
         }
 
-        let item = build_item(
+        items.push(build_item(
             submission,
             CompletionItemKind::Error,
             &timestamp,
             poll.next_seq,
             payload.into_iter().collect(),
-        );
-        items.push(item);
+        ));
         poll.next_seq += 1;
 
         let cursor = CompletionCursor {
@@ -757,7 +1050,7 @@ fn handle_system_event(
     }
 
     if is_turn_boundary_event(event, &poll.last_assistant_uuid) {
-        let mut payload = serde_json::Map::new();
+        let mut payload = HashMap::new();
         payload.insert(
             "reason".to_string(),
             Value::String("turn_duration".to_string()),
@@ -786,14 +1079,13 @@ fn handle_system_event(
                 Value::String(poll.last_assistant_uuid.clone())
             },
         );
-        let item = build_item(
+        items.push(build_item(
             submission,
             CompletionItemKind::TurnBoundary,
             now,
             poll.next_seq,
-            payload.into_iter().collect(),
-        );
-        items.push(item);
+            payload,
+        ));
         poll.next_seq += 1;
         poll.reached_turn_boundary = true;
     }
@@ -834,6 +1126,15 @@ fn handle_assistant_event(
     let cleaned = strip_done_text_for_req(&text, &poll.request_anchor);
     if cleaned.trim().is_empty() {
         maybe_append_turn_boundary(submission, poll, now, items);
+        maybe_append_assistant_end_turn_boundary(
+            submission,
+            poll,
+            event,
+            &cleaned,
+            is_subagent,
+            now,
+            items,
+        );
         return;
     }
 
@@ -847,7 +1148,7 @@ fn handle_assistant_event(
         event_assistant_uuid.clone()
     };
 
-    let mut payload = serde_json::Map::new();
+    let mut payload = HashMap::new();
     payload.insert("text".to_string(), Value::String(cleaned));
     payload.insert(
         "merged_text".to_string(),
@@ -894,17 +1195,26 @@ fn handle_assistant_event(
         event.get("stop_reason").cloned().unwrap_or(Value::Null),
     );
 
-    let item = build_item(
+    items.push(build_item(
         submission,
         CompletionItemKind::AssistantChunk,
         now,
         poll.next_seq,
-        payload.into_iter().collect(),
-    );
-    items.push(item);
+        payload,
+    ));
     poll.next_seq += 1;
 
     maybe_append_turn_boundary(submission, poll, now, items);
+    let reply_buffer_snapshot = poll.reply_buffer.clone();
+    maybe_append_assistant_end_turn_boundary(
+        submission,
+        poll,
+        event,
+        &reply_buffer_snapshot,
+        is_subagent,
+        now,
+        items,
+    );
 }
 
 fn maybe_append_turn_boundary(
@@ -913,7 +1223,10 @@ fn maybe_append_turn_boundary(
     now: &str,
     items: &mut Vec<CompletionItem>,
 ) {
-    if poll.request_anchor.is_empty() || !is_done_text(&poll.raw_buffer) {
+    if poll.reached_turn_boundary
+        || poll.request_anchor.is_empty()
+        || !is_done_text(&poll.raw_buffer)
+    {
         return;
     }
     let reply = protocol_extract_reply_for_req(&poll.raw_buffer, &poll.request_anchor);
@@ -922,12 +1235,67 @@ fn maybe_append_turn_boundary(
     } else {
         reply
     };
+    append_turn_boundary_item(submission, poll, now, items, reply, "task_complete", None);
+}
 
-    let mut payload = serde_json::Map::new();
-    payload.insert(
-        "reason".to_string(),
-        Value::String("task_complete".to_string()),
+fn maybe_append_assistant_end_turn_boundary(
+    submission: &ProviderSubmission,
+    poll: &mut PollState,
+    event: &serde_json::Map<String, Value>,
+    cleaned: &str,
+    is_subagent: bool,
+    now: &str,
+    items: &mut Vec<CompletionItem>,
+) {
+    if poll.reached_turn_boundary
+        || is_subagent
+        || !poll.anchor_seen
+        || poll.request_anchor.is_empty()
+    {
+        return;
+    }
+    let stop_reason = event
+        .get("stop_reason")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if stop_reason != "end_turn" {
+        return;
+    }
+    let reply = if poll.reply_buffer.trim().is_empty() {
+        cleaned.trim().to_string()
+    } else {
+        poll.reply_buffer.clone()
+    };
+    if reply.is_empty() {
+        return;
+    }
+    if let Some(uuid) = event.get("uuid").and_then(|v| v.as_str()) {
+        poll.last_assistant_uuid = uuid.to_string();
+    }
+    append_turn_boundary_item(
+        submission,
+        poll,
+        now,
+        items,
+        reply,
+        "assistant_end_turn",
+        Some("end_turn"),
     );
+}
+
+fn append_turn_boundary_item(
+    submission: &ProviderSubmission,
+    poll: &mut PollState,
+    now: &str,
+    items: &mut Vec<CompletionItem>,
+    reply: String,
+    reason: &str,
+    stop_reason: Option<&str>,
+) {
+    let mut payload = HashMap::new();
+    payload.insert("reason".to_string(), Value::String(reason.to_string()));
     payload.insert("last_agent_message".to_string(), Value::String(reply));
     payload.insert(
         "turn_id".to_string(),
@@ -949,15 +1317,17 @@ fn maybe_append_turn_boundary(
             Value::String(poll.last_assistant_uuid.clone())
         },
     );
+    if let Some(sr) = stop_reason {
+        payload.insert("stop_reason".to_string(), Value::String(sr.to_string()));
+    }
 
-    let item = build_item(
+    items.push(build_item(
         submission,
         CompletionItemKind::TurnBoundary,
         now,
         poll.next_seq,
-        payload.into_iter().collect(),
-    );
-    items.push(item);
+        payload,
+    ));
     poll.next_seq += 1;
     poll.reached_turn_boundary = true;
 }
@@ -965,45 +1335,114 @@ fn maybe_append_turn_boundary(
 fn terminal_api_error_payload(
     event: &serde_json::Map<String, Value>,
 ) -> Option<HashMap<String, Value>> {
-    let error = event.get("error")?;
-    let obj = error.as_object()?;
+    let entry_type = event
+        .get("entry_type")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let subtype = event
+        .get("subtype")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    if entry_type != "system" || subtype != "api_error" {
+        return None;
+    }
+
+    let raw_entry = event
+        .get("entry")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_else(|| event.clone());
+
+    let retry_attempt = raw_entry.get("retryAttempt").and_then(|v| v.as_u64())? as i64;
+    let max_retries = raw_entry.get("maxRetries").and_then(|v| v.as_u64())? as i64;
+    if max_retries <= 0 || retry_attempt < max_retries {
+        return None;
+    }
+
+    let cause = raw_entry.get("cause").and_then(Value::as_object).cloned();
+    let error_code = cause
+        .as_ref()
+        .and_then(|c| c.get("code"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+    let error_path = cause
+        .as_ref()
+        .and_then(|c| c.get("path"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+
     let mut out = HashMap::new();
     out.insert(
+        "message".to_string(),
+        Value::String(build_api_error_message(error_code, error_path)),
+    );
+    out.insert(
         "error_code".to_string(),
-        obj.get("code").cloned().unwrap_or(Value::Null),
+        error_code
+            .map(|s| Value::String(s.to_string()))
+            .unwrap_or(Value::Null),
     );
     out.insert(
         "error_path".to_string(),
-        obj.get("path").cloned().unwrap_or(Value::Null),
+        error_path
+            .map(|s| Value::String(s.to_string()))
+            .unwrap_or(Value::Null),
     );
     out.insert(
         "retry_attempt".to_string(),
-        obj.get("retry_attempt").cloned().unwrap_or(Value::Null),
+        Value::Number((retry_attempt.max(0) as u64).into()),
     );
     out.insert(
         "max_retries".to_string(),
-        obj.get("max_retries").cloned().unwrap_or(Value::Null),
+        Value::Number((max_retries.max(0) as u64).into()),
     );
     out.insert(
         "timestamp".to_string(),
-        obj.get("timestamp").cloned().unwrap_or(Value::Null),
+        raw_entry.get("timestamp").cloned().unwrap_or(Value::Null),
     );
     Some(out)
+}
+
+fn build_api_error_message(error_code: Option<&str>, error_path: Option<&str>) -> String {
+    let mut parts = vec!["Claude API request failed".to_string()];
+    if let Some(code) = error_code {
+        parts.push(format!("code={}", code));
+    }
+    if let Some(path) = error_path {
+        parts.push(format!("path={}", path));
+    }
+    parts.join(" ")
 }
 
 fn is_turn_boundary_event(
     event: &serde_json::Map<String, Value>,
     last_assistant_uuid: &str,
 ) -> bool {
+    let entry_type = event
+        .get("entry_type")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let subtype = event
+        .get("subtype")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    if entry_type != "system" || subtype != "turn_duration" {
+        return false;
+    }
+    if last_assistant_uuid.is_empty() {
+        return false;
+    }
     event
-        .get("turn_boundary")
-        .and_then(|v| v.as_bool())
+        .get("parent_uuid")
+        .and_then(|v| v.as_str())
+        .map(|s| s == last_assistant_uuid)
         .unwrap_or(false)
-        && event
-            .get("assistant_uuid")
-            .and_then(|v| v.as_str())
-            .map(|uuid| uuid == last_assistant_uuid)
-            .unwrap_or(false)
 }
 
 fn append_buffer(buffer: &str, text: &str) -> String {
@@ -1037,6 +1476,7 @@ fn export_claude_runtime_state(submission: &ProviderSubmission) -> HashMap<Strin
         "reply_delivery_require_ready",
         "ready_wait_started_at",
         "ready_timeout_s",
+        "reader_state",
     ] {
         if let Some(value) = state.get(key) {
             out.insert(key.to_string(), value.clone());
@@ -1055,6 +1495,14 @@ fn runtime_bool(state: &HashMap<String, Value>, key: &str) -> bool {
 
 fn runtime_u64(state: &HashMap<String, Value>, key: &str) -> u64 {
     state.get(key).and_then(|v| v.as_u64()).unwrap_or(0)
+}
+
+fn runtime_f64(state: &HashMap<String, Value>, key: &str, default: f64) -> f64 {
+    state
+        .get(key)
+        .and_then(|v| v.as_f64())
+        .unwrap_or(default)
+        .max(0.0)
 }
 
 fn runtime_str(state: &HashMap<String, Value>, key: &str) -> String {
@@ -1145,67 +1593,80 @@ fn strip_done_text_for_req(text: &str, req_id: &str) -> String {
     text.replace(&done_marker, "").trim().to_string()
 }
 
+fn looks_ready(text: &str) -> bool {
+    let normalized = text.trim();
+    let lowered = normalized.to_lowercase();
+    if normalized.lines().any(|line| {
+        let stripped = line.trim_start();
+        stripped.starts_with('❯') && stripped.chars().nth(1).is_none_or(char::is_whitespace)
+    }) {
+        return true;
+    }
+    if lowered.contains("type your message") || lowered.contains("esc to interrupt") {
+        return true;
+    }
+    if lowered.contains("for shortcuts") {
+        return true;
+    }
+    false
+}
+
 // ---------------------------------------------------------------------------
-// Session helpers
+// Legacy pending_events test seam
 // ---------------------------------------------------------------------------
 
-/// A loaded Claude project session.
-/// Mirrors Python `provider_backends.claude.session_runtime.model.ClaudeProjectSession`.
-#[derive(Debug, Clone, Default)]
-pub struct ClaudeProjectSession {
-    pub session_file: PathBuf,
-    pub data: HashMap<String, Value>,
-}
-
-impl ClaudeProjectSession {
-    pub fn claude_session_id(&self) -> String {
-        self.data
-            .get(SESSION_ID_ATTR)
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string()
+fn process_pending_events(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let events_value = submission.runtime_state.get("pending_events")?.clone();
+    let events = events_value.as_array()?;
+    if events.is_empty() {
+        return None;
     }
 
-    pub fn claude_session_path(&self) -> String {
-        self.data
-            .get(SESSION_PATH_ATTR)
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string()
+    let mut poll = PollState::from_submission(submission);
+    let mut items = Vec::new();
+
+    for event in events {
+        let obj = event.as_object()?;
+        let role = obj.get("role").and_then(|v| v.as_str()).unwrap_or("");
+        match role {
+            "user" => handle_user_event(submission, &mut poll, obj, now, &mut items),
+            "system" => {
+                if let Some(result) =
+                    handle_system_event(submission, &mut poll, obj, now, &mut items)
+                {
+                    let mut updated = submission.clone();
+                    updated.reply = poll.reply_buffer.clone();
+                    updated.runtime_state = apply_poll_state(&updated.runtime_state, &poll);
+                    updated
+                        .runtime_state
+                        .insert("pending_events".to_string(), Value::Array(Vec::new()));
+                    return Some(merge_items(result, items));
+                }
+            }
+            "assistant" if poll.anchor_seen => {
+                handle_assistant_event(submission, &mut poll, obj, now, &mut items);
+            }
+            _ => {}
+        }
+        if poll.reached_turn_boundary {
+            break;
+        }
     }
 
-    pub fn completion_dir(&self) -> String {
-        self.data
-            .get("completion_artifact_dir")
-            .and_then(|v| v.as_str())
-            .or_else(|| self.data.get("runtime_dir").and_then(|v| v.as_str()))
-            .map(|s| {
-                PathBuf::from(s)
-                    .join("completion")
-                    .to_string_lossy()
-                    .to_string()
-            })
-            .unwrap_or_default()
+    let mut updated = submission.clone();
+    updated.reply = poll.reply_buffer.clone();
+    updated.runtime_state = apply_poll_state(&updated.runtime_state, &poll);
+    updated
+        .runtime_state
+        .insert("pending_events".to_string(), Value::Array(Vec::new()));
+
+    if items.is_empty() {
+        return None;
     }
-}
-
-/// Find a project session file for a work directory.
-/// Mirrors Python `provider_backends.claude.session_runtime.pathing.find_project_session_file`.
-pub fn find_project_session_file(work_dir: &Path, instance: Option<&str>) -> Option<PathBuf> {
-    let filename = session_filename_for_instance(CLAUDE_SESSION_FILENAME, instance);
-    find_session_file_for_work_dir(work_dir, &filename)
-}
-
-/// Load a Claude project session.
-/// Mirrors Python `provider_backends.claude.session.load_project_session`.
-pub fn load_project_session(
-    work_dir: &Path,
-    instance: Option<&str>,
-) -> Option<ClaudeProjectSession> {
-    let session_file = find_project_session_file(work_dir, instance)?;
-    let raw = std::fs::read_to_string(&session_file).ok()?;
-    let data: HashMap<String, Value> = serde_json::from_str(&raw).ok()?;
-    Some(ClaudeProjectSession { session_file, data })
+    Some(ProviderPollResult::new(updated, items, None))
 }
 
 // ---------------------------------------------------------------------------
@@ -1215,6 +1676,52 @@ pub fn load_project_session(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Mutex};
+    use tempfile::TempDir;
+
+    use crate::execution::{with_prompt_target_override, PromptTarget, ProviderRuntimeContext};
+
+    #[derive(Default, Clone)]
+    struct MockTarget {
+        sent: Arc<Mutex<Vec<(String, String)>>>,
+        content: Arc<Mutex<String>>,
+    }
+
+    impl PromptTarget for MockTarget {
+        fn send_text(&self, pane_id: &str, text: &str) -> Result<(), String> {
+            self.sent
+                .lock()
+                .unwrap()
+                .push((pane_id.to_string(), text.to_string()));
+            Ok(())
+        }
+
+        fn get_pane_content(&self, _pane_id: &str, _lines: usize) -> Result<String, String> {
+            Ok(self.content.lock().unwrap().clone())
+        }
+    }
+
+    impl MockTarget {
+        fn with_content(self, content: &str) -> Self {
+            *self.content.lock().unwrap() = content.to_string();
+            self
+        }
+    }
+
+    fn write_session(work_dir: &Path, extra: serde_json::Map<String, Value>) {
+        let mut data = serde_json::Map::new();
+        data.insert(
+            "claude_session_path".to_string(),
+            Value::String("/tmp/session.jsonl".to_string()),
+        );
+        data.insert("pane_id".to_string(), Value::String("%1".to_string()));
+        data.extend(extra);
+        std::fs::write(
+            work_dir.join(".claude-session"),
+            serde_json::to_string(&Value::Object(data)).unwrap(),
+        )
+        .unwrap();
+    }
 
     #[test]
     fn test_manifest_has_profiles() {
@@ -1261,6 +1768,48 @@ mod tests {
         assert_eq!(sub.provider, "claude");
         assert_eq!(sub.runtime_state.get("mode").unwrap(), "active");
         assert!(!runtime_bool(&sub.runtime_state, "prompt_sent"));
+    }
+
+    #[test]
+    fn test_start_fails_without_session() {
+        let tmp = TempDir::new().unwrap();
+        let work_dir = tmp.path().join("workspace");
+        std::fs::create_dir(&work_dir).unwrap();
+
+        let adapter = ClaudeExecutionAdapter;
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let ctx = ProviderRuntimeContext {
+            workspace_path: Some(work_dir.to_string_lossy().to_string()),
+            ..Default::default()
+        };
+        let sub = adapter.start(&job, Some(&ctx), "2025-01-01T00:00:00Z");
+        assert_eq!(sub.runtime_state.get("mode").unwrap(), "error");
+        assert!(runtime_str(&sub.runtime_state, "reason").contains("missing_claude_session"));
+    }
+
+    #[test]
+    fn test_start_sends_prompt_when_ready() {
+        let tmp = TempDir::new().unwrap();
+        let work_dir = tmp.path().join("workspace");
+        std::fs::create_dir(&work_dir).unwrap();
+        write_session(&work_dir, serde_json::Map::new());
+
+        let target = Arc::new(MockTarget::default().with_content("❯ "));
+        let sent = target.sent.clone();
+        let sub = with_prompt_target_override(target, || {
+            let adapter = ClaudeExecutionAdapter;
+            let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+            let ctx = ProviderRuntimeContext {
+                workspace_path: Some(work_dir.to_string_lossy().to_string()),
+                ..Default::default()
+            };
+            adapter.start(&job, Some(&ctx), "2025-01-01T00:00:00Z")
+        });
+
+        assert_eq!(sub.runtime_state.get("mode").unwrap(), "active");
+        assert!(runtime_bool(&sub.runtime_state, "prompt_sent"));
+        assert_eq!(sent.lock().unwrap().len(), 1);
+        assert_eq!(sent.lock().unwrap()[0].0, "%1");
     }
 
     #[test]
@@ -1314,6 +1863,110 @@ mod tests {
             .filter(|i| i.kind == CompletionItemKind::AssistantChunk)
             .collect();
         assert_eq!(chunks.len(), 2);
+    }
+
+    #[test]
+    fn test_poll_hook_artifact_completes() {
+        let tmp = TempDir::new().unwrap();
+        let completion_dir = tmp.path().join("completion");
+        let events_dir = completion_dir.join("events");
+        std::fs::create_dir_all(&events_dir).unwrap();
+
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub = poll_submission(&sub, "2025-01-01T00:00:01Z")
+            .unwrap()
+            .submission;
+
+        let anchor = runtime_str(&sub.runtime_state, "request_anchor");
+        sub.runtime_state.insert(
+            "completion_dir".to_string(),
+            Value::String(completion_dir.to_string_lossy().to_string()),
+        );
+
+        std::fs::write(
+            events_dir.join(format!("{}.json", anchor)),
+            serde_json::json!({
+                "req_id": anchor,
+                "status": "completed",
+                "reply": "hook reply",
+                "session_id": "session-1",
+                "timestamp": "2025-01-01T00:00:05Z",
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let result = poll_submission(&sub, "2025-01-01T00:00:02Z").unwrap();
+        assert!(result.decision.as_ref().unwrap().terminal);
+        assert_eq!(
+            result.decision.as_ref().unwrap().status,
+            CompletionStatus::Completed
+        );
+        assert_eq!(result.submission.reply, "hook reply");
+    }
+
+    #[test]
+    fn test_poll_detects_stop_reason_end_turn() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub = poll_submission(&sub, "2025-01-01T00:00:01Z")
+            .unwrap()
+            .submission;
+
+        let anchor = runtime_str(&sub.runtime_state, "request_anchor");
+        let events = serde_json::json!([
+            {"role": "user", "text": format!("{}\n\ndo it", anchor)},
+            {"role": "assistant", "text": "final answer", "stop_reason": "end_turn", "uuid": "uuid-1"}
+        ]);
+        sub.runtime_state
+            .insert("pending_events".to_string(), events);
+
+        let result = poll_submission(&sub, "2025-01-01T00:00:02Z").unwrap();
+        let boundary = result
+            .items
+            .iter()
+            .find(|i| i.kind == CompletionItemKind::TurnBoundary)
+            .expect("turn boundary expected");
+        assert_eq!(
+            boundary.payload.get("reason").unwrap(),
+            "assistant_end_turn"
+        );
+        assert_eq!(boundary.payload.get("stop_reason").unwrap(), "end_turn");
+    }
+
+    #[test]
+    fn test_api_error_terminalizes() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub = poll_submission(&sub, "2025-01-01T00:00:01Z")
+            .unwrap()
+            .submission;
+
+        let events = serde_json::json!([
+            {
+                "role": "system",
+                "entry_type": "system",
+                "subtype": "api_error",
+                "retryAttempt": 3,
+                "maxRetries": 3,
+                "cause": {"code": "overloaded", "path": "/v1/messages"},
+                "timestamp": "2025-01-01T00:00:05Z"
+            }
+        ]);
+        sub.runtime_state
+            .insert("pending_events".to_string(), events);
+
+        let result = poll_submission(&sub, "2025-01-01T00:00:02Z").unwrap();
+        assert!(result.decision.as_ref().unwrap().terminal);
+        assert_eq!(
+            result.decision.as_ref().unwrap().status,
+            CompletionStatus::Failed
+        );
+        assert_eq!(
+            result.decision.as_ref().unwrap().reason.as_deref(),
+            Some("api_error")
+        );
     }
 
     #[test]

@@ -280,6 +280,44 @@ impl MessageBureauControlService {
         }
     }
 
+    /// Build a control service that shares persistent stores with an existing
+    /// bureau facade. This keeps the mailbox inspection layer consistent with
+    /// the facade that records submissions and completions.
+    pub fn from_facade(
+        facade: &MessageBureauFacade,
+        config: Option<Value>,
+        job_store: Option<JobStore>,
+        submission_store: Option<SubmissionStore>,
+    ) -> Self {
+        let state = facade.state();
+        let known_mailboxes = known_mailbox_targets(config.as_ref());
+        let mailbox_kernel = MailboxKernelService::with_stores(
+            state.layout.clone(),
+            Some(Arc::clone(&state.clock)),
+            Some(state.mailbox_store.clone()),
+            Some(state.inbound_store.clone()),
+            Some(state.lease_store.clone()),
+        );
+        Self {
+            state: BureauControlState {
+                layout: state.layout.clone(),
+                config: config.clone(),
+                known_mailboxes,
+                clock: Arc::clone(&state.clock),
+                mailbox_store: state.mailbox_store.clone(),
+                inbound_store: state.inbound_store.clone(),
+                lease_store: state.lease_store.clone(),
+                message_store: state.message_store.clone(),
+                attempt_store: state.attempt_store.clone(),
+                reply_store: state.reply_store.clone(),
+                job_store: job_store.unwrap_or_else(|| JobStore::new(&state.layout)),
+                submission_store: submission_store
+                    .unwrap_or_else(|| SubmissionStore::new(&state.layout)),
+                mailbox_kernel,
+            },
+        }
+    }
+
     pub fn queue_summary(&self, target: &str, detail: Option<bool>) -> Value {
         crate::control_queue::queue_summary(&self.state, target, detail)
     }

@@ -8,7 +8,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
-sys-locale = "0.3"
+ccb-runtime-env = { workspace = true }
+ccb-ui-text = { workspace = true }
 
 [dev-dependencies]
-serial_test = "3"
+serial_test = { workspace = true }

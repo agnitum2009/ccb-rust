@@ -3,10 +3,17 @@ pub mod claude;
 pub mod codebuddy;
 pub mod codex;
 pub mod copilot;
+pub mod crush;
+pub mod cursor;
+pub mod deepseek;
 pub mod droid;
+pub mod fake;
 pub mod gemini;
 pub mod kimi;
+pub mod kiro;
+pub mod mimo;
 pub mod opencode;
+pub mod pi;
 pub mod qwen;
 
 use ccb_provider_core::contracts::ProviderBackend;

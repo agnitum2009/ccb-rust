@@ -1,7 +1,10 @@
 pub mod activity;
+pub mod activity_runtime;
 pub mod artifacts;
+pub mod artifacts_runtime;
 pub mod notifications;
 pub mod settings;
+pub mod settings_runtime;
 
 // Top-level exports aligned with Python `provider_hooks.__init__.__all__` (24 items).
 pub use activity::{

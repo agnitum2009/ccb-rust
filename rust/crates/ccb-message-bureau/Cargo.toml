@@ -1,0 +1,15 @@
+[package]
+name = "ccb-message-bureau"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ccb-mailbox = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+camino = { workspace = true }

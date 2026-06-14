@@ -4,8 +4,20 @@ version.workspace = true
 edition.workspace = true
 
 [[bin]]
-name = "ccb"
+name = "ccbr"
 path = "src/main.rs"
+
+[[bin]]
+name = "ask"
+path = "src/bin/ask.rs"
+
+[[bin]]
+name = "autonew"
+path = "src/bin/autonew.rs"
+
+[[bin]]
+name = "ctx-transfer"
+path = "src/bin/ctx-transfer.rs"
 
 [dependencies]
 serde = { workspace = true }
@@ -22,6 +34,8 @@ ccb-provider-core = { workspace = true }
 ccb-agents = { workspace = true }
 ccb-mailbox = { workspace = true }
 ccb-terminal = { workspace = true }
+ccb-provider-sessions = { workspace = true }
+ccb-memory = { workspace = true }
 
 [dev-dependencies]
 ccb-daemon = { workspace = true }

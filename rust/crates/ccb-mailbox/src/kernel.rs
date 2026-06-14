@@ -668,6 +668,9 @@ impl MailboxKernelService {
             last_finished_at,
         )
         .map(|s| s.to_string());
+        let summary_head = self
+            .head_pending_event(&normalized)
+            .map(|head| summary_head_from_event(&head));
         let record = build_mailbox_summary_record(
             &normalized,
             prior.as_ref(),
@@ -679,7 +682,7 @@ impl MailboxKernelService {
             last_finished,
             timestamp,
             "incremental-upsert",
-            None, // resolve from head
+            summary_head,
         );
         if self
             .mailbox_store

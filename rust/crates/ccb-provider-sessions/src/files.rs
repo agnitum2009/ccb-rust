@@ -307,6 +307,11 @@ pub fn print_session_error(msg: &str, to_stderr: bool) {
     }
 }
 
+/// Convenience wrapper that prints a session error to stderr.
+pub fn print_session_error_stderr(msg: &str) {
+    print_session_error(msg, true);
+}
+
 pub fn find_project_session_file<P: AsRef<Path>>(
     work_dir: P,
     session_filename: &str,

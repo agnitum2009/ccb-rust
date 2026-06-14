@@ -6,6 +6,16 @@ use crate::utils::first_non_empty;
 
 pub const SCHEMA_VERSION: u32 = 2;
 
+/// Priority map for reply candidates, matching Python `REPLY_PRIORITY`.
+pub const REPLY_PRIORITY: [(ReplyCandidateKind, u32); 6] = [
+    (ReplyCandidateKind::LastAgentMessage, 2),
+    (ReplyCandidateKind::FinalAnswer, 3),
+    (ReplyCandidateKind::AssistantFinal, 4),
+    (ReplyCandidateKind::AssistantChunkMerged, 5),
+    (ReplyCandidateKind::SessionReply, 6),
+    (ReplyCandidateKind::FallbackText, 7),
+];
+
 fn validate_schema(record: &Map<String, serde_json::Value>, expected_type: &str) -> Result<()> {
     if record
         .get("schema_version")
@@ -979,6 +989,14 @@ pub struct JobRecord {
     /// Mirrors Python `job.provider_options`.
     #[serde(default, skip_serializing_if = "Map::is_empty")]
     pub provider_options: Map<String, serde_json::Value>,
+    /// Workspace path for provider execution.
+    /// Mirrors Python `job.workspace_path`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_path: Option<String>,
+    /// Provider instance name for session resolution.
+    /// Mirrors Python `job.provider_instance`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_instance: Option<String>,
 }
 
 impl JobRecord {
@@ -994,6 +1012,8 @@ impl JobRecord {
             target_kind: TargetKind::Agent,
             request: JobRequest::default(),
             provider_options: Map::new(),
+            workspace_path: None,
+            provider_instance: None,
         }
     }
 
@@ -1005,5 +1025,35 @@ impl JobRecord {
     pub fn with_request_message_type(mut self, message_type: impl Into<String>) -> Self {
         self.request.message_type = Some(message_type.into());
         self
+    }
+
+    pub fn with_workspace_path(mut self, path: impl Into<String>) -> Self {
+        self.workspace_path = Some(path.into());
+        self
+    }
+
+    pub fn with_provider_instance(mut self, instance: impl Into<String>) -> Self {
+        self.provider_instance = Some(instance.into());
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::CompletionValidationError;
+
+    #[test]
+    fn reply_priority_matches_python() {
+        for (kind, expected) in REPLY_PRIORITY {
+            assert_eq!(kind.default_priority(), expected);
+        }
+        assert_eq!(REPLY_PRIORITY.len(), 6);
+    }
+
+    #[test]
+    fn validation_error_alias_exists() {
+        // Compile-only check: Python `CompletionValidationError` is reachable.
+        let _: CompletionValidationError = CompletionError::Validation("test".to_string());
     }
 }

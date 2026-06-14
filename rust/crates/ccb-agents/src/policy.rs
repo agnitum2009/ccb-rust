@@ -5,8 +5,10 @@ use crate::models::{AgentSpec, AgentState, PermissionMode, RestoreMode, RuntimeB
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum EffectiveRestoreMode {
-    Fresh,
+    Attach,
     Provider,
+    Memory,
+    Fresh,
     Auto,
 }
 
@@ -15,6 +17,7 @@ pub struct AgentLaunchPolicy {
     pub agent_name: String,
     pub restore_mode: EffectiveRestoreMode,
     pub permission_mode: PermissionMode,
+    pub queue_policy: String,
     pub restore_provider_history: bool,
     pub binding_source: RuntimeBindingSource,
 }
@@ -40,14 +43,10 @@ pub fn resolve_effective_restore_mode(
 }
 
 pub fn should_restore_provider_history(
-    spec: &AgentSpec,
+    _spec: &AgentSpec,
     restore_mode: EffectiveRestoreMode,
 ) -> bool {
-    match restore_mode {
-        EffectiveRestoreMode::Provider => true,
-        EffectiveRestoreMode::Auto => spec.restore_default != RestoreMode::Fresh,
-        EffectiveRestoreMode::Fresh => false,
-    }
+    !matches!(restore_mode, EffectiveRestoreMode::Fresh)
 }
 
 pub fn resolve_effective_permission_mode(
@@ -68,6 +67,7 @@ pub fn resolve_agent_launch_policy(
         agent_name: spec.name.clone(),
         restore_mode,
         permission_mode: resolve_effective_permission_mode(spec, requested_permission),
+        queue_policy: format!("{:?}", spec.queue_policy),
         restore_provider_history: should_restore_provider_history(spec, restore_mode),
         binding_source: RuntimeBindingSource::ProviderSession,
     }

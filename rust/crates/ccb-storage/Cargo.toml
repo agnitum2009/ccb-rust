@@ -7,16 +7,15 @@ edition.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-anyhow = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 camino = { workspace = true }
 fs2 = { workspace = true }
-tracing = { workspace = true }
-ccb-types = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+ccb-project = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
 filetime = "0.2"
+ccb-storage-classification = { workspace = true }

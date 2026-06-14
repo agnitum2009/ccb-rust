@@ -13,6 +13,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 ccb-storage = { workspace = true }
 ccb-types = { workspace = true }
+ccb-jobs = { workspace = true }
 camino = { workspace = true }
 
 [features]

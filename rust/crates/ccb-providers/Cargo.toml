@@ -49,8 +49,28 @@ name = "provider_qwen_tests"
 path = "tests/provider_qwen_tests.rs"
 
 [[test]]
+name = "native_cli_tests"
+path = "tests/native_cli_tests.rs"
+
+[[test]]
+name = "provider_claude_tests"
+path = "tests/provider_claude_tests.rs"
+
+[[test]]
 name = "provider_kimi_tests"
 path = "tests/provider_kimi_tests.rs"
+
+[[test]]
+name = "provider_deepseek_tests"
+path = "tests/provider_deepseek_tests.rs"
+
+[[test]]
+name = "provider_mimo_tests"
+path = "tests/provider_mimo_tests.rs"
+
+[[test]]
+name = "provider_fake_tests"
+path = "tests/provider_fake_tests.rs"
 
 [dependencies]
 serde = { workspace = true }
@@ -65,6 +85,8 @@ tokio = { workspace = true }
 camino = { workspace = true }
 tempfile = { workspace = true }
 libc = "0.2"
+md5 = { workspace = true }
+sha2 = { workspace = true }
 ccb-storage = { workspace = true }
 ccb-types = { workspace = true }
 ccb-provider-core = { workspace = true }

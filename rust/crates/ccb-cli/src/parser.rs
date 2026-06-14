@@ -17,7 +17,7 @@ pub struct Cli {
     pub reset: bool,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     Ask {
         target: String,
@@ -137,20 +137,59 @@ pub enum Commands {
         #[command(subcommand)]
         action: ToolsAction,
     },
+    Fault {
+        #[command(subcommand)]
+        action: FaultAction,
+    },
+    Repair {
+        #[command(subcommand)]
+        action: RepairAction,
+    },
+    Autonew {
+        provider: String,
+    },
+    CtxTransfer {
+        #[arg(short = 'n', long, default_value_t = 3)]
+        last: usize,
+        #[arg(long = "from", value_name = "SOURCE")]
+        source_provider: String,
+        #[arg(long)]
+        agent: Option<String>,
+        #[arg(long)]
+        send: bool,
+        #[arg(short = 'd', long)]
+        dry_run: bool,
+        #[arg(short = 'o', long)]
+        output: Option<String>,
+        #[arg(long)]
+        session_path: Option<String>,
+        #[arg(long, default_value_t = 8000)]
+        max_tokens: usize,
+        #[arg(short = 'f', long, default_value = "markdown")]
+        format: String,
+        #[arg(short = 'q', long)]
+        quiet: bool,
+        #[arg(short = 's', long)]
+        save: bool,
+        #[arg(long)]
+        no_save: bool,
+        #[arg(long)]
+        detailed: bool,
+    },
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
 pub enum MaintenanceAction {
     Status,
     Tick,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
 pub enum ConfigAction {
     Validate,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
 pub enum RolesAction {
     List,
     Install { path: String },
@@ -160,10 +199,42 @@ pub enum RolesAction {
     Doctor { path: String },
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
 pub enum ToolsAction {
     Doctor { tool: String },
     Install { tool: String },
+}
+
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
+pub enum FaultAction {
+    List,
+    Arm {
+        agent_name: String,
+        task_id: String,
+        #[arg(long)]
+        reason: Option<String>,
+        #[arg(long, default_value_t = 1)]
+        count: u32,
+        #[arg(long)]
+        error: Option<String>,
+    },
+    Clear {
+        target: String,
+    },
+}
+
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
+pub enum RepairAction {
+    Ack {
+        target: String,
+        event_id: Option<String>,
+    },
+    Retry {
+        target: String,
+    },
+    Resubmit {
+        target: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,7 +248,7 @@ pub enum ParsedCommand {
     Ping(ParsedPing),
     Cancel(ParsedCancel),
     Clear(ParsedClear),
-    Cleanup,
+    Cleanup(ParsedCleanup),
     Kill(ParsedKill),
     Pend(ParsedPend),
     Queue(ParsedQueue),
@@ -189,7 +260,11 @@ pub enum ParsedCommand {
     Logs(ParsedLogs),
     Maintenance(ParsedMaintenance),
     Doctor(ParsedDoctor),
-    ConfigValidate,
+    ConfigValidate(ParsedConfigValidate),
+    Tools(ParsedTools),
+    Roles(ParsedRoles),
+    Fault(ParsedFault),
+    Repair(ParsedRepair),
     Reload(ParsedReload),
     Restart(ParsedRestart),
     Status(ParsedStatus),
@@ -198,10 +273,12 @@ pub enum ParsedCommand {
     Attach(ParsedAttach),
     Shutdown(ParsedShutdown),
     ProjectView(ParsedProjectView),
+    Autonew(ParsedAutonew),
+    CtxTransfer(ParsedCtxTransfer),
     Version,
-    Update,
-    Uninstall,
-    Reinstall,
+    Update(ParsedUpdate),
+    Uninstall(ParsedUninstall),
+    Reinstall(ParsedReinstall),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -272,6 +349,11 @@ pub struct ParsedCancel {
 pub struct ParsedClear {
     pub project: Option<String>,
     pub agent_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedCleanup {
+    pub project: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -352,6 +434,35 @@ pub struct ParsedDoctor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedConfigValidate {
+    pub project: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedTools {
+    pub project: Option<String>,
+    pub action: ToolsAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedRoles {
+    pub project: Option<String>,
+    pub action: RolesAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedFault {
+    pub project: Option<String>,
+    pub action: FaultAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedRepair {
+    pub project: Option<String>,
+    pub action: RepairAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedReload {
     pub project: Option<String>,
     pub dry_run: bool,
@@ -394,4 +505,43 @@ pub struct ParsedShutdown {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedProjectView {
     pub project: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedUpdate {
+    pub project: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedUninstall {
+    pub project: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedReinstall {
+    pub project: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedAutonew {
+    pub project: Option<String>,
+    pub provider: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedCtxTransfer {
+    pub project: Option<String>,
+    pub last: usize,
+    pub source_provider: String,
+    pub agent_name: Option<String>,
+    pub send: bool,
+    pub dry_run: bool,
+    pub output: Option<String>,
+    pub session_path: Option<String>,
+    pub max_tokens: usize,
+    pub format: String,
+    pub quiet: bool,
+    pub save: bool,
+    pub no_save: bool,
+    pub detailed: bool,
 }

@@ -18,10 +18,14 @@ ccb-types = { workspace = true }
 ccb-provider-core = { workspace = true }
 ccb-terminal = { workspace = true }
 ccb-mailbox = { workspace = true }
+ccb-jobs = { workspace = true }
 ccb-agents = { workspace = true }
 ccb-providers = { workspace = true }
 ccb-completion = { workspace = true }
+ccb-provider-profiles = { workspace = true }
 camino = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 
 [[bin]]

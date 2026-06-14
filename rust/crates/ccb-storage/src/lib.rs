@@ -1,12 +1,17 @@
 pub mod atomic;
-pub mod classification;
+pub mod cursor_store;
 pub mod json;
 pub mod jsonl;
 pub mod locks;
 pub mod path_helpers;
 pub mod paths;
+pub mod paths_agents;
+pub mod paths_ccbd;
+pub mod paths_targets;
 pub mod project_identity;
 pub mod text_artifacts;
+pub mod json_store;
+pub mod jsonl_store;
 
 use std::io;
 

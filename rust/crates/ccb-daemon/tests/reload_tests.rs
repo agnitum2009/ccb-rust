@@ -255,9 +255,15 @@ main = "agent1:codex; agent2:claude"
     assert_eq!(result["status"].as_str(), Some("ok"));
     assert_eq!(result["plan_class"].as_str(), Some("add_agent"));
     assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["added_agents"].as_array().unwrap().contains(&json!("agent2")));
+    assert!(result["added_agents"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("agent2")));
 
-    let entry = app.registry.get("agent2").expect("agent2 should be registered");
+    let entry = app
+        .registry
+        .get("agent2")
+        .expect("agent2 should be registered");
     assert_eq!(entry.provider, "claude");
     assert_eq!(entry.state, "registered");
     assert!(app.dispatcher.agent_names.contains(&"agent2".to_string()));
@@ -296,7 +302,10 @@ main = "agent1:codex; agent2:claude"
     assert_eq!(result["status"].as_str(), Some("ok"));
     assert_eq!(result["plan_class"].as_str(), Some("remove_agent"));
     assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["removed_agents"].as_array().unwrap().contains(&json!("agent2")));
+    assert!(result["removed_agents"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("agent2")));
 
     assert!(app.registry.get("agent2").is_none());
     assert!(!app.dispatcher.agent_names.contains(&"agent2".to_string()));
@@ -368,9 +377,15 @@ secondary = "agent2:claude"
     assert_eq!(result["status"].as_str(), Some("ok"));
     assert_eq!(result["plan_class"].as_str(), Some("add_window"));
     assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["added_windows"].as_array().unwrap().contains(&json!("secondary")));
+    assert!(result["added_windows"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("secondary")));
 
-    let ns = app.project_namespace.load().expect("namespace should exist");
+    let ns = app
+        .project_namespace
+        .load()
+        .expect("namespace should exist");
     let window_names: Vec<String> = ns.windows.iter().map(|w| w.name.clone()).collect();
     assert!(window_names.contains(&"secondary".to_string()));
 }

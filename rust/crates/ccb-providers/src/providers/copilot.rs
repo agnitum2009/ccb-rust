@@ -11,11 +11,15 @@ use ccb_provider_core::contracts::{
 use ccb_provider_core::manifest::ProviderManifest;
 use ccb_provider_core::pathing::{find_session_file_for_work_dir, session_filename_for_instance};
 use ccb_provider_core::protocol;
+use ccb_provider_core::runtime_shared::provider_start_parts;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::execution::{
     build_item, ExecutionAdapter, ProviderPollResult, ProviderRuntimeContext, ProviderSubmission,
+};
+use crate::native_cli_support::{
+    NativeCliExecutionAdapter, NativeCliExecutionConfig, NativeCliExecutionRequest, OutputKind,
 };
 use crate::providers::pane_backed_manifest;
 
@@ -52,7 +56,51 @@ pub fn backend() -> ProviderBackend {
 }
 
 // ---------------------------------------------------------------------------
-// Execution adapter
+// Native CLI execution adapter
+// ---------------------------------------------------------------------------
+
+/// Build a generic native CLI execution adapter configured for Copilot.
+pub fn build_execution_adapter() -> NativeCliExecutionAdapter {
+    NativeCliExecutionAdapter::new(
+        NativeCliExecutionConfig::new(PROVIDER_NAME, _build_command)
+            .with_env_builder(_build_env)
+            .with_output_kind(OutputKind::Jsonl)
+            .with_reason("start_failed", "copilot_run_start_failed")
+            .with_reason("failed", "copilot_run_failed")
+            .with_reason("empty", "copilot_empty_reply")
+            .with_reason("run_error", "copilot_run_error")
+            .with_reason("complete", "copilot_run_stop")
+            .with_reason("process_exit_complete", "copilot_run_exit")
+            .with_reason("timeout", "copilot_run_timeout"),
+    )
+}
+
+fn _build_command(request: NativeCliExecutionRequest) -> Vec<String> {
+    let mut cmd = provider_start_parts(PROVIDER_NAME);
+    cmd.push("-C".to_string());
+    cmd.push(request.work_dir.to_string_lossy().to_string());
+    cmd.push("-p".to_string());
+    cmd.push(request.prompt.clone());
+    cmd.push("--output-format".to_string());
+    cmd.push("json".to_string());
+    cmd.push("--session-id".to_string());
+    cmd.push(request.job_id.clone());
+    cmd
+}
+
+fn _build_env(request: &NativeCliExecutionRequest) -> HashMap<String, String> {
+    let copilot_home = request.state_path("copilot_home", "home");
+    let _ = std::fs::create_dir_all(&copilot_home);
+    let mut env = HashMap::new();
+    env.insert(
+        "COPILOT_HOME".to_string(),
+        copilot_home.to_string_lossy().to_string(),
+    );
+    env
+}
+
+// ---------------------------------------------------------------------------
+// Legacy stub execution adapter (kept for direct test compatibility)
 // ---------------------------------------------------------------------------
 
 /// Copilot execution adapter.

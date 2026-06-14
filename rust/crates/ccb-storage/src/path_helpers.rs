@@ -9,6 +9,7 @@ pub const RUNTIME_ROOT_REF_FILENAME: &str = "runtime-root-ref.json";
 pub const RUNTIME_ROOT_RECORD_TYPE: &str = "ccb_runtime_root";
 pub const RUNTIME_ROOT_REF_RECORD_TYPE: &str = "ccb_runtime_root_ref";
 pub const UNIX_SOCKET_SAFE_BYTES: usize = 100;
+pub const TARGET_SEGMENT_PATTERN: &str = r"[^a-z0-9._-]+";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FilesystemHint {
@@ -468,6 +469,16 @@ pub fn runtime_state_root_from_anchor_ref(
     Some(Utf8PathBuf::from(expand_user_path(root)))
 }
 
+/// Return the runtime state root for an anchor, falling back to the anchor itself.
+/// Mirrors Python `storage.path_helpers.runtime_state_root_from_anchor`.
+pub fn runtime_state_root_from_anchor(
+    anchor_path: &Utf8Path,
+    project_id: Option<&str>,
+) -> Utf8PathBuf {
+    runtime_state_root_from_anchor_ref(anchor_path, project_id)
+        .unwrap_or_else(|| Utf8PathBuf::from(expand_user_path(anchor_path.as_str())))
+}
+
 pub fn find_runtime_root_marker_path(path: &Utf8Path) -> Option<Utf8PathBuf> {
     let current = Utf8PathBuf::from(expand_user_path(path.as_str()));
     let mut candidates: Vec<Utf8PathBuf> = vec![current.clone()];
@@ -579,5 +590,19 @@ mod tests {
     #[test]
     fn test_runtime_socket_root_candidates_not_empty() {
         assert!(!runtime_socket_root_candidates().is_empty());
+    }
+
+    #[test]
+    fn test_target_segment_pattern_constant() {
+        assert!(!TARGET_SEGMENT_PATTERN.is_empty());
+    }
+
+    #[test]
+    fn test_runtime_state_root_from_anchor_falls_back() {
+        let anchor = Utf8Path::new("/tmp/repo/.ccb");
+        assert_eq!(
+            runtime_state_root_from_anchor(anchor, Some("proj-1")),
+            Utf8PathBuf::from("/tmp/repo/.ccb")
+        );
     }
 }
