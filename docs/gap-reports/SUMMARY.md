@@ -31,14 +31,29 @@ to map Python functionality → Rust coverage for these crates.
 
 ## The REAL remaining work (functional, not line-count)
 
-After codegraph correction, the genuine gaps are small and functional:
+After codegraph correction, the genuine gaps were small and functional. **Status
+as of 2026-06-14 (functional-stub pass complete):**
 
-1. `watch` RPC — single-shot, no CLI poll loop (Phase E)
-2. `ccb update/uninstall/reinstall` — stub text; `versioning` backend done, wiring remains (Phase G)
-3. `ccb tools install/doctor` — fixed `"ok"`/`"scheduled"` stub (Phase G)
-4. ~3 advanced daemon handlers remain stubs (documented in ccb-daemon README)
+1. ✅ `watch` RPC — **poll loop implemented** (advancing cursor until terminal/timeout;
+   env `CCB_WATCH_TIMEOUT_S`/`CCB_WATCH_POLL_INTERVAL_S`) — `commands.rs::watch`
+2. ✅ `ccb update` — **version-check wired** (`get_available_versions` + `latest_version`
+   + `is_newer_version`); tarball install still delegates to install.sh.
+   ⚠️ `ccb uninstall`/`reinstall` remain stubs (need `install.py` translation).
+3. ✅ `ccb tools doctor neovim` — **real status** (`tools_runtime::neovim_status`).
+   ⚠️ `tools install` stays guided (heavy nvim/LazyVim downloader not ported).
+4. ✅ **daemon handlers verified real** — grep found zero production stubs; all 30
+   handlers dispatch to real logic. Only documented edge case:
+   `reload/plan.rs:664` tool-window restart policy (minor).
 
 ctx-transfer (formerly P0) is **NOT a gap** — already implemented.
+
+### Genuinely remaining (heavy tail)
+
+- `ccb uninstall`/`reinstall` + full `update` tarball flow — `management_runtime/install.py` (372 lines)
+- `ccb tools install neovim` full downloader — `tools_runtime/neovim.py` (940 lines)
+- `install.sh` de-Python dependency
+- `reload/plan.rs` tool-window restart policy edge case
+
 
 ## Recommended gate
 
