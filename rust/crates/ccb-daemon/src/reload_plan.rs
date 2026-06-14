@@ -1,15 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-use crate::reload_additive_agents::{
-    additive_agent_steps, additive_window_steps, build_namespace_topology,
-    missing_additive_agent_steps, TopologyWindow,
-};
 use crate::reload_patch::build_namespace_patch_plan;
-use crate::reload_patch_remove_agents::{
-    missing_remove_agent_steps, missing_tool_window_steps, remove_agent_steps,
-    remove_tool_window_steps,
-};
 use ccb_agents::models::{ProjectConfig, WindowSpec};
 
 /// Priority ordering for plan classification. Higher values are more disruptive.
