@@ -5,4 +5,5 @@ pub mod release_artifacts;
 pub mod render;
 pub mod services;
 pub mod source_guard;
+pub mod tools_runtime;
 pub mod versioning;

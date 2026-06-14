@@ -452,8 +452,23 @@ pub fn pend(client: &dyn DaemonClient, cmd: &ParsedPend) -> Result<String, Strin
 /// Tool management stubs.
 pub fn tools(cmd: &ParsedTools) -> Result<String, String> {
     match &cmd.action {
-        ToolsAction::Doctor { tool } => Ok(render_tools(tool, "doctor", "ok")),
-        ToolsAction::Install { tool } => Ok(render_tools(tool, "install", "scheduled")),
+        ToolsAction::Doctor { tool } => {
+            if tool == "neovim" {
+                let status = crate::tools_runtime::neovim_status();
+                Ok(crate::tools_runtime::render_neovim_status(&status))
+            } else {
+                Ok(render_tools(
+                    tool,
+                    "doctor",
+                    "unsupported tool (supported: neovim)",
+                ))
+            }
+        }
+        ToolsAction::Install { tool } => Ok(render_tools(
+            tool,
+            "install",
+            "guided: use the CCB install script (release-tarball downloader is not bundled in this build)",
+        )),
     }
 }
 
