@@ -7,6 +7,7 @@ pub mod project_focus;
 pub mod project_view;
 pub mod provider_launcher;
 pub mod reload_plan;
+pub mod reload_additive_agents;
 pub mod reload_transaction;
 pub mod services;
 pub mod socket_server;
