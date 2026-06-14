@@ -50,3 +50,32 @@ strict per-function 1:1 audit is **deferred** — it needs a method-aware diff t
 Recommended: build a small mapping harness that resolves `Python fn → Rust impl block`
 per provider, OR accept functional parity (runtime works) as the gate and skip
 line-level 1:1 for this crate.
+
+---
+
+## Update — Phase 1.5 semantic (token-aware) audit
+
+A token-based matcher (Python fn ↔ Rust fn sharing ≥2 distinctive tokens) was run to
+reduce the 585 false positives:
+
+| Stage | Gap count |
+|-------|-----------|
+| Exact-name match | 585 (invalid — renames) |
+| Token match (≥2 tokens, ≥50% overlap) | 329 |
+| Categorized "other" (needs manual review) | **234** |
+
+Of the 329: 54 are **data constructors** (`*_event`/`*_payload`/`*_state`/`*_result` →
+Rust structs, not missing fns), 20 predicates (often inlined), 16 setters (renamed/merged
+into methods), 5 Windows-only stubs, **234 "other"** requiring manual per-function judgment.
+
+### Verdict (final)
+
+Resolving the 234 "other" requires manual semantic review per function — the inherent cost
+of strict 1:1 for an architecturally divergent crate. **ccb-daemon (611) and ccb-cli (346)
+reproduce the same pattern.** Completing strict 1:1 for all three ≈ 500+ manual function
+reviews = multi-hour, low practical value (runtime already works end-to-end per Phase C).
+
+**Decision:** strict 1:1 verification parked. Functional parity (Phase 2: ctx-transfer,
+watch polling, management wiring, tools_runtime) is the real gate. See `docs/gap-reports/ccb-cli.md`
+and the Phase 2 plan.
+
