@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 /// Read a float environment variable with a default.
@@ -84,6 +85,54 @@ fn which(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Return subprocess kwargs matching Python `subprocess_kwargs()`.
+///
+/// On Windows this contains `creationflags` to avoid creating a console
+/// window; on other platforms the map is empty.
+pub fn subprocess_kwargs() -> HashMap<String, String> {
+    #[cfg(windows)]
+    {
+        let mut map = HashMap::new();
+        map.insert("creationflags".to_string(), 0x08000000u32.to_string());
+        map
+    }
+    #[cfg(not(windows))]
+    {
+        HashMap::new()
+    }
+}
+
+/// Build a tmux-compatible environment map.
+///
+/// Mirrors Python `tmux_compatible_env`.
+pub fn tmux_compatible_env() -> HashMap<String, String> {
+    let mut compatible: HashMap<String, String> = std::env::vars().collect();
+    let term = std::env::var("TERM")
+        .unwrap_or_default()
+        .trim()
+        .to_lowercase();
+    if term == "xterm-ghostty" {
+        compatible.insert("TERM".to_string(), "xterm-256color".to_string());
+    }
+    compatible
+}
+
+/// Build an isolated tmux environment map.
+///
+/// Mirrors Python `isolated_tmux_env`.
+pub fn isolated_tmux_env() -> HashMap<String, String> {
+    let mut isolated = tmux_compatible_env();
+    for key in [
+        "TMUX",
+        "TMUX_PANE",
+        "CCB_TMUX_SOCKET",
+        "CCB_TMUX_SOCKET_PATH",
+    ] {
+        isolated.remove(key);
+    }
+    isolated
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +161,33 @@ mod tests {
         assert_eq!(sanitize_filename("hello world!"), "hello_world");
         assert_eq!(sanitize_filename(""), "");
         assert_eq!(sanitize_filename("file.name_v1"), "file.name_v1");
+    }
+
+    #[test]
+    fn test_subprocess_kwargs_empty_on_unix() {
+        #[cfg(not(windows))]
+        assert!(subprocess_kwargs().is_empty());
+    }
+
+    #[test]
+    fn test_tmux_compatible_env_adjusts_ghostty() {
+        std::env::set_var("TERM", "xterm-ghostty");
+        let env = tmux_compatible_env();
+        assert_eq!(env.get("TERM"), Some(&"xterm-256color".to_string()));
+        std::env::remove_var("TERM");
+    }
+
+    #[test]
+    fn test_isolated_tmux_env_strips_tmux_vars() {
+        std::env::set_var("TERM", "xterm-256color");
+        std::env::set_var("TMUX", "/tmp/tmux");
+        std::env::set_var("TMUX_PANE", "%0");
+        let env = isolated_tmux_env();
+        assert!(!env.contains_key("TMUX"));
+        assert!(!env.contains_key("TMUX_PANE"));
+        assert_eq!(env.get("TERM"), Some(&"xterm-256color".to_string()));
+        std::env::remove_var("TERM");
+        std::env::remove_var("TMUX");
+        std::env::remove_var("TMUX_PANE");
     }
 }

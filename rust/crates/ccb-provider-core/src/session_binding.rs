@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::Value;
+
+use crate::instance_resolution::named_agent_instance;
+use crate::tmux_ownership::inspect_tmux_pane_ownership;
 
 /// A concrete provider session value.
 ///
@@ -68,6 +72,42 @@ pub struct AgentBinding {
     pub pane_state: Option<String>,
     pub provider_identity_state: Option<String>,
     pub provider_identity_reason: Option<String>,
+}
+
+/// Details returned by inspecting a session's pane.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PaneDetails {
+    pub terminal: String,
+    pub pane_id: Option<String>,
+    pub active_pane_id: Option<String>,
+    pub pane_title_marker: Option<String>,
+    pub pane_state: Option<String>,
+}
+
+/// Adapter used to load and interrogate a provider session.
+///
+/// Mirrors the callable fields on Python's provider session binding objects.
+/// The default adapter resolver in this crate returns `None` because full
+/// provider-specific loaders live in downstream crates.
+pub trait BindingAdapter: std::fmt::Debug {
+    /// Attribute name holding the provider session ID.
+    fn session_id_attr(&self) -> &str;
+    /// Attribute name holding the provider session path.
+    fn session_path_attr(&self) -> &str;
+    /// Load a session from `root` for the optional `instance`.
+    fn load_session(&self, root: &Path, instance: Option<&str>) -> Option<Session>;
+    /// Probe the live runtime identity for a loaded session.
+    fn live_runtime_identity(&self, _session: &Session) -> Option<ProviderRuntimeIdentity> {
+        None
+    }
+}
+
+/// Default adapter resolver.
+///
+/// Returns `None` for every provider in this crate; downstream crates that own
+/// provider-specific session loaders should supply their own resolver.
+pub fn default_binding_adapter(_provider: &str) -> Option<Box<dyn BindingAdapter>> {
+    None
 }
 
 /// Classify a binding given the presence of its references.
@@ -288,6 +328,284 @@ fn expand_home(path: &str) -> String {
     path.to_string()
 }
 
+fn resolve_pane_state(
+    session: &Session,
+    backend: &dyn SessionBackend,
+    terminal: &str,
+    pane_id: Option<&str>,
+) -> Option<String> {
+    let pane_id = pane_id?;
+    if terminal == "tmux" {
+        if !backend.pane_exists(pane_id) {
+            return Some("missing".to_string());
+        }
+        let ownership = inspect_tmux_pane_ownership(session, backend, pane_id);
+        if !ownership.is_owned() {
+            return Some("foreign".to_string());
+        }
+        return Some(if backend_pane_alive(backend, pane_id) {
+            "alive".to_string()
+        } else {
+            "dead".to_string()
+        });
+    }
+    Some(if backend_pane_alive(backend, pane_id) {
+        "alive".to_string()
+    } else {
+        "dead".to_string()
+    })
+}
+
+fn backend_pane_alive(backend: &dyn SessionBackend, pane_id: &str) -> bool {
+    if backend.is_tmux_pane_alive(pane_id) {
+        return true;
+    }
+    backend.is_alive(pane_id)
+}
+
+/// Inspect the pane state described by a session.
+pub fn inspect_session_pane(session: &Session) -> PaneDetails {
+    let terminal = session_terminal(session).unwrap_or_else(|| "tmux".to_string());
+    let pane_id = session
+        .pane_id
+        .as_deref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let pane_title_marker = session_pane_title_marker(session);
+
+    if let Some(backend) = session.backend.as_deref() {
+        let pane_state = resolve_pane_state(session, backend, &terminal, pane_id.as_deref());
+        let active_pane_id = if pane_state.as_deref() == Some("alive") {
+            pane_id.clone()
+        } else {
+            None
+        };
+        PaneDetails {
+            terminal,
+            pane_id,
+            active_pane_id,
+            pane_title_marker,
+            pane_state,
+        }
+    } else {
+        let pane_state = if pane_id.is_some() {
+            Some("unknown".to_string())
+        } else if pane_title_marker.is_some() {
+            Some("missing".to_string())
+        } else {
+            None
+        };
+        PaneDetails {
+            terminal,
+            pane_id: pane_id.clone(),
+            active_pane_id: pane_id,
+            pane_title_marker,
+            pane_state,
+        }
+    }
+}
+
+fn binding_search_roots(workspace_path: &Path, project_root: Option<&Path>) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    for candidate in [project_root, Some(workspace_path)].into_iter().flatten() {
+        let resolved = candidate
+            .canonicalize()
+            .unwrap_or_else(|_| candidate.to_path_buf());
+        if !roots.contains(&resolved) {
+            roots.push(resolved);
+        }
+    }
+    roots
+}
+
+fn candidate_instances(provider: &str, agent_name: &str) -> Vec<Option<String>> {
+    let normalized_provider = provider.trim().to_lowercase();
+    let normalized_agent = agent_name.trim().to_lowercase();
+    let mut candidates: Vec<Option<String>> = Vec::new();
+    if let Some(instance) = named_agent_instance(agent_name, provider) {
+        candidates.push(Some(instance));
+    }
+    if !normalized_agent.is_empty()
+        && normalized_agent == normalized_provider
+        && !candidates.contains(&None)
+    {
+        candidates.push(None);
+    }
+    if candidates.is_empty() {
+        candidates.push(None);
+    }
+    candidates
+}
+
+fn should_validate_session(session: &Session) -> bool {
+    if session
+        .pane_id
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        return true;
+    }
+    if session
+        .pane_title_marker
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .is_some()
+    {
+        return true;
+    }
+    let data = &session.data;
+    if data.get("active").and_then(Value::as_bool) == Some(true) {
+        return true;
+    }
+    let keys = [
+        "pane_id",
+        "tmux_session",
+        "pane_title_marker",
+        "runtime_dir",
+        "start_cmd",
+        "codex_start_cmd",
+    ];
+    keys.iter().any(|key| {
+        data.get(*key)
+            .and_then(Value::as_str)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .is_some()
+    })
+}
+
+fn session_binding_is_usable(session: &Session, sleep_fn: &dyn Fn(Duration)) -> bool {
+    if !should_validate_session(session) {
+        return true;
+    }
+    let pane_id = session
+        .pane_id
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+    if pane_id.is_none() {
+        return true;
+    }
+    let pane_id = pane_id.unwrap();
+    if !binding_is_stable(session, pane_id, sleep_fn) {
+        return false;
+    }
+    binding_has_owned_tmux_pane(session, pane_id)
+}
+
+fn binding_is_stable(session: &Session, pane_id: &str, sleep_fn: &dyn Fn(Duration)) -> bool {
+    let Some(backend) = session.backend.as_deref() else {
+        return true;
+    };
+    if pane_id.is_empty() {
+        return false;
+    }
+    if !backend.is_alive(pane_id) {
+        return false;
+    }
+    sleep_fn(Duration::from_millis(100));
+    backend.is_alive(pane_id)
+}
+
+fn binding_has_owned_tmux_pane(session: &Session, pane_id: &str) -> bool {
+    let terminal = session_terminal(session).unwrap_or_else(|| "tmux".to_string());
+    if terminal.to_lowercase() != "tmux" {
+        return true;
+    }
+    let Some(backend) = session.backend.as_deref() else {
+        return true;
+    };
+    inspect_tmux_pane_ownership(session, backend, pane_id).is_owned()
+}
+
+fn load_provider_session(
+    adapter: &dyn BindingAdapter,
+    provider: &str,
+    agent_name: &str,
+    roots: &[PathBuf],
+    ensure_usable: bool,
+    sleep_fn: &dyn Fn(Duration),
+) -> Option<Session> {
+    for root in roots {
+        for instance in candidate_instances(provider, agent_name) {
+            if let Some(session) = adapter.load_session(root, instance.as_deref()) {
+                if !ensure_usable || session_binding_is_usable(&session, sleep_fn) {
+                    return Some(session);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Resolve a provider/agent binding by loading the session and inspecting it.
+///
+/// The `adapter_resolver` is expected to return a [`BindingAdapter`] for the
+/// requested provider. The default resolver returns `None` because this crate
+/// does not own provider-specific session loaders.
+pub fn resolve_agent_binding(
+    provider: &str,
+    agent_name: &str,
+    workspace_path: &Path,
+    project_root: Option<&Path>,
+    ensure_usable: bool,
+    adapter_resolver: impl Fn(&str) -> Option<Box<dyn BindingAdapter>>,
+    sleep_fn: impl Fn(Duration),
+) -> Option<AgentBinding> {
+    let normalized_provider = provider.trim().to_lowercase();
+    if normalized_provider.is_empty() {
+        return None;
+    }
+    let adapter = adapter_resolver(&normalized_provider)?;
+    let roots = binding_search_roots(workspace_path, project_root);
+    let session = load_provider_session(
+        adapter.as_ref(),
+        &normalized_provider,
+        agent_name,
+        &roots,
+        ensure_usable,
+        &sleep_fn,
+    )?;
+
+    let mut pane_details = inspect_session_pane(&session);
+    if ensure_usable
+        && pane_details.pane_state.as_deref() == Some("unknown")
+        && pane_details.active_pane_id.is_some()
+    {
+        pane_details.pane_state = Some("alive".to_string());
+    }
+
+    let identity = adapter.live_runtime_identity(&session);
+
+    Some(AgentBinding {
+        runtime_ref: session_runtime_ref(&session, None),
+        session_ref: session_ref(
+            &session,
+            adapter.session_id_attr(),
+            adapter.session_path_attr(),
+        ),
+        provider: Some(normalized_provider),
+        runtime_root: session_runtime_root(&session),
+        runtime_pid: session_runtime_pid(&session, provider),
+        session_file: session_file(&session),
+        session_id: session_id(&session, adapter.session_id_attr()),
+        ccb_session_id: session_ccb_session_id(&session),
+        tmux_socket_name: session_tmux_socket_name(&session),
+        tmux_socket_path: session_tmux_socket_path(&session),
+        terminal: session_terminal(&session),
+        pane_id: pane_details.pane_id,
+        active_pane_id: pane_details.active_pane_id,
+        pane_title_marker: pane_details.pane_title_marker,
+        pane_state: pane_details.pane_state,
+        provider_identity_state: identity.as_ref().map(|i| i.state.clone()),
+        provider_identity_reason: identity.as_ref().and_then(|i| i.reason.clone()),
+        ..Default::default()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -421,5 +739,174 @@ mod tests {
             .data
             .insert("runtime_pid".to_string(), Value::String("789".to_string()));
         assert_eq!(session_runtime_pid(&session_with_data, "codex"), Some(789));
+    }
+
+    #[test]
+    fn test_inspect_session_pane_without_backend() {
+        let session = Session {
+            terminal: Some("tmux".to_string()),
+            pane_id: Some("%1".to_string()),
+            ..Default::default()
+        };
+        let details = inspect_session_pane(&session);
+        assert_eq!(details.terminal, "tmux");
+        assert_eq!(details.pane_id, Some("%1".to_string()));
+        assert_eq!(details.pane_state, Some("unknown".to_string()));
+    }
+
+    #[test]
+    fn test_inspect_session_pane_missing_with_marker() {
+        let session = Session {
+            terminal: Some("tmux".to_string()),
+            pane_title_marker: Some("claude".to_string()),
+            ..Default::default()
+        };
+        let details = inspect_session_pane(&session);
+        assert_eq!(details.pane_state, Some("missing".to_string()));
+    }
+
+    #[derive(Debug)]
+    struct AliveBackend;
+
+    impl SessionBackend for AliveBackend {
+        fn socket_name(&self) -> Option<String> {
+            None
+        }
+        fn socket_path(&self) -> Option<String> {
+            None
+        }
+        fn is_alive(&self, _pane_id: &str) -> bool {
+            true
+        }
+        fn is_tmux_pane_alive(&self, _pane_id: &str) -> bool {
+            true
+        }
+        fn pane_exists(&self, _pane_id: &str) -> bool {
+            true
+        }
+        fn describe_pane(
+            &self,
+            _pane_id: &str,
+            _user_options: &[String],
+        ) -> Option<HashMap<String, String>> {
+            None
+        }
+        fn list_panes_by_user_options(
+            &self,
+            _options: &HashMap<String, String>,
+        ) -> Option<Vec<String>> {
+            None
+        }
+        fn set_pane_title(&self, _pane_id: &str, _title: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn set_pane_user_option(
+            &self,
+            _pane_id: &str,
+            _name: &str,
+            _value: &str,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_inspect_session_pane_alive() {
+        let session = Session {
+            terminal: Some("tmux".to_string()),
+            pane_id: Some("%1".to_string()),
+            backend: Some(Arc::new(AliveBackend)),
+            ..Default::default()
+        };
+        let details = inspect_session_pane(&session);
+        assert_eq!(details.pane_state, Some("alive".to_string()));
+        assert_eq!(details.active_pane_id, Some("%1".to_string()));
+    }
+
+    #[derive(Debug)]
+    struct TestAdapter {
+        session_id_attr: String,
+        session_path_attr: String,
+    }
+
+    impl BindingAdapter for TestAdapter {
+        fn session_id_attr(&self) -> &str {
+            &self.session_id_attr
+        }
+        fn session_path_attr(&self) -> &str {
+            &self.session_path_attr
+        }
+        fn load_session(&self, _root: &Path, instance: Option<&str>) -> Option<Session> {
+            let mut session = Session {
+                pane_id: Some("%1".to_string()),
+                terminal: Some("tmux".to_string()),
+                ..Default::default()
+            };
+            session.data.insert(
+                "session_id".to_string(),
+                Value::String("sess-123".to_string()),
+            );
+            session
+                .data
+                .insert("runtime_pid".to_string(), Value::String("42".to_string()));
+            if let Some(inst) = instance {
+                session
+                    .data
+                    .insert("instance".to_string(), Value::String(inst.to_string()));
+            }
+            Some(session)
+        }
+        fn live_runtime_identity(&self, _session: &Session) -> Option<ProviderRuntimeIdentity> {
+            Some(ProviderRuntimeIdentity {
+                state: "ready".to_string(),
+                reason: Some("probe-ok".to_string()),
+            })
+        }
+    }
+
+    #[test]
+    fn test_resolve_agent_binding_happy_path() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let binding = resolve_agent_binding(
+            "claude",
+            "claude",
+            tmp.path(),
+            None,
+            false,
+            |_provider| {
+                Some(Box::new(TestAdapter {
+                    session_id_attr: "session_id".to_string(),
+                    session_path_attr: "session_path".to_string(),
+                }) as Box<dyn BindingAdapter>)
+            },
+            |_duration| {},
+        )
+        .expect("binding should resolve");
+
+        assert_eq!(binding.provider, Some("claude".to_string()));
+        assert_eq!(binding.session_id, Some("sess-123".to_string()));
+        assert_eq!(binding.runtime_pid, Some(42));
+        assert_eq!(binding.provider_identity_state, Some("ready".to_string()));
+        assert_eq!(binding.pane_state, Some("unknown".to_string()));
+    }
+
+    #[test]
+    fn test_resolve_agent_binding_no_adapter_returns_none() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        assert!(resolve_agent_binding(
+            "claude",
+            "claude",
+            tmp.path(),
+            None,
+            false,
+            |_provider| None,
+            |_duration| {},
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn test_default_binding_adapter_returns_none() {
+        assert!(default_binding_adapter("claude").is_none());
     }
 }

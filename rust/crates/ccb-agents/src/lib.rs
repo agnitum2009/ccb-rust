@@ -34,10 +34,13 @@ pub enum AgentError {
 
 pub type Result<T> = std::result::Result<T, AgentError>;
 
+pub mod agent_roles_manager;
 pub mod config;
+pub mod config_identity;
 pub mod layout;
 pub mod models;
 pub mod policy;
+pub mod role_aliases;
 pub mod rolepacks;
 pub mod roles;
 pub mod runtime_binding;
