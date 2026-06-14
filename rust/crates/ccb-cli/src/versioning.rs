@@ -489,6 +489,57 @@ fn git_version_info(dir_path: &Path) -> Option<(String, String)> {
     Some((commit, date.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// Version comparison — mirrors `commands_runtime.matching`.
+// ---------------------------------------------------------------------------
+
+/// Parse a dotted version string into a comparable numeric tuple.
+///
+/// Mirrors `matching.version_key`. Non-numeric segments are dropped.
+pub fn version_key(version: &str) -> Vec<u64> {
+    version
+        .split('.')
+        .filter_map(|part| part.parse::<u64>().ok())
+        .collect()
+}
+
+/// Find the highest version in `versions` whose leading parts match `target`.
+///
+/// Mirrors `matching.find_matching_version`.
+pub fn find_matching_version(target: &str, versions: &[String]) -> Option<String> {
+    let target_parts: Vec<&str> = target.split('.').collect();
+    let mut matching: Vec<String> = versions
+        .iter()
+        .filter(|v| {
+            let parts: Vec<&str> = v.split('.').collect();
+            parts.len() >= target_parts.len() && parts[..target_parts.len()] == target_parts[..]
+        })
+        .cloned()
+        .collect();
+    matching.sort_by_key(|v| std::cmp::Reverse(version_key(v)));
+    matching.into_iter().next()
+}
+
+/// Return the highest version from a list, or `None` if empty.
+///
+/// Mirrors `matching.latest_version`.
+pub fn latest_version(versions: &[String]) -> Option<String> {
+    let mut ordered: Vec<String> = versions
+        .iter()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .collect();
+    ordered.sort_by_key(|v| std::cmp::Reverse(version_key(v)));
+    ordered.into_iter().next()
+}
+
+/// Return true if `candidate` is strictly newer than `current`.
+///
+/// Mirrors `matching.is_newer_version`.
+pub fn is_newer_version(candidate: &str, current: &str) -> bool {
+    version_key(candidate) > version_key(current)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -685,5 +736,54 @@ jkl012\trefs/heads/main
         let (commit, date) = extract_remote_info(&payload).unwrap();
         assert_eq!(commit, "deadbee");
         assert!(date.is_none());
+    }
+
+    #[test]
+    fn test_version_key() {
+        assert_eq!(version_key("1.2.3"), vec![1, 2, 3]);
+        assert_eq!(version_key("7.5.2"), vec![7, 5, 2]);
+        assert_eq!(version_key("1"), vec![1]);
+        assert_eq!(version_key("1.2.3-rc1"), vec![1, 2]); // "3-rc1" is non-numeric → dropped
+        assert_eq!(version_key(""), Vec::<u64>::new());
+    }
+
+    #[test]
+    fn test_is_newer_version() {
+        assert!(is_newer_version("1.2.3", "1.2.2"));
+        assert!(is_newer_version("2.0", "1.9.9"));
+        assert!(!is_newer_version("1.2.2", "1.2.3"));
+        assert!(!is_newer_version("1.2.3", "1.2.3"));
+    }
+
+    #[test]
+    fn test_latest_version() {
+        let v = vec![
+            "1.0.0".into(),
+            "1.2.3".into(),
+            "1.2.0".into(),
+            " 2.0.0 ".into(),
+        ];
+        assert_eq!(latest_version(&v).as_deref(), Some("2.0.0"));
+        assert_eq!(
+            latest_version(&["7.5.1".into(), "7.5.2".into()]).as_deref(),
+            Some("7.5.2")
+        );
+        assert!(latest_version(&[]).is_none());
+    }
+
+    #[test]
+    fn test_find_matching_version() {
+        let v = vec![
+            "7.5.1".into(),
+            "7.5.2".into(),
+            "7.6.0".into(),
+            "8.0.0".into(),
+        ];
+        // target "7.5" matches 7.5.1 and 7.5.2 → highest is 7.5.2
+        assert_eq!(find_matching_version("7.5", &v).as_deref(), Some("7.5.2"));
+        // target "7" matches all 7.x → highest 7.6.0
+        assert_eq!(find_matching_version("7", &v).as_deref(), Some("7.6.0"));
+        // target "9" matches nothing
+        assert!(find_matching_version("9", &v).is_none());
     }
 }

@@ -147,14 +147,60 @@ fn target_ready(client: &dyn DaemonClient, target: &str) -> Result<bool, String>
         .any(|a| a.name == target && !a.state.is_empty() && a.state != "starting"))
 }
 
-/// Watch a target's output stream.
+/// Watch a target's output stream, polling until terminal or timeout.
+///
+/// Mirrors `services.watch_runtime.watch_target`: repeatedly calls the daemon
+/// `watch` RPC with an advancing `start_line` cursor, accumulating new output
+/// until the batch is `terminal` or the wall-clock timeout elapses. Timeout and
+/// poll interval are env-overridable (`CCB_WATCH_TIMEOUT_S`, default 10s;
+/// `CCB_WATCH_POLL_INTERVAL_S`, default 0.1s).
 pub fn watch(client: &dyn DaemonClient, cmd: &ParsedWatch) -> Result<String, String> {
     if cmd.target.is_empty() {
         return Err("watch requires a target".to_string());
     }
-    let params = serde_json::json!({"target": cmd.target, "start_line": 0u64});
-    let result = client.call("watch", params)?;
-    Ok(render_watch(&result))
+    let timeout = Duration::from_secs_f64(watch_timeout_s());
+    let interval = Duration::from_secs_f64(watch_poll_interval_s());
+    let deadline = Instant::now() + timeout;
+    let mut cursor: u64 = 0;
+    let mut out = String::new();
+    loop {
+        let result = client.call(
+            "watch",
+            serde_json::json!({"target": cmd.target, "start_line": cursor}),
+        )?;
+        let new_cursor = result
+            .get("cursor")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(cursor);
+        let terminal = result
+            .get("terminal")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if new_cursor > cursor {
+            out.push_str(&render_watch(&result));
+        }
+        cursor = cursor.max(new_cursor);
+        if terminal || Instant::now() >= deadline {
+            return Ok(out);
+        }
+        std::thread::sleep(interval);
+    }
+}
+
+fn watch_timeout_s() -> f64 {
+    std::env::var("CCB_WATCH_TIMEOUT_S")
+        .ok()
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .filter(|v| *v > 0.0)
+        .unwrap_or(10.0)
+}
+
+fn watch_poll_interval_s() -> f64 {
+    std::env::var("CCB_WATCH_POLL_INTERVAL_S")
+        .ok()
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .filter(|v| *v > 0.0)
+        .unwrap_or(0.1)
 }
 
 /// Cancel a job.
@@ -576,9 +622,32 @@ pub fn version() -> Result<String, String> {
     Ok(format!("ccb {}\n", crate::entry::VERSION))
 }
 
-/// Update stub.
+/// Check for CCB updates against the published release index.
+///
+/// Mirrors the version-check portion of `management_runtime.commands_runtime.update.cmd_update`.
+/// The tarball download/staged install itself is delegated to the install script
+/// (the `install.py` installer is a separate translation); this command resolves the
+/// current vs. latest version and reports update availability.
 pub fn update() -> Result<String, String> {
-    Ok("ccb update: not implemented in this build; use the install script or package manager to update CCB.\n".to_string())
+    let current = crate::entry::VERSION;
+    let versions = crate::versioning::get_available_versions();
+    if versions.is_empty() {
+        return Ok(format!(
+            "ccb update: could not reach the release index (network/git unavailable); current v{current}.\n\
+             Re-run later or apply updates via the CCB install script.\n"
+        ));
+    }
+    let latest = crate::versioning::latest_version(&versions);
+    Ok(match latest {
+        Some(l) if crate::versioning::is_newer_version(&l, current) => format!(
+            "📦 Update available: v{current} → v{l}\n\
+             Apply with the CCB install script (release-tarball download/install is not bundled in this build).\n"
+        ),
+        Some(l) => format!("✅ Up to date (v{current}; latest tagged release v{l})\n"),
+        None => format!(
+            "ccb update: could not determine the latest version (current v{current})\n"
+        ),
+    })
 }
 
 /// Uninstall stub.
