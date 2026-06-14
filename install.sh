@@ -73,8 +73,8 @@ msg() {
       en_msg="Detected WSL environment"
       zh_msg="检测到 WSL 环境" ;;
     same_env_required)
-      en_msg="ccb, ccb ask, ccb ping, and ccb pend must run in the same environment as codex/gemini."
-      zh_msg="ccb、ccb ask、ccb ping、ccb pend 必须与 codex/gemini 在同一环境运行。" ;;
+      en_msg="ccbr, ccbr ask, ccbr ping, and ccbr pend must run in the same environment as codex/gemini."
+      zh_msg="ccbr、ccbr ask、ccbr ping、ccbr pend 必须与 codex/gemini 在同一环境运行。" ;;
     confirm_wsl_native)
       en_msg="Please confirm: you will install and run codex/gemini in WSL (not Windows native)."
       zh_msg="请确认：你将在 WSL 中安装并运行 codex/gemini（不是 Windows 原生）。" ;;
@@ -88,8 +88,8 @@ msg() {
       en_msg="WARN: watchdog install failed; continuing without optional file watchers"
       zh_msg="警告：watchdog 安装失败；将不启用可选文件监听" ;;
     watchdog_optional)
-      en_msg="INFO: watchdog is optional. ccb will still install and use polling/readback paths when watchers are unavailable."
-      zh_msg="信息：watchdog 是可选依赖。未启用监听时，ccb 仍会安装并使用轮询/回读路径。" ;;
+      en_msg="INFO: watchdog is optional. ccbr will still install and use polling/readback paths when watchers are unavailable."
+      zh_msg="信息：watchdog 是可选依赖。未启用监听时，ccbr 仍会安装并使用轮询/回读路径。" ;;
     watchdog_skipped)
       en_msg="INFO: watchdog auto-install skipped by CCB_INSTALL_WATCHDOG=0"
       zh_msg="信息：已通过 CCB_INSTALL_WATCHDOG=0 跳过 watchdog 自动安装" ;;
@@ -249,8 +249,9 @@ SCRIPTS_TO_LINK=(
   bin/build-ccb-agent-sidebar
   bin/ccb-agent-sidebar
   bin/ccb-provider-activity-hook
+  bin/ccbd
   bin/ctx-transfer
-  ccb
+  ccbr
 )
 
 CLAUDE_MARKDOWN=(
@@ -424,18 +425,21 @@ pick_any_python_bin() {
 }
 
 require_python_version() {
-  # ccb requires Python 3.10+ (PEP 604 type unions: `str | None`, etc.)
+  # CCB's runtime is Rust; Python is only used for optional features
+  # (legacy watchdog/tomli, install-metadata encoding). The core install
+  # (cargo build + place binaries + write VERSION) works without Python, so
+  # this is a SOFT check: warn and continue when Python 3.10+ is absent/old.
   if ! pick_python_bin; then
-    echo "ERROR: Missing dependency: python (3.10+ required)"
-    echo "   Please install Python 3.10+ and ensure it is on PATH, then re-run install.sh"
-    exit 1
+    echo "WARN: python 3.10+ not found; continuing with a Rust-only install."
+    echo "      Optional features (legacy watchdog/tomli, install metadata) will be skipped."
+    return 0
   fi
   local version
   version="$("$PYTHON_BIN" -c 'import sys; print("{}.{}.{}".format(sys.version_info[0], sys.version_info[1], sys.version_info[2]))' 2>/dev/null || echo unknown)"
   if ! _python_check_310 "$PYTHON_BIN"; then
-    echo "ERROR: Python version too old: $version"
-    echo "   Requires Python 3.10+, please upgrade and retry"
-    exit 1
+    echo "WARN: Python $version is older than 3.10; continuing with a Rust-only install."
+    echo "      Optional features (legacy watchdog/tomli, install metadata) will be skipped."
+    return 0
   fi
   echo "OK: Python $version ($PYTHON_BIN)"
 }
@@ -999,7 +1003,7 @@ resolve_install_version() {
     tr -d '[:space:]' < "$REPO_ROOT/VERSION"
     return
   fi
-  read_embedded_assignment "$REPO_ROOT/ccb" "VERSION"
+  read_embedded_assignment "$REPO_ROOT/ccbr" "VERSION"
 }
 
 resolve_source_kind() {
@@ -1143,8 +1147,8 @@ read_installed_version() {
     echo "$build_info_version"
     return
   fi
-  if [[ -f "$INSTALL_PREFIX/ccb" ]]; then
-    sed -n 's/^VERSION[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$INSTALL_PREFIX/ccb" | head -1
+  if [[ -f "$INSTALL_PREFIX/ccbr" ]]; then
+    sed -n 's/^VERSION[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' "$INSTALL_PREFIX/ccbr" | head -1
   fi
 }
 
@@ -1248,8 +1252,8 @@ write_install_metadata() {
   local version commit date build_time installed_at platform_name arch_name channel source_kind install_mode
   local install_user_id install_user_name sudo_user root_install_json install_user_id_json
   version="$(resolve_install_version)"
-  commit="$(read_embedded_assignment "$INSTALL_PREFIX/ccb" "GIT_COMMIT")"
-  date="$(read_embedded_assignment "$INSTALL_PREFIX/ccb" "GIT_DATE")"
+  commit="$(read_embedded_assignment "$INSTALL_PREFIX/ccbr" "GIT_COMMIT")"
+  date="$(read_embedded_assignment "$INSTALL_PREFIX/ccbr" "GIT_DATE")"
   if [[ -z "$commit" ]]; then
     commit="$(read_source_build_info_field "commit")"
   fi
@@ -1365,7 +1369,7 @@ confirm_backend_env_wsl() {
   echo "================================================================"
   echo "WARN: Detected WSL environment"
   echo "================================================================"
-  echo "ccb/ask/ping/pend must run in the same environment as codex/gemini."
+  echo "ccbr/ask/ping/pend must run in the same environment as codex/gemini."
   echo
   echo "Please confirm: you will install and run codex/gemini in WSL (not Windows native)."
   echo "If you plan to run codex/gemini in Windows native, exit and run on Windows side:"
@@ -1477,7 +1481,7 @@ copy_project() {
   mv "$staging" "$INSTALL_PREFIX"
   trap - EXIT
 
-  # Update GIT_COMMIT and GIT_DATE in ccb file
+  # Update GIT_COMMIT and GIT_DATE in ccbr file
   local git_commit="" git_date=""
 
   # Method 1: From git repo or git worktree
@@ -1492,16 +1496,16 @@ copy_project() {
     git_date="$(read_source_build_info_field "date")"
   fi
 
-  # Method 3: From environment variables (set by ccb update)
+  # Method 3: From environment variables (set by ccbr update)
   if [[ -z "$git_commit" && -n "${CCB_GIT_COMMIT:-}" ]]; then
     git_commit="$CCB_GIT_COMMIT"
     git_date="${CCB_GIT_DATE:-}"
   fi
 
   # Method 4: From embedded package metadata
-  if [[ -z "$git_commit" && -f "$INSTALL_PREFIX/ccb" ]]; then
-    git_commit=$(sed -n 's/^GIT_COMMIT = "\(.*\)"/\1/p' "$INSTALL_PREFIX/ccb" | head -1)
-    git_date=$(sed -n 's/^GIT_DATE = "\(.*\)"/\1/p' "$INSTALL_PREFIX/ccb" | head -1)
+  if [[ -z "$git_commit" && -f "$INSTALL_PREFIX/ccbr" ]]; then
+    git_commit=$(sed -n 's/^GIT_COMMIT = "\(.*\)"/\1/p' "$INSTALL_PREFIX/ccbr" | head -1)
+    git_date=$(sed -n 's/^GIT_DATE = "\(.*\)"/\1/p' "$INSTALL_PREFIX/ccbr" | head -1)
   fi
 
   # Method 5: From GitHub API (fallback)
@@ -1514,10 +1518,10 @@ copy_project() {
     fi
   fi
 
-  if [[ -n "$git_commit" && -f "$INSTALL_PREFIX/ccb" ]]; then
-    sed -i.bak "s/^GIT_COMMIT = .*/GIT_COMMIT = \"$git_commit\"/" "$INSTALL_PREFIX/ccb"
-    sed -i.bak "s/^GIT_DATE = .*/GIT_DATE = \"$git_date\"/" "$INSTALL_PREFIX/ccb"
-    rm -f "$INSTALL_PREFIX/ccb.bak"
+  if [[ -n "$git_commit" && -f "$INSTALL_PREFIX/ccbr" ]]; then
+    sed -i.bak "s/^GIT_COMMIT = .*/GIT_COMMIT = \"$git_commit\"/" "$INSTALL_PREFIX/ccbr"
+    sed -i.bak "s/^GIT_DATE = .*/GIT_DATE = \"$git_date\"/" "$INSTALL_PREFIX/ccbr"
+    rm -f "$INSTALL_PREFIX/ccbr.bak"
   fi
 }
 
@@ -1885,7 +1889,7 @@ install_bin_links() {
 }
 
 verify_installed_entrypoints() {
-  if ! "$BIN_DIR/ccb" --print-version >/dev/null 2>&1; then
+  if ! "$BIN_DIR/ccb" version >/dev/null 2>&1; then
     echo "ERROR: installed ccb entrypoint failed runtime smoke check"
     echo "   Path: $BIN_DIR/ccb"
     exit 1
@@ -1893,6 +1897,21 @@ verify_installed_entrypoints() {
   if ! "$BIN_DIR/ask" --help >/dev/null 2>&1; then
     echo "ERROR: installed ask entrypoint failed runtime smoke check"
     echo "   Path: $BIN_DIR/ask"
+    exit 1
+  fi
+  if ! "$BIN_DIR/autonew" --help >/dev/null 2>&1; then
+    echo "ERROR: installed autonew entrypoint failed runtime smoke check"
+    echo "   Path: $BIN_DIR/autonew"
+    exit 1
+  fi
+  if ! "$BIN_DIR/ctx-transfer" --help >/dev/null 2>&1; then
+    echo "ERROR: installed ctx-transfer entrypoint failed runtime smoke check"
+    echo "   Path: $BIN_DIR/ctx-transfer"
+    exit 1
+  fi
+  if [[ ! -x "$BIN_DIR/ccbd" ]]; then
+    echo "ERROR: installed ccbd entrypoint is not executable"
+    echo "   Path: $BIN_DIR/ccbd"
     exit 1
   fi
   echo "OK: Installed entrypoints passed runtime smoke check"
@@ -2933,12 +2952,12 @@ provision_role_packs() {
   fi
   local ccb_entry
   if install_uses_live_source; then
-    ccb_entry="$(resolve_live_source_root)/ccb"
+    ccb_entry="$(resolve_live_source_root)/ccbr"
   else
-    ccb_entry="$INSTALL_PREFIX/ccb"
+    ccb_entry="$INSTALL_PREFIX/ccbr"
   fi
   if [[ ! -x "$ccb_entry" ]]; then
-    echo "WARN: Role Pack provisioning skipped; ccb entrypoint not executable: $ccb_entry"
+    echo "WARN: Role Pack provisioning skipped; ccbr entrypoint not executable: $ccb_entry"
     return 0
   fi
   local failures=0
@@ -2995,12 +3014,12 @@ provision_neovim_tool() {
   fi
   local ccb_entry
   if install_uses_live_source; then
-    ccb_entry="$(resolve_live_source_root)/ccb"
+    ccb_entry="$(resolve_live_source_root)/ccbr"
   else
-    ccb_entry="$INSTALL_PREFIX/ccb"
+    ccb_entry="$INSTALL_PREFIX/ccbr"
   fi
   if [[ ! -x "$ccb_entry" ]]; then
-    echo "WARN: Neovim tool provisioning skipped; ccb entrypoint not executable: $ccb_entry"
+    echo "WARN: Neovim tool provisioning skipped; ccbr entrypoint not executable: $ccb_entry"
     [[ "$required" == "1" ]] && return 1 || return 0
   fi
   local log_file
