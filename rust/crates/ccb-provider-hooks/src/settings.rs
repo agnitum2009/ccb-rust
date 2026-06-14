@@ -1,6 +1,7 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use serde_json::Map;
 
+use crate::Result;
 use ccb_storage::atomic::atomic_write_json;
 
 const CCB_FINISH_HOOK_NAME: &str = "ccb-provider-finish-hook";
@@ -27,8 +28,13 @@ pub fn build_hook_command(
     let script = expand_user_path(script_path.as_ref());
     let completion = expand_user_path(completion_dir.as_ref());
     let workspace = expand_user_path(workspace_path.as_ref());
-    let parts = [
-        python_executable,
+    let mut parts: Vec<&str> = Vec::new();
+    // When `python_executable` is empty the hook is a native binary invoked
+    // directly (no interpreter prefix); otherwise prefix it as before.
+    if !python_executable.is_empty() {
+        parts.push(python_executable);
+    }
+    parts.extend_from_slice(&[
         script.as_str(),
         "--provider",
         provider,
@@ -38,7 +44,7 @@ pub fn build_hook_command(
         agent_name,
         "--workspace",
         workspace.as_str(),
-    ];
+    ]);
     shell_quote_all(&parts)
 }
 
@@ -54,8 +60,11 @@ pub fn build_activity_hook_command(
     let script = expand_user_path(script_path.as_ref());
     let runtime = expand_user_path(runtime_dir.as_ref());
     let workspace = expand_user_path(workspace_path.as_ref());
-    let parts = [
-        python_executable,
+    let mut parts: Vec<&str> = Vec::new();
+    if !python_executable.is_empty() {
+        parts.push(python_executable);
+    }
+    parts.extend_from_slice(&[
         script.as_str(),
         "--provider",
         provider,
@@ -67,7 +76,7 @@ pub fn build_activity_hook_command(
         runtime.as_str(),
         "--workspace",
         workspace.as_str(),
-    ];
+    ]);
     shell_quote_all(&parts)
 }
 
@@ -76,6 +85,25 @@ pub fn install_workspace_completion_hooks(
     workspace_path: impl AsRef<Utf8Path>,
     home_root: Option<&Utf8Path>,
     command: &str,
+) -> Option<Utf8PathBuf> {
+    install_workspace_completion_hooks_with_profile(
+        provider,
+        workspace_path,
+        home_root,
+        command,
+        None,
+    )
+}
+
+/// Same as [`install_workspace_completion_hooks`] but accepts an optional
+/// `resolved_profile` argument for Python signature parity. The profile is
+/// intentionally ignored, matching the Python implementation.
+pub fn install_workspace_completion_hooks_with_profile(
+    provider: &str,
+    workspace_path: impl AsRef<Utf8Path>,
+    home_root: Option<&Utf8Path>,
+    command: &str,
+    _resolved_profile: Option<&serde_json::Value>,
 ) -> Option<Utf8PathBuf> {
     let normalized = provider.trim().to_lowercase();
     let home_root = home_root?;
@@ -114,7 +142,7 @@ pub fn install_workspace_activity_hooks(
 
 pub fn install_claude_hooks(home_root: &Utf8Path, command: &str) -> Utf8PathBuf {
     let settings_path = claude_settings_path(home_root);
-    let mut data = load_json(&settings_path);
+    let mut data = load_json(&settings_path).unwrap_or_default();
     let hooks = hooks_payload(&mut data);
     let event_name = "Stop";
     let groups = event_groups(hooks, event_name);
@@ -133,7 +161,7 @@ pub fn install_claude_hooks(home_root: &Utf8Path, command: &str) -> Utf8PathBuf 
 
 pub fn install_claude_activity_hooks(home_root: &Utf8Path, command: &str) -> Utf8PathBuf {
     let settings_path = claude_settings_path(home_root);
-    let mut data = load_json(&settings_path);
+    let mut data = load_json(&settings_path).unwrap_or_default();
     let hooks = hooks_payload(&mut data);
     for &event_name in CLAUDE_ACTIVITY_EVENTS {
         let groups = event_groups(hooks, event_name);
@@ -153,7 +181,7 @@ pub fn install_claude_activity_hooks(home_root: &Utf8Path, command: &str) -> Utf
 
 pub fn trust_claude_workspace(home_root: &Utf8Path, workspace_path: &Utf8Path) -> Utf8PathBuf {
     let trust_path = claude_trust_path(home_root);
-    let mut data = load_json(&trust_path);
+    let mut data = load_json(&trust_path).unwrap_or_default();
     let key = workspace_key(workspace_path);
     let record = data
         .entry(key.clone())
@@ -279,7 +307,7 @@ fn command_hook_group(command: &str) -> serde_json::Value {
 
 pub fn install_gemini_hooks(home_root: &Utf8Path, command: &str) -> Utf8PathBuf {
     let settings_path = gemini_settings_path(home_root);
-    let mut data = load_json(&settings_path);
+    let mut data = load_json(&settings_path).unwrap_or_default();
     let hooks = hooks_payload(&mut data);
     let after_agent = hooks
         .entry("AfterAgent")
@@ -302,7 +330,7 @@ pub fn install_gemini_hooks(home_root: &Utf8Path, command: &str) -> Utf8PathBuf 
 
 pub fn trust_gemini_workspace(home_root: &Utf8Path, workspace_path: &Utf8Path) -> Utf8PathBuf {
     let trust_path = gemini_trust_path(home_root);
-    let mut data = load_json(&trust_path);
+    let mut data = load_json(&trust_path).unwrap_or_default();
     data.insert(
         workspace_key(workspace_path),
         serde_json::Value::String("TRUST_FOLDER".into()),
@@ -365,19 +393,33 @@ fn gemini_trust_path(home_root: &Utf8Path) -> Utf8PathBuf {
         .join("trustedFolders.json")
 }
 
-fn load_json(path: &Utf8Path) -> Map<String, serde_json::Value> {
+pub fn load_json(path: &Utf8Path) -> Result<Map<String, serde_json::Value>> {
     if !path.exists() {
-        return Map::new();
+        return Ok(Map::new());
     }
     let text = match std::fs::read_to_string(path) {
         Ok(t) => t,
-        Err(_) => return Map::new(),
+        Err(_) => return Ok(Map::new()),
     };
     let value: serde_json::Value = match serde_json::from_str(&text) {
         Ok(v) => v,
-        Err(_) => return Map::new(),
+        Err(_) => return Ok(Map::new()),
     };
-    value.as_object().cloned().unwrap_or_default()
+    Ok(value.as_object().cloned().unwrap_or_default())
+}
+
+pub fn save_json(path: &Utf8Path, data: &Map<String, serde_json::Value>) -> Result<Utf8PathBuf> {
+    atomic_write_json(path, data)?;
+    Ok(path.to_path_buf())
+}
+
+/// Return the expanded layout root for Claude hooks.
+///
+/// Mirrors Python `settings_runtime.claude.claude_hook_home_layout`. The Rust
+/// version returns the expanded home root path (the Python version returns a
+/// `ClaudeHomeLayout` dataclass).
+pub fn claude_hook_home_layout(home_root: &Utf8Path) -> Utf8PathBuf {
+    expand_user_path(home_root)
 }
 
 fn hooks_payload(data: &mut Map<String, serde_json::Value>) -> &mut Map<String, serde_json::Value> {
@@ -398,7 +440,7 @@ fn event_groups(
         .unwrap_or_default()
 }
 
-fn workspace_key(workspace_path: &Utf8Path) -> String {
+pub fn workspace_key(workspace_path: &Utf8Path) -> String {
     let expanded = expand_user_path(workspace_path);
     expanded
         .canonicalize()

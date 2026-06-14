@@ -16,13 +16,26 @@ members = [
     "crates/ccb-provider-hooks",
     "crates/ccb-provider-profiles",
     "crates/ccb-provider-sessions",
+    "crates/ccb-jobs",
+    "crates/ccb-message-bureau",
+    "crates/ccb-pane-registry",
+    "crates/ccb-project",
+    "crates/ccb-runtime-env",
+    "crates/ccb-runtime-pid-cleanup",
+    "crates/ccb-stdio-runtime",
+    "crates/ccb-storage-classification",
+    "crates/ccb-ui-text",
+    "crates/ccb-workspace",
     "tools/ccb-release-checker",
     "tools/ccb-mcp-server",
     "tools/ccb-release-builder",
+    "tools/ccb-provider-finish-hook",
+    "tools/ccb-provider-activity-hook",
+    "tools/ccb-cleanup",
 ]
 
 [workspace.package]
-version = "7.4.3"
+version = "7.5.2"
 edition = "2021"
 license = "MIT"
 
@@ -42,11 +55,15 @@ toml = "0.8"
 camino = { version = "1", features = ["serde1"] }
 fs2 = "0.4"
 tempfile = "3"
+serial_test = "3"
 sha2 = "0.10"
+md5 = "0.7"
 hex = "0.4"
 tar = "0.4"
 flate2 = "1"
 walkdir = "2"
+encoding_rs = "0.8"
+shell-words = "1"
 
 # Internal crates
 ccb-storage = { path = "crates/ccb-storage" }
@@ -64,6 +81,16 @@ ccb-heartbeat = { path = "crates/ccb-heartbeat" }
 ccb-provider-hooks = { path = "crates/ccb-provider-hooks" }
 ccb-provider-profiles = { path = "crates/ccb-provider-profiles" }
 ccb-provider-sessions = { path = "crates/ccb-provider-sessions" }
+ccb-jobs = { path = "crates/ccb-jobs" }
+ccb-message-bureau = { path = "crates/ccb-message-bureau" }
+ccb-pane-registry = { path = "crates/ccb-pane-registry" }
+ccb-project = { path = "crates/ccb-project" }
+ccb-runtime-env = { path = "crates/ccb-runtime-env" }
+ccb-runtime-pid-cleanup = { path = "crates/ccb-runtime-pid-cleanup" }
+ccb-stdio-runtime = { path = "crates/ccb-stdio-runtime" }
+ccb-storage-classification = { path = "crates/ccb-storage-classification" }
+ccb-ui-text = { path = "crates/ccb-ui-text" }
+ccb-workspace = { path = "crates/ccb-workspace" }
 
 [profile.release]
 strip = true

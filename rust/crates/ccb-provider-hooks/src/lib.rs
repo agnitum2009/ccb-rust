@@ -3,28 +3,28 @@ pub mod artifacts;
 pub mod notifications;
 pub mod settings;
 
+// Top-level exports aligned with Python `provider_hooks.__init__.__all__` (24 items).
 pub use activity::{
     activity_path, load_activity, normalize_activity_state, read_activity_evidence, write_activity,
-    ProviderActivityEvidence, ACTIVITY_ACTIVE, ACTIVITY_FAILED, ACTIVITY_IDLE, ACTIVITY_PENDING,
-    ACTIVITY_STATES, SCHEMA_VERSION as ACTIVITY_SCHEMA_VERSION,
+    ProviderActivityEvidence,
 };
 pub use artifacts::{
-    completion_dir_from_session_data, current_turn_req_id_from_transcript,
-    current_turn_req_id_from_transcript_text, event_path, extract_outer_req_id, extract_req_id,
-    latest_last_prompt_req_id_from_transcript_text, latest_req_id_from_transcript,
-    latest_req_id_from_transcript_text, latest_user_req_id_from_transcript_text, load_event,
-    write_event, SCHEMA_VERSION as ARTIFACTS_SCHEMA_VERSION,
+    completion_dir_from_session_data, current_turn_req_id_from_transcript, event_path,
+    extract_req_id, latest_req_id_from_transcript, load_event, write_event,
 };
 pub use notifications::{
     completion_status_label, completion_status_marker, default_reply_for_status,
     normalize_completion_status, COMPLETION_STATUS_CANCELLED, COMPLETION_STATUS_COMPLETED,
-    COMPLETION_STATUS_FAILED, COMPLETION_STATUS_INCOMPLETE, VALID_COMPLETION_STATUSES,
+    COMPLETION_STATUS_FAILED, COMPLETION_STATUS_INCOMPLETE,
 };
 pub use settings::{
-    build_activity_hook_command, build_hook_command, install_claude_activity_hooks,
-    install_claude_hooks, install_gemini_hooks, install_workspace_activity_hooks,
-    install_workspace_completion_hooks, trust_claude_workspace, trust_gemini_workspace,
+    build_activity_hook_command, build_hook_command, install_workspace_activity_hooks,
+    install_workspace_completion_hooks,
 };
+
+// Submodule helpers that are public in Python `settings_runtime/common.py` and
+// `settings_runtime/claude.py` and are therefore also exposed from the crate root.
+pub use settings::{claude_hook_home_layout, load_json, save_json, workspace_key};
 
 #[derive(Debug, thiserror::Error)]
 pub enum HookError {
