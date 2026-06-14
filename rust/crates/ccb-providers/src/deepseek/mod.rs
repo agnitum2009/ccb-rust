@@ -10,3 +10,6 @@ pub use session::{
     build_session_binding, find_project_session_file, load_project_session, DeepSeekProjectSession,
     PROVIDER_NAME as SESSION_PROVIDER_NAME, SESSION_FILENAME,
 };
+
+pub mod execution;
+pub mod manifest;

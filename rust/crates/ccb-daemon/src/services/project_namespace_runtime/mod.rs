@@ -1,0 +1,30 @@
+//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/`.
+
+
+pub mod additive_patch;
+pub mod additive_patch_agents;
+pub mod additive_patch_apply;
+pub mod additive_patch_namespace;
+pub mod additive_patch_preservation;
+pub mod additive_patch_validation;
+pub mod additive_patch_windows;
+pub mod backend;
+pub mod controller;
+pub mod controller_state;
+pub mod destroy;
+pub mod ensure;
+pub mod ensure_context;
+pub mod ensure_identity;
+pub mod ensure_state;
+pub mod materialize_topology;
+pub mod models;
+pub mod patch_validation_scope;
+pub mod patch_validation_steps;
+pub mod patch_validation_targets;
+pub mod records;
+pub mod reflow;
+pub mod remove_patch_agents;
+pub mod remove_patch_tools;
+pub mod sidebar_helper;
+pub mod slot_replacement;
+pub mod topology_plan;
