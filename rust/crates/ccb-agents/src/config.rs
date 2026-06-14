@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Deserialize;
@@ -451,9 +451,9 @@ struct RawProjectConfig {
     #[serde(default)]
     layout: Option<String>,
     #[serde(default)]
-    windows: Option<HashMap<String, String>>,
+    windows: Option<BTreeMap<String, String>>,
     #[serde(default)]
-    tool_windows: Option<HashMap<String, RawToolWindowSpec>>,
+    tool_windows: Option<BTreeMap<String, RawToolWindowSpec>>,
     #[serde(default)]
     entry_window: Option<String>,
     #[serde(default)]
@@ -493,7 +493,7 @@ fn raw_to_project_config(
             agents.insert(spec.name.clone(), spec);
         }
     }
-    let default_agents = raw.default_agents.unwrap_or_default();
+    let mut default_agents = raw.default_agents.unwrap_or_default();
 
     let windows = if let Some(raw_windows) = raw.windows {
         let mut windows: Vec<WindowSpec> = Vec::new();
@@ -526,6 +526,21 @@ fn raw_to_project_config(
     } else {
         None
     };
+
+    // Inherit v2 windows-only configs: when `default_agents` is omitted, derive
+    // it from the entry window (or the first window) so existing projects that
+    // only declare a `[windows]` topology load without rewriting the config.
+    if default_agents.is_empty() {
+        if let Some(wins) = &windows {
+            let chosen = wins
+                .iter()
+                .find(|w| Some(w.name.as_str()) == raw.entry_window.as_deref())
+                .or_else(|| wins.first());
+            if let Some(w) = chosen {
+                default_agents = w.agent_names.clone();
+            }
+        }
+    }
 
     let tool_windows = raw.tool_windows.map(|tools| {
         tools
