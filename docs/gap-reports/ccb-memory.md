@@ -54,3 +54,33 @@ Highest-value follow-up: translate `lib/memory/transfer.py` + the ctx-transfer C
 into a transfer module (suggested landing: `ccb-cli` or a new `ccb-ctx-transfer`).
 
 Helpers (cluster 2) are low-priority small utilities.
+
+---
+
+## CORRECTION — codegraph re-verification (2026-06-14)
+
+A structural re-check via `codegraph` **invalidated the headline gap**: the
+context-transfer pipeline is **fully implemented in Rust and wired**:
+
+- `ctx_transfer` → `rust/crates/ccb-cli/src/commands.rs:657` (CLI handler, real)
+- `run_auto_transfer` → `rust/crates/ccb-memory/src/transfer.rs:695` (real)
+- Plus `extract_from_provider_session`, `extract_from_droid`, `extract_from_codex`,
+  `extract_from_gemini`, `context_from_pairs`, `format_json`, `format_plain`, and a
+  `ContextTransfer` struct re-exported from `ccb-memory/src/lib.rs`.
+
+The 8 "gaps" (build_context, run_transfer, send_to_agent, …) were **false positives**:
+the Rust impl exists as differently-named free functions + a struct, not the exact
+Python names. This is the same architectural-divergence pattern as ccb-providers.
+
+### Meta-finding (important)
+
+The **grep-based Phase 1 audits systematically under-report Rust coverage** — exact-name
+matching misses renamed/restructured symbols. `codegraph` (structural) finds them.
+**Phase 1 gap counts for providers/daemon/cli (585/611/346) are almost certainly heavily
+inflated** and should be re-verified with codegraph before any are treated as real.
+
+### Revised verdict
+
+ccb-memory is **substantially complete** (not 13 gaps — the headline gap was false).
+The 5 cluster-2 helpers may still be Python-only (minor). No P0 work needed here.
+
