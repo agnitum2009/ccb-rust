@@ -11,5 +11,6 @@ pub fn handle_inbox(app: &mut CcbdApp, payload: &Value) -> Result<Value, String>
     if agent_name.is_empty() {
         return Err("inbox requires agent_name".into());
     }
-    Ok(app.dispatcher.inbox(agent_name))
+    let detail = payload.get("detail").and_then(|v| v.as_bool());
+    Ok(app.mailbox_control.inbox(agent_name, detail))
 }

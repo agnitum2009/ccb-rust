@@ -13,9 +13,10 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
         .registry
         .all_entries()
         .iter()
+        .filter(|e| e.state != "stopped")
         .map(|e| {
             json!({
-                "agent_name": e.agent_name,
+                "name": e.agent_name,
                 "state": e.state,
                 "health": e.health,
                 "pane_id": e.pane_id,

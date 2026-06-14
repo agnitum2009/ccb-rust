@@ -5,6 +5,7 @@ use std::sync::Arc;
 use camino::Utf8Path;
 use serde::{Deserialize, Serialize};
 
+use crate::adapters::mailbox::{to_mailbox_completion_decision, to_mailbox_job_record};
 use crate::handlers::{build_registry, HandlerRegistry};
 use crate::models::lifecycle::{
     CcbdShutdownReport, CcbdStartupAgentResult, CcbdStartupReport, CcbdTmuxCleanupSummary,
@@ -16,62 +17,45 @@ use crate::services::ownership::OwnershipService;
 use crate::services::project_namespace::ProjectNamespaceController;
 use crate::services::registry::{AgentRegistry, AgentRuntimeEntry};
 use crate::services::runtime::RuntimeService;
+use ccb_completion::models::{CompletionDecision, CompletionStatus};
+use ccb_jobs::JobStore;
+use ccb_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
+use ccb_providers::execution::ExecutionService;
 
 fn load_agent_registry(
     layout: &ccb_storage::paths::PathLayout,
-    project_root: &std::path::Path,
+    config: Option<&ccb_agents::models::ProjectConfig>,
 ) -> (AgentRegistry, Vec<String>) {
-    let config_path = layout.ccb_dir().join("ccb.config");
-    if !config_path.exists() {
+    let Some(config) = config else {
         // No project config yet; start with an empty registry so the start
         // flow can create agents on demand.
         return (AgentRegistry::new(), Vec::new());
-    }
+    };
 
-    match ccb_agents::config::load_project_config(layout) {
-        Ok(result) => {
-            let names: Vec<String> = if result.config.default_agents.is_empty() {
-                result.config.agents.keys().cloned().collect()
-            } else {
-                result.config.default_agents.clone()
-            };
-            let mut registry = AgentRegistry::new();
-            for name in &names {
-                let spec = result.config.agents.get(name);
-                let workspace_path = spec
-                    .and_then(|s| s.workspace_path.clone())
-                    .unwrap_or_else(|| project_root.to_string_lossy().to_string());
-                registry.register(AgentRuntimeEntry {
-                    agent_name: name.clone(),
-                    provider: spec.map(|s| s.provider.clone()).unwrap_or_default(),
-                    state: "registered".into(),
-                    health: "unknown".into(),
-                    pane_id: None,
-                    workspace_path: Some(workspace_path),
-                    runtime_pid: None,
-                    session_id: None,
-                    restart_count: 0,
-                });
-            }
-            (registry, names)
-        }
-        Err(e) => {
-            tracing::warn!("failed to load project config: {}", e);
-            let mut registry = AgentRegistry::new();
-            registry.register(AgentRuntimeEntry {
-                agent_name: "default".into(),
-                provider: String::new(),
-                state: "registered".into(),
-                health: "unknown".into(),
-                pane_id: None,
-                workspace_path: Some(project_root.to_string_lossy().to_string()),
-                runtime_pid: None,
-                session_id: None,
-                restart_count: 0,
-            });
-            (registry, vec!["default".into()])
-        }
+    let names: Vec<String> = if config.default_agents.is_empty() {
+        config.agents.keys().cloned().collect()
+    } else {
+        config.default_agents.clone()
+    };
+    let mut registry = AgentRegistry::new();
+    for name in &names {
+        let spec = config.agents.get(name);
+        let workspace_path = spec
+            .and_then(|s| s.workspace_path.clone())
+            .unwrap_or_else(|| layout.project_root.to_string());
+        registry.register(AgentRuntimeEntry {
+            agent_name: name.clone(),
+            provider: spec.map(|s| s.provider.clone()).unwrap_or_default(),
+            state: "registered".into(),
+            health: "unknown".into(),
+            pane_id: None,
+            workspace_path: Some(workspace_path),
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
     }
+    (registry, names)
 }
 use crate::services::start_policy::StartPolicyStore;
 use crate::socket_server::protocol;
@@ -94,10 +78,15 @@ pub struct CcbdApp {
     pub lifecycle: LifecycleService,
     pub supervision: SupervisionLoop,
     pub runtime_service: RuntimeService,
+    pub execution: ExecutionService,
+    pub mailbox: MessageBureauFacade,
+    pub mailbox_control: MessageBureauControlService,
     pub ownership: OwnershipService,
     pub start_policy_store: StartPolicyStore,
+    pub fault_service: crate::fault_injection::FaultInjectionService,
     pub last_startup_report: Option<CcbdStartupReport>,
     pub last_shutdown_report: Option<CcbdShutdownReport>,
+    pub current_config: Option<ccb_agents::models::ProjectConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,15 +127,39 @@ impl CcbdApp {
         let layout = ccb_storage::paths::PathLayout::new(
             Utf8Path::from_path(&project_root).unwrap_or(Utf8Path::new("/")),
         );
-        let (registry, agent_names) = load_agent_registry(&layout, &project_root);
+        let config_result = if layout.ccb_dir().join("ccb.config").exists() {
+            ccb_agents::config::load_project_config(&layout).ok()
+        } else {
+            None
+        };
+        if config_result.is_none() && layout.ccb_dir().join("ccb.config").exists() {
+            tracing::warn!("failed to load project config");
+        }
+        let config = config_result.map(|r| r.config);
+        let current_config = config.clone();
+        let (registry, agent_names) = load_agent_registry(&layout, config.as_ref());
+        let config_value = config.as_ref().and_then(|c| serde_json::to_value(c).ok());
         let socket_path = layout.ccbd_socket_path().as_str().to_string();
+        let shared_job_store = JobStore::new(&layout);
+
+        let mailbox = MessageBureauFacade::new(
+            layout.clone(),
+            config_value.clone(),
+            Arc::new(|| chrono::Utc::now().to_rfc3339()),
+        );
+        let mailbox_control = MessageBureauControlService::from_facade(
+            &mailbox,
+            config_value,
+            Some(shared_job_store.clone()),
+            None,
+        );
 
         Self {
             project_root,
             layout: layout.clone(),
             shutdown_requested: Arc::new(AtomicBool::new(false)),
             registry,
-            dispatcher: JobDispatcher::new(agent_names),
+            dispatcher: JobDispatcher::new(agent_names).with_mailbox_job_store(shared_job_store),
             handlers: Arc::new(build_registry()),
             project_namespace: ProjectNamespaceController::new(&layout),
             start_flow,
@@ -155,10 +168,19 @@ impl CcbdApp {
             lifecycle: LifecycleService::new(),
             supervision: SupervisionLoop::new(1000, 5),
             runtime_service: RuntimeService::new(),
+            execution: ExecutionService::new(
+                ccb_providers::build_default_execution_registry(),
+                || chrono::Utc::now().to_rfc3339(),
+                None,
+            ),
+            mailbox,
+            mailbox_control,
             ownership: OwnershipService::new(),
             start_policy_store: StartPolicyStore::new(&layout),
+            fault_service: crate::fault_injection::FaultInjectionService::new(),
             last_startup_report: None,
             last_shutdown_report: None,
+            current_config,
         }
     }
 
@@ -288,6 +310,45 @@ impl CcbdApp {
 
         // Dispatcher tick.
         let _ = self.dispatcher.tick();
+
+        // Feed live tmux pane text into active execution submissions so adapters
+        // that detect completion from pane output can make progress.
+        self.feed_active_pane_text_to_execution();
+
+        // Execution service poll: update job statuses from provider adapters.
+        let updates = self.execution.poll();
+        for update in updates {
+            let status = update
+                .decision
+                .as_ref()
+                .map(|d| map_completion_status(d.status))
+                .unwrap_or(crate::models::api_models::common::JobStatus::Running);
+            let decision_record = update.decision.as_ref().map(decision_to_record);
+            self.dispatcher
+                .update_job_status(&update.job_id, status, decision_record);
+
+            // Persist terminal completion decisions to the mailbox layer.
+            if let Some(decision) = update.decision.as_ref() {
+                if decision.terminal {
+                    if let Some(job) = self.dispatcher.get(&update.job_id) {
+                        let finished_at = decision
+                            .finished_at
+                            .as_deref()
+                            .unwrap_or(&chrono::Utc::now().to_rfc3339())
+                            .to_string();
+                        let mailbox_job = to_mailbox_job_record(job);
+                        let mailbox_decision = to_mailbox_completion_decision(decision);
+                        let _ = self.mailbox.record_terminal(
+                            &mailbox_job,
+                            &mailbox_decision,
+                            &finished_at,
+                            true,
+                            true,
+                        );
+                    }
+                }
+            }
+        }
     }
 
     /// Dispatch a single RPC request string.
@@ -323,29 +384,27 @@ impl CcbdApp {
         auto_permission: bool,
     ) -> Result<StartFlowResult, String> {
         let project_root = self.layout.project_root.clone();
+        // Load any existing namespace so panes can be reused on restore.
+        let _ = self.project_namespace.load_from_disk();
+        let namespace_agent_panes = self
+            .project_namespace
+            .load()
+            .map(|ns| ns.agent_panes.clone());
         let (result, namespace) = self.start_flow.execute(
             &project_root,
             self.project_id(),
             &self.tmux_socket_path(),
             &self.tmux_session_name(),
             agent_names,
+            &self.registry,
             restore,
             auto_permission,
+            namespace_agent_panes.as_ref(),
         )?;
 
         for agent in &result.agent_results {
             if let Some(pane_id) = &agent.pane_id {
-                self.registry.register(AgentRuntimeEntry {
-                    agent_name: agent.agent_name.clone(),
-                    provider: String::new(),
-                    state: "idle".into(),
-                    health: "healthy".into(),
-                    pane_id: Some(pane_id.clone()),
-                    workspace_path: Some(self.project_root.to_string_lossy().to_string()),
-                    runtime_pid: None,
-                    session_id: None,
-                    restart_count: 0,
-                });
+                self.registry.update_pane_id(&agent.agent_name, pane_id);
             }
         }
 
@@ -370,6 +429,52 @@ impl CcbdApp {
 
         Ok(result)
     }
+}
+
+impl CcbdApp {
+    /// Capture the current text of each active execution pane and push it into
+    /// the provider adapter's runtime state as `reply_buffer`.
+    fn feed_active_pane_text_to_execution(&mut self) {
+        let socket_path = self.tmux_socket_path();
+        if !std::path::Path::new(&socket_path).exists() {
+            return;
+        }
+        let backend = ccb_terminal::TmuxBackend::new(None, Some(socket_path));
+        let contexts = self.execution.active_contexts();
+        for (job_id, context) in contexts {
+            let pane_id = context.runtime_ref.unwrap_or_default();
+            if pane_id.is_empty() {
+                continue;
+            }
+            let text = backend
+                .tmux_run_capture(&["capture-pane", "-p", "-t", &pane_id])
+                .unwrap_or_default();
+            let text = ccb_terminal::TmuxBackend::strip_ansi(&text);
+            let mut patch = std::collections::HashMap::new();
+            patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
+            self.execution.feed_runtime_state(&job_id, patch);
+        }
+    }
+}
+
+fn map_completion_status(status: CompletionStatus) -> crate::models::api_models::common::JobStatus {
+    use crate::models::api_models::common::JobStatus;
+    match status {
+        CompletionStatus::Completed => JobStatus::Completed,
+        CompletionStatus::Cancelled => JobStatus::Cancelled,
+        CompletionStatus::Failed => JobStatus::Failed,
+        CompletionStatus::Incomplete => JobStatus::Incomplete,
+    }
+}
+
+fn decision_to_record(decision: &CompletionDecision) -> serde_json::Value {
+    serde_json::json!({
+        "terminal": decision.terminal,
+        "status": decision.status,
+        "reason": decision.reason,
+        "reply": decision.reply,
+        "finished_at": decision.finished_at,
+    })
 }
 
 fn summary_to_model(summary: &StopCleanupSummary) -> CcbdTmuxCleanupSummary {
@@ -433,5 +538,38 @@ mod tests {
         let response = app.handle_rpc(r#"{"method":"ping","params":{"target":"ccbd"}}"#);
         assert!(response.contains("pong"));
         assert!(response.contains("\"result\""));
+    }
+
+    #[test]
+    fn test_loads_project_config_into_registry() {
+        let dir = TempDir::new().unwrap();
+        let ccb_dir = dir.path().join(".ccb");
+        std::fs::create_dir_all(&ccb_dir).unwrap();
+        std::fs::write(
+            ccb_dir.join("ccb.config"),
+            r#"version = 2
+default_agents = ["agent1"]
+
+[agents.agent1]
+provider = "codex"
+target = "agent1"
+
+[windows]
+main = "agent1:codex"
+"#,
+        )
+        .unwrap();
+
+        let app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        let entry = app
+            .registry
+            .get("agent1")
+            .expect("agent1 should be registered");
+        assert_eq!(entry.provider, "codex");
+        assert_eq!(app.dispatcher.agent_names, vec!["agent1"]);
     }
 }

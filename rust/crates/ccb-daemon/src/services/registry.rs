@@ -72,6 +72,43 @@ impl AgentRegistry {
         }
     }
 
+    pub fn update_pane_id(&mut self, agent_name: &str, pane_id: &str) {
+        if let Some(entry) = self.entries.get_mut(agent_name) {
+            entry.pane_id = Some(pane_id.to_string());
+            if entry.state == "registered" {
+                entry.state = "idle".into();
+            }
+            if entry.health == "unknown" {
+                entry.health = "healthy".into();
+            }
+        } else {
+            self.register(AgentRuntimeEntry {
+                agent_name: agent_name.to_string(),
+                provider: String::new(),
+                state: "idle".into(),
+                health: "healthy".into(),
+                pane_id: Some(pane_id.to_string()),
+                workspace_path: None,
+                runtime_pid: None,
+                session_id: None,
+                restart_count: 0,
+            });
+        }
+    }
+
+    /// Mark an agent as stopped and clear runtime binding fields.
+    /// Mirrors the Python stop flow registry update.
+    pub fn mark_stopped(&mut self, agent_name: &str) {
+        if let Some(entry) = self.entries.get_mut(agent_name) {
+            entry.state = "stopped".into();
+            entry.health = "stopped".into();
+            entry.pane_id = None;
+            entry.runtime_pid = None;
+            entry.session_id = None;
+            entry.restart_count = 0;
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -83,5 +120,36 @@ impl AgentRegistry {
 impl Default for AgentRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mark_stopped_clears_runtime_fields() {
+        let mut registry = AgentRegistry::new();
+        registry.register(AgentRuntimeEntry {
+            agent_name: "claude".to_string(),
+            provider: "claude".to_string(),
+            state: "running".into(),
+            health: "healthy".into(),
+            pane_id: Some("%1".to_string()),
+            workspace_path: None,
+            runtime_pid: Some(1234),
+            session_id: Some("sess-1".to_string()),
+            restart_count: 2,
+        });
+
+        registry.mark_stopped("claude");
+
+        let entry = registry.get("claude").unwrap();
+        assert_eq!(entry.state, "stopped");
+        assert_eq!(entry.health, "stopped");
+        assert!(entry.pane_id.is_none());
+        assert!(entry.runtime_pid.is_none());
+        assert!(entry.session_id.is_none());
+        assert_eq!(entry.restart_count, 0);
     }
 }

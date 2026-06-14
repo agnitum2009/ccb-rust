@@ -39,12 +39,17 @@ impl HandlerRegistry {
 }
 
 pub mod ack;
+pub mod ask;
 pub mod attach;
 pub mod cancel;
+pub mod cleanup;
 pub mod comms_recover;
+pub mod fault;
 pub mod get;
 pub mod inbox;
+pub mod logs;
 pub mod mailbox_head;
+pub mod maintenance_tick;
 pub mod ping;
 pub mod project_clear;
 pub mod project_focus;
@@ -68,7 +73,11 @@ pub fn build_registry() -> HandlerRegistry {
     let mut reg = HandlerRegistry::new();
 
     reg.register("start", Box::new(start::handle_start));
+    reg.register("ask", Box::new(ask::handle_ask));
     reg.register("shutdown", Box::new(shutdown::handle_shutdown));
+    // TODO(phase2-protocol): Python v7.5.2 CLI `ask` uses daemon op `submit` and
+    // relies on the dispatcher for async delivery. For now `submit` remains
+    // enqueue-only to preserve test contracts; align delivery semantics in Phase 2.
     reg.register("submit", Box::new(submit::handle_submit));
     reg.register("cancel", Box::new(cancel::handle_cancel));
     reg.register("ping", Box::new(ping::handle_ping));
@@ -117,6 +126,15 @@ pub fn build_registry() -> HandlerRegistry {
         Box::new(comms_recover::handle_comms_recover),
     );
     reg.register("mailbox_head", Box::new(mailbox_head::handle_mailbox_head));
+    reg.register(
+        "maintenance_tick",
+        Box::new(maintenance_tick::handle_maintenance_tick),
+    );
+    reg.register("logs", Box::new(logs::handle_logs));
+    reg.register("cleanup", Box::new(cleanup::handle_cleanup));
+    reg.register("fault_list", Box::new(fault::handle_fault_list));
+    reg.register("fault_arm", Box::new(fault::handle_fault_arm));
+    reg.register("fault_clear", Box::new(fault::handle_fault_clear));
 
     reg
 }

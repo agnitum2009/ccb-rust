@@ -11,5 +11,5 @@ pub fn handle_mailbox_head(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
     if agent_name.is_empty() {
         return Err("mailbox_head requires agent_name".into());
     }
-    Ok(app.dispatcher.mailbox_head(agent_name))
+    Ok(app.mailbox_control.mailbox_head(agent_name))
 }

@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use crate::adapters::mailbox::{to_mailbox_envelope, to_mailbox_job_record};
 use crate::app::CcbdApp;
 use crate::models::api_models::messages::MessageEnvelope;
 
@@ -67,6 +68,34 @@ pub fn handle_submit(app: &mut CcbdApp, payload: &Value) -> Result<Value, String
     };
     envelope.validate()?;
 
-    let receipt = app.dispatcher.submit(&envelope);
+    let (provider, workspace_path) = app
+        .registry
+        .get(&envelope.to_agent)
+        .map(|entry| {
+            (
+                entry.provider.clone(),
+                entry.workspace_path.clone().unwrap_or_default(),
+            )
+        })
+        .unwrap_or_default();
+    let workspace = if workspace_path.is_empty() {
+        None
+    } else {
+        Some(workspace_path.as_str())
+    };
+    let receipt = app.dispatcher.submit(&envelope, &provider, workspace);
+
+    // Persist the submission in the mailbox layer.
+    if let Some(job) = app.dispatcher.get(&receipt.jobs[0].job_id) {
+        let mailbox_job = to_mailbox_job_record(job);
+        app.mailbox.record_submission(
+            &to_mailbox_envelope(&envelope),
+            &[mailbox_job],
+            None,
+            &receipt.accepted_at,
+            None,
+        );
+    }
+
     Ok(receipt.to_record())
 }

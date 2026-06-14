@@ -51,6 +51,18 @@ impl SocketServer {
         let shutdown = self.shutdown.clone();
         let timeout = Duration::from_millis(protocol::REQUEST_READ_TIMEOUT_MS);
 
+        // Spawn a background heartbeat thread that drives execution polling.
+        let heartbeat_shutdown = shutdown.clone();
+        let heartbeat_app = app.clone();
+        thread::spawn(move || {
+            while !heartbeat_shutdown.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(500));
+                if let Ok(mut app) = heartbeat_app.lock() {
+                    app.heartbeat();
+                }
+            }
+        });
+
         let handle = thread::spawn(move || {
             for stream in listener.incoming() {
                 if shutdown.load(Ordering::SeqCst) {

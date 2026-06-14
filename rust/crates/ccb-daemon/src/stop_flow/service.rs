@@ -1,3 +1,4 @@
+use ccb_terminal::TerminalBackend;
 use serde::{Deserialize, Serialize};
 
 use crate::services::registry::AgentRegistry;
@@ -18,52 +19,30 @@ pub struct StopCleanupSummary {
     pub errors: Vec<String>,
 }
 
-/// Trait abstracting tmux (or other terminal backend) stop execution.
-pub trait StopBackend: Send + Sync {
-    fn kill_session(&self, socket_path: &str, session_name: &str) -> Result<(), String>;
-}
-
-/// Real tmux backend.
-#[derive(Debug, Clone, Default)]
-pub struct TmuxStopBackend;
-
-impl StopBackend for TmuxStopBackend {
-    fn kill_session(&self, socket_path: &str, session_name: &str) -> Result<(), String> {
-        let mut cmd = std::process::Command::new("tmux");
-        cmd.args(["-S", socket_path, "kill-session", "-t", session_name]);
-        let out = cmd.output().map_err(|e| e.to_string())?;
-        if !out.status.success() {
-            return Err(String::from_utf8_lossy(&out.stderr).to_string());
-        }
-        Ok(())
-    }
-}
-
-/// Stub backend for tests.
-#[derive(Debug, Clone, Default)]
-pub struct StubStopBackend;
-
-impl StopBackend for StubStopBackend {
-    fn kill_session(&self, _socket_path: &str, _session_name: &str) -> Result<(), String> {
-        Ok(())
-    }
+/// Backend mode for the stop flow.
+#[derive(Debug, Clone, Copy)]
+pub enum StopFlowMode {
+    /// Use the real tmux backend via `ccb-terminal`.
+    Tmux,
+    /// No-op stub for tests.
+    Stub,
 }
 
 pub struct StopFlowService {
-    backend: Box<dyn StopBackend>,
+    mode: StopFlowMode,
 }
 
 impl StopFlowService {
-    pub fn new(backend: Box<dyn StopBackend>) -> Self {
-        Self { backend }
+    pub fn new(mode: StopFlowMode) -> Self {
+        Self { mode }
     }
 
     pub fn with_tmux() -> Self {
-        Self::new(Box::new(TmuxStopBackend))
+        Self::new(StopFlowMode::Tmux)
     }
 
     pub fn with_stub() -> Self {
-        Self::new(Box::new(StubStopBackend))
+        Self::new(StopFlowMode::Stub)
     }
 
     pub fn execute(
@@ -78,7 +57,7 @@ impl StopFlowService {
         let mut killed_panes = Vec::new();
         let mut errors = Vec::new();
 
-        if let (Some(socket), Some(session)) = (socket_path, session_name) {
+        if let Some(socket) = socket_path {
             for agent_name in agent_names {
                 if let Some(entry) = registry.get(agent_name) {
                     if let Some(pane) = &entry.pane_id {
@@ -86,19 +65,40 @@ impl StopFlowService {
                     }
                 }
             }
-            if let Err(e) = self.backend.kill_session(socket, session) {
-                errors.push(e);
-            }
-        }
 
-        for agent_name in agent_names {
-            registry.remove(agent_name);
+            match self.mode {
+                StopFlowMode::Tmux => {
+                    let backend = ccb_terminal::TmuxBackend::new(None, Some(socket.to_string()));
+                    for pane in &killed_panes {
+                        if let Err(e) = backend.kill_pane(pane) {
+                            errors.push(e.to_string());
+                        }
+                    }
+                    // Fallback: if no pane ids were tracked but a session exists,
+                    // tear down the whole session.
+                    if killed_panes.is_empty() {
+                        if let Some(session) = session_name {
+                            if let Err(e) = backend.kill_pane(session) {
+                                errors.push(e.to_string());
+                            }
+                        }
+                    }
+                }
+                StopFlowMode::Stub => {
+                    // No-op.
+                }
+            }
         }
 
         let mut actions_taken = vec!["stop_flow_executed".to_string()];
         if force {
             actions_taken.push("forced_cleanup".to_string());
         }
+        for agent_name in agent_names {
+            registry.mark_stopped(agent_name);
+            actions_taken.push(format!("mark_runtime_stopped:{agent_name}"));
+        }
+        actions_taken.push("terminate_runtime_pids:0".to_string());
 
         let cleanup_summaries = if killed_panes.is_empty() && errors.is_empty() {
             Vec::new()
@@ -131,5 +131,51 @@ impl StopFlowService {
                 "errors": c.errors,
             })).collect::<Vec<_>>(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::registry::AgentRuntimeEntry;
+
+    #[test]
+    fn test_stub_stop_flow_marks_agents_stopped() {
+        let mut registry = AgentRegistry::new();
+        registry.register(AgentRuntimeEntry {
+            agent_name: "claude".to_string(),
+            provider: "claude".to_string(),
+            state: "running".into(),
+            health: "healthy".into(),
+            pane_id: Some("%1".to_string()),
+            workspace_path: None,
+            runtime_pid: Some(1234),
+            session_id: Some("sess-1".to_string()),
+            restart_count: 0,
+        });
+
+        let service = StopFlowService::with_stub();
+        let result = service.execute(
+            &mut registry,
+            Some("/tmp/tmux.sock"),
+            Some("session"),
+            &["claude".to_string()],
+            false,
+        );
+
+        assert_eq!(result.stopped_agents, vec!["claude"]);
+        assert!(!registry.is_empty(), "registry should retain stopped entry");
+        let entry = registry.get("claude").unwrap();
+        assert_eq!(entry.state, "stopped");
+        assert_eq!(entry.health, "stopped");
+        assert!(entry.pane_id.is_none());
+        assert!(result
+            .actions_taken
+            .iter()
+            .any(|a| a == "mark_runtime_stopped:claude"));
+        assert!(result
+            .actions_taken
+            .iter()
+            .any(|a| a == "terminate_runtime_pids:0"));
     }
 }
