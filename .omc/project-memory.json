@@ -18,8 +18,8 @@
     "runtime": "Node.js 18"
   },
   "build": {
-    "buildCommand": "cd /home/agnitum/ccb/rust && cargo build -p ccb-daemon 2>&1 | tail -20",
-    "testCommand": "cd /home/agnitum/ccb/rust && cargo test -p ccb-daemon --lib start_flow 2>&1 | grep -E \"(test result|running)\"",
+    "buildCommand": "cd /home/agnitum/ccb/rust\n# Just apply fmt (it's safe — only reformats)\ncargo fmt\necho \"=== build after fmt ===\"\ncargo build --workspace 2>&1 | grep -E \"^error|Finished\" | tail -2\necho \"=== clippy ===\"\ncargo clippy --workspace --all-targets 2>&1 | grep -cE \"^warning:\"\necho \"=== tests ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep \"test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'\necho \"=== commit ===\"\ncd /home/agnitum/ccb && git add rust/crates/ && git commit -q -m \"Apply cargo fmt across workspace\n\nCo-Authored-By: Claude <noreply@anthropic.com>\" && git log --oneline -1",
+    "testCommand": "cd /home/agnitum/ccb/rust\n# Just apply fmt (it's safe — only reformats)\ncargo fmt\necho \"=== build after fmt ===\"\ncargo build --workspace 2>&1 | grep -E \"^error|Finished\" | tail -2\necho \"=== clippy ===\"\ncargo clippy --workspace --all-targets 2>&1 | grep -cE \"^warning:\"\necho \"=== tests ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep \"test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'\necho \"=== commit ===\"\ncd /home/agnitum/ccb && git add rust/crates/ && git commit -q -m \"Apply cargo fmt across workspace\n\nCo-Authored-By: Claude <noreply@anthropic.com>\" && git log --oneline -1",
     "lintCommand": null,
     "devCommand": null,
     "scripts": {

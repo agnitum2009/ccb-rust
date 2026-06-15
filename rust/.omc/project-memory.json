@@ -18,8 +18,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd /home/agnitum/ccb/rust\necho \"=== 1. workspace build ===\"\ncargo build --workspace --release 2>&1 | grep -E \"^error|Finished\" | tail -2\n\necho \"=== 2. workspace tests ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep -E \"^test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'\n\necho \"=== 3. clippy ===\"\ncargo clippy --workspace --all-targets 2>&1 | grep -cE \"^warning:|^error\"\n\necho \"=== 4. count real code vs stubs ===\"\necho -n \"Total .rs files: \"; find crates/ tools/ -name \"*.rs\" -not -path \"*/target/*\" | wc -l\necho -n \"Stub files (TODO/Mirrors Python): \"; grep -rl \"TODO: align\" crates/ tools/ --include=\"*.rs\" 2>/dev/null | wc -l\necho -n \"Real code files (>50 non-comment lines): \"; find crates/ tools/ -name \"*.rs\" -not -path \"*/target/*\" -exec sh -c 'lines=$(grep -cv \"^\\s*//\\|^\\s*$\\|^\\s*!\" \"$1\" 2>/dev/null); [ \"$lines\" -gt 50 ] && echo \"$1\"' _ {} \\; | wc -l",
-    "testCommand": "cd /home/agnitum/ccb/rust\necho \"=== test count ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep \"test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'\necho \"=== stub breakdown by crate (top 10) ===\"\nfor crate in crates/ccb-providers crates/ccb-daemon crates/ccb-cli crates/ccb-terminal crates/ccb-agents crates/ccb-memory crates/ccb-message-bureau crates/ccb-provider-core crates/ccb-mailbox crates/ccb-completion; do\n    total=$(find \"$crate/src\" -name \"*.rs\" 2>/dev/null | wc -l)\n    stubs=$(grep -rl \"TODO: align\" \"$crate/src\" --include=\"*.rs\" 2>/dev/null | wc -l)\n    real=$((total - stubs))\n    printf \"%-24s total:%4d  real:%4d  stubs:%4d\\n\" \"$(basename $crate)\" \"$total\" \"$real\" \"$stubs\"\ndone",
+    "buildCommand": "cd /home/agnitum/ccb/rust\n# Fix the 4 missing test module references that cause fmt errors\n# These are test module declarations in lib.rs that reference non-existent test files\nfor crate_dir in \\\n    \"ccb-mailbox:re_export_tests/claiming\" \\\n    \"ccb-provider-sessions:tests/discovery\" \\\n    \"ccb-providers:tests/active\" \\\n    \"ccb-storage-classification:tests/models\"; do\n    \n    crate=\"${crate_dir%%:*}\"\n    testpath=\"${crate_dir##*:}\"\n    librs=\"crates/$crate/src/lib.rs\"\n    \n    # The issue is fmt tries to resolve mod declarations that point to non-existent files\n    # Find the line declaring this module and check if the file exists\n    modname=$(basename \"$testpath\")\n    testfile=\"crates/$crate/src/$testpath.rs\"\n    \n    if [ ! -f \"$testfile\" ] && grep -q \"mod $modname\" \"$librs\" 2>/dev/null; then\n        # Create the missing test file as an empty test module\n        mkdir -p \"$(dirname \"$testfile\")\"\n        echo \"//! Test module stub.\" > \"$testfile\"\n        echo \"created $testfile\"\n    fi\ndone\n\necho \"=== fix fmt ===\"\ncargo fmt 2>&1 | head -3\necho \"=== build ===\"\ncargo build --workspace 2>&1 | tail -2\necho \"=== tests ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep -E \"^test result:|FAILED\" | head -5",
+    "testCommand": "cd /home/agnitum/ccb/rust\n# Fix the 4 missing test module references that cause fmt errors\n# These are test module declarations in lib.rs that reference non-existent test files\nfor crate_dir in \\\n    \"ccb-mailbox:re_export_tests/claiming\" \\\n    \"ccb-provider-sessions:tests/discovery\" \\\n    \"ccb-providers:tests/active\" \\\n    \"ccb-storage-classification:tests/models\"; do\n    \n    crate=\"${crate_dir%%:*}\"\n    testpath=\"${crate_dir##*:}\"\n    librs=\"crates/$crate/src/lib.rs\"\n    \n    # The issue is fmt tries to resolve mod declarations that point to non-existent files\n    # Find the line declaring this module and check if the file exists\n    modname=$(basename \"$testpath\")\n    testfile=\"crates/$crate/src/$testpath.rs\"\n    \n    if [ ! -f \"$testfile\" ] && grep -q \"mod $modname\" \"$librs\" 2>/dev/null; then\n        # Create the missing test file as an empty test module\n        mkdir -p \"$(dirname \"$testfile\")\"\n        echo \"//! Test module stub.\" > \"$testfile\"\n        echo \"created $testfile\"\n    fi\ndone\n\necho \"=== fix fmt ===\"\ncargo fmt 2>&1 | head -3\necho \"=== build ===\"\ncargo build --workspace 2>&1 | tail -2\necho \"=== tests ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep -E \"^test result:|FAILED\" | head -5",
     "lintCommand": "cargo clippy",
     "devCommand": "cargo run",
     "scripts": {}
@@ -100,15 +100,15 @@
       "type": "file"
     },
     {
-      "path": "crates/ccb-cli/src/commands.rs",
-      "accessCount": 8,
-      "lastAccessed": 1781438095107,
+      "path": "crates/ccb-daemon/src/app.rs",
+      "accessCount": 9,
+      "lastAccessed": 1781484969120,
       "type": "file"
     },
     {
-      "path": "crates/ccb-daemon/src/app.rs",
-      "accessCount": 7,
-      "lastAccessed": 1781451091718,
+      "path": "crates/ccb-cli/src/commands.rs",
+      "accessCount": 8,
+      "lastAccessed": 1781438095107,
       "type": "file"
     },
     {
@@ -343,6 +343,12 @@
       "path": "tools/ccb-cleanup/src/main.rs",
       "accessCount": 1,
       "lastAccessed": 1781439659543,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/provider_launcher.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781484921298,
       "type": "file"
     }
   ],
