@@ -1,3 +1,6 @@
-//! Mirrors Python `lib/cli/parser_runtime/common.py`.
-//! 1:1 file alignment stub.
-// TODO: align with Python
+//! Mirrors Python `lib/cli/common.py`.
+//!
+//! Top-level re-export of parser_runtime common utilities.
+//! Python original: `from .parser_runtime.common import *`
+
+pub use crate::parser_runtime::common::*;

@@ -182,6 +182,7 @@ pub mod start_foreground;
 pub mod start_runtime;
 pub mod tmux_cleanup_history;
 pub mod tmux_project_cleanup;
+pub mod tmux_project_cleanup_runtime;
 pub mod tmux_start_layout;
 pub mod tmux_ui;
 pub mod trace;
