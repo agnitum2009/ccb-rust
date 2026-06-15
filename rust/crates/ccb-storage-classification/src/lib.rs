@@ -14,9 +14,9 @@ pub fn version() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-pub mod models;
-pub mod provider_home;
-pub mod service;
+    pub mod models;
+    pub mod provider_home;
+    pub mod service;
     use super::*;
 
     #[test]

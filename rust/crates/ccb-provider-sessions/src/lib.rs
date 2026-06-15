@@ -13,10 +13,10 @@ pub use watch::{SessionFileWatcher, HAS_WATCHDOG};
 
 #[cfg(test)]
 mod tests {
-pub mod discovery;
-pub mod pathing;
-pub mod writable;
-pub mod writing;
+    pub mod discovery;
+    pub mod pathing;
+    pub mod writable;
+    pub mod writing;
     use super::*;
     use std::path::Path;
     use tempfile::TempDir;
