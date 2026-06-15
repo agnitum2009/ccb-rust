@@ -1,0 +1,30 @@
+\chapter{前言}
+
+本书面向维护和扩展 CCB 的开发者。它不是安装指南，也不是命令速查表，而是解释 CCB 为什么这样组织、运行时状态如何流动、多个 agent 如何通信、provider 如何被隔离和驱动、配置如何被解析并投影到 daemon 运行态。
+
+本书采用源码优先的写法。已有设计文档是行为契约，Archi/Hippo 生成物是结构观察，CLI 输出是用户可见行为证据，最终结论必须能回到当前代码。引用路径使用仓库相对路径，例如 \src{lib/ccbd/services/dispatcher_runtime/facade.py}。
+
+\section{阅读路径}
+
+如果需要快速建立全局模型，先读第一章到第三章。它们解释 CCB 的分层、启动监督、状态存储和边界。
+
+如果正在调试 agent 间消息、\cmd{ccb ask}、\cmd{ccb watch}、\cmd{ccb queue}、\cmd{ccb inbox}、\cmd{ccb trace}、callback、retry 或 artifact，直接读第四章。通信逻辑是本书最重要的章节，因为 CCB 的协作体验主要由这条链路决定。
+
+如果正在接入 provider、调整 Codex/Claude/Gemini/OpenCode 的运行方式，读第五章。如果正在维护 \cmd{.ccb/ccb.config}、rolepack 或 Archi role 加载，读第六章。
+
+\section{证据等级}
+
+本书使用四类证据。
+
+\begin{enumerate}
+  \item 契约文档，例如 \src{docs/ccbd-startup-supervision-contract.md}、\src{docs/ccb-config-layout-contract.md}、\src{docs/managed-provider-completion-reliability-plan.md}。
+  \item 源码，例如 \src{lib/cli/entrypoint_runtime.py}、\src{lib/ccbd/handlers/submit.py}、\src{lib/message_bureau/models.py}。
+  \item 生成分析，例如当前 \src{.hippos/bundle-state.json} 和 \src{.architec/manual-architecture-analysis-20260610.json}。
+  \item 运行证据，例如 CLI help、\cmd{ccb_test} 外部项目验证和诊断 bundle。
+\end{enumerate}
+
+生成分析只作为导航和交叉检查。它不能代替代码阅读。当前可信的 Hippos 目录是 \src{.hippos/}；旧 \src{.hippocampus/} 是历史快照。
+
+\section{版本和范围}
+
+本稿对应 2026-06-10 的源码状态。它覆盖核心架构、daemon 生命周期、通信、provider、配置、role、CLI、诊断、测试和扩展边界。它不承诺覆盖所有实现细节，也不把代码中的临时实现解释成长期设计。凡是代码和契约存在张力的地方，章节会标明实际来源和风险。

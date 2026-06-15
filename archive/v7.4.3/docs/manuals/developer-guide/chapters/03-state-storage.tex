@@ -1,0 +1,81 @@
+\chapter{状态、存储和权威边界}
+
+CCB 的可靠性来自清楚区分“权威状态”和“运行证据”。如果把 tmux pane、provider session file 或旧 socket 当成权威，系统会在恢复、重启、清理和诊断中产生漂移。相反，CCB 把项目配置、daemon lifecycle、dispatcher 记录、message-bureau 记录和 mailbox summary 作为核心事实。
+
+\section{项目状态分类}
+
+\begin{longtable}{p{0.26\linewidth}p{0.30\linewidth}p{0.34\linewidth}}
+\toprule
+状态类型 & 典型位置或模块 & 含义 \\
+\midrule
+配置权威 & \src{.ccb/ccb.config}、\src{lib/agents/config_loader_runtime/} & 用户期望的 agent、window、tool、maintenance。 \\
+生命周期权威 & \src{.ccb/ccbd/} 下的 lifecycle、lease、generation 记录 & 当前 backend 是否 ready、谁拥有项目 daemon。 \\
+dispatcher 事实 & \src{lib/ccbd/services/dispatcher_runtime/records.py}、job store & job accepted、queued、running、terminal、event stream。 \\
+通信事实 & \src{lib/message_bureau/}、\src{lib/mailbox_kernel/} & submission、message、attempt、reply、inbound event、callback edge。 \\
+provider runtime 证据 & provider state、session file、pane id、pid & 说明 provider 当前或曾经如何运行，但不单独定义项目状态。 \\
+诊断和 artifact & \src{lib/storage/}、doctor bundle、text artifact & 支持调试、长文本存储和过期清理。 \\
+\bottomrule
+\end{longtable}
+
+这种分类在通信章节尤其重要。一个 job 终止并不等于用户已经看到 reply；reply record 创建也不等于 caller 已经 ack；mailbox head 有 reply 也不等于 provider 仍在运行。
+
+\section{配置加载结果}
+
+\src{lib/agents/config_loader_runtime/common.py} 定义 \src{ConfigLoadResult}，其中包含配置对象、来源路径、来源类型和是否使用默认值。来源类型有三种：
+
+\begin{itemize}
+  \item \src{project_config}：项目 \src{.ccb/ccb.config}。
+  \item \src{user_config}：用户默认配置路径。
+  \item \src{builtin_default}：内建默认配置。
+\end{itemize}
+
+配置加载不是简单读 TOML。当前实现支持 compact layout、rich TOML 和 hybrid overlay。compact 配置会被转换成 version 2 文档，再进入统一 validation。这样可以让简单配置和完整配置共享运行时模型。
+
+\section{dispatcher 存储}
+
+dispatcher 记录 job 的生命周期。一次提交会生成 \src{JobRecord} 和 \src{JobEvent}。job store 用于 \cmd{get}、\cmd{watch}、completion polling、cancel、retry 和 trace 的 job summary。dispatcher state 同时保留每个 target slot 的 queue 和 active job。
+
+需要注意的是，dispatcher state 是执行队列，不等同于 mailbox queue。dispatcher queue 关心某个 agent 何时可以启动下一个 job；mailbox queue 关心 inbound event、reply head、ack 和用户可见通信顺序。
+
+\section{message bureau 存储}
+
+\src{lib/message_bureau/models.py} 定义核心通信记录：
+
+\begin{itemize}
+  \item \src{MessageRecord}：逻辑请求，包含 target agents、reply policy、retry policy、状态和 submission linkage。
+  \item \src{AttemptRecord}：一次 message 对某个 agent/provider/job 的尝试，包含 retry index。
+  \item \src{ReplyRecord}：终态 reply，包含终态状态、文本、artifact、诊断和完成时间。
+  \item \src{CallbackEdgeRecord}：callback parent、child 和 continuation 的持久 linkage。
+\end{itemize}
+
+message bureau 的价值在于它把“请求”和“执行”解耦。一个 message 可以有多个 attempts；一个 attempt 可以对应一个 job；一个 reply 可以被投影到 caller mailbox；一个 trace 可以从任意 id 重新拼出上下文。
+
+\section{mailbox kernel}
+
+mailbox kernel 维护 inbound event 和 mailbox summary。通信层常见的用户操作都落在这里：
+
+\begin{itemize}
+  \item \cmd{queue} 读取 mailbox summary 和 pending events。
+  \item \cmd{inbox} 读取 head event 和可选 detail items。
+  \item \cmd{ack} 消费 head reply 或 terminal task request。
+  \item reply delivery 使用 mailbox head 决定是否需要继续投递。
+\end{itemize}
+
+如果 mailbox summary 缺失或不可读，queue/inbox view 会降级。降级不意味着通信事实完全丢失，因为 pending inbound events 仍可以提供部分可恢复视图。
+
+\section{text artifact}
+
+长 request 或 reply 不适合直接塞进短命令输出。CCB 使用 text artifact 作为文本 payload 的存储间接层。通信路径中有两类常见触发：
+
+\begin{enumerate}
+  \item request body 超过阈值或用户指定 \cmd{--artifact-request}。
+  \item reply 超过 4 KiB 或用户指定 \cmd{--artifact-reply}。
+\end{enumerate}
+
+artifact 不改变通信对象类型。它只是让 body 或 reply 通过 artifact ref 传递，用户看到的是 stub 和 artifact metadata。清理由 \src{lib/ccbd/services/dispatcher_runtime/artifact_maintenance.py} 触发，默认 5 分钟检查一次。
+
+\section{诊断 bundle}
+
+\cmd{ccb doctor} 和 storage diagnostics 的目标不是“修复一切”，而是把配置、daemon、socket、runtime、mailbox、provider state 和日志按证据等级呈现出来。诊断输出应帮助开发者判断哪一类事实失真：配置、生命周期、通信、provider execution、存储权限还是残留文件。
+
+因此，修改诊断输出时必须同步 \src{docs/ccbd-diagnostics-contract.md}。修改 \src{.ccb/ccb.config} grammar 或 tmux layout 行为时必须同步 \src{docs/ccb-config-layout-contract.md}。

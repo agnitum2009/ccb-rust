@@ -1,0 +1,140 @@
+\chapter{恢复、可靠性和失败路径}
+
+CCB 的可靠性不是“永不失败”，而是失败后能解释、能恢复、能保留 lineage。通信系统尤其如此。provider 会超时，pane 会死亡，reply delivery 可能卡住，mailbox summary 可能损坏，daemon 可能重启。可靠性设计的目标是让这些故障被收敛到可观察、可重试、可清理的状态。
+
+\section{失败分类}
+
+可以把失败分成六类。
+
+\begin{enumerate}
+  \item 提交失败：CLI 无法连接 daemon、target 无效、sender 无效、artifact 写入失败。
+  \item 排队失败：dispatcher 无法创建 job 或 message-bureau submission。
+  \item 启动失败：agent runtime 不可用、pane dead、provider binding 缺失。
+  \item 执行失败：API error、transport error、provider process error。
+  \item 完成检测失败：timeout、reply 未稳定、provider session 无法读取。
+  \item 投递失败：reply record 存在但 caller mailbox head 或 reply delivery 卡住。
+\end{enumerate}
+
+每类失败应该落到不同的证据层。把所有失败都显示成 “job failed” 会让用户无法判断下一步该 retry、resubmit、ack、doctor 还是 restart。
+
+\section{automatic retry}
+
+自动 retry 由 finalization 阶段触发。入口在 \src{lib/ccbd/services/dispatcher_runtime/finalization_runtime/message_bureau_retry.py}，策略代码在 \src{finalization_retry_runtime/}。
+
+自动 retry 需要满足：
+
+\begin{itemize}
+  \item message retry policy 的 \src{mode} 是 \src{auto}。
+  \item completion decision status 是 failed。
+  \item failure reason 或 diagnostics error type 属于可重试集合。
+  \item 非 nonretryable API failure。
+  \item 未达到 max attempts。
+  \item runtime failure 场景下 provider 支持 resume，或 policy 允许 runtime retry。
+\end{itemize}
+
+默认可重试 reason 包括 \src{api_error} 和 \src{transport_error}。默认 runtime reasons 包括 \src{pane_dead}、\src{pane_unavailable}、\src{runtime_unavailable}、\src{backend_unavailable}。
+
+\section{manual retry}
+
+手动 \cmd{retry} 不直接复制 job。它先解析 attempt，要求 attempt 已终止、不是 completed、且是对应 agent 的最新 attempt。然后它创建新 job，并在 message bureau 中记录 retry attempt。
+
+这种设计防止两个危险操作：
+
+\begin{enumerate}
+  \item 对一个已经成功完成的 attempt 重试，导致重复执行。
+  \item 对旧 attempt 重试，绕过后续已经产生的新 attempt。
+\end{enumerate}
+
+如果旧 job 已经开始 reply，retry 会倾向于用 \src{continue} 作为 request body，并通过 provider options 标记 retry source job。这体现了 provider resume 和 communication lineage 的结合。
+
+\section{comms recover}
+
+通信恢复入口位于 \src{lib/ccbd/services/dispatcher_runtime/comms_recover.py}，handler 位于 \src{lib/ccbd/handlers/comms_recover.py}。它处理的不是普通用户 retry，而是通信链路出现可恢复阻塞时的定向修复。
+
+recoverability 判断覆盖三类场景：
+
+\begin{itemize}
+  \item business job 已失败、取消或 incomplete，且可以 retry。
+  \item reply delivery job 已失败、取消或 incomplete，且可以 retry。
+  \item business job 仍 running，但 runtime 状态、pane state 或健康状态显示它已经 stale。
+\end{itemize}
+
+stale running 的判断会看 agent runtime state、runtime health、pane state 和 running hints。可恢复 stale running 会先 cancel old job，且 \src{record_reply=False}，避免为旧卡住任务生成误导性 reply，然后 retry。
+
+\section{reply delivery repair}
+
+reply delivery repair 位于 \src{lib/ccbd/services/dispatcher_runtime/reply_delivery_runtime/repair.py}。它处理 mailbox head 上的 reply delivery 租约问题。
+
+主要场景：
+
+\begin{itemize}
+  \item head 有 reply id，但没有 delivery job id。若 lease 指向同一 inbound event，则 reset stale head。
+  \item head 指向的 delivery job 不存在。reset stale reply head。
+  \item delivery job running，但 persisted execution state 已经有 terminal pending decision。直接 complete。
+  \item delivery job running，但 execution service 不认为它 live。用 reply delivery failed decision 完成旧 job，让 head 重新排队。
+\end{itemize}
+
+repair 不应吞掉 reply。失败 delivery job terminal 后，\src{resolve_reply_delivery_terminal} 会把 head 重写回 queued，清理 delivery job id 和 progress，让后续 delivery 可以重新 claim。
+
+\section{reply delivery preparation}
+
+\src{prepare_reply_deliveries} 先运行 repair，再遍历 configured agents，寻找 head reply event。对每个 head，它会：
+
+\begin{enumerate}
+  \item 读取 reply id。
+  \item 检查是否已有 delivery job。
+  \item 读取 ReplyRecord。
+  \item 计算 project id。
+  \item 构造 reply delivery job。
+\end{enumerate}
+
+这说明 reply delivery 是普通 dispatcher job 的一种特殊用法。它有 job id、attempt、completion、terminal state，也会进入 trace。
+
+\section{cancel 的恢复语义}
+
+cancel 是一种主动恢复。它要求 job 不是 terminal。cancel 后，dispatcher 会从 queued 和 active state 移除 job，执行 service cancel，写 cancelled completion decision，并记录 message-bureau terminal state。
+
+cancel 的风险是用户可能误以为它会删除所有通信记录。实际上它不会删除 lineage。trace 仍应能看到 cancelled job、attempt state 和相关 events。这是为了审计和后续 retry。
+
+\section{mailbox summary degraded}
+
+queue/inbox view 可能遇到 mailbox summary missing 或 error。renderer 会提示 degraded，并建议 \cmd{ccb doctor} 或等待 maintenance refresh。控制层仍会尝试从 inbound event records 重建 detail。
+
+这种降级策略比直接失败更有用，因为 summary 损坏不代表 message/attempt/reply 记录都损坏。用户仍可能通过 trace 找到可恢复路径。
+
+\section{maintenance heartbeat}
+
+maintenance heartbeat 默认 disabled，但配置结构已存在。它的设计目标是周期性评估 agent health，并把 unknown/unhealthy 风险交给 assessor，默认 assessor 是 \src{ccb_self}。
+
+开发者要避免让 heartbeat 成为隐藏的行为改变来源。heartbeat 应报告、调度或显式执行维护动作，而不是悄悄改变用户没有授权的 runtime state。
+
+\section{diagnostics-first 原则}
+
+恢复逻辑应遵循 diagnostics-first 原则：
+
+\begin{enumerate}
+  \item 先记录 recoverability 和 block reason。
+  \item 如果已经被后续 attempt 修复，返回 noop 和 latest job id。
+  \item 如果无法恢复，返回 noop reason。
+  \item 如果执行恢复，记录 cancelled old、released event、retried job、next started。
+  \item 恢复后再次计算 recoverability。
+\end{enumerate}
+
+\src{comms_recover} 的 audit payload 正体现了这个原则。它让自动修复和用户诊断共用同一份事实，而不是只输出“修好了”。
+
+\section{可靠性测试}
+
+恢复路径至少需要覆盖：
+
+\begin{itemize}
+  \item failed terminal job retry。
+  \item stale running job cancel+retry。
+  \item reply delivery failed job requeue。
+  \item orphaned reply delivery lease reset。
+  \item already retried noop。
+  \item completed job 不可 retry。
+  \item mailbox summary missing degraded view。
+  \item provider runtime unavailable retry policy。
+\end{itemize}
+
+当前测试地图中有 \src{test/test_ccbd_comms_recover.py}、\src{test/test_reply_delivery_formatting.py}、\src{test/test_reply_delivery_start_completion.py}、\src{test/test_ccbd_retry_failure_detail.py}、\src{test/test_message_bureau_control_queue.py} 等相关入口。后续应补齐 repair 场景的显式索引。

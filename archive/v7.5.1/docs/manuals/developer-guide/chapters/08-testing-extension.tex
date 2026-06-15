@@ -1,0 +1,135 @@
+\chapter{测试、扩展和维护准则}
+
+CCB 的测试和维护要尊重项目 runtime 边界。因为它管理 daemon、tmux、provider home、socket 和 workspace，错误的测试位置会污染真实工作环境，进而让后续诊断失真。
+
+\section{测试根目录}
+
+当前源码验证应使用：
+
+\begin{lstlisting}
+/home/bfly/yunwei/ccb_source/ccb_test
+\end{lstlisting}
+
+并从：
+
+\begin{lstlisting}
+/home/bfly/yunwei/test_ccb2
+\end{lstlisting}
+
+运行。默认设置：
+
+\begin{lstlisting}
+HOME=/home/bfly/yunwei/test_ccb2/source_home
+CCB_SOURCE_HOME=/home/bfly/yunwei/test_ccb2/source_home
+\end{lstlisting}
+
+不要从 \src{ccb_source} 本身运行 source runtime validation。不要设置 \src{CCB_SOURCE_RUNTIME_OK=1}，除非明确做 diagnostics override。
+
+\section{测试分层}
+
+建议按以下分层组织验证。
+
+\begin{enumerate}
+  \item 纯 parser/model tests：CLI parser、config validator、message model。
+  \item 存储 tests：job store、message store、mailbox store、text artifact。
+  \item dispatcher unit tests：submission、queue、retry、cancel、finalization。
+  \item provider adapter tests：provider command、session isolation、completion detector。
+  \item daemon integration tests：socket handler、mounted daemon、watch/queue/inbox/trace。
+  \item external runtime smoke：用隔离 HOME 在 test project 启动真实 runtime。
+\end{enumerate}
+
+不要用重型 runtime smoke 代替 parser/unit tests。反过来也不能只跑 unit tests 就声称 provider completion 行为可靠。
+
+\section{通信测试建议}
+
+通信路径至少需要覆盖：
+
+\begin{itemize}
+  \item single-target ask。
+  \item broadcast ask。
+  \item request artifact 和 reply artifact。
+  \item callback child continuation。
+  \item queue/inbox/ack head ordering。
+  \item trace 从 job/message/attempt/reply/submission 各入口重建 lineage。
+  \item retry 最新 attempt 约束。
+  \item resubmit 新 message chain。
+  \item cancel queued job 和 active job。
+  \item mailbox summary missing/error 降级视图。
+\end{itemize}
+
+这些测试应同时断言 dispatcher record 和 message-bureau record，而不只断言 CLI 文本输出。
+
+\section{配置测试建议}
+
+配置测试应覆盖 compact、rich TOML 和 hybrid。特别是：
+
+\begin{itemize}
+  \item \src{cmd} 保留 token。
+  \item role id shorthand 展开。
+  \item hybrid overlay 不能定义 layout 外 agent。
+  \item windows topology 拒绝 \src{cmd}、重复 agent 和无 provider leaf。
+  \item legacy layout 与 windows topology 的互斥字段。
+  \item provider API shortcut 与 env/profile 继承冲突。
+  \item maintenance heartbeat unknown fields 和默认值。
+\end{itemize}
+
+\section{扩展 provider}
+
+新增 provider 时至少要提供：
+
+\begin{enumerate}
+  \item provider catalog entry。
+  \item runtime launch 或 attach 行为。
+  \item provider home/env/profile 规则。
+  \item prompt delivery。
+  \item completion detector。
+  \item timeout/fallback 行为。
+  \item diagnostics 输出。
+  \item provider-specific tests。
+\end{enumerate}
+
+如果 provider 支持 resume，应明确告诉 retry policy。否则 runtime failure 不应被错误地当成可继续会话。
+
+\section{扩展 CLI}
+
+新增 CLI 命令前先回答三个问题。
+
+\begin{enumerate}
+  \item 它是安装/管理命令、role/tool 命令，还是项目 runtime 命令？
+  \item 它是否需要 daemon mounted？如果 daemon stale，是否允许 restart？
+  \item 它的输出是人读文本、key-value 视图、JSON，还是诊断 bundle？
+\end{enumerate}
+
+新增 runtime 命令通常需要 parser、model、service、daemon client endpoint、ccbd handler、dispatcher/service 方法、renderer 和 tests。不要只加 parser。
+
+\section{扩展配置}
+
+新增配置字段时需要更新：
+
+\begin{itemize}
+  \item allowed keys。
+  \item parser/validator。
+  \item ProjectConfig 或 AgentSpec model。
+  \item defaults rendering。
+  \item config contract doc。
+  \item user manual config reference。
+  \item tests。
+\end{itemize}
+
+如果字段影响 runtime ownership、workspace、provider home 或 communication semantics，必须同步相关设计文档。
+
+\section{文档维护}
+
+本书不是一次性输出。每次修改以下表面时，都应同步开发说明书和用户说明书：
+
+\begin{itemize}
+  \item startup、ccbd、keeper、socket、shutdown。
+  \item dispatcher submission、completion、retry、cancel。
+  \item message bureau、mailbox、callback、reply delivery。
+  \item provider session isolation、plugin projection、completion detection。
+  \item \src{ccb.config} grammar、rolepack、window/tool layout。
+  \item CLI commands、help、render fields。
+  \item diagnostics bundle 和 storage boundary。
+\end{itemize}
+
+文档更新应保留证据路径。没有证据路径的架构描述很快会变成猜测。

@@ -1,0 +1,140 @@
+\chapter{契约文档阅读指南}
+
+CCB 的 \src{docs/} 目录中已有多份契约和计划文档。本附录说明维护者应在什么场景阅读哪一份文档，以及它们和本书章节的关系。
+
+\section{startup 和 lifecycle}
+
+\src{docs/ccbd-startup-supervision-contract.md} 是启动和监督的最高优先级文档。触碰以下代码时必须阅读：
+
+\begin{itemize}
+  \item project anchor discovery。
+  \item keeper/backend generation。
+  \item mounted detection。
+  \item socket readiness。
+  \item automatic bootstrap。
+  \item nested project 保护。
+\end{itemize}
+
+\src{docs/ccbd-lifecycle-stability-plan.md} 关注 lifecycle 的稳定性和回归风险。它适合在修改 kill、restart、reload、supervision loop 和 residue cleanup 时阅读。
+
+\section{diagnostics}
+
+\src{docs/ccbd-diagnostics-contract.md} 定义 report、log、bundle 和 diagnostics 输出约束。修改 \cmd{doctor}、storage diagnostics、runtime logs、bundle path 或 render field 时必须同步它。
+
+诊断契约的核心是输出要能解释层次：config、daemon、socket、runtime、provider、mailbox、storage、residue。只输出 “failed” 不足以支持恢复。
+
+\section{config layout}
+
+\src{docs/ccb-config-layout-contract.md} 是配置语法和 tmux layout 行为的权威。修改以下内容必须同步：
+
+\begin{itemize}
+  \item compact layout grammar。
+  \item windows topology。
+  \item tool windows。
+  \item sidebar layout。
+  \item role shorthand。
+  \item \src{cmd} leaf 语义。
+  \item \src{default_agents} 与 windows topology 的互斥。
+\end{itemize}
+
+如果代码新增了 config key，但文档没有解释用户如何写、默认值是什么、与旧模式是否互斥，这个改动就是不完整的。
+
+\section{WSL 和平台兼容}
+
+\src{docs/ccb-wsl-compatibility-plan.md} 关注 WSL mounted drive、socket placement 和 Windows-mounted worktree 中 Unix installer 执行问题。改项目 socket 路径、安装脚本、路径规范化或跨平台运行时必须阅读。
+
+\section{pane recovery}
+
+\src{docs/ccbd-pane-recovery-continuous-attach-plan.md} 关注 pane recovery 和 continuous attach。它和 startup/lifecycle 文档共同约束 pane death 处理方式。触碰 tmux respawn、pane title marker、attach 和 runtime refresh 时应阅读。
+
+\section{provider completion}
+
+\src{docs/managed-provider-completion-reliability-plan.md} 是 managed Codex/Claude/Gemini pane-backed completion detection 的权威。修改以下路径必须同步：
+
+\begin{itemize}
+  \item completion timeout。
+  \item fallback behavior。
+  \item provider execution polling。
+  \item terminal decision。
+  \item reply stability。
+  \item completion tracker。
+\end{itemize}
+
+它对应本书第五章和第十章。
+
+\section{provider state storage}
+
+\src{docs/ccb-provider-state-storage-boundary-plan.md} 定义 provider-profile runtime home、shared provider cache、storage diagnostics 和 cleanup classification。修改 provider home、auth inheritance、cache dedup 或 cleanup 行为时必须读。
+
+这份文档保护一个关键边界：source checkout、managed provider home 和用户真实 home 不应混在一起。
+
+\section{Codex}
+
+\src{docs/codex-session-isolation-contract.md} 约束 Codex startup、session binding 和 isolation boundaries。\src{docs/codex-plugin-projection-plan.md} 约束 Codex home projection、inherited plugin assets 和 plugin-cache refresh。
+
+修改 Codex provider 时，至少要检查：
+
+\begin{itemize}
+  \item session file path。
+  \item managed home。
+  \item plugin/skill/command projection。
+  \item auth/config inheritance。
+  \item polling reader。
+\end{itemize}
+
+\section{Claude}
+
+\src{docs/claude-session-isolation-contract.md} 约束 Claude startup、session binding 和 isolation boundaries。\src{docs/claude-binary-cache-dedup-plan.md} 约束 Claude binary/version cache dedup。
+
+修改 Claude provider 时，关注 assistant events、registry logs binding、session index、binary cache 和 execution polling。
+
+\section{Gemini}
+
+\src{docs/gemini-session-isolation-contract.md} 约束 Gemini startup 和 session binding。修改 Gemini execution hook、watchdog、project hash candidates 或 session runtime 时阅读。
+
+\section{OpenCode}
+
+\src{docs/opencode-completion-contract.md} 约束 OpenCode completion、request binding 和 storage-backed reply detection。修改 OpenCode sqlite/storage、reply polling、watch 或 cancel tracking 时阅读。
+
+\section{communication design docs}
+
+通信相关历史和设计文档包括：
+
+\begin{itemize}
+  \item \src{docs/agent-mailbox-kernel-design.md}
+  \item \src{docs/ask-native-async-job-architecture.md}
+  \item \src{docs/agent-message-timeout-retry-contract.md}
+  \item \src{docs/ccbd-p3-p4-mailbox-cli-plan.md}
+  \item \src{docs/ccbd-ask-submit-fastpath-plan.md}
+\end{itemize}
+
+这些文档和当前源码共同说明 message bureau、mailbox kernel、async job、timeout/retry、queue/inbox/trace/ack 的演进。写通信章节或修改通信路径时，应该同时看它们和当前 \src{lib/message_bureau/}、\src{lib/mailbox_kernel/}、\src{lib/ccbd/services/dispatcher_runtime/}。
+
+\section{计划树}
+
+当前手册生产计划位于 \src{docs/plantree/plans/ccb-manuals/}。其中：
+
+\begin{itemize}
+  \item \src{README.md} 是计划入口。
+  \item \src{roadmap.md} 是阶段状态。
+  \item \src{topics/communication-source-inventory.md} 是通信源码清单。
+  \item \src{topics/command-config-inventory.md} 是命令和配置清单。
+  \item \src{history/evidence-ledger-2026-06-10.md} 是证据账本。
+  \item \src{decisions/001-manual-production-defaults.md} 是生产默认决策。
+\end{itemize}
+
+后续维护手册时，应先更新计划树证据，再改 LaTeX 正文。这样可以保留分析路径。
+
+\section{契约更新规则}
+
+如果某次代码改动改变了用户可见行为或 runtime 语义，应该按以下顺序更新：
+
+\begin{enumerate}
+  \item 对应契约文档。
+  \item 本开发说明书相关章节。
+  \item 用户说明书命令或配置参考。
+  \item 测试或验证记录。
+  \item plan-tree evidence ledger。
+\end{enumerate}
+
+不要只更新 README。README 是入口，不是架构契约。

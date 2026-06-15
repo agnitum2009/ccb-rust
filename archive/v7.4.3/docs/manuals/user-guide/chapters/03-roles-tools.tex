@@ -1,0 +1,92 @@
+\chapter{Roles 和 Tools}
+
+\section{roles 的作用}
+
+role 是可复用的 agent 角色包。它可以提供默认 agent 名、说明、provider 支持、工具需求和相关投影规则。用户可以安装 role，然后把 role 加到项目配置中。
+
+\section{role 命令}
+
+\begin{longtable}{p{0.36\linewidth}p{0.54\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb roles list} & 列出可用 roles。 \\
+\cmd{ccb roles show <role_id>} & 显示 role 摘要。 \\
+\cmd{ccb roles install [role_id]} & 安装 role。 \\
+\cmd{ccb roles install --path PATH} & 从本地 path 安装。 \\
+\cmd{ccb roles install --skip-tools} & 安装 role 但跳过 tools。 \\
+\cmd{ccb roles update [role_id]} & 更新 role。 \\
+\cmd{ccb roles sync [path]} & 从本地目录同步 roles。 \\
+\cmd{ccb roles sync --with-tools} & 同步时包含 tools。 \\
+\cmd{ccb roles doctor <role_id>} & 检查 role 和 tools 状态。 \\
+\cmd{ccb roles add <role_spec>} & 把 role 写入当前项目配置。 \\
+\cmd{ccb roles add <role_spec> --agent NAME --provider PROVIDER --window WINDOW} & 指定 agent 名、provider 或目标 window。 \\
+\bottomrule
+\end{longtable}
+
+\section{Archi role 示例}
+
+安装：
+
+\begin{lstlisting}
+ccb roles install agentroles.archi
+\end{lstlisting}
+
+加入项目：
+
+\begin{lstlisting}
+ccb roles add agentroles.archi:codex
+\end{lstlisting}
+
+这条命令会寻找最近的项目 \src{.ccb} anchor，并更新项目配置。也可以手动写 compact 配置：
+
+\begin{lstlisting}
+cmd | agentroles.archi:codex
+\end{lstlisting}
+
+加载时，CCB 会把 \cfg{agentroles.archi} 展开为 role 默认 agent name，并在 agent spec 中保留 role id。最终 daemon 按普通 agent 挂载它。
+
+\section{role spec}
+
+\cmd{roles add} 接受单个 role leaf。常见格式：
+
+\begin{lstlisting}
+agentroles.archi
+agentroles.archi:codex
+\end{lstlisting}
+
+规则：
+
+\begin{itemize}
+  \item role id 应使用 publisher.role 形式。
+  \item role spec 可以带 provider。
+  \item role spec 不接受 workspace mode；workspace 需要在配置中单独设置。
+  \item 可以用 \cmd{--agent NAME} 指定 agent 名。
+  \item 可以用 \cmd{--provider PROVIDER} 覆盖 provider。
+  \item 可以用 \cmd{--window WINDOW} 指定窗口。
+\end{itemize}
+
+\section{tools 命令}
+
+当前 tools 命令支持 managed Neovim：
+
+\begin{longtable}{p{0.36\linewidth}p{0.54\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb tools doctor neovim} & 检查 managed Neovim 状态。 \\
+\cmd{ccb tools install neovim} & 安装或配置 managed Neovim。 \\
+\cmd{ccb tools update neovim} & 更新 managed Neovim/LazyVim profile。 \\
+\bottomrule
+\end{longtable}
+
+相关环境变量：
+
+\begin{itemize}
+  \item \src{CCB_INSTALL_NEOVIM}
+  \item \src{CCB_LAZYVIM_PROFILE}
+  \item \src{CCB_LAZYVIM_SYNC_TIMEOUT_S}
+  \item \src{CCB_LAZYVIM_BOOTSTRAP_TIMEOUT_S}
+\end{itemize}
+
+managed Neovim 使用 XDG data/state/cache 目录下的 \src{ccb/tools/neovim} 维护状态。

@@ -1,0 +1,49 @@
+\documentclass[12pt,openany]{book}
+
+\input{../manual-style.tex}
+
+\hypersetup{
+  pdftitle={CCB 开发说明书},
+  pdfauthor={CCB project}
+}
+
+\title{CCB 开发说明书\\\large 架构、运行原理、代码地图与通信逻辑}
+\author{CCB project}
+\date{2026-06-10}
+
+\begin{document}
+
+\frontmatter
+\manualTitlePage{CCB 开发说明书}{架构、运行原理、代码地图与通信逻辑}{Developer Guide}{2026-06-10}
+\tableofcontents
+
+\include{chapters/00-preface}
+
+\mainmatter
+\include{chapters/01-architecture}
+\include{chapters/02-startup-lifecycle}
+\include{chapters/03-state-storage}
+\include{chapters/04-communication}
+\include{chapters/05-provider-runtime}
+\include{chapters/06-config-roles}
+\include{chapters/07-cli-diagnostics}
+\include{chapters/08-testing-extension}
+\include{chapters/09-code-map-hotspots}
+\include{chapters/10-recovery-reliability}
+\include{chapters/11-test-map}
+\include{chapters/12-glossary-invariants}
+
+\appendix
+\include{appendices/A-source-map}
+\include{appendices/B-evidence-ledger}
+\include{appendices/C-command-config-tables}
+\include{appendices/D-test-index}
+\include{appendices/E-communication-reference}
+\include{appendices/F-contract-reading-guide}
+
+\backmatter
+\chapter*{结语}
+\addcontentsline{toc}{chapter}{结语}
+本书第一版以源码阅读、项目契约文档、Archi/Hippo 生成证据和 CLI 行为入口为基础。后续版本应在每次 runtime、通信协议、配置语法或 provider 适配发生变化时同步更新章节和证据账本。
+
+\end{document}

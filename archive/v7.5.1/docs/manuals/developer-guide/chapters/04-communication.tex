@@ -1,0 +1,281 @@
+\chapter{通信逻辑}
+
+通信逻辑是 CCB 的核心。用户看到的是 \cmd{ccb ask agent1 ...}、\cmd{ccb watch job_xxx}、\cmd{ccb inbox talk1}、\cmd{ccb ack talk1}，源码里实际流动的是 envelope、job、message、attempt、inbound event、reply、callback edge 和 completion decision。
+
+\section{总览}
+
+一次普通 ask 的端到端路径如下。
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+CLI tokens
+  -> parse_ask
+  -> submit_ask
+  -> MessageEnvelope
+  -> ccbd submit handler
+  -> dispatcher submission plan
+  -> JobRecord / JobEvent / dispatcher queue
+  -> MessageRecord / AttemptRecord / InboundEventRecord
+  -> dispatcher tick starts running job
+  -> provider execution service
+  -> completion polling and tracker
+  -> finalization
+  -> AttemptRecord / ReplyRecord / reply inbound event
+  -> watch / queue / inbox / trace views
+\end{Verbatim}
+
+这条链路有三个关键分界。
+
+\begin{enumerate}
+  \item \src{MessageEnvelope} 是 CLI 到 daemon 的边界对象。
+  \item \src{JobRecord} 是 dispatcher 执行事实。
+  \item \src{MessageRecord}、\src{AttemptRecord}、\src{ReplyRecord} 和 \src{InboundEventRecord} 是通信事实。
+\end{enumerate}
+
+调试时应先判断问题落在哪个边界：CLI 没提交、daemon 没接收、dispatcher 没排队、provider 没执行、completion 没终止、reply 没记录、mailbox 没投影，还是用户视图没渲染。
+
+\section{CLI ask 解析}
+
+ask 解析入口在 \src{lib/cli/parser_runtime/ask.py}，提交服务在 \src{lib/cli/services/ask.py} 和 \src{lib/cli/services/ask_runtime/submission.py}。它们处理以下职责：
+
+\begin{itemize}
+  \item 解析 \cmd{--compact}、\cmd{--silence}、\cmd{--callback}、\cmd{--artifact-request}、\cmd{--artifact-reply}、\cmd{--artifact-io}。
+  \item 解析 target 和 message body，支持 stdin 追加。
+  \item 推断 sender。当前 workspace agent 能识别时使用 agent，否则 fallback 到 user。
+  \item 校验 target 和 sender 是否存在于项目配置。
+  \item 在普通 ask 中追加 reply guidance，除非用户已经给出明确输出要求。
+  \item 在大 request 或显式 artifact flag 下把 request body 写入 text artifact。
+  \item 构造 \src{MessageEnvelope} 并通过 mounted daemon client 提交。
+\end{itemize}
+
+ask flags 不应被理解为显示格式开关。它们是路由和交付策略。
+
+\begin{longtable}{p{0.25\linewidth}p{0.65\linewidth}}
+\toprule
+flag & 语义 \\
+\midrule
+\cmd{--compact} & 请求子 agent 返回提炼结果，同时保留关键信息。 \\
+\cmd{--silence} & 成功时静默，失败或阻塞仍应暴露。适合无需结果的独立工作。 \\
+\cmd{--callback} & 把子任务结果作为 continuation 送回当前 agent。适合 parent 需要 child 结果才能完成的任务。 \\
+\cmd{--artifact-request} & 强制 request body 存成 CCB text artifact。 \\
+\cmd{--artifact-reply} & 强制 final reply 存成 CCB text artifact。 \\
+\cmd{--artifact-io} & 同时启用 request 和 reply artifact。 \\
+\bottomrule
+\end{longtable}
+
+\section{MessageEnvelope}
+
+\src{lib/ccbd/api_models_runtime/messages.py} 中的 \src{MessageEnvelope} 负责规范化 daemon API 边界。submit handler 位于 \src{lib/ccbd/handlers/submit.py}，它从 RPC payload 重建 envelope，然后调用 \src{dispatcher.submit(envelope)}。
+
+envelope 保留：
+
+\begin{itemize}
+  \item \src{project_id}、\src{to_agent}、\src{from_actor}；
+  \item \src{body} 和可选 \src{body_artifact}；
+  \item \src{message_type}、\src{delivery_scope}；
+  \item \src{silence_on_success} 和 \src{route_options}；
+  \item \src{task_id}、\src{reply_to}。
+\end{itemize}
+
+delivery scope 的验证在 API model 层存在，不只依赖 CLI。这可以防止其他 client 绕过 CLI 后提交结构不一致的 payload。
+
+\section{dispatcher submission}
+
+dispatcher facade 位于 \src{lib/ccbd/services/dispatcher_runtime/facade.py}。提交路径由 \src{submission_service.py}、\src{submission_recording.py} 和 \src{lifecycle.py} 共同实现。
+
+提交时，dispatcher 先生成 submission plan：
+
+\begin{enumerate}
+  \item 验证 sender。
+  \item 验证 body artifact。
+  \item 验证 callback request。
+  \item 解析 target agents。
+  \item 确认 target availability。
+  \item 为每个 target 生成 \src{_JobDraft}。
+\end{enumerate}
+
+然后 \src{_submit_plan} 创建 job id、写入 \src{JobRecord}、写入 \src{job_accepted} 或 \src{job_queued} event、更新 dispatcher state，并调用 message bureau 记录 submission。
+
+广播 ask 会产生一个 submission id 和多个 jobs。单 target ask 不需要把用户认知绑定到 submission id，但内部仍可通过 message-bureau 记录追踪 lineage。
+
+\section{message bureau 记录}
+
+message bureau 的 submission recording 负责把 dispatcher job 映射成通信记录：
+
+\begin{itemize}
+  \item 一个 \src{MessageRecord} 表示逻辑请求。
+  \item 每个 job 对应一个 \src{AttemptRecord}。
+  \item 每个 target agent 收到一个 \src{InboundEventRecord}，事件类型通常为 \src{task_request}。
+\end{itemize}
+
+当 dispatcher 启动 job 时，\src{mark_attempt_started} 会把 attempt 移到 running，claim mailbox inbound event，并把 message state 更新到 running。
+
+当 job 进入 terminal 时，message bureau 更新 attempt state、消费或 abandon inbound event、刷新 message state，并在需要时写入 reply record 和 caller mailbox reply event。
+
+\section{运行、轮询和 finalization}
+
+运行路径从 \src{tick_jobs} 开始。dispatcher 对每个可运行 slot 启动下一个 queued job。核心函数分布在：
+
+\begin{itemize}
+  \item \src{lib/ccbd/services/dispatcher_runtime/lifecycle_start_runtime/tick.py}
+  \item \src{lib/ccbd/services/dispatcher_runtime/lifecycle_start_runtime/start.py}
+  \item \src{lib/ccbd/services/dispatcher_runtime/polling_service.py}
+  \item \src{lib/ccbd/services/dispatcher_runtime/finalization_runtime/service.py}
+  \item \src{lib/ccbd/services/dispatcher_runtime/finalization_runtime/message_bureau.py}
+\end{itemize}
+
+\src{start_running_job} 持久化 running state，标记 message-bureau attempt started，写 completion snapshot，更新 dispatcher active state，同步 runtime busy state，并在 runtime binding 可执行时启动 provider execution。
+
+\src{poll_completion_updates} 读取 provider execution update，追加 completion item event，ack execution item，更新 completion tracker。如果 tracker 给出 terminal decision，dispatcher 进入 \src{complete_job}。
+
+finalization 做的事比“保存 reply”更多：
+
+\begin{itemize}
+  \item 持久化 terminal completion。
+  \item 记录 message-bureau terminal attempt。
+  \item 判断自动 retry。
+  \item 处理 reply artifact spill。
+  \item 写入 reply record。
+  \item 解析 callback child continuation。
+  \item 解析 reply delivery terminal state。
+\end{itemize}
+
+\section{watch}
+
+\cmd{watch} 是轮询型观察命令。CLI 服务 \src{lib/cli/services/watch.py} 读取环境变量：
+
+\begin{itemize}
+  \item \src{CCB_WATCH_TIMEOUT_S}，默认 10 秒。
+  \item \src{CCB_WATCH_POLL_INTERVAL_S}，默认 0.1 秒。
+\end{itemize}
+
+\src{lib/cli/services/watch_runtime.py} 使用 cursor 调用 \src{client.watch(target, cursor=cursor)}。每次 daemon 返回一个 batch，CLI yield 非空 events，并更新 cursor。如果 batch terminal，则退出。
+
+watch 的重要可靠性机制是 persisted terminal fallback。当 daemon 连接失败或超时时，CLI 会尝试从持久化终态 watch payload 恢复最后结果。这样可以缓解 daemon 重启窗口导致的用户可见中断。
+
+\section{queue 和 inbox}
+
+\cmd{queue} 和 \cmd{inbox} 不是直接读取 dispatcher state。它们走 message-bureau control queue 层：
+
+\begin{itemize}
+  \item \src{lib/message_bureau/control_queue_runtime/views_runtime/summary.py}
+  \item \src{lib/message_bureau/control_queue_runtime/views_runtime/agent.py}
+  \item \src{lib/message_bureau/control_queue_runtime/views_runtime/inbox.py}
+  \item \src{lib/message_bureau/control_queue_runtime/events.py}
+\end{itemize}
+
+\cmd{queue all} 聚合每个 agent 的 mailbox summary，展示 agent count、queued agent count、active agent count、total queue depth 和 total pending reply count。dispatcher facade 会额外叠加 runtime state 和 runtime health。
+
+\cmd{queue <agent>} 展示单个 agent 的 mailbox state、lease version、queue depth、pending reply count、active inbound event 和可选 queued events。如果 mailbox summary 缺失或损坏，视图会 degraded，但 detail 仍可以从 inbound event records 重建一部分信息。
+
+\cmd{inbox <agent>} 展示 mailbox head。head 如果是 reply，会被补充 reply id、source actor、terminal status、notice、job id、finished time、progress time 和 reply text。detail 模式列出 pending items。
+
+\section{ack}
+
+\cmd{ack <agent> [inbound_event_id]} 的语义非常严格。实现位于 \src{lib/message_bureau/control_queue_runtime/ack.py}。
+
+ack 只允许确认 head event。它支持两类 head：
+
+\begin{enumerate}
+  \item \src{task_reply}，即 caller inbox 收到的 reply。
+  \item 已经 terminal 的 \src{task_request}，通常用于清理已经取消或终止但仍在 head 的请求事件。
+\end{enumerate}
+
+如果用户指定的 inbound event 不是 head，ack 会拒绝并提示当前 head。这个限制是故意的，它保证 inbox 处理顺序不会被跳过。
+
+ack 还会拒绝已经安排 automatic reply delivery 的 reply，因为这类 reply 后续由 delivery job 接管。手动 ack 可能破坏 delivery head 的一致性。
+
+\section{trace}
+
+\cmd{trace} 是通信 lineage 的标准入口。实现位于 \src{lib/message_bureau/control_trace_runtime/service.py}。它根据 id 前缀解析目标类型：
+
+\begin{itemize}
+  \item \src{sub_}：submission。
+  \item \src{msg_}：message。
+  \item \src{att_}：attempt。
+  \item \src{rep_}：reply。
+  \item \src{job_}：job。
+\end{itemize}
+
+trace 返回统一 payload，包含 selected object、counts 和关联数组：messages、attempts、replies、events、jobs。submission trace 会收集该 submission 的最新 messages，再收集 attempts、replies、events 和 job summaries。job trace 会先通过 job id 找 attempt，再找 message 和 replies。
+
+这说明 trace 的图模型是：
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+submission
+  -> message
+    -> attempt
+      -> job
+      -> inbound events
+      -> reply
+\end{Verbatim}
+
+用户手册应建议：只要手里有任意 \src{job_id}、\src{message_id} 或 \src{reply_id}，先用 \cmd{trace} 重建上下文，再决定 retry、resubmit、ack 还是 doctor。
+
+\section{callback}
+
+callback 不是同步等待。callback mode 由 \src{route_options["mode"] == "callback"} 表示，核心实现位于 \src{lib/ccbd/services/dispatcher_runtime/callbacks.py} 和 \src{lib/message_bureau/callback_edges.py}。
+
+active CCB task 内发起普通 nested ask 会被拒绝，除非它使用 \cmd{--callback} 或 \cmd{--silence}。这是因为 parent agent 如果需要 child 结果，应当显式建立 callback edge；如果不需要结果，应当显式选择 fire-and-forget。
+
+callback 的限制包括：
+
+\begin{itemize}
+  \item 必须 exactly one target。
+  \item 必须存在 active parent job。
+  \item 必须存在 parent message。
+  \item message-bureau support 必须可用。
+  \item parent 不能已有 outstanding callback。
+\end{itemize}
+
+child 完成后，CCB 不把 child reply 直接投递给 original caller。它记录 child reply，向 parent agent 提交 continuation job，并更新 callback edge。repair 和 timeout sweep 可以恢复或失败 pending callback edges。
+
+\section{retry 和 resubmit}
+
+\cmd{retry} 和 \cmd{resubmit} 都让任务再次执行，但语义不同。
+
+\cmd{resubmit <message_id>} 重新规划一条 message resubmission，走普通 submit plan，返回 original message id、新 message id、submission id 和新 jobs。它创建新的 message/submission chain。
+
+\cmd{retry <job_id|attempt_id>} 保留原 message lineage。它要求目标 attempt 已 terminal，拒绝 completed attempt，并要求该 attempt 是对应 agent 的最新 attempt。然后它创建新 job，记录 retry attempt，并把新 job 追加到原 submission。
+
+ask retry 有一个细节：如果旧 job 已经看到 provider anchor 或已经开始 reply，新 retry 可能把 request body 改成 \src{continue}，并通过 provider options 标记 retry delivery mode。这样可以尽量利用 provider resume 语义，而不是把同一 prompt 完全重复投递。
+
+自动 retry 与手动 retry 分离。自动 retry 依赖 message retry policy、失败 reason/error type、provider resume 支持和 max attempts。实现入口在 \src{lib/ccbd/services/dispatcher_runtime/finalization_retry_runtime/}。
+
+\section{cancel}
+
+\cmd{cancel <job_id>} 由 \src{lib/ccbd/services/dispatcher_runtime/cancellation.py} 实现。取消流程包括：
+
+\begin{enumerate}
+  \item 校验 job 存在且尚未 terminal。
+  \item 写入 cancel requested。
+  \item 从 dispatcher queued/active state 移除。
+  \item 调用 execution service cancel。
+  \item 构造 cancelled completion decision。
+  \item 写 completion snapshot 和 terminal event。
+  \item 记录 message-bureau terminal state。
+  \item 解析 reply-delivery terminal state。
+\end{enumerate}
+
+取消不是简单从队列删除。它必须把执行层和通信层都推进到一致终态，否则 trace、inbox、queue 和 watch 会互相矛盾。
+
+\section{artifact 和 reply delivery}
+
+terminal reply 可能通过 \src{lib/ccbd/services/dispatcher_runtime/finalization_runtime/artifacts.py} 写入 text artifact。触发条件是用户显式指定 \cmd{--artifact-reply}，或 reply 大于 4 KiB。decision diagnostics 会记录 \src{reply_artifact}，visible reply 变成 artifact stub。
+
+reply delivery 是独立 subsystem，入口在 \src{lib/ccbd/services/dispatcher_runtime/reply_delivery.py} 和 \src{reply_delivery_runtime/}。它负责准备、claim、start completion、terminal、head 和 repair。它解释了为什么 ack 不能随意消费已经安排 automatic reply delivery 的 reply head。
+
+\section{通信调试顺序}
+
+开发者排查通信问题时可以按以下顺序。
+
+\begin{enumerate}
+  \item 用 \cmd{trace <job_id>} 确认 job 是否绑定 message/attempt/reply。
+  \item 用 \cmd{queue --detail <agent>} 看 target agent mailbox 是否仍有 task request。
+  \item 用 \cmd{inbox --detail <caller>} 看 caller 是否已有 reply head。
+  \item 用 \cmd{watch <job_id>} 看 completion event 是否 terminal。
+  \item 用 \cmd{doctor storage} 判断 message-bureau/mailbox summary 是否 degraded。
+  \item 如果 attempt failed 且是最新终态，选择 \cmd{retry}；如果需要重新发整条请求，选择 \cmd{resubmit}。
+  \item 如果 head reply 已读且未被 automatic delivery 接管，用 \cmd{ack} 消费。
+\end{enumerate}
+
+这套顺序的原则是先重建 lineage，再处理队列，最后改变状态。直接 cancel、retry 或 ack 可能掩盖真正的断点。

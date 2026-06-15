@@ -4,7 +4,7 @@
 This override applies to `/home/agnitum/ccb` as the CCB project repository. It is the primary implementation repository for the CCB multi-agent CLI workspace tool. Development, testing, and release work happens here directly.
 
 ## Project Authority
-CCB v7.4.3 — multi-agent CLI workspace using tmux. Source of truth:
+CCB v7.5.1 — multi-agent CLI workspace using tmux. Source of truth:
 
 ```text
 /home/agnitum/ccb/README.md          - project overview and quickstart
@@ -52,6 +52,13 @@ Tests run: <command> → <result>
 Tests skipped: <reason if any>
 Remaining risks: <none or description>
 ```
+
+## Build and Release
+- Linux: `python scripts/build_linux_release.py`
+- macOS: `python scripts/build_macos_release.py`
+- General: `python scripts/build_release.py`
+
+These Python scripts are thin wrappers around the Rust `ccb-release-builder` tool (`rust/tools/ccb-release-builder`). The builder compiles the Rust workspace and packages the native binaries (`ccb`, `ccbd`, `ask`, `autonew`, `ctx-transfer`) into the release tarball. `install.sh` installs these native binaries directly.
 
 ## UI Skill Rule
 For sidebar or terminal UI work, review existing `tools/ccb-agent-sidebar` patterns first.

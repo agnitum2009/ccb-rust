@@ -298,7 +298,7 @@ def test_release_managed_venv_wraps_installed_python_entrypoints(tmp_path: Path)
     assert "ccb" in completed.stdout
     assert "ask" in completed.stdout
 
-    wrapper = tmp_path / "bin" / "ccb"
+    wrapper = tmp_path / "bin" / "ccbr"
     ask_wrapper = tmp_path / "bin" / "ask"
     wrapper_text = wrapper.read_text(encoding="utf-8")
     assert wrapper_text.startswith("#!/usr/bin/env bash")
@@ -334,7 +334,7 @@ def test_release_managed_venv_wrapper_uses_absolute_target_path(tmp_path: Path) 
     )
 
     assert completed.returncode == 0, completed.stderr or completed.stdout
-    assert str(tmp_path / "install" / "ccb") in (tmp_path / "bin" / "ccb").read_text(encoding="utf-8")
+    assert str(tmp_path / "install" / "ccbr") in (tmp_path / "bin" / "ccbr").read_text(encoding="utf-8")
 
 
 def test_install_managed_venv_selects_python_when_called_directly(tmp_path: Path) -> None:

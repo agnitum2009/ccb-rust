@@ -16,7 +16,8 @@ pub fn handle_start(app: &mut CcbdApp, payload: &Value) -> Result<Value, String>
         })
         .unwrap_or_default();
     let agent_names = if agent_names.is_empty() {
-        vec!["default".to_string()]
+        // Derive agent names from config windows
+        derive_agent_names_from_config(app)
     } else {
         agent_names
     };
@@ -25,7 +26,10 @@ pub fn handle_start(app: &mut CcbdApp, payload: &Value) -> Result<Value, String>
     let auto_permission = bool_field(payload, "auto_permission", true);
     let _terminal_size = terminal_size_from_payload(payload);
 
-    let result = app.run_start_flow(&agent_names, restore, auto_permission)?;
+    // Get config windows to pass to start_flow
+    let config_windows = app.current_config.as_ref().and_then(|c| c.windows.clone());
+
+    let result = app.run_start_flow(&agent_names, restore, auto_permission, config_windows)?;
     Ok(json!({
         "status": result.status,
         "agent_results": result.agent_results,
@@ -41,4 +45,44 @@ fn terminal_size_from_payload(payload: &Value) -> Option<(u32, u32)> {
     } else {
         None
     }
+}
+
+/// Derive agent names from project config windows topology.
+/// Returns all unique agent names referenced in the windows config.
+fn derive_agent_names_from_config(app: &CcbdApp) -> Vec<String> {
+    let Some(config) = &app.current_config else {
+        // No config available, fall back to default
+        return vec!["default".to_string()];
+    };
+
+    let Some(windows) = &config.windows else {
+        // No windows configured, use default_agents or all agents
+        return if config.default_agents.is_empty() {
+            config.agents.keys().cloned().collect()
+        } else {
+            config.default_agents.clone()
+        };
+    };
+
+    // Collect all unique agent names from all windows
+    let mut agent_names = std::collections::HashSet::new();
+    for window in windows {
+        for name in &window.agent_names {
+            agent_names.insert(name.clone());
+        }
+    }
+
+    if agent_names.is_empty() {
+        // Fallback to default_agents if no agents found in windows
+        return if config.default_agents.is_empty() {
+            config.agents.keys().cloned().collect()
+        } else {
+            config.default_agents.clone()
+        };
+    }
+
+    // Convert to sorted Vec for deterministic ordering
+    let mut sorted: Vec<_> = agent_names.into_iter().collect();
+    sorted.sort();
+    sorted
 }

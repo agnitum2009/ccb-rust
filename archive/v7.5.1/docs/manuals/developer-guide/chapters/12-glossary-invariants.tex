@@ -1,0 +1,144 @@
+\chapter{术语表和设计不变量}
+
+本章把开发者在维护 CCB 时反复遇到的术语和不变量集中说明。它的作用是减少跨模块沟通成本，避免同一个词在 CLI、daemon、provider 和 message bureau 中被不同理解。
+
+\section{项目和运行时术语}
+
+\begin{longtable}{p{0.25\linewidth}p{0.65\linewidth}}
+\toprule
+术语 & 含义 \\
+\midrule
+project anchor & 项目根目录下的 \src{.ccb}。它定义一个 CCB 项目的边界。 \\
+backend & 项目范围的 \term{ccbd} daemon。一个 anchor 只有一个权威 backend。 \\
+keeper & 项目级生命周期守护者，负责推进 backend generation 和监督启动。 \\
+generation & backend 生命周期代次，用来区分当前 daemon 与旧 residue。 \\
+mounted & 当前 generation 有 ready project socket，不能只看旧 socket path。 \\
+configured agents & \src{ccb.config} 中期望 daemon 挂载和监督的 agent set。 \\
+foreground layout & 用户看到的 tmux window/pane 布局。它是 UI，不是全部状态。 \\
+runtime binding & agent 与 provider runtime、pane、session、workspace 的绑定事实。 \\
+runtime health & daemon registry 对 provider runtime 当前健康状态的判断。 \\
+residue & 旧 pane、旧 pid、旧 socket、未知 agent 目录等非权威残留证据。 \\
+\bottomrule
+\end{longtable}
+
+\section{通信术语}
+
+\begin{longtable}{p{0.25\linewidth}p{0.65\linewidth}}
+\toprule
+术语 & 含义 \\
+\midrule
+ask & 用户或 agent 提交给另一个 agent 的任务请求。 \\
+MessageEnvelope & CLI 到 daemon 的请求边界对象。 \\
+submission & 一次 logical submit，可包含多个 jobs。 \\
+message & 通信层的逻辑请求，带 reply policy 和 retry policy。 \\
+attempt & message 对某个 agent 的一次尝试，对应一个 job。 \\
+job & dispatcher 执行单元。 \\
+inbound event & mailbox 中的 task request 或 task reply 事件。 \\
+reply & finalization 写入的通信结果。 \\
+callback edge & parent job、child job 和 continuation 的持久关系。 \\
+reply delivery & 把 reply event 自动投递给目标 agent 的特殊 job 流程。 \\
+artifact & 长文本 payload 的存储间接层。 \\
+\bottomrule
+\end{longtable}
+
+\section{状态不变量}
+
+下面的不变量比单个实现细节更稳定。
+
+\begin{enumerate}
+  \item 一个 \src{.ccb} anchor 只拥有一个权威 backend。
+  \item \src{ccb.config} 定义期望 agent mount set 和前台布局。
+  \item backend lifecycle records 和 current generation socket readiness 决定 mounted。
+  \item residue 不能阻止 bootstrap，也不能重新定义 project state。
+  \item pane death 是 daemon supervision concern。
+  \item \cmd{cmd} 是 foreground anchor pane，不是 provider agent。
+  \item provider session files 是证据，不是唯一权威。
+  \item dispatcher queue 和 mailbox queue 是不同队列。
+  \item completion decision 是 job terminal 的依据。
+  \item reply record 是通信层对 terminal decision 的投影。
+  \item callback 是持久 edge，不是同步 wait。
+  \item retry 延续原 message lineage，resubmit 创建新 lineage。
+  \item ack 只能确认 inbox head。
+  \item artifact 只是 payload indirection。
+  \item source runtime validation 不能污染 source checkout 的 active CCB runtime。
+\end{enumerate}
+
+\section{配置不变量}
+
+配置系统有自己的不变量。
+
+\begin{itemize}
+  \item config version 必须是 2。
+  \item compact、rich、hybrid 最终都要进入同一个 validation 和 ProjectConfig。
+  \item hybrid overlay 只能覆盖 compact layout 已有 agent 的非 header-owned 字段。
+  \item legacy \src{default_agents/layout/cmd_enabled} 与 windows topology 互斥。
+  \item windows leaf 必须声明 provider。
+  \item windows topology 中不支持 \src{cmd} leaf。
+  \item tool windows 要求 windows topology。
+  \item role id shorthand 必须解析到已安装 role 的 default agent name。
+  \item API shortcut 不能与 inherited auth/config 或显式 API env 冲突。
+\end{itemize}
+
+\section{provider 不变量}
+
+\begin{itemize}
+  \item provider 是 agent 的执行后端，不是 agent 本身。
+  \item runtime home 隔离和继承策略必须在 provider profile 中表达。
+  \item provider-specific completion detector 不能用通用字符串规则替代。
+  \item provider resume support 必须显式进入 retry policy 判断。
+  \item provider command template 是高级逃逸口，不能破坏 session binding 假设。
+\end{itemize}
+
+\section{诊断不变量}
+
+\begin{itemize}
+  \item doctor 输出应帮助定位层次，而不是只给单一 ok/failed。
+  \item storage diagnostics 应区分 missing、error、stale 和 residue。
+  \item queue/inbox degraded 不等于通信事实全部丢失。
+  \item trace 是连接 job、message、attempt、reply、event 的标准诊断入口。
+  \item recovery 输出应包含 noop reason 或 changed audit，不应只说 success。
+\end{itemize}
+
+\section{维护用语规范}
+
+写 issue、commit message 或文档时，建议使用以下表达：
+
+\begin{itemize}
+  \item “backend not mounted”，表示当前 generation socket 未 ready。
+  \item “runtime unhealthy”，表示 registry/provider runtime health 异常。
+  \item “mailbox summary missing”，表示 summary 文件缺失，但不等于 message store 丢失。
+  \item “attempt terminal but reply missing”，表示 finalization 到 message-bureau reply 投影之间断裂。
+  \item “reply head blocked”，表示 caller mailbox head 无法消费或 delivery。
+  \item “role shorthand expansion”，表示配置加载阶段把 role id 转为 agent spec。
+\end{itemize}
+
+不要把所有问题都写成 “agent crashed”。这个说法太粗，会掩盖 daemon、provider、dispatcher、mailbox、reply delivery 和 UI 之间的边界。
+
+\section{开发者检查清单}
+
+改动前：
+
+\begin{enumerate}
+  \item 识别改动属于 CLI、config、daemon、dispatcher、message bureau、provider、storage、UI 的哪一层。
+  \item 找到对应设计契约。
+  \item 找到最小测试组。
+  \item 判断是否影响 runtime state 或只影响显示。
+\end{enumerate}
+
+改动中：
+
+\begin{enumerate}
+  \item 不要把残留证据提升为权威。
+  \item 不要让 CLI service 直接绕过 daemon 修改项目状态。
+  \item 不要把 provider-specific 行为写进通用 completion 逻辑。
+  \item 不要跳过 message-bureau lineage。
+\end{enumerate}
+
+改动后：
+
+\begin{enumerate}
+  \item 更新契约文档或手册。
+  \item 运行主题测试。
+  \item 如果涉及 source runtime，使用外部测试项目和隔离 HOME。
+  \item 记录新的证据路径。
+\end{enumerate}

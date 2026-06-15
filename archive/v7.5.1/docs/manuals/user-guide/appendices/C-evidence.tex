@@ -1,0 +1,30 @@
+\chapter{证据和限制}
+
+本书基于 2026-06-10 的源码分析。
+
+\section{主要源码入口}
+
+\begin{itemize}
+  \item \src{lib/cli/entrypoint_runtime.py}
+  \item \src{lib/cli/parser_runtime/constants.py}
+  \item \src{lib/cli/parser_runtime/commands.py}
+  \item \src{lib/cli/parser_runtime/ask.py}
+  \item \src{lib/cli/roles_runtime/commands.py}
+  \item \src{lib/cli/tools_runtime/neovim.py}
+  \item \src{lib/agents/config_loader_runtime/}
+  \item \src{lib/message_bureau/control_queue_runtime/}
+  \item \src{lib/message_bureau/control_trace_runtime/}
+\end{itemize}
+
+\section{计划和开发手册}
+
+相关分析保存在：
+
+\begin{itemize}
+  \item \src{docs/plantree/plans/ccb-manuals/}
+  \item \src{docs/manuals/developer-guide/}
+\end{itemize}
+
+\section{限制}
+
+本书已经覆盖当前 public command 和 config grammar 的源码入口。仍建议在最终发布前补充每个命令的实际 \cmd{--help} 输出快照，以及外部测试项目中的示例运行结果。

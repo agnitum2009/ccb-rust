@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -x "${SCRIPT_DIR}/../rust/target/release/ccbd" ]]; then
+    exec "${SCRIPT_DIR}/../rust/target/release/ccbd" "$@"
+elif [[ -x "${SCRIPT_DIR}/../rust/target/debug/ccbd" ]]; then
+    exec "${SCRIPT_DIR}/../rust/target/debug/ccbd" "$@"
+else
+    echo "ccbd: Rust daemon binary not found. Build it with:" >&2
+    echo "  cd ${SCRIPT_DIR}/../rust && cargo build -p ccb-daemon" >&2
+    exit 1
+fi

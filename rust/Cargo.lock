@@ -151,7 +151,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-agents"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
@@ -165,22 +165,31 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "shell-words",
+ "shellexpand",
  "tempfile",
  "thiserror",
  "toml",
  "tracing",
+ "which",
 ]
 
 [[package]]
+name = "ccb-cleanup"
+version = "7.5.2"
+
+[[package]]
 name = "ccb-cli"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
  "ccb-agents",
  "ccb-daemon",
  "ccb-mailbox",
+ "ccb-memory",
  "ccb-provider-core",
+ "ccb-provider-sessions",
  "ccb-storage",
  "ccb-terminal",
  "ccb-types",
@@ -195,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-completion"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-agents",
@@ -213,22 +222,26 @@ dependencies = [
 
 [[package]]
 name = "ccb-daemon"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
  "ccb-agents",
  "ccb-completion",
+ "ccb-jobs",
  "ccb-mailbox",
  "ccb-provider-core",
+ "ccb-provider-profiles",
  "ccb-providers",
  "ccb-storage",
  "ccb-terminal",
  "ccb-types",
  "chrono",
  "ctrlc",
+ "hex",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
  "tokio",
@@ -239,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-heartbeat"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-storage",
@@ -252,11 +265,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ccb-jobs"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-storage",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "ccb-mailbox"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
+ "ccb-jobs",
  "ccb-storage",
  "ccb-types",
  "chrono",
@@ -270,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-mcp-server"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
@@ -283,7 +310,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-memory"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-provider-core",
@@ -301,8 +328,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "ccb-message-bureau"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-mailbox",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "ccb-pane-registry"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-project",
+ "ccb-provider-core",
+ "ccb-storage",
+ "ccb-terminal",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "ccb-project"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "ccb-provider-activity-hook"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-provider-hooks",
+ "serde_json",
+]
+
+[[package]]
 name = "ccb-provider-core"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
@@ -322,8 +397,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ccb-provider-finish-hook"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-provider-hooks",
+ "serde_json",
+]
+
+[[package]]
 name = "ccb-provider-hooks"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-provider-core",
@@ -339,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-provider-profiles"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-provider-core",
@@ -360,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-provider-sessions"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-storage",
@@ -375,7 +459,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-providers"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
@@ -388,9 +472,11 @@ dependencies = [
  "ccb-types",
  "chrono",
  "libc",
+ "md5",
  "regex",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
  "tokio",
@@ -400,7 +486,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-release-builder"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
@@ -418,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "ccb-release-checker"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
  "base64",
@@ -435,12 +521,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-storage"
-version = "7.4.3"
+name = "ccb-runtime-env"
+version = "7.5.2"
+
+[[package]]
+name = "ccb-runtime-pid-cleanup"
+version = "7.5.2"
 dependencies = [
- "anyhow",
  "camino",
- "ccb-types",
+ "ccb-providers",
+ "ccb-storage",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "ccb-stdio-runtime"
+version = "7.5.2"
+dependencies = [
+ "encoding_rs",
+ "tempfile",
+]
+
+[[package]]
+name = "ccb-storage"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-project",
+ "ccb-storage-classification",
  "chrono",
  "filetime",
  "fs2",
@@ -450,15 +561,27 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror",
- "tracing",
  "uuid",
 ]
 
 [[package]]
+name = "ccb-storage-classification"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-storage",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "ccb-terminal"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
  "anyhow",
+ "ccb-stdio-runtime",
  "ccb-storage",
  "ccb-types",
  "chrono",
@@ -467,6 +590,8 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sha2",
+ "shell-words",
  "tempfile",
  "thiserror",
  "tracing",
@@ -474,13 +599,42 @@ dependencies = [
 
 [[package]]
 name = "ccb-types"
-version = "7.4.3"
+version = "7.5.2"
 dependencies = [
+ "ccb-runtime-env",
+ "ccb-ui-text",
  "chrono",
  "serde",
  "serde_json",
  "serial_test",
+ "thiserror",
+]
+
+[[package]]
+name = "ccb-ui-text"
+version = "7.5.2"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serial_test",
  "sys-locale",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "ccb-workspace"
+version = "7.5.2"
+dependencies = [
+ "camino",
+ "ccb-agents",
+ "ccb-project",
+ "ccb-storage",
+ "chrono",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror",
 ]
 
@@ -612,6 +766,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys",
+]
+
+[[package]]
 name = "dispatch2"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -633,6 +808,27 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "either"
+version = "1.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
+
+[[package]]
+name = "encoding_rs"
+version = "0.8.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
+name = "env_home"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7f84e12ccf0a7ddc17a6c41c93326024c42920d7ee630d04950e6926645c0fe"
 
 [[package]]
 name = "equivalent"
@@ -996,6 +1192,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
+name = "libredox"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f02ab6bace2054fb888a3c16f990117b579d14a3088e472d63c6011fa185c9d3"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1030,6 +1235,12 @@ checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
  "regex-automata",
 ]
+
+[[package]]
+name = "md5"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
 name = "memchr"
@@ -1114,6 +1325,12 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "parking_lot"
@@ -1239,6 +1456,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "redox_users"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
+dependencies = [
+ "getrandom 0.2.17",
+ "libredox",
+ "thiserror",
 ]
 
 [[package]]
@@ -1412,6 +1640,21 @@ name = "shell-escape"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45bb67a18fa91266cc7807181f62f9178a6873bfad7dc788c42e6430db40184f"
+
+[[package]]
+name = "shell-words"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
+
+[[package]]
+name = "shellexpand"
+version = "3.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32824fab5e16e6c4d86dc1ba84489390419a39f97699852b66480bb87d297ed8"
+dependencies = [
+ "dirs",
+]
 
 [[package]]
 name = "shlex"
@@ -1882,6 +2125,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "which"
+version = "7.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24d643ce3fd3e5b54854602a080f34fb10ab75e0b813ee32d00ca2b44fa74762"
+dependencies = [
+ "either",
+ "env_home",
+ "rustix",
+ "winsafe",
+]
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1988,6 +2243,12 @@ checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "winsafe"
+version = "0.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d135d17ab770252ad95e9a872d365cf3090e3be864a34ab46f48555993efc904"
 
 [[package]]
 name = "wit-bindgen"

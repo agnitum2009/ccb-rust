@@ -1,0 +1,15 @@
+from __future__ import annotations
+
+
+def binding_line(agent) -> str:
+    return (
+        f'binding: status={agent["binding_status"]} runtime={agent["runtime_ref"]} session={agent["session_ref"]} '
+        f'source={agent.get("binding_source")} workspace={agent["workspace_path"]} terminal={agent.get("terminal")} '
+        f'socket={agent.get("tmux_socket_name")} socket_path={agent.get("tmux_socket_path")} '
+        f'window={agent.get("tmux_window_name")} window_id={agent.get("tmux_window_id")} '
+        f'pane={agent.get("pane_id")} active_pane={agent.get("active_pane_id")} '
+        f'pane_state={agent.get("pane_state")} marker={agent.get("pane_title_marker")}'
+    )
+
+
+__all__ = ['binding_line']

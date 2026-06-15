@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# ccbr — Rust CCB CLI dispatcher.
+# Delegates to the compiled ccb-cli binary (release, fallback debug).
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BIN_DIR="${SCRIPT_DIR}/rust/target/release"
+if [[ ! -x "${BIN_DIR}/ccbr" ]]; then
+  BIN_DIR="${SCRIPT_DIR}/rust/target/debug"
+fi
+if [[ ! -x "${BIN_DIR}/ccbr" ]]; then
+  echo "ccbr: Rust binary not found. Build it with: cd ${SCRIPT_DIR}/rust && cargo build --release" >&2
+  exit 1
+fi
+exec "${BIN_DIR}/ccbr" "$@"

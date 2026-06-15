@@ -6,7 +6,7 @@
 **Visible, controllable multi-agent cooperative TUI workspace**
 
 <p>
-  <img src="https://img.shields.io/badge/version-7.5.0-orange.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-7.5.1-orange.svg" alt="version">
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg" alt="platform">
   <img src="https://img.shields.io/badge/providers-7%20CLI%20families-0B7285.svg" alt="providers">
 </p>
@@ -609,6 +609,17 @@ v7 highlights:
 - Hardened tmux, Ghostty, release helper, Codex trust, and provider session restore paths.
 
 <details open>
+<summary><b>v7.5.1</b> - Rust CLI Command Completion And Version Alignment</summary>
+
+- Completes the Rust `ccb` CLI command surface: `wait`, `watch`, `cancel`,
+  `clear`, `queue`, `trace`, `resubmit`, `retry`, `inbox`, `ack`, `reload`,
+  `restart`, and `maintenance status` now route through the daemon RPC layer.
+- Aligns version metadata across Python entry script, Rust workspace, npm
+  package, release workflows, and documentation.
+
+</details>
+
+<details>
 <summary><b>v7.5.0</b> - Native CLI Providers And Homepage Sync</summary>
 
 - Adds managed native CLI provider support for Kimi plus broader native CLI

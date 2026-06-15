@@ -1,0 +1,206 @@
+\chapter{测试地图和验证路线}
+
+本章把当前 checkout 中的测试入口按架构主题归类。测试目录是 \src{test/}，不是 \src{tests/}。此外，\src{lib/provider_core/registry_runtime/test_double_backends.py} 提供 provider registry 测试 double。
+
+\section{启动和 daemon}
+
+daemon、keeper、supervisor、socket 和 start flow 的测试包括：
+
+\begin{itemize}
+  \item \src{test/test_v2_ccbd_keeper.py}
+  \item \src{test/test_v2_ccbd_socket.py}
+  \item \src{test/test_v2_ccbd_start_flow.py}
+  \item \src{test/test_v2_ccbd_start_matrix.py}
+  \item \src{test/test_v2_ccbd_start_policy.py}
+  \item \src{test/test_v2_ccbd_supervision_loop.py}
+  \item \src{test/test_v2_ccbd_supervisor.py}
+  \item \src{test/test_ccbd_supervisor_lifecycle.py}
+  \item \src{test/test_ccbd_socket_server_loop.py}
+  \item \src{test/test_ccbd_start_handler.py}
+\end{itemize}
+
+这些测试应在修改 startup、socket protocol、keeper generation、mounted detection 或 shutdown 时优先运行。
+
+\section{dispatcher 和 job}
+
+dispatcher 和 job store 测试包括：
+
+\begin{itemize}
+  \item \src{test/test_v2_ccbd_dispatcher.py}
+  \item \src{test/test_v2_job_store.py}
+  \item \src{test/test_v2_execution_service.py}
+  \item \src{test/test_v2_snapshot_store.py}
+  \item \src{test/test_provider_execution_service_runtime.py}
+  \item \src{test/test_provider_execution_active_resume.py}
+  \item \src{test/test_ccbd_retry_failure_detail.py}
+\end{itemize}
+
+修改 submission、job event、completion tracker integration、retry 或 cancel 时，应优先选择这一组。
+
+\section{message bureau 和 mailbox}
+
+通信存储和 mailbox 测试包括：
+
+\begin{itemize}
+  \item \src{test/test_v2_message_bureau_store.py}
+  \item \src{test/test_v2_message_bureau_dispatcher_integration.py}
+  \item \src{test/test_v2_mailbox_kernel_service.py}
+  \item \src{test/test_v2_mailbox_kernel_store.py}
+  \item \src{test/test_message_bureau_control_queue.py}
+  \item \src{test/test_message_bureau_submission_fastpath.py}
+  \item \src{test/test_cli_wait_replies.py}
+  \item \src{test/test_v2_cli_watch_reconnect.py}
+\end{itemize}
+
+这些测试覆盖 ask 到 mailbox 的关键投影。修改 queue/inbox/ack/trace 或 message-bureau recording 时，应优先运行。
+
+\section{ask 和 CLI}
+
+ask、phase2 和 CLI parser tests 包括：
+
+\begin{itemize}
+  \item \src{test/test_ask_cli.py}
+  \item \src{test/test_ask_internal_paths.py}
+  \item \src{test/test_v2_ask_service.py}
+  \item \src{test/test_v2_phase2_ask.py}
+  \item \src{test/test_v2_cli_parser.py}
+  \item \src{test/test_v2_cli_render.py}
+  \item \src{test/test_v2_cli_router.py}
+  \item \src{test/test_v2_phase2_entrypoint.py}
+  \item \src{test/test_v2_phase1_entrypoint.py}
+\end{itemize}
+
+新增命令或修改命令 help 时，除了 parser tests，还要看 render tests 和 phase2 dispatch tests。
+
+\section{配置、layout 和 reload}
+
+配置与 reload 测试包括：
+
+\begin{itemize}
+  \item \src{test/test_v2_config_loader.py}
+  \item \src{test/test_agents_layout_runtime.py}
+  \item \src{test/test_terminal_runtime_layouts.py}
+  \item \src{test/test_v2_layout_plan.py}
+  \item \src{test/test_ccbd_reload_dry_run.py}
+  \item \src{test/test_ccbd_reload_apply.py}
+  \item \src{test/test_ccbd_reload_patch.py}
+  \item \src{test/test_ccbd_reload_drain.py}
+  \item \src{test/test_ccbd_reload_runtime_mount.py}
+  \item \src{test/test_ccbd_reload_transaction.py}
+\end{itemize}
+
+修改 config grammar、window topology、tool windows、hot reload 或 runtime mount 时，应把这组作为基础验证。
+
+\section{provider completion}
+
+provider 测试按 provider family 分组。
+
+Codex：
+
+\begin{itemize}
+  \item \src{test/test_codex_execution_polling.py}
+  \item \src{test/test_codex_polling_reader.py}
+  \item \src{test/test_codex_session_discovery.py}
+  \item \src{test/test_codex_session_switch.py}
+  \item \src{test/test_codex_readiness.py}
+\end{itemize}
+
+Claude：
+
+\begin{itemize}
+  \item \src{test/test_claude_execution_polling.py}
+  \item \src{test/test_claude_comm_parsing.py}
+  \item \src{test/test_claude_session_selection.py}
+  \item \src{test/test_claude_registry_logs_binding.py}
+\end{itemize}
+
+Gemini：
+
+\begin{itemize}
+  \item \src{test/test_gemini_execution_hook.py}
+  \item \src{test/test_gemini_polling_service.py}
+  \item \src{test/test_gemini_session_binding.py}
+  \item \src{test/test_gemini_watchdog.py}
+\end{itemize}
+
+OpenCode：
+
+\begin{itemize}
+  \item \src{test/test_opencode_execution_polling.py}
+  \item \src{test/test_opencode_reply_polling.py}
+  \item \src{test/test_opencode_storage.py}
+  \item \src{test/test_opencode_watch.py}
+\end{itemize}
+
+通用 completion tests 包括 \src{test/test_v2_completion_detectors.py}、\src{test/test_v2_completion_models.py}、\src{test/test_v2_completion_orchestration.py}、\src{test/test_v2_completion_tracker.py}。
+
+\section{runtime isolation 和 storage}
+
+隔离和存储测试包括：
+
+\begin{itemize}
+  \item \src{test/test_source_runtime_guard.py}
+  \item \src{test/test_v2_runtime_isolation.py}
+  \item \src{test/test_provider_source_home.py}
+  \item \src{test/test_provider_profiles.py}
+  \item \src{test/test_v2_storage_paths.py}
+  \item \src{test/test_storage_classification.py}
+  \item \src{test/test_text_artifacts.py}
+  \item \src{test/test_v2_diagnostics_bundle.py}
+\end{itemize}
+
+这些测试保护 provider home 和 source checkout 边界。修改安装、source validation、provider profile 或 artifact cleanup 时必须关注。
+
+\section{roles、memory 和 tools}
+
+相关测试包括：
+
+\begin{itemize}
+  \item \src{test/test_rolepacks.py}
+  \item \src{test/test_project_memory.py}
+  \item \src{test/test_memory_transfer_providers.py}
+  \item \src{test/test_provider_core_memory_projection.py}
+  \item \src{test/test_cli_tools_neovim.py}
+\end{itemize}
+
+修改 Archi role 加载、rolepack catalog、provider memory projection 或 Neovim tool provisioning 时，应运行这些测试。
+
+\section{tmux 和 foreground}
+
+tmux/terminal 测试包括：
+
+\begin{itemize}
+  \item \src{test/test_terminal_runtime_tmux.py}
+  \item \src{test/test_terminal_runtime_tmux_attach.py}
+  \item \src{test/test_terminal_runtime_tmux_input.py}
+  \item \src{test/test_terminal_runtime_tmux_logs.py}
+  \item \src{test/test_terminal_runtime_tmux_panes.py}
+  \item \src{test/test_terminal_runtime_tmux_respawn.py}
+  \item \src{test/test_tmux_backend.py}
+  \item \src{test/test_tmux_ownership_inspection.py}
+  \item \src{test/test_sidebar_click.py}
+  \item \src{test/test_sidebar_resize_sync.py}
+\end{itemize}
+
+这些测试是前台体验和 daemon state 一致性的保护网。
+
+\section{推荐验证组合}
+
+普通文档更新只需要构建手册和链接检查。但涉及源码改动时，可以按主题选择：
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+改动主题 & 建议测试 \\
+\midrule
+ask/communication & \src{test/test_ask_cli.py}、\src{test/test_v2_ask_service.py}、\src{test/test_v2_message_bureau_dispatcher_integration.py}、\src{test/test_message_bureau_control_queue.py}。 \\
+config/layout & \src{test/test_v2_config_loader.py}、\src{test/test_agents_layout_runtime.py}、reload 相关测试。 \\
+provider completion & provider-specific tests 加 \src{test/test_v2_completion_tracker.py}。 \\
+runtime isolation & \src{test/test_source_runtime_guard.py}、\src{test/test_v2_runtime_isolation.py}、provider source home/profile tests。 \\
+tmux foreground & terminal runtime tmux tests、sidebar tests。 \\
+diagnostics/storage & diagnostics bundle、storage paths、text artifacts、storage classification tests。 \\
+\bottomrule
+\end{longtable}
+
+\section{运行测试的纪律}
+
+如果测试只读源码或运行 pure unit tests，可以在源码 checkout 中运行 pytest。但任何会启动 source runtime、ccbd、tmux 或 provider home 的验证，必须遵守外部测试目录和 HOME 隔离规则。手册示例也应使用同一规则，避免把演示环境污染成真实开发环境。

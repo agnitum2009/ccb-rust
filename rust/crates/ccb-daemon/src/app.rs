@@ -382,6 +382,7 @@ impl CcbdApp {
         agent_names: &[String],
         restore: bool,
         auto_permission: bool,
+        config_windows: Option<Vec<ccb_agents::models::WindowSpec>>,
     ) -> Result<StartFlowResult, String> {
         let project_root = self.layout.project_root.clone();
         // Load any existing namespace so panes can be reused on restore.
@@ -400,6 +401,7 @@ impl CcbdApp {
             restore,
             auto_permission,
             namespace_agent_panes.as_ref(),
+            config_windows,
         )?;
 
         for agent in &result.agent_results {

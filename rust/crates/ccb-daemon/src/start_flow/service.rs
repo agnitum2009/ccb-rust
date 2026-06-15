@@ -7,6 +7,7 @@ use crate::provider_launcher::{LaunchContext, ProviderLauncher};
 use crate::services::project_namespace::{NamespaceWindow, ProjectNamespace};
 use crate::services::registry::AgentRegistry;
 use crate::terminal_adapter::DaemonLayoutBackend;
+use ccb_agents::models::WindowSpec;
 use ccb_terminal::layouts::TmuxLayoutBackend;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +67,7 @@ impl StartFlowService {
         restore: bool,
         auto_permission: bool,
         namespace_agent_panes: Option<&HashMap<String, String>>,
+        config_windows: Option<Vec<WindowSpec>>,
     ) -> Result<(StartFlowResult, ProjectNamespace), String> {
         if agent_names.is_empty() {
             return Err("agent_names must not be empty".to_string());
@@ -272,6 +274,26 @@ impl StartFlowService {
             }
         }
 
+        // Build namespace windows from config or create default topology
+        let namespace_windows = if let Some(windows) = config_windows {
+            // Build windows from config
+            windows
+                .into_iter()
+                .map(|w| NamespaceWindow {
+                    name: w.name,
+                    window_id: None, // Window ID not assigned by daemon
+                    agents: w.agent_names,
+                })
+                .collect()
+        } else {
+            // Create default single-window topology
+            vec![NamespaceWindow {
+                name: "ccb".to_string(),
+                window_id: None,
+                agents: agent_names.to_vec(),
+            }]
+        };
+
         let namespace = ProjectNamespace {
             project_root: project_root.as_str().to_string(),
             project_id: project_id.to_string(),
@@ -279,11 +301,7 @@ impl StartFlowService {
             tmux_socket_name: "tmux".to_string(),
             tmux_session_name: tmux_session_name.to_string(),
             agent_names: agent_names.to_vec(),
-            windows: vec![NamespaceWindow {
-                name: "ccb".to_string(),
-                window_id: None,
-                agents: agent_names.to_vec(),
-            }],
+            windows: namespace_windows,
             agent_panes,
             active_panes,
             namespace_epoch: 1,
@@ -342,6 +360,7 @@ mod tests {
                 false,
                 false,
                 None,
+                None,
             )
             .unwrap();
 
@@ -377,6 +396,7 @@ mod tests {
                 true,
                 false,
                 Some(&reused),
+                None,
             )
             .unwrap();
 
@@ -412,6 +432,7 @@ mod tests {
                 false,
                 false,
                 Some(&reused),
+                None,
             )
             .unwrap();
 
@@ -450,6 +471,7 @@ mod tests {
                 &registry,
                 false,
                 false,
+                None,
                 None,
             )
             .unwrap();

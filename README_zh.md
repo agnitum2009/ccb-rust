@@ -6,7 +6,7 @@
 **可见、可控的多 Agent 合作TUI工作台**
 
 <p>
-  <img src="https://img.shields.io/badge/version-7.5.0-orange.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-7.5.1-orange.svg" alt="version">
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey.svg" alt="platform">
   <img src="https://img.shields.io/badge/providers-7%20CLI%20families-0B7285.svg" alt="providers">
 </p>
@@ -598,6 +598,16 @@ v7 线重点：
 - 加固 tmux、Ghostty、release helper、Codex trust 和 provider 会话恢复路径。
 
 <details open>
+<summary><b>v7.5.1</b> - Rust CLI 命令补全与版本对齐</summary>
+
+- 补齐 Rust 版 `ccb` CLI 命令面：`wait`、`watch`、`cancel`、`clear`、
+  `queue`、`trace`、`resubmit`、`retry`、`inbox`、`ack`、`reload`、
+  `restart`、`maintenance status` 等命令现在通过 daemon RPC 层执行。
+- 统一 Python 入口脚本、Rust workspace、npm 包、发布工作流和文档中的版本号。
+
+</details>
+
+<details>
 <summary><b>v7.5.0</b> - 原生 CLI Provider 与首页同步</summary>
 
 - 新增 Kimi managed native CLI provider 支持，并补齐更通用的 native CLI

@@ -1,0 +1,109 @@
+\chapter{CLI、诊断和运维命令}
+
+CCB 的 CLI 表面不是一个单一 parser。入口层、管理层、role/tool 层和 phase2 runtime 层共同构成用户命令系统。理解这个分层，有助于维护 help、错误信息、测试和用户手册。
+
+\section{入口层}
+
+\src{lib/cli/entrypoint_runtime.py} 在 phase2 前处理：
+
+\begin{itemize}
+  \item \cmd{--print-version}
+  \item sidebar click/resize 内部命令
+  \item background update refresh 和 post-update
+  \item help
+  \item \cmd{-v}、\cmd{--version}
+  \item removed commands
+  \item auxiliary commands
+  \item management commands
+  \item tools commands
+  \item roles commands
+  \item startup release update
+\end{itemize}
+
+因此，新增顶层命令要先判断它属于早期入口、management、roles/tools，还是普通 phase2 runtime。
+
+\section{普通 runtime 命令}
+
+\src{lib/cli/parser_runtime/constants.py} 定义普通 subcommands：
+
+\begin{lstlisting}
+ask cancel clear cleanup kill ps ping watch pend queue trace
+resubmit retry wait-any wait-all wait-quorum inbox ack logs
+maintenance doctor repair config fault reload restart
+\end{lstlisting}
+
+具体解析在 \src{lib/cli/parser_runtime/commands.py} 和 \src{fault.py}。这些 parser 只负责语法和基本约束，不直接执行业务。
+
+\section{通信命令}
+
+通信命令包括 \cmd{ask}、\cmd{watch}、\cmd{pend}、\cmd{queue}、\cmd{inbox}、\cmd{ack}、\cmd{trace}、\cmd{retry}、\cmd{resubmit}、\cmd{cancel}。它们最终调用 daemon RPC。
+
+\cmd{pend} 是用户体验层的组合命令。它可以 snapshot job 或 agent，也可以进入 watch/inbox/queue 观察模式。解析规则要求 \cmd{--watch}、\cmd{--inbox}、\cmd{--queue} 最多一个，\cmd{--detail} 只能配合 inbox 或 queue，count 只适用于 snapshot。
+
+\section{诊断命令}
+
+\cmd{doctor} 有多个形态：
+
+\begin{itemize}
+  \item \cmd{doctor}
+  \item \cmd{doctor --output [PATH]}
+  \item \cmd{doctor ps} 或 \cmd{doctor --runtime}
+  \item \cmd{doctor logs} 或 \cmd{doctor --logs}
+  \item \cmd{doctor storage [--json]}
+\end{itemize}
+
+旧 \cmd{doctor --bundle} 被明确拒绝，用户应使用 \cmd{doctor --output}。
+
+诊断命令应保持两个性质：一是尽量不改变 runtime 状态，二是输出足够结构化，便于用户和自动化工具定位层次。
+
+\section{维护命令}
+
+\cmd{maintenance} 支持 \src{status}、\src{tick}、\src{schedule}、\src{enable}、\src{disable}。省略 action 时默认为 \src{status}。
+
+maintenance heartbeat 的配置在第六章已经说明。CLI 的 maintenance 命令应当与 config loader 的 heartbeat model 保持一致，避免出现配置支持但命令无法观察，或命令支持但配置无法表达的状态。
+
+\section{管理命令}
+
+management 命令包括 \cmd{version}、\cmd{update}、\cmd{uninstall}、\cmd{reinstall}。它们在 phase2 之前处理，因为它们可能影响安装目录、版本检查或可执行入口，而不是当前项目 runtime。
+
+\section{tools 命令}
+
+当前 tools 命令集中在 Neovim：
+
+\begin{itemize}
+  \item \cmd{ccb tools doctor neovim}
+  \item \cmd{ccb tools install neovim}
+  \item \cmd{ccb tools update neovim}
+\end{itemize}
+
+实现位于 \src{lib/cli/tools_runtime/neovim.py}。它使用 XDG data/state/cache roots，在 \src{ccb/tools/neovim} 下维护 managed Neovim/LazyVim profile。环境变量 \src{CCB_INSTALL_NEOVIM}、\src{CCB_LAZYVIM_PROFILE}、\src{CCB_LAZYVIM_SYNC_TIMEOUT_S}、\src{CCB_LAZYVIM_BOOTSTRAP_TIMEOUT_S} 会影响行为。
+
+\section{fault injection}
+
+\cmd{fault} 是高级测试/诊断命令：
+
+\begin{itemize}
+  \item \cmd{fault list}
+  \item \cmd{fault arm <agent_name> --task-id TASK --reason REASON --count N --error TEXT}
+  \item \cmd{fault clear <rule_id|all>}
+\end{itemize}
+
+它不应出现在普通用户入门路径中，但应在开发者手册中作为 failure path 验证工具保留。
+
+\section{removed commands}
+
+入口层仍识别已移除命令以给出迁移提示：
+
+\begin{itemize}
+  \item \cmd{open}：提示直接使用 \cmd{ccb}。
+  \item \cmd{up}：提示 agents 由 \src{.ccb/ccb.config} 配置。
+  \item \cmd{mail} 和 \cmd{provider}：提示使用 \cmd{ask}、\cmd{doctor} 和 \cmd{trace}。
+\end{itemize}
+
+保留 removed-command guidance 是用户体验的一部分。删除它会让旧文档或脚本用户得到不透明的 parser 错误。
+
+\section{输出渲染}
+
+CLI 服务通常返回 dict 或 dataclass summary，render 层负责转换为行输出。通信视图的 render 路径在 \src{lib/cli/render_runtime/mailbox_views_runtime/}。例如 queue renderer 会输出 \src{queue_status}、observer notice、summary status、runtime health、queued events；trace renderer 会输出 submission/message/attempt/reply/event/job line。
+
+这种 key-value 风格方便 shell 用户和测试断言，但也要求字段命名稳定。改字段时应同步 user manual 和 snapshot tests。

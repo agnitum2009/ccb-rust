@@ -1,0 +1,82 @@
+\chapter{总体架构}
+
+CCB 是一个项目范围内的多 agent 协作运行时。它把用户所在的 checkout 视作一个 project anchor，在这个 anchor 下维护一个 daemon、一个 agent mount set、一组 provider runtime home、一个 tmux 前台布局和一套持久通信记录。核心设计目标不是简单启动几个命令，而是让任务提交、agent 状态、provider 会话、通信队列和诊断记录都落到同一个项目语义之下。
+
+\section{核心分层}
+
+源码可以按下列层次理解。
+
+\begin{longtable}{p{0.24\linewidth}p{0.30\linewidth}p{0.36\linewidth}}
+\toprule
+层 & 代表路径 & 职责 \\
+\midrule
+CLI 入口 & \src{lib/cli/entrypoint_runtime.py}、\src{lib/cli/parser.py} & 解析用户命令、处理 help/version/update/roles/tools、连接 mounted daemon、渲染输出。 \\
+项目发现与配置 & \src{lib/project/}、\src{lib/agents/config_loader_runtime/} & 找到 \src{.ccb} anchor，加载 \src{ccb.config}，解析 agent/window/tool/maintenance。 \\
+ccbd daemon & \src{lib/ccbd/} & 项目唯一后端，维护生命周期、socket RPC、agent mount、dispatcher、health 和诊断。 \\
+dispatcher & \src{lib/ccbd/services/dispatcher_runtime/} & 把请求转换为 job，维护队列、运行、轮询、终态、retry、cancel、reply delivery。 \\
+message bureau & \src{lib/message_bureau/} & 记录 submission、message、attempt、reply、callback edge，并提供 queue/inbox/trace 控制视图。 \\
+mailbox kernel & \src{lib/mailbox_kernel/} & 管理 inbound event、mailbox summary、head event、ack/consume/abandon。 \\
+provider runtime & \src{lib/providers/}、\src{lib/completion/} & 启动或接入 Codex/Claude/Gemini/OpenCode，投递 prompt，检测 completion。 \\
+存储与诊断 & \src{lib/storage/}、\src{lib/cli/services/doctor.py} & 管理 runtime artifact、text artifact、诊断 bundle 和清理边界。 \\
+\bottomrule
+\end{longtable}
+
+这个分层的关键是：CLI 不是系统状态的权威，tmux pane 也不是系统状态的权威。权威来自项目 anchor 下的配置、daemon 生命周期记录、dispatcher/job 记录、message-bureau 记录和 mailbox summary。pane、pid、provider session file 和 socket path 都是证据或运行资源，不应该单独决定项目状态。
+
+\section{项目 anchor 和 backend 所有权}
+
+项目根目录下的 \src{.ccb} 是 CCB 的 anchor。设计契约要求一个 \src{.ccb} anchor 只拥有一个权威 \term{ccbd} backend，一个 project-scoped keeper 负责生命周期推进和 backend generation 更新。这个约束来自 \src{docs/ccbd-startup-supervision-contract.md} 和 \src{docs/ccbd-lifecycle-stability-plan.md}。
+
+这样的模型解决两个问题。
+
+\begin{enumerate}
+  \item 避免同一个 checkout 下出现多个 daemon 争用 socket、tmux pane、agent runtime 和状态文件。
+  \item 让前台布局和后台状态分离。用户重新打开 \cmd{ccb} 可以附着到已有 backend，而不是用残留 pane 或旧 socket 推断系统已经 mounted。
+\end{enumerate}
+
+因此，\term{mounted} 的含义应当是当前 generation 有 ready project socket，而不是磁盘上存在旧 lease 或 socket path。这个规则在 shutdown、recover、doctor 和 startup 路径中都很重要。
+
+\section{前台布局和后台语义}
+
+CCB 同时管理 tmux 前台布局和 daemon 后台语义。配置文件中的 \src{cmd}、window、tool window 和 agent leaf 决定前台布局；daemon 负责持续保持 configured agents mounted and healthy。
+
+这两者不能混为一谈。前台 pane 死亡是 daemon supervision 的问题，不是 job submit 时才修复的临时问题。agent 是否可接收任务，取决于 registry、runtime health、provider execution binding 和 dispatcher availability，而不只是某个 tmux pane 是否仍存在。
+
+\section{为什么需要 message bureau}
+
+早期把任务视为单个 job 很容易，但 CCB 的协作语义比 job 更复杂：
+
+\begin{itemize}
+  \item 一次 ask 可以广播给多个 agent，因此一个 logical message 可以对应多个 job。
+  \item 同一个 message 可以 retry，多次 attempt 共享同一条 message lineage。
+  \item callback 需要把 child job 的结果转成 parent continuation，而不是同步阻塞 parent。
+  \item reply 可以进入 caller mailbox，等待 inbox/ack，而不是只作为 job terminal text。
+  \item trace 需要从 submission、message、attempt、reply、job 任意一点重建链路。
+\end{itemize}
+
+这些需求解释了 \src{lib/message_bureau/} 的存在。dispatcher 负责执行，message bureau 负责通信事实和 lineage。
+
+\section{Archi/Hippo 代码地图}
+
+当前项目有两类生成证据。
+
+\begin{itemize}
+  \item 当前 Hippos bundle 位于 \src{.hippos/bundle-state.json}，生成时间为 2026-06-10T13:56:37Z，包含 1556 个 indexed files、1869 个 manifest files 和 1153 个 signature files。
+  \item 旧 \src{.hippocampus/} bundle 是 2026-05-29 的历史快照。它可以用于比较，但不能作为当前手册的主要代码地图。
+\end{itemize}
+
+Archi 的当前输出 \src{.architec/manual-architecture-analysis-20260610.json} 是 selected-scope diff review。它报告了当前 Hippos snapshot 可用、没有 missing files，并给出若干重复函数提醒。它对本书的作用是帮助定位结构热点，而不是替代章节级架构判断。
+
+\section{架构不变量}
+
+本书后续章节反复依赖以下不变量。
+
+\begin{enumerate}
+  \item \src{.ccb/ccb.config} 定义期望 agent mount set 和前台布局。
+  \item daemon 持续监督 configured agents，而不是只在启动时拉起。
+  \item \src{lifecycle.json}、\src{lease.json} 和当前 agent runtime records 是 backend 权威。
+  \item provider session、tmux pane、pid file 和未知 agent 目录是证据或 residue。
+  \item dispatcher queue 和 message-bureau mailbox queue 是不同概念。
+  \item completion decision 决定 job 终态，reply record 是通信层对终态的投影。
+  \item callback 是持久化 parent/child/continuation edge，不是同步 wait。
+\end{enumerate}

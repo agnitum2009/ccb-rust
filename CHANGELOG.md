@@ -1,5 +1,17 @@
 # Changelog
 
+## v7.5.1 (2026-06-13)
+
+### Rust CLI Command Completion And Version Alignment
+
+- **Rust CLI Command Surface Completed**: `wait`, `watch`, `cancel`, `clear`,
+  `queue`, `trace`, `resubmit`, `retry`, `inbox`, `ack`, `reload`, `restart`,
+  and `maintenance status` now route through the daemon RPC layer with formatted
+  terminal output.
+- **Version Metadata Aligned**: `VERSION`, Python `ccb` entry script,
+  `rust/Cargo.toml`, Rust CLI `VERSION` constant, `package.json`, GitHub release
+  workflows, and README/CHANGELOG now report `v7.5.1` consistently.
+
 ## v7.5.0 (2026-06-13)
 
 ### Native CLI Providers And Homepage Sync

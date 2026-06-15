@@ -1,0 +1,159 @@
+\chapter{代码地图和架构热点}
+
+本章把 Archi/Hippo 证据和人工源码阅读合并成维护视角的代码地图。目标不是替代 IDE 导航，而是回答两个问题：开发者应该从哪里进入一个主题，哪些区域修改时最容易产生跨层影响。
+
+\section{当前生成证据}
+
+当前 Hippos bundle 位于 \src{.hippos/bundle-state.json}。它的 2026-06-10 快照包含 1556 个 indexed files、1869 个 manifest files 和 1153 个 signature files。这个数字说明 CCB 不是一个小型 CLI 脚本，而是由 CLI、daemon、runtime、provider、storage、diagnostics、tests 和 install/update 共同组成的系统。
+
+Archi 输出 \src{.architec/manual-architecture-analysis-20260610.json} 是 selected-scope diff review。它给出的 headline 是：selected-scope diff reports 9 near-duplicate function concerns across 21 changed files。该输出不是 full architecture analysis，但它提供了两个有用信号：
+
+\begin{itemize}
+  \item Hippos snapshot 可用且不 stale。
+  \item reload 相关文件中存在重复函数形态，说明 hot reload/reload patch 是一个结构复杂区域。
+\end{itemize}
+
+这类重复提醒不一定是 bug。它可能是为了保留不同 reload 场景的局部清晰度。但在写维护文档时应标记它们，避免未来继续复制粘贴而不抽象。
+
+\section{从命令进入源码}
+
+用户输入 \cmd{ccb ...} 后，源码入口大致如下。
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+ccb executable
+  -> lib/cli/entrypoint_runtime.py
+    -> early internal/update/help/management/tools/roles dispatch
+    -> lib/cli/phase2.py
+      -> lib/cli/parser.py
+      -> lib/cli/phase2_runtime/dispatch.py
+      -> lib/cli/services/*
+      -> ccbd.socket_client endpoints
+      -> lib/ccbd/handlers/*
+      -> dispatcher / runtime services
+\end{Verbatim}
+
+维护者添加命令时要决定它在哪一层。比如 \cmd{roles} 在 entrypoint 早期分派，不进入 phase2；\cmd{queue} 是 phase2 command，经过 parser、service、socket client、handler、dispatcher facade、message-bureau control view。
+
+\section{从配置进入源码}
+
+配置加载路径如下。
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+project anchor
+  -> .ccb/ccb.config
+  -> load_project_config
+  -> classify compact/rich/hybrid
+  -> validate_project_config
+  -> parse topology / parse agents / role shorthand expansion
+  -> ProjectConfig
+  -> daemon startup / reload / layout materialization
+\end{Verbatim}
+
+配置系统的热点是文档形态转换。compact、rich 和 hybrid 最终都必须落到同一个 ProjectConfig。如果某个字段只在 rich TOML 可用，但没有明确禁止 compact/hybrid，则用户会看到行为漂移。
+
+\section{从通信进入源码}
+
+通信路径跨越最多模块。建议按实体导航，而不是按文件名搜索。
+
+\begin{longtable}{p{0.23\linewidth}p{0.30\linewidth}p{0.37\linewidth}}
+\toprule
+实体 & 代表文件 & 调试时关注 \\
+\midrule
+Envelope & \src{lib/ccbd/api_models_runtime/messages.py} & delivery scope、route options、artifact refs。 \\
+Job & \src{lib/ccbd/api_models_runtime/records.py} & accepted、queued、running、terminal 状态，target slot，provider options。 \\
+Dispatcher state & \src{lib/ccbd/services/dispatcher_runtime/state.py} & per-agent queue、active job、rebuild state。 \\
+Message & \src{lib/message_bureau/models.py} & logical request、target agents、reply policy、retry policy。 \\
+Attempt & \src{lib/message_bureau/models.py} & agent/provider/job attempt、retry index。 \\
+Inbound event & \src{lib/mailbox_kernel/} & task request/reply、head ordering、ack/consume/abandon。 \\
+Reply & \src{lib/message_bureau/models.py} & terminal status、reply text/artifact、diagnostics。 \\
+Callback edge & \src{lib/message_bureau/callback_edges.py} & parent child continuation linkage。 \\
+\bottomrule
+\end{longtable}
+
+如果只盯 \src{job_id}，很容易误判。例如 job completed 只能说明 provider execution 结束；caller 是否收到 reply，要看 ReplyRecord 和 caller mailbox inbound event。
+
+\section{reload 热点}
+
+Archi selected-scope review 把 near-duplicate concern 指向 \src{lib/ccbd/reload_patch.py} 和 \src{lib/ccbd/reload_plan.py}，并引用 \src{lib/ccbd/reload_additive_agents.py} 等文件。reload 的复杂性来自它要在运行中的 daemon 上处理：
+
+\begin{itemize}
+  \item 配置新旧差异。
+  \item agent 增删。
+  \item window/topology 变化。
+  \item tool window 变化。
+  \item pane/layout 与 runtime record 的一致性。
+  \item drain 或保留正在运行的 work。
+\end{itemize}
+
+这类代码不适合在没有测试的情况下做“整理式重构”。如果要抽象重复函数，应先固定行为测试，再抽取结构相同但语义相近的 helper。
+
+\section{provider 热点}
+
+provider 相关代码的热点不是启动命令本身，而是 session binding 和 completion detection。
+
+\begin{itemize}
+  \item Codex 有 session isolation、plugin projection、log tail、polling reader、session switch 等路径。
+  \item Claude 有 assistant events、execution polling、session index、registry logs binding。
+  \item Gemini 有 execution hook、polling service、session binding 和 watchdog。
+  \item OpenCode 有 sqlite/storage、reply polling、cancel tracking、watch。
+\end{itemize}
+
+这些 provider tests 分散在 \src{test/test_codex_*}、\src{test/test_claude_*}、\src{test/test_gemini_*}、\src{test/test_opencode_*}。修改 provider common 层前应跑 provider-specific tests。
+
+\section{storage 热点}
+
+storage 相关热点包括：
+
+\begin{itemize}
+  \item project namespace 和 source runtime guard。
+  \item provider source home 和 provider profiles。
+  \item text artifacts。
+  \item mailbox/message-bureau stores。
+  \item diagnostics bundle。
+  \item cleanup classification。
+\end{itemize}
+
+这些区域共同决定 CCB 是否会污染用户真实 provider home，是否能在 WSL/mounted drive 中运行，是否能从残留文件中恢复而不误删。
+
+\section{UI 和 tmux 热点}
+
+tmux 不是 CCB 的全部，但它是用户体验的主要 surface。相关热点包括：
+
+\begin{itemize}
+  \item terminal runtime layouts。
+  \item tmux attach、input、logs、panes、respawn。
+  \item sidebar click 和 resize sync。
+  \item project view 和 comms/tips layout。
+\end{itemize}
+
+修改这些区域时要同时考虑 daemon state 和 foreground view。只修 pane 布局而不更新 project view，用户会看到前台正常但 sidebar/doctor 不一致。
+
+\section{跨层风险矩阵}
+
+\begin{longtable}{p{0.25\linewidth}p{0.28\linewidth}p{0.37\linewidth}}
+\toprule
+改动区域 & 可能影响 & 必查证据 \\
+\midrule
+config loader & startup、reload、roles、layout & config contract、config tests、rolepack tests。 \\
+dispatcher submission & ask、broadcast、callback、retry & message-bureau integration tests、trace。 \\
+completion detector & provider reply、watch terminal、retry policy & provider-specific completion tests。 \\
+mailbox ack & inbox ordering、reply delivery、queue view & mailbox kernel tests、control queue tests。 \\
+reply delivery & caller reply、ack 禁止条件、repair & reply delivery tests、comms recover tests。 \\
+daemon lifecycle & kill、restart、reload、doctor & startup supervision contract、ccbd supervisor tests。 \\
+provider home & auth/cache/session leakage & provider state boundary doc、runtime isolation tests。 \\
+\bottomrule
+\end{longtable}
+
+\section{如何使用代码地图}
+
+维护者接到 bug 时，不应先全文搜索错误字符串再局部修改。更稳妥的流程是：
+
+\begin{enumerate}
+  \item 把现象归类到 CLI、daemon lifecycle、dispatcher、message bureau、provider、config、storage、UI 中的一类。
+  \item 找到该类的入口文件和权威记录。
+  \item 用 trace/doctor/queue/inbox 或测试 fixture 复现状态。
+  \item 修改最靠近权威边界的代码。
+  \item 增加覆盖同一边界的测试。
+\end{enumerate}
+
+代码地图不是静态目录表，而是维护路线图。它应该随着源码变化持续更新。

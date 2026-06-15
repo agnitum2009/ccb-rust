@@ -1,0 +1,118 @@
+\chapter{命令和配置表}
+
+本附录把开发者手册中出现的命令和配置字段集中成表。详细用户解释会放入第二本用户说明书。
+
+\section{普通 runtime commands}
+
+\begin{longtable}{p{0.24\linewidth}p{0.66\linewidth}}
+\toprule
+命令 & 开发者语义 \\
+\midrule
+\cmd{ask} & 构造 MessageEnvelope，提交 dispatcher，并记录 message-bureau submission。 \\
+\cmd{cancel} & 请求 job cancellation，并写入 cancelled completion decision。 \\
+\cmd{clear} & 清理 agent 上下文，\src{all} 不能与 agent names 混用。 \\
+\cmd{cleanup} & 清理 runtime residue。 \\
+\cmd{kill} & 停止 project backend 和 configured agents。 \\
+\cmd{ps} & 展示 runtime process/agent 状态。 \\
+\cmd{ping} & 检查 agent 或 daemon 可达性。 \\
+\cmd{watch} & cursor-based 轮询 job/agent 事件。 \\
+\cmd{pend} & 组合 snapshot/watch/inbox/queue 观察入口。 \\
+\cmd{queue} & mailbox-centric queue summary/detail view。 \\
+\cmd{trace} & 通过 id 前缀重建 submission/message/attempt/reply/job lineage。 \\
+\cmd{resubmit} & 从旧 message 规划新 message/submission chain。 \\
+\cmd{retry} & 在原 message 下追加 retry attempt。 \\
+\cmd{wait-any/all/quorum} & 等待一组目标回复或达到 quorum。 \\
+\cmd{inbox} & 读取 agent mailbox head 和 pending items。 \\
+\cmd{ack} & 消费 head reply 或 terminal task request。 \\
+\cmd{logs} & 读取 agent 日志。 \\
+\cmd{maintenance} & 观察或触发 maintenance heartbeat。 \\
+\cmd{doctor} & 诊断 runtime、logs、storage 和 bundle。 \\
+\cmd{repair} & ack/retry/resubmit 的修复式别名入口。 \\
+\cmd{config validate} & 验证当前项目配置。 \\
+\cmd{fault} & fault injection。 \\
+\cmd{reload} & 动态 reload 配置，支持 dry-run。 \\
+\cmd{restart} & 重启单个 agent。 \\
+\bottomrule
+\end{longtable}
+
+\section{role commands}
+
+\begin{longtable}{p{0.35\linewidth}p{0.55\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{roles list} & 列出 catalog 或内建 roles。 \\
+\cmd{roles show <role_id>} & 展示 installed 或 builtin role summary。 \\
+\cmd{roles install [role_id]} & 安装 role，可指定 path，可跳过 tools。 \\
+\cmd{roles update [role_id]} & 更新 role。 \\
+\cmd{roles sync [path]} & 从本地 path 同步 roles，可带 tools。 \\
+\cmd{roles doctor <role_id>} & 检查 role 和 tools 状态。 \\
+\cmd{roles add <role_spec>} & 把 role spec 写入最近 project config。 \\
+\bottomrule
+\end{longtable}
+
+\section{配置 top-level keys}
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+key & 说明 \\
+\midrule
+\src{version} & 必须为 2。 \\
+\src{default_agents} & legacy layout 模式必需，windows topology 中禁止。 \\
+\src{agents} & agent specs 或 topology leaf overlay。 \\
+\src{cmd_enabled} & legacy layout 中启用 cmd pane，windows topology 中禁止。 \\
+\src{layout} & legacy layout spec，windows topology 中禁止。 \\
+\src{ui} & windows topology 中的 sidebar UI 配置。 \\
+\src{windows} & 多 window topology。 \\
+\src{tool_windows} & 非 agent 工具窗口，要求 windows topology。 \\
+\src{entry_window} & 默认进入窗口，要求 windows topology。 \\
+\src{maintenance} & maintenance heartbeat 配置。 \\
+\bottomrule
+\end{longtable}
+
+\section{agent keys}
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+key & 说明 \\
+\midrule
+\src{provider} & provider 名称。 \\
+\src{target} & 工作目标路径或目标语义。 \\
+\src{workspace_mode} & \src{inplace} 或 \src{git-worktree} 等。 \\
+\src{workspace_root} & 外部 workspace root。 \\
+\src{workspace_path} & 固定 workspace path。 \\
+\src{workspace_group} & shared worktree group。 \\
+\src{provider_command_template} & provider 启动命令模板。 \\
+\src{runtime_mode} & 默认 pane-backed。 \\
+\src{restore} & restore 默认策略。 \\
+\src{permission} & permission 默认策略。 \\
+\src{queue_policy} & 默认 serial-per-agent。 \\
+\src{model} & provider model。 \\
+\src{key}、\src{url} & API shortcut。 \\
+\src{startup_args} & provider 启动参数。 \\
+\src{env} & agent env。 \\
+\src{api} & explicit API spec。 \\
+\src{provider_profile} & provider profile inheritance/home/env。 \\
+\src{branch_template} & worktree branch template。 \\
+\src{labels} & UI labels。 \\
+\src{description} & agent description。 \\
+\src{role} & role id binding。 \\
+\src{watch_paths} & watched paths。 \\
+\bottomrule
+\end{longtable}
+
+\section{maintenance heartbeat keys}
+
+\begin{longtable}{p{0.32\linewidth}p{0.58\linewidth}}
+\toprule
+key & 默认/说明 \\
+\midrule
+\src{enabled} & 默认 false。 \\
+\src{assessor} & 默认 \src{ccb_self}。 \\
+\src{interval_s} & 默认 3600。 \\
+\src{min_interval_s} & 默认 300。 \\
+\src{unknown_streak_cap} & 默认 3。 \\
+\src{escalation_policy} & 默认 \src{report_only}。 \\
+\src{startup_ensure} & 默认 true。 \\
+\bottomrule
+\end{longtable}

@@ -1,0 +1,129 @@
+\chapter{诊断、维护和恢复}
+
+\section{doctor}
+
+常规诊断：
+
+\begin{lstlisting}
+ccb doctor
+\end{lstlisting}
+
+生成 bundle：
+
+\begin{lstlisting}
+ccb doctor --output
+ccb doctor --output /tmp/ccb-doctor
+\end{lstlisting}
+
+\cmd{doctor --bundle} 已不支持，使用 \cmd{doctor --output}。
+
+\section{runtime 诊断}
+
+\begin{lstlisting}
+ccb doctor ps
+ccb doctor --runtime
+ccb ps
+\end{lstlisting}
+
+用于查看 backend、agent runtime、health 和相关状态。
+
+\section{日志诊断}
+
+\begin{lstlisting}
+ccb doctor logs
+ccb doctor --logs
+ccb logs <agent>
+\end{lstlisting}
+
+日志适合排查 provider 启动、pane、runtime 和 completion 问题。
+
+\section{存储诊断}
+
+\begin{lstlisting}
+ccb doctor storage
+ccb doctor storage --json
+\end{lstlisting}
+
+当 queue/inbox 显示 summary missing 或 summary error 时，优先运行 storage diagnostics。
+
+\section{maintenance}
+
+\begin{lstlisting}
+ccb maintenance
+ccb maintenance status
+ccb maintenance tick
+ccb maintenance tick --force
+ccb maintenance tick --no-dispatch
+ccb maintenance schedule --after 5m --reason "follow up"
+\end{lstlisting}
+
+maintenance heartbeat 可用于周期性检查 agent health。默认 assessor 是 \cfg{ccb_self}，默认 policy 是 \cfg{report_only}。
+
+\cmd{ccb maintenance schedule} 不是只读查看命令；它必须带 \cmd{--after <duration>}，并会写入下一次 heartbeat follow-up。当前 \cmd{ccb maintenance enable} 和 \cmd{ccb maintenance disable} 只返回 config-authority 提示；要启停 heartbeat，请编辑 \cfg{[maintenance.heartbeat].enabled}。这里的 config-authority 说明不改变 \src{.ccb/ccb.config} 必须使用 \cfg{version = 2} 的规则。
+
+\section{reload}
+
+修改配置后先验证：
+
+\begin{lstlisting}
+ccb config validate
+\end{lstlisting}
+
+预览 reload：
+
+\begin{lstlisting}
+ccb reload --dry-run
+\end{lstlisting}
+
+执行 reload：
+
+\begin{lstlisting}
+ccb reload
+\end{lstlisting}
+
+\section{restart}
+
+重启单个 agent：
+
+\begin{lstlisting}
+ccb restart archi
+\end{lstlisting}
+
+\cmd{restart all} 不支持。restart 只接受单个 agent，并由 ccbd busy gate 保护；如果 agent 正在执行、排队、投递回复或等待 callback continuation，会被拒绝。需要全项目处理时使用 reload、kill 或重新启动 CCB。
+
+\section{kill}
+
+普通停止：
+
+\begin{lstlisting}
+ccb kill
+\end{lstlisting}
+
+强制：
+
+\begin{lstlisting}
+ccb kill --force
+ccb kill -f
+\end{lstlisting}
+
+不要手动删除项目 \src{.ccb/agents/*} 或 \src{.ccb/ccbd/*} 来代替 kill。
+
+\section{cleanup}
+
+\begin{lstlisting}
+ccb cleanup
+\end{lstlisting}
+
+用于清理运行残留。cleanup 不应被当作常规启动步骤，只有诊断确认 residue 影响当前环境时再用。
+
+\section{fault injection}
+
+高级测试：
+
+\begin{lstlisting}
+ccb fault list
+ccb fault arm archi --task-id task1 --reason api_error --count 1 --error "drill"
+ccb fault clear all
+\end{lstlisting}
+
+fault injection 适合测试失败路径，不适合普通用户日常使用。

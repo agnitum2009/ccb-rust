@@ -1,0 +1,168 @@
+\chapter{通信记录参考}
+
+本附录集中整理通信系统的记录、状态和命令关系。它服务于开发者调试，不替代源码模型定义。
+
+\section{记录实体}
+
+\begin{longtable}{p{0.20\linewidth}p{0.26\linewidth}p{0.44\linewidth}}
+\toprule
+实体 & 主要来源 & 开发者关注点 \\
+\midrule
+Submission & message-bureau submission store & 一次 logical submit 的聚合，特别是 broadcast。 \\
+Message & \src{MessageRecord} & target scope、target agents、reply policy、retry policy、state。 \\
+Attempt & \src{AttemptRecord} & agent、provider、job id、retry index、attempt state。 \\
+Job & \src{JobRecord} & dispatcher 执行事实、provider options、terminal decision。 \\
+Inbound event & mailbox kernel & task request/reply、head ordering、ack/consume/abandon。 \\
+Reply & \src{ReplyRecord} & terminal status、reply text/artifact、diagnostics。 \\
+Callback edge & callback edge store & parent、child、continuation、timeout、reply capture。 \\
+Completion snapshot & completion storage & tracker state、decision、provider cursor。 \\
+\bottomrule
+\end{longtable}
+
+\section{常见状态转换}
+
+\subsection{普通 ask}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+Message: created -> running -> completed/failed/incomplete/cancelled
+Attempt: queued -> running -> completed/failed/incomplete/cancelled
+Job: accepted/queued -> running -> completed/failed/incomplete/cancelled
+Inbound task_request: queued -> delivering/claimed -> consumed/abandoned
+Reply event: queued -> head -> consumed by ack or reply delivery
+\end{Verbatim}
+
+\subsection{retry}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+old attempt: terminal non-completed
+same message: append new attempt
+same submission: append new job
+new job: accepted/queued -> running -> terminal
+trace: shows retry_index increasing
+\end{Verbatim}
+
+\subsection{resubmit}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+old message: unchanged
+new message: origin points to old message
+new submission/job chain: created through normal submit plan
+trace old and new separately
+\end{Verbatim}
+
+\subsection{callback}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+parent job running
+child ask submitted with callback mode
+callback edge created
+child completes
+child reply captured
+continuation job submitted to parent agent
+edge marked advanced/done
+\end{Verbatim}
+
+\section{命令与记录关系}
+
+\begin{longtable}{p{0.20\linewidth}p{0.30\linewidth}p{0.40\linewidth}}
+\toprule
+命令 & 读取/修改 & 说明 \\
+\midrule
+\cmd{ask} & 写 submission/message/attempt/job/inbound event & 入口命令。 \\
+\cmd{watch} & 读 job events/completion payload & cursor-based event stream。 \\
+\cmd{pend} & 读 job get 或 mailbox head overlay & 组合观察。 \\
+\cmd{queue} & 读 mailbox summary 和 inbound events & mailbox-centric queue view。 \\
+\cmd{inbox} & 读 mailbox head 和 pending events & caller reply view。 \\
+\cmd{ack} & 修改 head inbound event 状态 & 消费 reply 或 terminal request。 \\
+\cmd{trace} & 读 submission/message/attempt/reply/event/job & lineage graph。 \\
+\cmd{retry} & 写新 job 和 retry attempt & 保留原 message。 \\
+\cmd{resubmit} & 写新 message/submission/jobs & 新链路。 \\
+\cmd{cancel} & 写 cancelled decision 和 terminal attempt & 主动终止。 \\
+\bottomrule
+\end{longtable}
+
+\section{诊断字段}
+
+trace 的 summary 字段含义：
+
+\begin{itemize}
+  \item \src{message_count}：payload 中 message summaries 数量。
+  \item \src{attempt_count}：payload 中 attempt summaries 数量。
+  \item \src{reply_count}：payload 中 reply summaries 数量。
+  \item \src{event_count}：payload 中 inbound event summaries 数量。
+  \item \src{job_count}：payload 中 job summaries 数量。
+\end{itemize}
+
+queue 的 summary 字段含义：
+
+\begin{itemize}
+  \item \src{queue_depth}：mailbox pending queue depth。
+  \item \src{pending_reply_count}：pending task reply 数量。
+  \item \src{active_inbound_event_id}：当前 mailbox active event。
+  \item \src{summary_status}：\src{ok}、\src{missing} 或 \src{error}。
+  \item \src{runtime_state} 和 \src{runtime_health}：dispatcher facade 叠加的 registry 视图。
+\end{itemize}
+
+inbox 的 head 字段含义：
+
+\begin{itemize}
+  \item \src{head_inbound_event_id}：当前可 ack 或 inspect 的 head。
+  \item \src{head_event_type}：通常是 task request 或 task reply。
+  \item \src{head_reply_id}：如果 head 是 reply，则指向 ReplyRecord。
+  \item \src{head_reply_notice}：reply 是否带 notice 元数据。
+  \item \src{head_reply_last_progress_at}：reply delivery/progress 相关时间。
+\end{itemize}
+
+\section{排障配方}
+
+\subsection{用户说 ask 没有回复}
+
+\begin{enumerate}
+  \item 查 \cmd{trace <job_id>}，确认 job 是否 terminal。
+  \item 如果 job running，查 \cmd{watch <job_id>} 和 provider runtime。
+  \item 如果 job terminal 但无 reply，查 message-bureau finalization。
+  \item 如果有 reply 但用户没看到，查 caller \cmd{inbox --detail <caller>}。
+  \item 如果 reply head 存在但无法消费，查 reply delivery job 和 ack 限制。
+\end{enumerate}
+
+\subsection{queue 显示 degraded}
+
+\begin{enumerate}
+  \item 读取 \cmd{queue --detail <agent>} 看 summary status。
+  \item 若 \src{missing}，等待 maintenance refresh 或查 mailbox store。
+  \item 若 \src{error}，运行 \cmd{doctor storage}。
+  \item 用 \cmd{trace} 确认 message/attempt/reply 是否仍完整。
+\end{enumerate}
+
+\subsection{callback 卡住}
+
+\begin{enumerate}
+  \item 找 child job id 并 trace。
+  \item 查 callback edge 是否已有 child reply。
+  \item 如果 child terminal 但 parent continuation 未提交，查 finalization callback path。
+  \item 如果 parent 已有 outstanding callback，新的 callback 会被拒绝。
+\end{enumerate}
+
+\subsection{retry 失败}
+
+\begin{enumerate}
+  \item 确认目标是 \src{job_id} 或 \src{attempt_id}。
+  \item 确认 attempt 是 terminal。
+  \item 确认 attempt 不是 completed。
+  \item 确认它是该 agent 最新 attempt。
+  \item 确认 target agent runtime 可用。
+\end{enumerate}
+
+\section{设计约束}
+
+通信层的主要约束可以简化为五条。
+
+\begin{enumerate}
+  \item job 执行事实和 message 通信事实必须分离。
+  \item mailbox head ordering 不能被 ack 跳过。
+  \item retry 延续 message lineage，resubmit 创建新 lineage。
+  \item callback 必须显式建 edge，不能隐式同步等待。
+  \item artifact 是 payload indirection，不是新的通信对象类型。
+\end{enumerate}
+
+维护者如果守住这五条，通信系统的可解释性就不会轻易丢失。

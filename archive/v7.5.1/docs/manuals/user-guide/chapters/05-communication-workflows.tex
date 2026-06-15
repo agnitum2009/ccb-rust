@@ -1,0 +1,146 @@
+\chapter{通信工作流}
+
+\section{普通 ask}
+
+\begin{lstlisting}
+ccb ask archi explain current architecture
+\end{lstlisting}
+
+提交后会得到 job id。可以：
+
+\begin{lstlisting}
+ccb watch <job_id>
+ccb trace <job_id>
+\end{lstlisting}
+
+\section{无需结果的任务}
+
+如果你只是让另一个 agent 做独立检查，不需要把结果带回当前任务：
+
+\begin{lstlisting}
+ccb ask --silence ops run smoke check
+\end{lstlisting}
+
+成功时静默，失败或阻塞仍应出现。
+
+\section{需要结果的子任务}
+
+如果当前 agent 需要另一个 agent 的结果才能继续：
+
+\begin{lstlisting}
+ccb ask --callback archi collect evidence
+\end{lstlisting}
+
+callback 不是同步等待。CCB 会记录 parent/child 关系，child 完成后把结果作为 continuation 任务送回 parent agent。
+
+\section{长内容}
+
+长 request：
+
+\begin{lstlisting}
+ccb ask --artifact-request archi -- "$(cat long-note.txt)"
+\end{lstlisting}
+
+长 reply：
+
+\begin{lstlisting}
+ccb ask --artifact-reply archi produce detailed report
+\end{lstlisting}
+
+双向 artifact：
+
+\begin{lstlisting}
+ccb ask --artifact-io archi process this large context
+\end{lstlisting}
+
+\section{查看 queue}
+
+查看全部：
+
+\begin{lstlisting}
+ccb queue all
+\end{lstlisting}
+
+查看某个 agent：
+
+\begin{lstlisting}
+ccb queue archi
+ccb queue --detail archi
+\end{lstlisting}
+
+queue 是 mailbox-centric 视图，会叠加 runtime state 和 health。summary missing 或 error 时，视图会 degraded，可以用 \cmd{doctor storage} 继续排查。
+
+\section{查看 inbox 和 ack}
+
+\begin{lstlisting}
+ccb inbox talk1
+ccb inbox --detail talk1
+\end{lstlisting}
+
+如果 head 是已读 reply，可以 ack：
+
+\begin{lstlisting}
+ccb ack talk1
+\end{lstlisting}
+
+如果系统提示需要指定 head event：
+
+\begin{lstlisting}
+ccb ack talk1 <inbound_event_id>
+\end{lstlisting}
+
+不要试图 ack 非 head event。CCB 故意保持 head-only 语义，避免跳过更早消息。
+
+\section{trace}
+
+trace 支持：
+
+\begin{lstlisting}
+ccb trace sub_xxx
+ccb trace msg_xxx
+ccb trace att_xxx
+ccb trace rep_xxx
+ccb trace job_xxx
+\end{lstlisting}
+
+如果你只知道 job id，先 trace job id。trace 会显示相关 submission、message、attempt、reply、event、job。
+
+\section{retry 和 resubmit}
+
+当某次 attempt 失败且仍是最新 attempt：
+
+\begin{lstlisting}
+ccb retry job_xxx
+\end{lstlisting}
+
+当你要重新提交整条消息：
+
+\begin{lstlisting}
+ccb resubmit msg_xxx
+\end{lstlisting}
+
+区别：
+
+\begin{itemize}
+  \item \cmd{retry} 保留原 message lineage，增加 retry attempt。
+  \item \cmd{resubmit} 创建新 message/submission/jobs。
+\end{itemize}
+
+\section{取消任务}
+
+\begin{lstlisting}
+ccb cancel job_xxx
+\end{lstlisting}
+
+取消会把 job 推进到 cancelled terminal state。它不会删除 trace lineage。
+
+\section{推荐排障流程}
+
+\begin{enumerate}
+  \item 先 \cmd{trace <id>} 建立上下文。
+  \item 如果 job 未 terminal，用 \cmd{watch <job_id>}。
+  \item 如果 agent 有积压，用 \cmd{queue --detail <agent>}。
+  \item 如果 caller 没看到回复，用 \cmd{inbox --detail <caller>}。
+  \item 如果存储 degraded，用 \cmd{doctor storage}。
+  \item 根据 trace 决定 \cmd{retry}、\cmd{resubmit}、\cmd{cancel} 或 \cmd{ack}。
+\end{enumerate}

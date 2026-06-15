@@ -1,0 +1,141 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+
+from agents.policy import resolve_agent_launch_policy
+from agents.store import AgentRestoreStore, AgentSpecStore
+from cli.services.provider_hooks import prepare_provider_workspace, provider_workspace_path_for_prepare
+from cli.services.runtime_launch_runtime import runtime_launcher
+from provider_profiles import validate_provider_runtime_home_uniqueness
+from workspace.binding import WorkspaceBindingStore
+from workspace.materializer import WorkspaceMaterializer
+from workspace.planner import WorkspacePlanner
+from workspace.validator import WorkspaceValidator
+
+
+@dataclass(frozen=True)
+class PreparedStartAgent:
+    agent_name: str
+    spec: object
+    plan: object
+    window_name: str | None
+    raw_binding: object | None
+    binding: object | None
+    stale_binding: bool
+
+
+def prepare_start_agents(
+    *,
+    targets: tuple[str, ...],
+    config,
+    paths,
+    context,
+    project_root: Path,
+    project_id: str,
+    tmux_socket_path: str | None,
+    tmux_session_name: str | None,
+    workspace_window_id: str | None,
+    resolve_agent_binding_fn,
+    project_binding_filter_fn,
+    restore_state_builder,
+) -> tuple[PreparedStartAgent, ...]:
+    spec_store = AgentSpecStore(paths)
+    restore_store = AgentRestoreStore(paths)
+    planner = WorkspacePlanner()
+    binding_store = WorkspaceBindingStore()
+    materializer = WorkspaceMaterializer()
+    validator = WorkspaceValidator(binding_store)
+    prepared: list[PreparedStartAgent] = []
+
+    try:
+        validate_provider_runtime_home_uniqueness(layout=paths, specs=config.agents.values())
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+    for agent_name in targets:
+        spec = config.agents[agent_name]
+        window_name = _window_name_for_agent(config, agent_name)
+        spec_store.save(spec)
+        policy = resolve_agent_launch_policy(
+            spec,
+            cli_restore=context.command.restore,
+            cli_auto_permission=context.command.auto_permission,
+        )
+        plan = planner.plan(spec, context.project)
+        materializer.materialize(plan)
+        if plan.binding_path is not None:
+            binding_store.save(plan)
+        provider_workspace_path = provider_workspace_path_for_prepare(
+            command=context.command,
+            spec=spec,
+            plan=plan,
+            runtime_dir=paths.agent_provider_runtime_dir(agent_name, spec.provider),
+            launcher=runtime_launcher(spec.provider),
+        )
+        prepare_provider_workspace(
+            layout=paths,
+            spec=spec,
+            workspace_path=provider_workspace_path,
+            completion_dir=paths.agent_provider_runtime_dir(agent_name, spec.provider) / 'completion',
+            agent_name=agent_name,
+            refresh_profile=True,
+            auto_permission=context.command.auto_permission,
+        )
+        result = validator.validate(plan)
+        if not result.ok:
+            raise RuntimeError(f'workspace validation failed for {agent_name}: {result.errors}')
+
+        raw_binding = resolve_agent_binding_fn(
+            provider=spec.provider,
+            agent_name=agent_name,
+            workspace_path=plan.workspace_path,
+            project_root=project_root,
+            ensure_usable=False,
+        )
+        if tmux_socket_path is not None:
+            binding = project_binding_filter_fn(
+                raw_binding,
+                cmd_enabled=bool(getattr(config, 'cmd_enabled', False)),
+                tmux_socket_path=tmux_socket_path,
+                tmux_session_name=tmux_session_name,
+                workspace_window_id=workspace_window_id,
+                agent_name=agent_name,
+                project_id=project_id,
+                window_name=window_name,
+            )
+        else:
+            binding = resolve_agent_binding_fn(
+                provider=spec.provider,
+                agent_name=agent_name,
+                workspace_path=plan.workspace_path,
+                project_root=project_root,
+                ensure_usable=True,
+            )
+
+        if restore_store.load(agent_name) is None:
+            restore_store.save(agent_name, restore_state_builder(policy.restore_mode.value))
+
+        prepared.append(
+            PreparedStartAgent(
+                agent_name=agent_name,
+                spec=spec,
+                plan=plan,
+                window_name=window_name,
+                raw_binding=raw_binding,
+                binding=binding,
+                stale_binding=raw_binding is not None and binding is None,
+            )
+        )
+
+    return tuple(prepared)
+
+
+def _window_name_for_agent(config, agent_name: str) -> str | None:
+    for window in getattr(config, 'windows', ()) or ():
+        if agent_name in tuple(getattr(window, 'agent_names', ()) or ()):
+            return str(getattr(window, 'name', '') or '').strip() or None
+    return None
+
+
+__all__ = ['PreparedStartAgent', 'prepare_start_agents']

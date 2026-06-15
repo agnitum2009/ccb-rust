@@ -1,0 +1,153 @@
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{enumitem}
+\usepackage{fvextra}
+\usepackage{upquote}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\geometry{paper=a4paper,margin=27mm,headheight=25pt}
+\linespread{1.12}
+\setmainfont{TeX Gyre Pagella}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
+\setCJKmainfont[AutoFakeSlant=0.18]{Noto Serif CJK SC}
+\setCJKsansfont[AutoFakeSlant=0.18]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+
+\definecolor{ccbInk}{HTML}{1F2933}
+\definecolor{ccbNavy}{HTML}{1F3A5F}
+\definecolor{ccbBlue}{HTML}{2563A6}
+\definecolor{ccbTeal}{HTML}{047857}
+\definecolor{ccbAmber}{HTML}{B45309}
+\definecolor{ccbCodeBg}{HTML}{F6F8FA}
+\definecolor{ccbCodeRule}{HTML}{C9D1D9}
+\definecolor{ccbKeyword}{HTML}{1D4ED8}
+\definecolor{ccbString}{HTML}{B45309}
+\definecolor{ccbComment}{HTML}{047857}
+\definecolor{ccbNumber}{HTML}{6B7280}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=ccbBlue,
+  urlcolor=ccbBlue,
+  citecolor=ccbBlue
+}
+
+\setlist{nosep,leftmargin=2em}
+\setlength{\parskip}{0.42em}
+\setlength{\parindent}{2em}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.16}
+\setlength{\LTpre}{0.55em}
+\setlength{\LTpost}{0.75em}
+\emergencystretch=4em
+\sloppy
+\Urlmuskip=0mu plus 2mu
+
+\titleformat{\chapter}[display]
+  {\normalfont\sffamily\bfseries\color{ccbNavy}}
+  {\filleft\Large\thechapter}
+  {0.8ex}
+  {\titlerule[0.7pt]\vspace{1.2ex}\Huge}
+  [\vspace{0.8ex}\titlerule]
+\titleformat{\section}
+  {\normalfont\sffamily\Large\bfseries\color{ccbNavy}}
+  {\thesection}
+  {0.8em}
+  {}
+\titleformat{\subsection}
+  {\normalfont\sffamily\large\bfseries\color{ccbBlue}}
+  {\thesubsection}
+  {0.8em}
+  {}
+\titlespacing*{\chapter}{0pt}{-0.5em}{1.6em}
+\titlespacing*{\section}{0pt}{1.1em}{0.45em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.35em}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\sffamily\small\color{ccbNavy}\thepage}
+\fancyhead[LO]{\sffamily\small\color{ccbNavy}\nouppercase{\rightmark}}
+\fancyhead[RE]{\sffamily\small\color{ccbNavy}\nouppercase{\leftmark}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{ccbCodeRule}\leaders\hrule height \headrulewidth\hfill}}
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyfoot[C]{\sffamily\small\color{ccbNavy}\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+\lstdefinestyle{ccbcode}{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{ccbCodeBg},
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framerule=0.35pt,
+  framesep=5pt,
+  rulecolor=\color{ccbCodeRule},
+  numbers=left,
+  numberstyle=\scriptsize\color{ccbNumber},
+  numbersep=8pt,
+  keywordstyle=\bfseries\color{ccbKeyword},
+  commentstyle=\itshape\color{ccbComment},
+  stringstyle=\color{ccbString},
+  showstringspaces=false,
+  xleftmargin=1.2em,
+  xrightmargin=0.6em,
+  morekeywords={ccb,ask,watch,pend,queue,inbox,ack,trace,retry,resubmit,cancel,clear,cleanup,kill,ps,ping,logs,maintenance,doctor,repair,config,fault,reload,restart,roles,tools,install,update,sync,validate,status,tick,schedule,enable,disable}
+}
+\lstset{style=ccbcode}
+
+\RecustomVerbatimEnvironment{Verbatim}{Verbatim}{
+  breaklines=true,
+  breakanywhere=true,
+  fontsize=\footnotesize,
+  frame=single,
+  rulecolor=\color{ccbCodeRule},
+  framesep=5pt,
+  formatcom=\color{ccbInk}
+}
+
+\newcommand{\codeinline}[1]{%
+  {\begingroup\ttfamily\footnotesize\hyphenchar\font=`\-\relax\nolinkurl{#1}\endgroup}%
+}
+\newcommand{\cmdinline}[1]{%
+  {\begingroup\ttfamily\footnotesize\hyphenchar\font=`\-\relax\detokenize{#1}\endgroup}%
+}
+\newcommand{\src}[1]{\codeinline{#1}}
+\newcommand{\cmd}[1]{\cmdinline{#1}}
+\newcommand{\cfg}[1]{\codeinline{#1}}
+\newcommand{\term}[1]{\textsf{\color{ccbNavy}#1}}
+
+\newcommand{\manualTitlePage}[4]{%
+  \begin{titlepage}
+    \thispagestyle{empty}
+    \vspace*{0.12\textheight}
+    {\sffamily\bfseries\color{ccbNavy}\fontsize{34}{40}\selectfont #1\par}
+    \vspace{1.1em}
+    {\sffamily\Large\color{ccbInk}#2\par}
+    \vspace{1.6em}
+    {\color{ccbBlue}\rule{0.74\textwidth}{1.2pt}\par}
+    \vfill
+    \begin{tabular}{>{\sffamily\bfseries\color{ccbNavy}}r@{\hspace{1em}}p{0.58\textwidth}}
+      类型 & #3 \\
+      日期 & #4 \\
+      维护 & CCB project \\
+    \end{tabular}
+    \vspace*{0.10\textheight}
+  \end{titlepage}
+}

@@ -1,0 +1,350 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1781421679501,
+  "projectRoot": "/home/agnitum/ccb/rust",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Rust",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "Cargo.toml"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "cargo",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "cd /home/agnitum/ccb/rust\necho \"=== 1. workspace build ===\"\ncargo build --workspace --release 2>&1 | grep -E \"^error|Finished\" | tail -2\n\necho \"=== 2. workspace tests ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep -E \"^test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'\n\necho \"=== 3. clippy ===\"\ncargo clippy --workspace --all-targets 2>&1 | grep -cE \"^warning:|^error\"\n\necho \"=== 4. count real code vs stubs ===\"\necho -n \"Total .rs files: \"; find crates/ tools/ -name \"*.rs\" -not -path \"*/target/*\" | wc -l\necho -n \"Stub files (TODO/Mirrors Python): \"; grep -rl \"TODO: align\" crates/ tools/ --include=\"*.rs\" 2>/dev/null | wc -l\necho -n \"Real code files (>50 non-comment lines): \"; find crates/ tools/ -name \"*.rs\" -not -path \"*/target/*\" -exec sh -c 'lines=$(grep -cv \"^\\s*//\\|^\\s*$\\|^\\s*!\" \"$1\" 2>/dev/null); [ \"$lines\" -gt 50 ] && echo \"$1\"' _ {} \\; | wc -l",
+    "testCommand": "cd /home/agnitum/ccb/rust\necho \"=== test count ===\"\ncargo test --workspace -- --test-threads=1 2>&1 | grep \"test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'\necho \"=== stub breakdown by crate (top 10) ===\"\nfor crate in crates/ccb-providers crates/ccb-daemon crates/ccb-cli crates/ccb-terminal crates/ccb-agents crates/ccb-memory crates/ccb-message-bureau crates/ccb-provider-core crates/ccb-mailbox crates/ccb-completion; do\n    total=$(find \"$crate/src\" -name \"*.rs\" 2>/dev/null | wc -l)\n    stubs=$(grep -rl \"TODO: align\" \"$crate/src\" --include=\"*.rs\" 2>/dev/null | wc -l)\n    real=$((total - stubs))\n    printf \"%-24s total:%4d  real:%4d  stubs:%4d\\n\" \"$(basename $crate)\" \"$total\" \"$real\" \"$stubs\"\ndone",
+    "lintCommand": "cargo clippy",
+    "devCommand": "cargo run",
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "src"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "crates": {
+      "path": "crates",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1781421679489,
+      "keyFiles": []
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1781421679492,
+      "keyFiles": []
+    },
+    "target": {
+      "path": "target",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1781421679493,
+      "keyFiles": [
+        "CACHEDIR.TAG"
+      ]
+    },
+    "tools": {
+      "path": "tools",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1781421679495,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "crates/ccb-agents/src/rolepacks.rs",
+      "accessCount": 93,
+      "lastAccessed": 1781430900157,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/tests/native_cli_tests.rs",
+      "accessCount": 21,
+      "lastAccessed": 1781428449094,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/versioning.rs",
+      "accessCount": 16,
+      "lastAccessed": 1781437762758,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/source_guard.rs",
+      "accessCount": 11,
+      "lastAccessed": 1781425871338,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/commands.rs",
+      "accessCount": 8,
+      "lastAccessed": 1781438095107,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/app.rs",
+      "accessCount": 7,
+      "lastAccessed": 1781451091718,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/tests/rolepack_tests.rs",
+      "accessCount": 6,
+      "lastAccessed": 1781425568564,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/tests/cli_stub_commands_tests.rs",
+      "accessCount": 6,
+      "lastAccessed": 1781431453446,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/Cargo.toml",
+      "accessCount": 4,
+      "lastAccessed": 1781422302702,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-runtime-pid-cleanup/src/matching.rs",
+      "accessCount": 4,
+      "lastAccessed": 1781429280910,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/src/lib.rs",
+      "accessCount": 4,
+      "lastAccessed": 1781430316350,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-provider-hooks/src/settings.rs",
+      "accessCount": 4,
+      "lastAccessed": 1781439458496,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/src/config.rs",
+      "accessCount": 4,
+      "lastAccessed": 1781449511887,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/reload_plan.rs",
+      "accessCount": 4,
+      "lastAccessed": 1781454431469,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/src/lib.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781423384154,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/src/model_shortcuts.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781423405569,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/src/role_aliases.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781424532692,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/lib.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781424579886,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/src/native_cli_support/adapter.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781428292200,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-provider-core/src/session_binding.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781429232421,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/src/agent_roles_manager.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781430794010,
+      "type": "file"
+    },
+    {
+      "path": "Cargo.toml",
+      "accessCount": 3,
+      "lastAccessed": 1781439666946,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-memory/src/lib.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781422774257,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-memory/src/project_memory/mod.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781422774315,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/src/native_cli_support/mod.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781428324684,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-terminal/src/env.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781429192078,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/entry.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781431198403,
+      "type": "file"
+    },
+    {
+      "path": "tools/ccb-provider-finish-hook/Cargo.toml",
+      "accessCount": 2,
+      "lastAccessed": 1781439262027,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-provider-hooks/src/lib.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781439338135,
+      "type": "file"
+    },
+    {
+      "path": "tools/ccb-provider-activity-hook/src/main.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781439693243,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/lib.rs",
+      "accessCount": 2,
+      "lastAccessed": 1781453556609,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/src/policy.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781422425496,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-memory/Cargo.toml",
+      "accessCount": 1,
+      "lastAccessed": 1781422646996,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/handlers/mod.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781422786627,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/services/mod.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781422791345,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/release_artifacts.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781424569416,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-agents/src/models.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781425402876,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/src/native_cli_support/config.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781428271584,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-providers/src/native_cli_support/observation.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781428333878,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/parser.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781428814796,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/tools_runtime.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781438119010,
+      "type": "file"
+    },
+    {
+      "path": "tools/ccb-provider-finish-hook/src/main.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781439240559,
+      "type": "file"
+    },
+    {
+      "path": "tools/ccb-provider-activity-hook/Cargo.toml",
+      "accessCount": 1,
+      "lastAccessed": 1781439570920,
+      "type": "file"
+    },
+    {
+      "path": "tools/ccb-cleanup/Cargo.toml",
+      "accessCount": 1,
+      "lastAccessed": 1781439643041,
+      "type": "file"
+    },
+    {
+      "path": "tools/ccb-cleanup/src/main.rs",
+      "accessCount": 1,
+      "lastAccessed": 1781439659543,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

@@ -1,0 +1,279 @@
+\chapter{配置系统}
+
+CCB 配置文件是 \src{.ccb/ccb.config}。源码支持三种文档形态：compact、rich TOML 和 hybrid。所有形态最终都被转换和验证为 version 2 project config。
+
+\section{全局规则}
+
+当前 CCB 项目配置的权威目标是 \cfg{version = 2}。rich TOML 和 windows topology 示例应显式写出 \cfg{version = 2}；compact 配置虽然不直接写这个字段，但 loader 会把它规范化为 version 2 project config。
+
+\section{配置来源优先级}
+
+CCB 按以下顺序加载配置：
+
+\begin{enumerate}
+  \item 项目配置：\src{.ccb/ccb.config}。
+  \item 用户默认配置。
+  \item 内建默认配置。
+\end{enumerate}
+
+如果项目中存在 \src{.ccb/ccb.config}，它优先。
+
+\section{compact 配置}
+
+compact 配置适合快速声明 agent 布局。每个 agent leaf 需要写成 \cfg{agent_name:provider}。
+
+\begin{lstlisting}
+cmd | archi:codex | reviewer:claude
+\end{lstlisting}
+
+规则：
+
+\begin{itemize}
+  \item \cfg{cmd} 是保留 token，表示前台命令 pane。
+  \item \cfg{cmd} 不能写 provider。
+  \item \cfg{cmd} 不能重复。
+  \item 普通 agent leaf 必须声明 provider。
+  \item compact config 至少要定义一个 agent。
+  \item compact 中可以使用 role id shorthand，例如 \cfg{agentroles.archi:codex}。
+\end{itemize}
+
+compact 配置会生成：
+
+\begin{itemize}
+  \item \cfg{version = 2}
+  \item \cfg{default_agents}
+  \item \cfg{agents}
+  \item \cfg{cmd_enabled}
+  \item \cfg{layout}
+\end{itemize}
+
+\section{rich TOML}
+
+rich TOML 适合完整配置。基本形态：
+
+\begin{lstlisting}
+version = 2
+default_agents = ["agent1"]
+cmd_enabled = true
+layout = "cmd | agent1"
+
+[agents.agent1]
+provider = "codex"
+target = "."
+workspace_mode = "inplace"
+restore = "auto"
+permission = "manual"
+\end{lstlisting}
+
+rich TOML 顶层允许：
+
+\begin{itemize}
+  \item \cfg{version}
+  \item \cfg{default_agents}
+  \item \cfg{agents}
+  \item \cfg{cmd_enabled}
+  \item \cfg{layout}
+  \item \cfg{ui}
+  \item \cfg{windows}
+  \item \cfg{tool_windows}
+  \item \cfg{entry_window}
+  \item \cfg{maintenance}
+\end{itemize}
+
+\section{hybrid 配置}
+
+hybrid 是 compact layout 后面接 TOML overlay：
+
+\begin{lstlisting}
+cmd | archi:codex | reviewer:claude
+
+[agents.archi]
+model = "gpt-5"
+labels = ["architecture"]
+
+[maintenance.heartbeat]
+enabled = true
+\end{lstlisting}
+
+hybrid overlay 只允许 \cfg{agents} 和 \cfg{maintenance}。它不能定义 compact layout 之外的新 agent，也不能覆盖 compact header 已经拥有的 \cfg{provider} 或 \cfg{workspace_mode}。
+
+\section{基础布局模式}
+
+没有 \cfg{windows} 时是基础布局模式。这是最简单、最常见的配置入口，适合一个前台 cmd pane 加若干 agent pane：
+
+\begin{lstlisting}
+version = 2
+default_agents = ["archi", "reviewer"]
+cmd_enabled = true
+layout = "cmd | archi | reviewer"
+
+[agents.archi]
+provider = "codex"
+
+[agents.reviewer]
+provider = "claude"
+\end{lstlisting}
+
+规则：
+
+\begin{itemize}
+  \item \cfg{default_agents} 必需。
+  \item 可以使用 \cfg{layout}。
+  \item 可以使用 \cfg{cmd_enabled}。
+  \item 不能使用 \cfg{ui.sidebar}。
+  \item 不能使用 \cfg{entry_window}。
+  \item \cfg{tool_windows} 需要 windows topology，因此基础布局模式不能用。
+\end{itemize}
+
+\section{windows topology 模式}
+
+声明 \cfg{windows} 后进入 windows topology 模式：
+
+\begin{lstlisting}
+version = 2
+entry_window = "main"
+
+[windows]
+main = "archi:codex | reviewer:claude"
+ops = "ops:codex"
+\end{lstlisting}
+
+规则：
+
+\begin{itemize}
+  \item \cfg{windows} 不能为空。
+  \item 每个 window leaf 必须声明 provider。
+  \item 不支持 \cfg{cmd} leaf。
+  \item agent 不能跨 windows 重复。
+  \item \cfg{default_agents} 自动从 window leaves 推导，不能手写。
+  \item \cfg{layout} 和 \cfg{cmd_enabled} 禁止使用。
+  \item \cfg{entry_window}、\cfg{ui.sidebar}、\cfg{tool_windows} 可用。
+\end{itemize}
+
+\section{tool windows}
+
+tool window 是非 agent 工具窗口：
+
+\begin{lstlisting}
+[tool_windows.nvim]
+command = "ccb-nvim"
+label = "Neovim"
+show_in_sidebar = true
+\end{lstlisting}
+
+规则：
+
+\begin{itemize}
+  \item \cfg{tool_windows} 需要 windows topology。
+  \item 每个 tool window 必须有 \cfg{command}。
+  \item \cfg{label} 可选。
+  \item \cfg{show_in_sidebar} 可选，默认 true。
+\end{itemize}
+
+\section{sidebar}
+
+sidebar 配置示例：
+
+\begin{lstlisting}
+[ui.sidebar]
+mode = "every_window"
+width = "15%"
+bottom_height = 20
+
+[ui.sidebar.view]
+agents_height = "50%"
+comms_height = "15%"
+tips_height = "35%"
+comms_limit = 5
+comms_compact = true
+tips_enabled = true
+tips = ["Run ccb doctor when status is degraded."]
+\end{lstlisting}
+
+\section{agent spec}
+
+agent 字段包括：
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+字段 & 用途 \\
+\midrule
+\cfg{provider} & 必需，provider 名。 \\
+\cfg{target} & 工作目标，常见为 \cfg{"."}。 \\
+\cfg{workspace_mode} & \cfg{inplace} 或 \cfg{git-worktree}。 \\
+\cfg{workspace_root} & 外部 workspace root。 \\
+\cfg{workspace_path} & 固定 workspace path。 \\
+\cfg{workspace_group} & 共享 worktree group。 \\
+\cfg{provider_command_template} & provider 启动命令模板。 \\
+\cfg{runtime_mode} & runtime 类型，默认 pane-backed。 \\
+\cfg{restore} & 恢复策略。 \\
+\cfg{permission} & 权限策略。 \\
+\cfg{queue_policy} & 队列策略，默认 serial-per-agent。 \\
+\cfg{model} & provider model。 \\
+\cfg{key}、\cfg{url} & API shortcut。 \\
+\cfg{startup_args} & provider 启动参数。 \\
+\cfg{env} & agent 环境变量。 \\
+\cfg{api} & API 配置。 \\
+\cfg{provider_profile} & provider profile。 \\
+\cfg{branch_template} & worktree branch 模板。 \\
+\cfg{labels} & 标签。 \\
+\cfg{description} & 描述。 \\
+\cfg{role} & role id。 \\
+\cfg{watch_paths} & 关注路径。 \\
+\bottomrule
+\end{longtable}
+
+\section{provider profile 和 API shortcut}
+
+provider profile 字段包括 \cfg{mode}、\cfg{home}、\cfg{env}、\cfg{inherit_api}、\cfg{inherit_auth}、\cfg{inherit_config}、\cfg{inherit_skills}、\cfg{inherit_commands}、\cfg{inherit_memory}。
+
+\cfg{key} 和 \cfg{url} shortcut 会转成 provider API env。注意：
+
+\begin{itemize}
+  \item shortcut 只支持特定 provider。
+  \item 不能和 \cfg{env} 或 \cfg{provider_profile.env} 中的 API env key 冲突。
+  \item Codex 使用 \cfg{key/url} 时会关闭 inherited config。
+  \item 使用 \cfg{key/url} 不能同时开启 inherited auth。
+  \item \cfg{provider_profile.home} 目前只支持 Codex runtime home override。
+\end{itemize}
+
+\section{maintenance heartbeat}
+
+配置示例：
+
+\begin{lstlisting}
+[maintenance.heartbeat]
+enabled = true
+assessor = "ccb_self"
+interval_s = 3600
+min_interval_s = 300
+unknown_streak_cap = 3
+escalation_policy = "report_only"
+startup_ensure = true
+\end{lstlisting}
+
+默认值：
+
+\begin{itemize}
+  \item \cfg{enabled = false}
+  \item \cfg{assessor = "ccb_self"}
+  \item \cfg{interval_s = 3600}
+  \item \cfg{min_interval_s = 300}
+  \item \cfg{unknown_streak_cap = 3}
+  \item \cfg{escalation_policy = "report_only"}
+  \item \cfg{startup_ensure = true}
+\end{itemize}
+
+\section{配置验证}
+
+使用：
+
+\begin{lstlisting}
+ccb config validate
+\end{lstlisting}
+
+如果修改了 \src{.ccb/ccb.config}，先 validate，再启动或 reload。
+
+\section{历史配置补充}
+
+本书以当前 \cfg{version = 2} 的 \src{.ccb/ccb.config} 为主线，不提供 version 1 新项目模板。如果你从旧文档或旧项目看到 version 1 配置，应先迁移到 version 2，再运行 \cmd{ccb config validate}。不要把 version 1 示例复制到新项目中。

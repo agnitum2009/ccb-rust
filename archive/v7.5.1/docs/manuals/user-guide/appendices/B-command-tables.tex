@@ -1,0 +1,76 @@
+\chapter{命令速查表}
+
+\section{普通命令}
+
+\begin{longtable}{p{0.38\linewidth}p{0.52\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb} & 启动或附着前台。 \\
+\cmd{ccb ask ...} & 提交任务。 \\
+\cmd{ccb watch <target>} & 观察事件。 \\
+\cmd{ccb pend <target>} & 查看 pending/snapshot。 \\
+\cmd{ccb queue <target>} & 查看队列。 \\
+\cmd{ccb inbox <agent>} & 查看 inbox。 \\
+\cmd{ccb ack <agent>} & 确认 head reply。 \\
+\cmd{ccb trace <id>} & 追踪链路。 \\
+\cmd{ccb retry <id>} & 重试 attempt。 \\
+\cmd{ccb resubmit <message_id>} & 重新提交 message。 \\
+\cmd{ccb cancel <job_id>} & 取消 job。 \\
+\cmd{ccb wait-any <target>} & 等任一完成。 \\
+\cmd{ccb wait-all <target>} & 等全部完成。 \\
+\cmd{ccb wait-quorum <n> <target>} & 等 quorum。 \\
+\cmd{ccb ps} & 查看状态。 \\
+\cmd{ccb ping <agent|all>} & ping。 \\
+\cmd{ccb clear [agents]} & 清理上下文。 \\
+\cmd{ccb restart <agent>} & 重启 agent。 \\
+\cmd{ccb reload [--dry-run]} & 重载配置。 \\
+\cmd{ccb cleanup} & 清理残留。 \\
+\cmd{ccb kill [-f]} & 停止 backend。 \\
+\bottomrule
+\end{longtable}
+
+\section{诊断、维护、配置和 fault}
+
+\begin{longtable}{p{0.38\linewidth}p{0.52\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb doctor} & 常规诊断。 \\
+\cmd{ccb doctor --output [PATH]} & 导出诊断 bundle。 \\
+\cmd{ccb doctor ps} & runtime 诊断。 \\
+\cmd{ccb doctor logs <agent>} & 日志诊断。 \\
+\cmd{ccb doctor storage [--json]} & 存储诊断。 \\
+\cmd{ccb logs <agent>} & 查看 agent 日志。 \\
+\cmd{ccb config validate} & 验证当前项目配置。 \\
+\cmd{ccb maintenance status} & 查看 heartbeat 配置和存储状态。 \\
+\cmd{ccb maintenance tick [--force] [--no-dispatch]} & 运行一次 heartbeat 诊断 tick。 \\
+\cmd{ccb maintenance schedule --after <duration>} & 设置下一次 heartbeat follow-up。 \\
+\cmd{ccb fault list} & 列出 fault rules。 \\
+\cmd{ccb fault arm <agent> ...} & 注入测试故障。 \\
+\cmd{ccb fault clear <rule_id|all>} & 清理测试故障。 \\
+\bottomrule
+\end{longtable}
+
+\section{管理、roles、tools}
+
+\begin{longtable}{p{0.38\linewidth}p{0.52\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb version} & 版本。 \\
+\cmd{ccb update} & 更新。 \\
+\cmd{ccb uninstall} & 卸载。 \\
+\cmd{ccb reinstall} & 重装。 \\
+\cmd{ccb roles list} & roles 列表。 \\
+\cmd{ccb roles show <id>} & role 详情。 \\
+\cmd{ccb roles install [id]} & 安装 role。 \\
+\cmd{ccb roles update [id]} & 更新 role。 \\
+\cmd{ccb roles sync [path]} & 同步 roles。 \\
+\cmd{ccb roles doctor <id>} & 检查 role。 \\
+\cmd{ccb roles add <spec>} & 加入项目配置。 \\
+\cmd{ccb tools doctor neovim} & 检查 Neovim tool。 \\
+\cmd{ccb tools install neovim} & 安装 Neovim tool。 \\
+\cmd{ccb tools update neovim} & 更新 Neovim tool。 \\
+\bottomrule
+\end{longtable}

@@ -1,0 +1,42 @@
+\documentclass[12pt,openany]{book}
+
+\input{../manual-style.tex}
+
+\hypersetup{
+  pdftitle={CCB 使用说明书},
+  pdfauthor={CCB project}
+}
+
+\title{CCB 使用说明书\\\large 配置、命令系统和协作工作流}
+\author{CCB project}
+\date{2026-06-10}
+
+\begin{document}
+
+\frontmatter
+\manualTitlePage{CCB 使用说明书}{配置、命令系统和协作工作流}{User Guide}{2026-06-10}
+\tableofcontents
+
+\include{chapters/00-preface}
+
+\mainmatter
+\include{chapters/01-concepts}
+\include{chapters/02-configuration}
+\include{chapters/03-roles-tools}
+\include{chapters/04-command-reference}
+\include{chapters/05-communication-workflows}
+\include{chapters/06-diagnostics-maintenance}
+\include{chapters/07-faq}
+\include{chapters/08-recipes}
+
+\appendix
+\include{appendices/A-config-tables}
+\include{appendices/B-command-tables}
+\include{appendices/C-evidence}
+
+\backmatter
+\chapter*{结语}
+\addcontentsline{toc}{chapter}{结语}
+本使用说明书覆盖当前源码中的配置和命令系统。后续 CCB 版本如果新增命令、修改配置语法、改变 rolepack 或通信行为，应同步更新本书和开发说明书。
+
+\end{document}

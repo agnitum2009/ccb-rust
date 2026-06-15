@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "planId": "1781439024980-phase-rust-non-python-integration-debt",
+  "createdAt": "2026-06-14T12:10:24.979Z",
+  "updatedAt": "2026-06-14T12:25:19.022Z",
+  "briefPath": ".omc/ultragoal/plans/1781439024980-phase-rust-non-python-integration-debt/brief.md",
+  "goalsPath": ".omc/ultragoal/plans/1781439024980-phase-rust-non-python-integration-debt/goals.json",
+  "ledgerPath": ".omc/ultragoal/plans/1781439024980-phase-rust-non-python-integration-debt/ledger.jsonl",
+  "claudeGoalMode": "aggregate",
+  "goals": [
+    {
+      "id": "G001-h1",
+      "title": "H1",
+      "objective": "Translate ccb-provider-finish-hook (313L python) to a Rust binary invoked by ccb-provider-hooks; verify the Rust hooks crate resolves it",
+      "status": "complete",
+      "attempt": 1,
+      "createdAt": "2026-06-14T12:10:24.979Z",
+      "updatedAt": "2026-06-14T12:18:27.133Z",
+      "startedAt": "2026-06-14T12:10:36.598Z",
+      "completedAt": "2026-06-14T12:18:27.133Z",
+      "evidence": "rust/tools/ccb-provider-finish-hook binary (1:1 port of python); exported current_turn_req_id_from_transcript; build_hook_command/build_activity_hook_command support empty python_executable for binary-direct invocation; clippy clean, provider-hooks tests pass"
+    },
+    {
+      "id": "G002-h2",
+      "title": "H2",
+      "objective": "Translate ccb-provider-activity-hook (176L) + ccb-cleanup (17L) python scripts to Rust binaries",
+      "status": "complete",
+      "attempt": 1,
+      "createdAt": "2026-06-14T12:10:24.979Z",
+      "updatedAt": "2026-06-14T12:22:35.578Z",
+      "startedAt": "2026-06-14T12:18:36.448Z",
+      "completedAt": "2026-06-14T12:22:35.578Z",
+      "evidence": "activity-hook + cleanup binaries committed; clippy clean; workspace 1393 tests pass"
+    },
+    {
+      "id": "G003-i1",
+      "title": "I1",
+      "objective": "De-Python install.sh — keep cargo build, drop the hard Python 3.10+ requirement (watchdog/tomli/metadata-encode moved off python or made optional)",
+      "status": "complete",
+      "attempt": 1,
+      "createdAt": "2026-06-14T12:10:24.979Z",
+      "updatedAt": "2026-06-14T12:25:19.022Z",
+      "startedAt": "2026-06-14T12:25:18.853Z",
+      "evidence": "install.sh de-Python: require_python_version soft-warn; core Rust install Python-free; optional features degrade gracefully",
+      "completedAt": "2026-06-14T12:25:19.022Z"
+    }
+  ],
+  "claudeObjective": "Complete all ultragoal stories in .omc/ultragoal/plans/1781439024980-phase-rust-non-python-integration-debt/goals.json: G001-h1 H1; G002-h2 H2; G003-i1 I1"
+}

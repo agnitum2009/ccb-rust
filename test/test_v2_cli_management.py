@@ -31,7 +31,7 @@ def test_find_install_dir_prefers_explicit_env_prefix(monkeypatch: pytest.Monkey
     script_root.mkdir()
     install_dir = tmp_path / "install-dir"
     install_dir.mkdir()
-    (install_dir / "ccb").write_text("", encoding="utf-8")
+    (install_dir / "ccbr").write_text("", encoding="utf-8")
 
     monkeypatch.setenv("CODEX_INSTALL_PREFIX", str(install_dir))
     assert management.find_install_dir(script_root) == install_dir

@@ -4,5 +4,5 @@
   "bootstrap_sent": false,
   "last_completed_turn_id": null,
   "last_resume_at": 0.0,
-  "stopped": false
+  "stopped": true
 }

@@ -15,22 +15,40 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-script_dir = Path(__file__).resolve().parent
-lib_dir = script_dir.parent / "lib"
-sys.path.insert(0, str(lib_dir))
-
-from memory import (
-    ContextTransfer,
-    SessionNotFoundError,
-    SessionParseError,
-)
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = SCRIPT_DIR.parent
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
-    """Parse command line arguments."""
+def _find_rust_binary(name: str) -> Path | None:
+    """Prefer the Rust debug binary in source checkouts, then release."""
+    candidates = [
+        ROOT_DIR / "rust" / "target" / "debug" / name,
+        ROOT_DIR / "rust" / "target" / "release" / name,
+    ]
+    for candidate in candidates:
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def main() -> int:
+    rust_binary = _find_rust_binary("ctx-transfer")
+    if rust_binary:
+        os.execv(str(rust_binary), [str(rust_binary), *sys.argv[1:]])
+
+    # Fallback to Python implementation.
+    LIB_DIR = ROOT_DIR / "lib"
+    sys.path.insert(0, str(LIB_DIR))
+    from memory import (
+        ContextTransfer,
+        SessionNotFoundError,
+        SessionParseError,
+    )
+
     parser = argparse.ArgumentParser(
         prog="ctx-transfer",
         description="Transfer conversation context between CCB agents.",
@@ -107,15 +125,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Output detailed tool executions with full results",
     )
-    args = parser.parse_args(argv[1:])
+    args = parser.parse_args()
     if args.send and not str(args.agent_name or "").strip():
         parser.error("--send requires --agent <agent_name>")
-    return args
-
-
-def main(argv: list[str]) -> int:
-    """Main entry point."""
-    args = parse_args(argv)
 
     try:
         transfer = ContextTransfer(
@@ -123,7 +135,6 @@ def main(argv: list[str]) -> int:
             work_dir=Path.cwd(),
         )
 
-        # Extract conversations
         context = transfer.extract_conversations(
             session_path=args.session_path,
             last_n=args.last,
@@ -142,10 +153,8 @@ def main(argv: list[str]) -> int:
                 file=sys.stderr,
             )
 
-        # Format output
         formatted = transfer.format_output(context, args.fmt, detailed=args.detailed)
 
-        # Handle output modes
         if args.dry_run:
             print(formatted)
             return 0
@@ -158,14 +167,11 @@ def main(argv: list[str]) -> int:
             return 0
 
         if not args.send:
-            # Default: write to history dir when no --output/--dry-run
-            if not args.output:
-                saved_path = transfer.save_transfer(context, args.fmt, target_agent=None)
-                if not args.quiet:
-                    print(f"Saved to {saved_path}", file=sys.stderr)
+            saved_path = transfer.save_transfer(context, args.fmt, target_agent=None)
+            if not args.quiet:
+                print(f"Saved to {saved_path}", file=sys.stderr)
             return 0
 
-        # Save if requested or sending to agent (unless --no-save)
         should_save = args.save or (not args.no_save)
         saved_path = None
         if should_save:
@@ -173,7 +179,6 @@ def main(argv: list[str]) -> int:
             if not args.quiet:
                 print(f"Saved to {saved_path}", file=sys.stderr)
 
-        # Send to agent
         success, result = transfer.send_to_agent(context, args.agent_name, args.fmt)
         if success:
             if not args.quiet:
@@ -203,4 +208,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(main())

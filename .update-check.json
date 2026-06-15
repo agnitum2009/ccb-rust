@@ -1,0 +1,11 @@
+{
+  "checked_at": "2026-06-13T05:06:47.502671Z",
+  "checked_at_epoch": 1781327207.5026712,
+  "current_version": "7.5.1",
+  "deferred_until_epoch": null,
+  "deferred_version": null,
+  "latest_version": "7.5.1",
+  "muted_version": null,
+  "schema_version": 1,
+  "update_available": false
+}

@@ -45,7 +45,7 @@ def test_copy_repo_tree_excludes_runtime_state(tmp_path: Path) -> None:
     (repo_root / "useful_tools" / "claude_skills" / "plan-tree").mkdir(parents=True)
     (repo_root / "roles" / "ccb.archi").mkdir(parents=True)
     (repo_root / "lib").mkdir(parents=True)
-    (repo_root / "ccb").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    (repo_root / "ccbr").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
     (repo_root / "install.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
     (repo_root / "lib" / "app.py").write_text("print('ok')\n", encoding="utf-8")
     (repo_root / ".ccb" / "ccbd" / "lease.json").write_text("{}", encoding="utf-8")

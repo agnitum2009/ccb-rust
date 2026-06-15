@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""Build CCB release artifacts.
+
+``main_for_target`` delegates to the Rust ``ccb-release-builder`` tool so that
+release artifacts contain the Rust binaries (``ccb``, ``ccbd``, ``ask``,
+``autonew``, ``ctx-transfer``) and install without requiring the Python runtime.
+
+The legacy helper functions are retained for compatibility with existing tests
+and scripts that import them.
+"""
 from __future__ import annotations
 
 import argparse
@@ -31,6 +40,7 @@ EXCLUDES = {
     ".architec",
     ".claude",
     ".codex",
+    ".codegraph",
     ".gemini",
     ".hippocampus",
     ".loop",
@@ -51,8 +61,12 @@ _HOST_SYSTEMS = {
     "macos": "Darwin",
 }
 
+# Rust binaries that must be present in a release artifact.
+RUST_BINARIES = ("ccbr", "ccbd", "ask", "autonew", "ctx-transfer")
+
 
 def main_for_target(target_platform: str) -> int:
+    """Build a release artifact for *target_platform* using the Rust builder."""
     args = parse_args(target_platform=target_platform)
     host_system = _expected_host_system(target_platform)
     if platform.system() != host_system:
@@ -60,60 +74,65 @@ def main_for_target(target_platform: str) -> int:
 
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    channel = args.channel or ("preview" if args.allow_dirty else "stable")
 
-    use_git_ref_source = is_git_checkout(REPO_ROOT) and not args.allow_dirty
-    version = resolve_version(REPO_ROOT, git_ref=args.git_ref if use_git_ref_source else None)
-    commit, commit_date = resolve_git_metadata(REPO_ROOT, git_ref=args.git_ref if is_git_checkout(REPO_ROOT) else None)
-    artifact_basename = release_artifact_basename(target_platform, machine=platform.machine())
-    if not artifact_basename:
-        raise RuntimeError(
-            f"unsupported release target for platform={target_platform!r} machine={platform.machine()!r}"
-        )
-    stage_root = output_dir / f".stage-{artifact_basename}"
-    artifact_root = stage_root / artifact_basename
-    artifact_path = output_dir / f"{artifact_basename}.tar.gz"
-    sha_path = output_dir / "SHA256SUMS"
+    builder_args = _build_builder_args(target_platform, args)
+    builder = _find_builder_binary()
 
-    if stage_root.exists():
-        shutil.rmtree(stage_root)
-    if artifact_path.exists():
-        artifact_path.unlink()
+    if builder is None:
+        # Build the tool on demand and then run it via cargo.
+        cmd = [
+            "cargo",
+            "run",
+            "--manifest-path",
+            str(REPO_ROOT / "rust" / "Cargo.toml"),
+            "-p",
+            "ccb-release-builder",
+            "--release",
+            "--",
+            *builder_args,
+        ]
+    else:
+        cmd = [str(builder), *builder_args]
 
-    export_release_tree(
-        REPO_ROOT,
-        artifact_root,
-        git_ref=args.git_ref,
-        allow_dirty=args.allow_dirty,
-        generated_paths=(output_dir, stage_root, artifact_path, sha_path),
-    )
-    build_sidebar_helper_for_release(artifact_root, target_platform=target_platform)
-    patch_ccb_metadata(artifact_root / "ccb", version=version, commit=commit, date=commit_date)
+    try:
+        subprocess.run(cmd, cwd=REPO_ROOT, check=True)
+    except subprocess.CalledProcessError as exc:
+        print(f"Release build failed with exit code {exc.returncode}", file=sys.stderr)
+        return exc.returncode
+    except FileNotFoundError as exc:
+        print(f"Failed to invoke release builder: {exc}", file=sys.stderr)
+        return 1
 
-    build_info = {
-        "version": version,
-        "commit": commit,
-        "date": commit_date,
-        "build_time": utc_now(),
-        "platform": target_platform,
-        "arch": release_build_arch(target_platform, machine=platform.machine()),
-        "channel": channel,
-        "source_kind": "preview" if args.allow_dirty else "release",
-        "install_mode": "release",
-    }
-    write_release_metadata(artifact_root, build_info)
-    create_tarball(stage_root=stage_root, artifact_root=artifact_root, artifact_path=artifact_path)
-    write_sha256(artifact_path=artifact_path, output_path=sha_path)
-
-    print(f"artifact: {artifact_path}")
-    print(f"sha256: {sha_path}")
-    print(f"version: {version}")
-    print(f"commit: {commit}")
-    print(f"channel: {channel}")
-    print(f"platform: {target_platform}")
-    if args.allow_dirty:
-        print("warning: built from current dirty worktree for local preview only")
     return 0
+
+
+def _find_builder_binary() -> Path | None:
+    """Return a prebuilt ccb-release-builder binary if one exists."""
+    candidates = [
+        REPO_ROOT / "rust" / "target" / "release" / "ccb-release-builder",
+        REPO_ROOT / "rust" / "target" / "debug" / "ccb-release-builder",
+    ]
+    for candidate in candidates:
+        if candidate.is_file() and shutil.which(str(candidate)) is not None:
+            return candidate
+    return None
+
+
+def _build_builder_args(target_platform: str, args: argparse.Namespace) -> list[str]:
+    builder_args = [
+        "build",
+        "--platform",
+        target_platform,
+        "--output-dir",
+        str(args.output_dir),
+        "--git-ref",
+        args.git_ref,
+    ]
+    if args.channel:
+        builder_args.extend(["--channel", args.channel])
+    if args.allow_dirty:
+        builder_args.append("--allow-dirty")
+    return builder_args
 
 
 def parse_args(*, target_platform: str) -> argparse.Namespace:
@@ -145,8 +164,8 @@ def resolve_version(repo_root: Path, *, git_ref: str | None = None) -> str:
         version_text = read_git_file(repo_root, git_ref=git_ref, relative_path="VERSION")
         if version_text.strip():
             return version_text.strip()
-        ccb_text = read_git_file(repo_root, git_ref=git_ref, relative_path="ccb")
-        match = re.search(r'^VERSION\s*=\s*"([^"]+)"', ccb_text, re.MULTILINE)
+        ccbr_text = read_git_file(repo_root, git_ref=git_ref, relative_path="ccbr")
+        match = re.search(r'^VERSION\s*=\s*"([^"]+)"', ccbr_text, re.MULTILINE)
         if match:
             return match.group(1)
     version_file = repo_root / "VERSION"
@@ -154,12 +173,12 @@ def resolve_version(repo_root: Path, *, git_ref: str | None = None) -> str:
         value = version_file.read_text(encoding="utf-8").strip()
         if value:
             return value
-    ccb_path = repo_root / "ccb"
-    text = ccb_path.read_text(encoding="utf-8", errors="replace")
+    ccbr_path = repo_root / "ccbr"
+    text = ccbr_path.read_text(encoding="utf-8", errors="replace")
     match = re.search(r'^VERSION\s*=\s*"([^"]+)"', text, re.MULTILINE)
     if match:
         return match.group(1)
-    raise RuntimeError("unable to resolve version from VERSION or ccb")
+    raise RuntimeError("unable to resolve version from VERSION or ccbr")
 
 
 def resolve_git_metadata(repo_root: Path, *, git_ref: str | None = None) -> tuple[str | None, str | None]:
@@ -473,6 +492,7 @@ def utc_now() -> str:
 __all__ = [
     "DEFAULT_OUTPUT_DIR",
     "EXCLUDES",
+    "RUST_BINARIES",
     "build_sidebar_helper_for_release",
     "copy_repo_tree",
     "create_tarball",

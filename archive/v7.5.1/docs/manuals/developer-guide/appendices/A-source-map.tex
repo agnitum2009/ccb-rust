@@ -1,0 +1,91 @@
+\chapter{源码地图}
+
+本附录给出第一版手册使用的源码地图。它不是完整文件列表，而是章节级导航。
+
+\section{CLI}
+
+\begin{longtable}{p{0.36\linewidth}p{0.54\linewidth}}
+\toprule
+路径 & 说明 \\
+\midrule
+\src{lib/cli/entrypoint_runtime.py} & 顶层入口、help、removed commands、roles/tools/management 分派。 \\
+\src{lib/cli/parser.py} & 普通命令解析聚合。 \\
+\src{lib/cli/parser_runtime/constants.py} & phase2 subcommands 和 ask flags。 \\
+\src{lib/cli/parser_runtime/commands.py} & cancel、clear、maintenance、watch、pend、queue、inbox、doctor、reload 等 parser。 \\
+\src{lib/cli/parser_runtime/ask.py} & ask parser。 \\
+\src{lib/cli/services/ask.py} & ask service。 \\
+\src{lib/cli/services/watch_runtime.py} & watch 轮询和 persisted terminal fallback。 \\
+\src{lib/cli/roles_runtime/commands.py} & roles list/show/install/update/sync/doctor/add。 \\
+\src{lib/cli/tools_runtime/neovim.py} & managed Neovim tool commands。 \\
+\bottomrule
+\end{longtable}
+
+\section{ccbd 和 dispatcher}
+
+\begin{longtable}{p{0.36\linewidth}p{0.54\linewidth}}
+\toprule
+路径 & 说明 \\
+\midrule
+\src{lib/ccbd/handlers/submit.py} & submit RPC handler。 \\
+\src{lib/ccbd/handlers/watch.py} & watch RPC handler。 \\
+\src{lib/ccbd/handlers/queue.py} & queue RPC handler。 \\
+\src{lib/ccbd/handlers/inbox.py} & inbox RPC handler。 \\
+\src{lib/ccbd/handlers/ack.py} & ack RPC handler。 \\
+\src{lib/ccbd/handlers/trace.py} & trace RPC handler。 \\
+\src{lib/ccbd/services/dispatcher_runtime/facade.py} & dispatcher user-facing service facade。 \\
+\src{lib/ccbd/services/dispatcher_runtime/submission_service.py} & submit planning。 \\
+\src{lib/ccbd/services/dispatcher_runtime/submission_recording.py} & submission/job/message-bureau recording。 \\
+\src{lib/ccbd/services/dispatcher_runtime/lifecycle.py} & submit/resubmit/retry 和 tick entry。 \\
+\src{lib/ccbd/services/dispatcher_runtime/cancellation.py} & cancel job。 \\
+\src{lib/ccbd/services/dispatcher_runtime/polling_service.py} & completion polling。 \\
+\src{lib/ccbd/services/dispatcher_runtime/finalization_runtime/} & terminal completion、message-bureau projection、artifact/retry。 \\
+\bottomrule
+\end{longtable}
+
+\section{message bureau 和 mailbox}
+
+\begin{longtable}{p{0.36\linewidth}p{0.54\linewidth}}
+\toprule
+路径 & 说明 \\
+\midrule
+\src{lib/message_bureau/models.py} & MessageRecord、AttemptRecord、ReplyRecord。 \\
+\src{lib/message_bureau/facade.py} & message-bureau facade。 \\
+\src{lib/message_bureau/facade_recording_submission.py} & submission recording。 \\
+\src{lib/message_bureau/facade_recording_terminal_attempts.py} & terminal attempt recording。 \\
+\src{lib/message_bureau/facade_recording_terminal_replies.py} & reply recording。 \\
+\src{lib/message_bureau/callback_edges.py} & callback edge persistence。 \\
+\src{lib/message_bureau/control_queue_runtime/} & queue/inbox/ack views。 \\
+\src{lib/message_bureau/control_trace_runtime/} & trace lineage assembly。 \\
+\src{lib/mailbox_kernel/} & inbound event、mailbox summary、ack/consume/abandon。 \\
+\bottomrule
+\end{longtable}
+
+\section{配置和 roles}
+
+\begin{longtable}{p{0.36\linewidth}p{0.54\linewidth}}
+\toprule
+路径 & 说明 \\
+\midrule
+\src{lib/agents/config_loader_runtime/io_runtime/documents.py} & compact/rich/hybrid 文档加载。 \\
+\src{lib/agents/config_loader_runtime/parsing_runtime/validation.py} & version/topology/maintenance validation。 \\
+\src{lib/agents/config_loader_runtime/parsing_runtime/topology.py} & windows、tool windows、sidebar。 \\
+\src{lib/agents/config_loader_runtime/parsing_runtime/agent_specs.py} & AgentSpec 字段、API shortcut、provider profile 约束。 \\
+\src{lib/agents/config_loader_runtime/role_lookup.py} & role id lookup 和 default agent name。 \\
+\src{lib/rolepacks/} & rolepack install/update/sync/add service。 \\
+\bottomrule
+\end{longtable}
+
+\section{设计契约}
+
+\begin{itemize}
+  \item \src{docs/ccbd-startup-supervision-contract.md}
+  \item \src{docs/ccbd-lifecycle-stability-plan.md}
+  \item \src{docs/ccbd-diagnostics-contract.md}
+  \item \src{docs/ccb-config-layout-contract.md}
+  \item \src{docs/managed-provider-completion-reliability-plan.md}
+  \item \src{docs/ccb-provider-state-storage-boundary-plan.md}
+  \item \src{docs/codex-session-isolation-contract.md}
+  \item \src{docs/claude-session-isolation-contract.md}
+  \item \src{docs/gemini-session-isolation-contract.md}
+  \item \src{docs/opencode-completion-contract.md}
+\end{itemize}

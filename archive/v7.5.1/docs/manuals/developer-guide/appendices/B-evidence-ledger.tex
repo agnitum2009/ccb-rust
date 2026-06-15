@@ -1,0 +1,51 @@
+\chapter{证据账本}
+
+\section{Archi/Hippo}
+
+2026-06-10 执行：
+
+\begin{lstlisting}
+archi --help
+archi --version
+archi --check .
+archi --refresh-from-hippos --allow-static --out .architec/manual-architecture-analysis-20260610.json .
+\end{lstlisting}
+
+观察结果：
+
+\begin{itemize}
+  \item \cmd{archi} 路径是 \src{/home/bfly/.nvm/versions/node/v22.20.0/bin/archi}。
+  \item 版本是 0.2.16，latest 也是 0.2.16。
+  \item \cmd{archi --check .} 报告 \src{Archi preflight OK} 和 \src{Hippos bundle: refreshed}。
+  \item 当前 bundle 写入 \src{.hippos/bundle-state.json}。
+  \item 当前 generated at 为 2026-06-10T13:56:37.185325+00:00。
+  \item 当前 fingerprint 为 \src{4f4df01215599f15ac0c484bce6b0dbc9f60b6717afe03dddaa2ac4cd1e540e8}。
+  \item 当前计数为 1556 indexed files、1869 manifest files、1153 signature files。
+  \item 旧 \src{.hippocampus/} generated at 为 2026-05-29T17:16:11.137537+00:00。
+\end{itemize}
+
+结论：本书主引用使用 \src{.hippos/}。旧 \src{.hippocampus/} 仅作为历史比较。
+
+\section{计划树证据}
+
+本书第一版的分析入口保存在：
+
+\begin{itemize}
+  \item \src{docs/plantree/plans/ccb-manuals/README.md}
+  \item \src{docs/plantree/plans/ccb-manuals/topics/communication-source-inventory.md}
+  \item \src{docs/plantree/plans/ccb-manuals/topics/command-config-inventory.md}
+  \item \src{docs/plantree/plans/ccb-manuals/history/evidence-ledger-2026-06-10.md}
+  \item \src{docs/plantree/plans/ccb-manuals/decisions/001-manual-production-defaults.md}
+\end{itemize}
+
+\section{待补证据}
+
+第一版仍需要后续补充：
+
+\begin{itemize}
+  \item 每个 public command 的 help output snapshot。
+  \item provider-specific reply detection 的代码和测试索引。
+  \item reply-delivery repair 和 communication recovery 的细节。
+  \item 外部测试项目中的运行示例输出。
+  \item 如果决定使用 LLM-backed full analysis，则记录 \cmd{archi --full --refresh-from-hippos} 输出路径和结论。
+\end{itemize}

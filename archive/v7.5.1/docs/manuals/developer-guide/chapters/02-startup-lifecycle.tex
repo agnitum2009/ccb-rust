@@ -1,0 +1,95 @@
+\chapter{启动、监督和生命周期}
+
+CCB 的启动路径必须同时处理用户体验和后台一致性。用户运行 \cmd{ccb} 时，期望看到 tmux 前台布局；系统内部则要发现 project anchor、加载配置、确认或启动 keeper、确认或启动 ccbd、挂载 agent、建立 socket、同步 pane 和 runtime health。
+
+\section{入口顺序}
+
+CLI 入口位于 \src{lib/cli/entrypoint_runtime.py}。它的处理顺序体现了 CCB 的层次边界。
+
+\begin{enumerate}
+  \item 处理内部版本输出 \cmd{--print-version}。
+  \item 处理 sidebar click/resize 这类内部命令。
+  \item 处理后台 update refresh 和 post-update。
+  \item 渲染 help，包括 \cmd{ask}、\cmd{kill} 和普通命令 help。
+  \item 把 \cmd{-v}、\cmd{--version} 改写为 \cmd{version}。
+  \item 处理已移除命令，例如 \cmd{open}、\cmd{up}、\cmd{mail}、\cmd{provider}。
+  \item 分派 auxiliary、management、tools、roles。
+  \item 执行 startup release update 检查。
+  \item 进入 phase2，处理普通 runtime 命令或默认启动/附着。
+\end{enumerate}
+
+这个顺序说明普通 runtime parser 不是所有命令的唯一入口。手册和测试都应按 dispatch layer 分组，而不是只按命令字母顺序分组。
+
+\section{启动契约}
+
+\src{docs/ccbd-startup-supervision-contract.md} 规定一个 project anchor 对应一个权威 backend。启动路径必须避免在已有 ancestor \src{.ccb} 下自动创建嵌套子项目。缺失 \src{ccb.config} 可以从 project-owned \src{agent.json} 权威恢复，但残留文件本身不能阻止 bootstrap。
+
+这意味着启动代码面对三类事实时要区别处理。
+
+\begin{itemize}
+  \item 配置事实：用户期望哪些 agents、window、tool window 和 maintenance 行为。
+  \item 生命周期事实：当前 keeper、ccbd generation、lease、socket readiness。
+  \item residue 事实：旧 socket、旧 pane、旧 provider state、未知 agent 目录。
+\end{itemize}
+
+只有前两类可以定义当前 backend。第三类最多用于诊断、恢复或清理。
+
+\section{ccbd 的职责}
+
+\term{ccbd} 是项目范围 daemon。它承担以下职责。
+
+\begin{itemize}
+  \item 通过 Unix socket 接受 CLI RPC。
+  \item 持续监督 configured agents，维护 registry 和 runtime health。
+  \item 维护 dispatcher 状态、job store、completion tracker 和 provider execution service。
+  \item 挂接 message bureau、mailbox kernel、callback edge、reply delivery 和 trace/queue/inbox 控制视图。
+  \item 提供 diagnostics、doctor、runtime view 和维护 heartbeat。
+\end{itemize}
+
+从实现角度看，handler 层很薄。以通信命令为例，\src{lib/ccbd/handlers/queue.py}、\src{lib/ccbd/handlers/inbox.py}、\src{lib/ccbd/handlers/trace.py} 只做 payload 校验，然后委派给 dispatcher facade。真正的业务语义在 services 层。
+
+\section{监督循环}
+
+daemon supervision 不是一次性启动脚本。项目记忆中的不漂移规则要求 pane death 是 daemon supervision concern。也就是说，agent pane 死亡、provider runtime 不可用、completion tracker 卡住或 mailbox summary 损坏，都应当由 daemon 维护路径发现并降级或修复，而不是等下一次用户提交任务才处理。
+
+这种持续监督带来两个结果。
+
+\begin{enumerate}
+  \item \cmd{ccb ps}、\cmd{ccb doctor}、sidebar 和 queue view 可以展示比 tmux pane 更丰富的 runtime 状态。
+  \item recovery 代码必须谨慎。它不能把 residue 当权威，也不能因为一个残留 session 文件阻止正常 shutdown 或 restart。
+\end{enumerate}
+
+\section{shutdown 和 kill}
+
+\cmd{ccb kill} 从项目 anchor 发起，必须停止 backend、停止 configured agents，并清理项目拥有的 pane/runtime residue。强制 kill 是最后手段。普通 shutdown 应优先经过 daemon 和 keeper 的已知生命周期路径，让 job、mailbox 和 runtime 状态尽量落盘。
+
+手册中的操作建议应避免让用户直接删除 \src{.ccb/agents/*} 或 \src{.ccb/ccbd/*}。这些目录在当前 checkout 中属于已安装 release 的活动运行状态。源码验证必须在外部测试项目执行。
+
+\section{reload 和 restart}
+
+reload 关注配置变化后在当前 daemon 中动态增删 agent 或更新布局。restart 关注单个 agent 的运行态重启。命令解析规则在 \src{lib/cli/parser_runtime/commands.py} 中体现：\cmd{restart all} 被拒绝，\cmd{reload} 支持 \cmd{--dry-run}。
+
+这种限制体现了 CCB 对 blast radius 的控制。重启单个 agent 不应该悄悄变成项目级重启；reload dry-run 则给配置变更提供预检入口。
+
+\section{源码验证纪律}
+
+本仓库是 source checkout。开发者验证当前源码变化时不能把本 checkout 当 live runtime 目录。项目记忆要求使用：
+
+\begin{lstlisting}
+/home/bfly/yunwei/ccb_source/ccb_test
+\end{lstlisting}
+
+并从外部目录运行：
+
+\begin{lstlisting}
+/home/bfly/yunwei/test_ccb2
+\end{lstlisting}
+
+默认隔离 provider/account state：
+
+\begin{lstlisting}
+HOME=/home/bfly/yunwei/test_ccb2/source_home
+CCB_SOURCE_HOME=/home/bfly/yunwei/test_ccb2/source_home
+\end{lstlisting}
+
+这不是文档细节，而是运行时边界的一部分。把 source checkout 自己作为 live runtime 会污染 \src{.ccb/agents/*} 和 \src{.ccb/ccbd/*}，使架构分析和测试结论不可复现。

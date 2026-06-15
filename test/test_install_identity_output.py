@@ -75,7 +75,7 @@ def test_preview_release_install_identity_is_not_misreported_as_source() -> None
 def test_write_install_metadata_avoids_bash4_parameter_expansion(tmp_path: Path) -> None:
     install_prefix = tmp_path / "install"
     install_prefix.mkdir()
-    (install_prefix / "ccb").write_text(
+    (install_prefix / "ccbr").write_text(
         'VERSION = "0.0.0"\nGIT_COMMIT = "abc123"\nGIT_DATE = "2026-05-04"\n',
         encoding="utf-8",
     )
@@ -120,7 +120,7 @@ def test_write_install_metadata_avoids_bash4_parameter_expansion(tmp_path: Path)
 def test_write_install_metadata_records_root_profile(tmp_path: Path) -> None:
     install_prefix = tmp_path / "install"
     install_prefix.mkdir()
-    (install_prefix / "ccb").write_text(
+    (install_prefix / "ccbr").write_text(
         'VERSION = "0.0.0"\nGIT_COMMIT = "abc123"\nGIT_DATE = "2026-05-04"\n',
         encoding="utf-8",
     )

@@ -1,7 +1,7 @@
 # CCB Python-to-Rust Migration — COMPLETE
 
 **Date:** 2026-06-13
-**Status:** ✅ **100% Python-free**
+**Status:** ⚠️ Rust workspace functional; Python `lib/` and `ccb` wrapper still present in working tree (migration in progress).
 
 ---
 
@@ -36,7 +36,7 @@ cargo test --workspace -- --test-threads=1  # ✅ 759 tests pass
 
 # CLI works
 cd /home/agnitum/ccb
-./ccb --version                         # ✅ ccb 7.4.3
+./ccb --version                         # ✅ ccb 7.5.1
 ```
 
 ---
@@ -125,7 +125,7 @@ cargo fmt --check                        # ✅ clean
 
 # CLI smoke test
 cd /home/agnitum/ccb
-./ccb --version                          # ✅ ccb 7.4.3
+./ccb --version                          # ✅ ccb 7.5.1
 ./ccb --help                             # ✅ prints usage
 ./ccb -h                                 # ✅ prints usage
 ./ccb help                               # ✅ prints usage
@@ -136,3 +136,29 @@ cd /home/agnitum/ccb
 - Some advanced daemon handlers are still stubs (documented in `rust/crates/ccb-daemon/README.md`).
 - Some less common CLI commands still return `Command not yet implemented`.
 - Windows `install.ps1` has not been manually verified.
+
+---
+
+## 9. Phase A Completion — Daemon Runnable + Project Config Aware
+
+Implemented the first slice of the approved 100%-parity plan.
+
+### Changes
+- Added `rust/crates/ccb-daemon/src/main.rs` and `[[bin]] ccbd` in `Cargo.toml` so the daemon is a runnable binary.
+- Added `bin/ccbd` bash wrapper that dispatches to `rust/target/{release,debug}/ccbd`.
+- `CcbdApp::with_backend` now loads `.ccb/ccb.config` via `ccb_agents::config::load_project_config` and populates `AgentRegistry` with `provider`, `workspace_path`, etc.
+- `JobDispatcher` is initialized with the configured `default_agents` instead of the hard-coded `["default"]`.
+- Fixed `ccb-cli` parser to drop both `--project` and its value from positional argument filtering.
+- Fixed `ccb-daemon` `project_view` handler to return `name` instead of `agent_name` to match CLI `AgentView` schema.
+- Added `ctrlc` dependency for graceful shutdown.
+- Added unit test `test_loads_project_config_into_registry`.
+
+### Verification
+- `cargo build --workspace --release` ✅
+- `cargo test --workspace -- --test-threads=1` ✅ 760 tests pass
+- `cargo clippy --workspace --all-targets` ✅ clean
+- `cargo fmt --check` ✅ clean
+- Manual: `ccbd .` starts daemon; `ccb --project <dir> ping ccbd` returns pong; `ccb --project <dir> status` lists configured agents.
+
+### Still to do
+Phase B onwards remain open: real tmux layout via `ccb-terminal`, provider execution wiring, mailbox/completion integration, CLI command stubs, runtime cleanup, rolepacks, self-update, etc. See the approved plan in `/root/.kimi/plans/silver-surfer-groot-swamp-thing.md`.

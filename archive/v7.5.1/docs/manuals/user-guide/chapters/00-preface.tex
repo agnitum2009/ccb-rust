@@ -1,0 +1,25 @@
+\chapter{前言}
+
+本书面向 CCB 用户和项目维护者。它解释如何配置 CCB、如何使用命令系统、如何让 agent 协作、如何诊断问题，以及如何理解 role、tool、provider、mailbox、queue、trace 等概念。
+
+本书不是宣传页，也不是只列命令的速查卡。每个规则都来自当前源码分析，尤其是：
+
+\begin{itemize}
+  \item \src{lib/cli/entrypoint_runtime.py}
+  \item \src{lib/cli/parser_runtime/commands.py}
+  \item \src{lib/cli/parser_runtime/ask.py}
+  \item \src{lib/cli/roles_runtime/commands.py}
+  \item \src{lib/agents/config_loader_runtime/}
+  \item \src{lib/message_bureau/control_queue_runtime/}
+  \item \src{lib/message_bureau/control_trace_runtime/}
+\end{itemize}
+
+命令、配置键、provider 名、文件路径和 API 名保持英文。说明文字使用中文。
+
+\section{本书结构}
+
+第一章解释用户需要知道的基础概念。第二章是完整配置参考。第三章解释 roles 和 tools。第四章是命令参考。第五章给出通信工作流。第六章讲诊断、维护和恢复。第七章给出常用操作配方。附录提供配置表、命令表和证据路径。
+
+\section{重要安全边界}
+
+如果你在开发 CCB 源码，不要在 \src{/home/bfly/yunwei/ccb_source} 中直接运行 source runtime validation。源码验证应从外部项目 \src{/home/bfly/yunwei/test_ccb2} 运行，并使用隔离 HOME。普通用户只需要在自己的项目中运行已安装的 \cmd{ccb}。

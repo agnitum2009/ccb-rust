@@ -18,41 +18,57 @@ import os
 import sys
 from pathlib import Path
 
-script_dir = Path(__file__).resolve().parent
-lib_dir = script_dir.parent / "lib"
-sys.path.insert(0, str(lib_dir))
-
-from cli.output import EXIT_ERROR, EXIT_OK
-from pane_registry_runtime import get_providers_map, load_registry_by_project_id
-from project.identity import compute_ccb_project_id
-from terminal_runtime import get_backend_for_session
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT_DIR = SCRIPT_DIR.parent
 
 
-# Provider to reset command mapping
-PROVIDER_COMMANDS = {
-    "gemini": "/clear",
-    "codex": "/new",
-    "opencode": "/new",
-    "droid": "/new",
-    "claude": "/new",
-}
+def _find_rust_binary(name: str) -> Path | None:
+    """Prefer the Rust debug binary in source checkouts, then release."""
+    candidates = [
+        ROOT_DIR / "rust" / "target" / "debug" / name,
+        ROOT_DIR / "rust" / "target" / "release" / name,
+    ]
+    for candidate in candidates:
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 
-def _usage() -> None:
-    print("Usage: autonew <provider>", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("Providers:", file=sys.stderr)
-    print("  gemini, codex, opencode, droid, claude", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("Sends /new to the provider's pane to start a new session.", file=sys.stderr)
+def main() -> int:
+    rust_binary = _find_rust_binary("autonew")
+    if rust_binary:
+        os.execv(str(rust_binary), [str(rust_binary), *sys.argv[1:]])
 
+    # Fallback to Python implementation.
+    LIB_DIR = ROOT_DIR / "lib"
+    sys.path.insert(0, str(LIB_DIR))
+    from cli.output import EXIT_ERROR, EXIT_OK
+    from pane_registry_runtime import get_providers_map, load_registry_by_project_id
+    from project.identity import compute_ccb_project_id
+    from terminal_runtime import get_backend_for_session
 
-def main(argv: list[str]) -> int:
-    if len(argv) <= 1:
+    # Provider to reset command mapping
+    PROVIDER_COMMANDS = {
+        "gemini": "/clear",
+        "codex": "/new",
+        "opencode": "/new",
+        "droid": "/new",
+        "claude": "/new",
+    }
+
+    def _usage() -> None:
+        print("Usage: autonew <provider>", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Providers:", file=sys.stderr)
+        print("  gemini, codex, opencode, droid, claude", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Sends /new to the provider's pane to start a new session.", file=sys.stderr)
+
+    if len(sys.argv) <= 1:
         _usage()
         return EXIT_ERROR
 
-    provider = argv[1].lower()
+    provider = sys.argv[1].lower()
 
     if provider in ("-h", "--help"):
         _usage()
@@ -63,7 +79,6 @@ def main(argv: list[str]) -> int:
         print(f"[ERROR] Available: {', '.join(sorted(PROVIDER_COMMANDS.keys()))}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Get current project ID
     work_dir = Path(os.getcwd())
     try:
         project_id = compute_ccb_project_id(work_dir)
@@ -71,13 +86,11 @@ def main(argv: list[str]) -> int:
         print(f"[ERROR] Failed to compute project ID: {e}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Load registry for this project and provider
     record = load_registry_by_project_id(project_id, provider)
     if not record:
         print(f"[ERROR] No active {provider} session found for this project.", file=sys.stderr)
         return EXIT_ERROR
 
-    # Get provider's pane_id
     providers_map = get_providers_map(record)
     provider_entry = providers_map.get(provider, {})
     pane_id = str(provider_entry.get("pane_id") or "").strip()
@@ -86,13 +99,11 @@ def main(argv: list[str]) -> int:
         print(f"[ERROR] No pane_id found for {provider}.", file=sys.stderr)
         return EXIT_ERROR
 
-    # Get terminal backend
     backend = get_backend_for_session(record)
     if not backend:
         print("[ERROR] Terminal backend not available.", file=sys.stderr)
         return EXIT_ERROR
 
-    # Check if pane is alive
     try:
         if not backend.is_alive(pane_id):
             print(f"[ERROR] {provider} pane {pane_id} is not alive.", file=sys.stderr)
@@ -101,7 +112,6 @@ def main(argv: list[str]) -> int:
         print(f"[ERROR] Failed to check pane status: {e}", file=sys.stderr)
         return EXIT_ERROR
 
-    # Send reset command to the pane
     reset_cmd = PROVIDER_COMMANDS[provider]
     try:
         backend.send_text(pane_id, reset_cmd)
@@ -113,4 +123,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())

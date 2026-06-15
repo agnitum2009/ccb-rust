@@ -1,0 +1,71 @@
+\chapter{配置表}
+
+\section{top-level keys}
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+key & 说明 \\
+\midrule
+\cfg{version} & 必须为 2。 \\
+\cfg{default_agents} & 基础布局模式必需，windows topology 禁止。 \\
+\cfg{agents} & agent specs 或 topology overlay。 \\
+\cfg{cmd_enabled} & 基础布局模式可用。 \\
+\cfg{layout} & 基础布局 spec。 \\
+\cfg{ui} & sidebar UI，windows topology 可用。 \\
+\cfg{windows} & windows topology。 \\
+\cfg{tool_windows} & tool windows，需要 windows topology。 \\
+\cfg{entry_window} & 默认窗口，需要 windows topology。 \\
+\cfg{maintenance} & maintenance heartbeat。 \\
+\bottomrule
+\end{longtable}
+
+\section{agent keys}
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+key & 说明 \\
+\midrule
+\cfg{provider} & provider 名。 \\
+\cfg{target} & 工作目标。 \\
+\cfg{workspace_mode} & workspace 模式。 \\
+\cfg{workspace_root} & workspace root。 \\
+\cfg{workspace_path} & 固定 workspace path。 \\
+\cfg{workspace_group} & workspace group。 \\
+\cfg{provider_command_template} & provider command template。 \\
+\cfg{runtime_mode} & runtime mode。 \\
+\cfg{restore} & restore 策略。 \\
+\cfg{permission} & permission 策略。 \\
+\cfg{queue_policy} & queue policy。 \\
+\cfg{model} & model。 \\
+\cfg{key} & API key shortcut。 \\
+\cfg{url} & API URL shortcut。 \\
+\cfg{startup_args} & startup args。 \\
+\cfg{env} & env map。 \\
+\cfg{api} & API spec。 \\
+\cfg{provider_profile} & provider profile。 \\
+\cfg{branch_template} & branch template。 \\
+\cfg{labels} & labels。 \\
+\cfg{description} & description。 \\
+\cfg{role} & role id。 \\
+\cfg{watch_paths} & watch paths。 \\
+\bottomrule
+\end{longtable}
+
+\section{sidebar view keys}
+
+\begin{longtable}{p{0.35\linewidth}p{0.55\linewidth}}
+\toprule
+key & 默认或说明 \\
+\midrule
+\cfg{mode} & 默认 \cfg{every_window}。 \\
+\cfg{width} & 默认 \texttt{15\%}。 \\
+\cfg{bottom_height} & 默认 20。 \\
+\cfg{agents_height} & 默认 \texttt{50\%}。 \\
+\cfg{comms_height} & 默认 \texttt{15\%}。 \\
+\cfg{tips_height} & 默认 \texttt{35\%}。 \\
+\cfg{comms_limit} & 默认 5。 \\
+\cfg{comms_compact} & 默认 true。 \\
+\cfg{tips_enabled} & 默认 true。 \\
+\cfg{tips} & tip 文本列表。 \\
+\bottomrule
+\end{longtable}

@@ -1,0 +1,98 @@
+\chapter{Provider Runtime 和 Completion}
+
+CCB 支持多个 provider family。每个 provider 有自己的启动方式、session 绑定、completion 检测和隔离边界。CCB 不试图把 provider 细节抹平，而是把差异封装在 provider catalog、runtime binding、execution service 和 completion tracker 之下。
+
+\section{provider 与 agent 的关系}
+
+配置中的 agent spec 至少包含 agent name、provider、target、workspace mode、restore、permission 和 runtime mode。agent 是 CCB 的项目协作单位，provider 是执行这个 agent 的后端能力。一个 agent 当前使用哪个 provider，由配置和 role expansion 决定；一个 provider 如何启动、如何检测 reply，则由 provider adapter 和 completion manifest 决定。
+
+相关路径包括：
+
+\begin{itemize}
+  \item \src{lib/agents/config_loader_runtime/parsing_runtime/agent_specs.py}
+  \item \src{lib/providers/}
+  \item \src{lib/completion/}
+  \item \src{docs/codex-session-isolation-contract.md}
+  \item \src{docs/claude-session-isolation-contract.md}
+  \item \src{docs/gemini-session-isolation-contract.md}
+  \item \src{docs/opencode-completion-contract.md}
+\end{itemize}
+
+\section{pane-backed runtime}
+
+默认 runtime mode 是 pane-backed。也就是说，provider 通常在一个 tmux pane 中运行，CCB 通过 pane、runtime record、session file、completion snapshot 和 provider-specific detector 组合判断它是否可用。
+
+pane-backed 不是把 tmux pane 当权威。它只是执行通道。权威状态仍来自 daemon registry、dispatcher job record、completion tracker 和 provider-specific session binding。
+
+\section{provider home 隔离}
+
+不同 provider 有不同的认证、缓存、插件、技能和 session 目录。CCB 的 provider state storage boundary 由 \src{docs/ccb-provider-state-storage-boundary-plan.md} 定义。核心原则是：项目内 managed provider home 应该隔离运行时状态，但可以按配置继承用户认证或插件资产。
+
+Codex 的 session isolation contract 尤其重要。Codex 可以有 inherited plugin assets、projected managed home 和 plugin-cache refresh。相关行为由 \src{docs/codex-session-isolation-contract.md} 与 \src{docs/codex-plugin-projection-plan.md} 约束。
+
+\section{completion tracker}
+
+provider 输出并不直接等于 CCB reply。provider execution service 产生 completion updates，dispatcher polling service 把这些 updates 写入 completion item events，再交给 completion tracker 判断：
+
+\begin{itemize}
+  \item 是否看到了 anchor；
+  \item reply 是否开始；
+  \item reply 是否稳定；
+  \item provider turn ref 是什么；
+  \item 是否达到 terminal decision；
+  \item terminal status、reason、confidence 和 diagnostics。
+\end{itemize}
+
+terminal decision 是 job finalization 的输入。finalization 再把 decision 投影到 job record、message-bureau attempt、reply record、callback edge 和 reply delivery。
+
+\section{provider-specific reply detection}
+
+Codex、Claude、Gemini 和 OpenCode 的 reply detection 不应被写成同一套字符串规则。每个 provider 的 session 文件、日志格式、prompt 边界和完成判断都不同。因此 CCB 把 provider-specific 检测放在 provider/completion 层，并通过 manifest 暴露给 dispatcher。
+
+这一点对维护者有两个约束。
+
+\begin{enumerate}
+  \item 改 provider detector 时，应增加 provider-specific tests，而不是只跑 CLI parser tests。
+  \item 改 completion timeout、fallback 或 reply stability 时，应同步 \src{docs/managed-provider-completion-reliability-plan.md} 或 provider-specific contract。
+\end{enumerate}
+
+\section{provider command template}
+
+agent spec 支持 \src{provider_command_template}。它是高级扩展点，允许 agent 覆盖 provider 启动命令。使用这个能力时要谨慎，因为它可能绕过 provider adapter 对 runtime home、env、session binding 和 completion detector 的假设。
+
+开发者给用户暴露 template 示例时，应明确哪些变量来自 CCB，哪些来自 shell，哪些 provider 行为仍由 adapter 负责。
+
+\section{API shortcut 与 provider profile}
+
+agent spec 支持 \src{key} 和 \src{url} shortcut。实现位于 \src{lib/agents/config_loader_runtime/parsing_runtime/agent_specs.py}。这些 shortcut 会转成 provider API env，并修改 provider profile 的继承行为。
+
+约束包括：
+
+\begin{itemize}
+  \item shortcut 只支持特定 provider。
+  \item 不能与 agent env 或 provider profile env 中相同 API env key 冲突。
+  \item 对 Codex，使用 key/url 会关闭 inherited config。
+  \item 使用 key/url 不能同时开启 inherited auth。
+\end{itemize}
+
+这些规则属于安全边界。它们防止用户一边显式提供 API credential，一边又继承全局认证，导致实际使用的凭据不清楚。
+
+\section{失败、降级和恢复}
+
+provider execution 常见失败包括 API error、transport error、runtime unavailable、pane dead、timeout 和 provider-specific parse failure。dispatcher finalization 会把这些失败转成 completion decision，再进入 retry policy 或 reply rendering。
+
+非可重试 API failure 应直接给出明确 reply。可重试失败在 auto retry mode 下可能调度新 attempt。timeout inspection reply 是特殊情况，它帮助用户看到系统已经检查超时状态，而不是沉默失败。
+
+\section{维护建议}
+
+维护 provider runtime 时，建议按以下顺序验证。
+
+\begin{enumerate}
+  \item 配置解析是否产生正确 agent spec 和 provider profile。
+  \item runtime home 是否落在预期路径，并且继承策略清楚。
+  \item provider command 是否能在 managed pane 中启动。
+  \item execution service 是否能投递 request。
+  \item completion tracker 是否能产生稳定 terminal decision。
+  \item finalization 是否写入 reply record 和 trace lineage。
+  \item doctor bundle 是否能反映失败现场。
+\end{enumerate}

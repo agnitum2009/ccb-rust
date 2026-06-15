@@ -235,7 +235,7 @@ def test_post_update_delegation_runs_installed_entrypoint(monkeypatch, tmp_path:
     monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
     install_dir = tmp_path / "install"
     install_dir.mkdir()
-    ccb_entry = install_dir / "ccb"
+    ccb_entry = install_dir / "ccbr"
     ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
     calls: list[dict[str, object]] = []
 
@@ -273,9 +273,9 @@ def test_post_update_delegation_prefers_current_bin_wrapper(monkeypatch, tmp_pat
     bin_dir = tmp_path / "bin"
     install_dir.mkdir()
     bin_dir.mkdir()
-    (install_dir / "ccb").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-    ccb_entry = bin_dir / "ccb"
-    ccb_entry.write_text(f'#!/usr/bin/env bash\nexec /venv/bin/python "{install_dir / "ccb"}" "$@"\n', encoding="utf-8")
+    (install_dir / "ccbr").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    ccb_entry = bin_dir / "ccbr"
+    ccb_entry.write_text(f'#!/usr/bin/env bash\nexec /venv/bin/python "{install_dir / "ccbr"}" "$@"\n', encoding="utf-8")
     calls: list[dict[str, object]] = []
 
     def _fake_run(command, **kwargs):
@@ -302,8 +302,8 @@ def test_post_update_delegation_honors_codex_bin_dir(monkeypatch, tmp_path: Path
     bin_dir = tmp_path / "custom-bin"
     install_dir.mkdir()
     bin_dir.mkdir()
-    (install_dir / "ccb").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-    ccb_entry = bin_dir / "ccb"
+    (install_dir / "ccbr").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    ccb_entry = bin_dir / "ccbr"
     # Explicit CODEX_BIN_DIR is authoritative and intentionally bypasses
     # install_dir wrapper target detection.
     ccb_entry.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
@@ -332,7 +332,7 @@ def test_post_update_delegation_warns_without_failing_core_update(monkeypatch, t
     monkeypatch.delenv("CODEX_BIN_DIR", raising=False)
     install_dir = tmp_path / "install"
     install_dir.mkdir()
-    ccb_entry = install_dir / "ccb"
+    ccb_entry = install_dir / "ccbr"
     ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
 
     def _fake_run(command, **kwargs):
@@ -360,7 +360,7 @@ def test_post_update_delegation_timeout_warns_without_failing_core_update(monkey
     monkeypatch.setenv("CCB_POST_UPDATE_TIMEOUT_SECONDS", "1")
     install_dir = tmp_path / "install"
     install_dir.mkdir()
-    ccb_entry = install_dir / "ccb"
+    ccb_entry = install_dir / "ccbr"
     ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
 
     def _fake_run(command, **kwargs):
@@ -388,7 +388,7 @@ def test_post_update_required_failure_fails_update(monkeypatch, tmp_path: Path, 
     monkeypatch.setenv("CCB_INSTALL_NEOVIM", "1")
     install_dir = tmp_path / "install"
     install_dir.mkdir()
-    ccb_entry = install_dir / "ccb"
+    ccb_entry = install_dir / "ccbr"
     ccb_entry.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
 
     def _fake_run(command, **kwargs):

@@ -152,12 +152,12 @@ def test_public_readme_routes_config_work_to_ccb_self() -> None:
 
 def test_source_checkout_runtime_discipline_is_enforced_by_entrypoints() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    source_entrypoint = (repo_root / "ccb").read_text(encoding="utf-8")
-    test_entrypoint = (repo_root / "ccb_test").read_text(encoding="utf-8")
+    source_entrypoint = (repo_root / "ccbr").read_text(encoding="utf-8")
+    test_entrypoint = (repo_root / "ccbr_test").read_text(encoding="utf-8")
 
     for text in (source_entrypoint, test_entrypoint):
         assert "source checkout" in text or "source-change validation" in text
-        assert "ccb_test" in text
+        assert "ccbr_test" in text
         assert "test_ccb2" in text
         assert 'parent / "test_ccb",' not in text
         assert 'parent / "ccb_test2",' not in text
@@ -179,5 +179,5 @@ def test_inherited_runtime_skills_distinguish_source_validation_from_work_enviro
 
             assert "source checkout" in skill_text
             assert "source validation" in skill_text
-            assert "ccb_test" in skill_text
+            assert "ccbr_test" in skill_text
             assert "/home/bfly/yunwei/test_ccb2" in skill_text

@@ -1,0 +1,41 @@
+\chapter{基本概念}
+
+\section{项目}
+
+CCB 以项目为单位运行。一个项目由根目录下的 \src{.ccb} anchor 标识。项目配置通常位于 \src{.ccb/ccb.config}。一个项目只有一个权威后台 daemon，称为 \term{ccbd}。
+
+\section{agent}
+
+agent 是项目中的协作者。每个 agent 有名字、provider、workspace、权限、恢复策略和可选 role。用户向 agent 提交任务，agent 在自己的 workspace 和 provider runtime 中执行。
+
+\section{provider}
+
+provider 是 agent 背后的执行系统，例如 Codex、Claude、Gemini、OpenCode。agent 是 CCB 中的协作单位，provider 是执行后端。配置中写的是 agent 使用哪个 provider。
+
+\section{workspace}
+
+workspace 是 agent 工作的目录。默认可以是当前项目目录，也可以是 git worktree、外部路径或共享 worktree group。workspace 影响 agent 读写文件的位置。
+
+\section{daemon 和前台界面}
+
+运行 \cmd{ccb} 时，你会看到 tmux 前台布局。但真正的后台状态由 \term{ccbd} daemon 管理。pane 死亡不等于项目消失；socket ready 和 daemon lifecycle 才是 mounted 的关键。
+
+\section{通信}
+
+用户通过 \cmd{ccb ask} 向 agent 发任务。任务进入 dispatcher，形成 job，同时进入 message bureau，形成 message、attempt、reply 和 mailbox event。常用观察命令包括：
+
+\begin{itemize}
+  \item \cmd{watch}：看 job 事件。
+  \item \cmd{queue}：看 agent mailbox queue。
+  \item \cmd{inbox}：看 agent inbox head。
+  \item \cmd{trace}：从任意 id 重建通信链路。
+  \item \cmd{ack}：确认 inbox head 上的 reply。
+\end{itemize}
+
+\section{role}
+
+role 是可复用的 agent 角色包。它可以定义默认 agent 名、说明、provider 支持、工具需求和记忆/技能投影。把 Archi role 加入 CCB，通常经历安装 rolepack、写入项目配置、配置加载展开、daemon 挂载 agent 四步。
+
+\section{tool window}
+
+tool window 是非 agent 工具窗口，例如 managed Neovim。它可以出现在 sidebar 中，但不接收 \cmd{ask} 任务。

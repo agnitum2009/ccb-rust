@@ -1,0 +1,193 @@
+\chapter{命令参考}
+
+\section{入口和启动}
+
+直接运行：
+
+\begin{lstlisting}
+ccb
+\end{lstlisting}
+
+会启动或附着到当前项目 CCB 前台。如果 daemon 未运行，\cmd{ccb} 会自动启动项目 backend，挂载 configured agents，并维护 tmux 前台布局。帮助：
+
+\begin{lstlisting}
+ccb --help
+ccb ask --help
+ccb kill --help
+\end{lstlisting}
+
+版本：
+
+\begin{lstlisting}
+ccb version
+ccb -v
+ccb --version
+\end{lstlisting}
+
+\section{任务提交}
+
+\begin{lstlisting}
+ccb ask [--compact] [--silence] [--callback] [--artifact-request] \
+  [--artifact-reply] [--artifact-io] <target> [--] <message...>
+\end{lstlisting}
+
+flags：
+
+\begin{itemize}
+  \item \cmd{--compact}：请求精简回复。
+  \item \cmd{--silence}：成功时静默，失败仍显示。
+  \item \cmd{--callback}：把结果作为新任务回调给当前 agent。
+  \item \cmd{--artifact-request}：请求体写入 text artifact。
+  \item \cmd{--artifact-reply}：回复写入 text artifact。
+  \item \cmd{--artifact-io}：同时启用 request 和 reply artifact。
+\end{itemize}
+
+示例：
+
+\begin{lstlisting}
+ccb ask archi analyze communication flow
+ccb ask --compact reviewer review latest diff
+ccb ask --silence ops run smoke check
+ccb ask --callback archi collect evidence for this task
+ccb ask --callback --artifact-reply archi collect long evidence
+\end{lstlisting}
+
+active CCB task 中的 nested ask 必须使用 \cmd{--callback} 或 \cmd{--silence}。
+
+\section{ask diagnostics aliases}
+
+\begin{lstlisting}
+ccb ask get <job_id>
+ccb ask cancel <job_id>
+\end{lstlisting}
+
+这些是 diagnostics-oriented aliases。常规取消也可以使用 \cmd{ccb cancel <job_id>}。
+
+\section{观察命令}
+
+\begin{longtable}{p{0.28\linewidth}p{0.62\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb watch <agent|job_id>} & 轮询 job 或 agent 事件，直到 terminal 或超时。 \\
+\cmd{ccb pend <target> [count]} & snapshot 目标状态。 \\
+\cmd{ccb pend --watch <target>} & 进入 watch 观察模式。 \\
+\cmd{ccb pend --inbox [--detail] <agent>} & 查看 inbox。 \\
+\cmd{ccb pend --queue [--detail] <agent>} & 查看 queue。 \\
+\cmd{ccb queue [--detail] <target>} & 查看 mailbox queue，target 可为 agent 或 all。 \\
+\cmd{ccb inbox [--detail] <agent>} & 查看 agent inbox head 和 pending items。 \\
+\cmd{ccb trace <id>} & 从 submission/message/attempt/reply/job id 重建链路。 \\
+\bottomrule
+\end{longtable}
+
+\section{ack}
+
+\begin{lstlisting}
+ccb ack <agent_name> [inbound_event_id]
+\end{lstlisting}
+
+ack 只确认 inbox head。它支持 task reply，或者已经 terminal 的 task request。如果指定的 event 不是 head，会被拒绝。已经安排 automatic reply delivery 的 reply 也不能手动 ack。
+
+\section{retry、resubmit、cancel}
+
+\begin{longtable}{p{0.28\linewidth}p{0.62\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb retry <job_id|attempt_id>} & 在原 message lineage 下追加 retry attempt。要求目标 attempt 已 terminal、不是 completed、且是最新 attempt。 \\
+\cmd{ccb resubmit <message_id>} & 从旧 message 创建新的 message/submission/jobs。 \\
+\cmd{ccb cancel <job_id>} & 取消 queued 或 active job，并写入 cancelled terminal state。 \\
+\bottomrule
+\end{longtable}
+
+简单判断：
+
+\begin{itemize}
+  \item provider/API 临时失败，优先 \cmd{retry}。
+  \item 想重新发整条请求，使用 \cmd{resubmit}。
+  \item 任务不应继续，使用 \cmd{cancel}。
+\end{itemize}
+
+\section{等待命令}
+
+\begin{lstlisting}
+ccb wait-any [--timeout N] <target>
+ccb wait-all [--timeout N] <target>
+ccb wait-quorum [--timeout N] <quorum> <target>
+\end{lstlisting}
+
+timeout 必须是正数，quorum 必须是正整数。
+
+\section{生命周期命令}
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb ps} & 查看 agent/backend runtime 状态。 \\
+\cmd{ccb ping <agent|all>} & 检查 agent 或 all。 \\
+\cmd{ccb clear [agent...]} & 向 provider pane 发送 native \cmd{/clear}；不删除 \src{.ccb} 状态、workspace、auth、session 或日志；\cmd{all} 不能和具体 agent 混用。 \\
+\cmd{ccb restart <agent>} & 通过 ccbd 重启单个 agent；busy、queued、reply delivery 或 callback continuation 状态会被拒绝；不支持 \cmd{all}。 \\
+\cmd{ccb reload [--dry-run]} & 重新加载项目配置；dry-run 只预检。 \\
+\cmd{ccb cleanup} & 清理运行残留。 \\
+\cmd{ccb kill [-f|--force]} & 停止 backend 和 configured agents。 \\
+\bottomrule
+\end{longtable}
+
+\section{诊断和维护命令}
+
+\begin{longtable}{p{0.34\linewidth}p{0.56\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb doctor} & 常规诊断。 \\
+\cmd{ccb doctor --output [PATH]} & 输出诊断 bundle。 \\
+\cmd{ccb doctor ps} 或 \cmd{ccb doctor --runtime} & runtime 诊断。 \\
+\cmd{ccb doctor logs} 或 \cmd{ccb doctor --logs} & 日志诊断。 \\
+\cmd{ccb doctor storage [--json]} & 存储诊断。 \\
+\cmd{ccb logs <agent>} & 查看 agent 日志。 \\
+\cmd{ccb maintenance [status]} & 查看维护状态。 \\
+\cmd{ccb maintenance tick} & 触发一次维护 tick。 \\
+\cmd{ccb maintenance tick --force} & 跳过 schedule due 检查，立即运行一次 tick。 \\
+\cmd{ccb maintenance tick --no-dispatch} & 只评估和记录，不派发 assessor activation。 \\
+\cmd{ccb maintenance schedule --after <duration> [--reason TEXT]} & 设置下一次 heartbeat follow-up 时间。 \\
+\cmd{ccb maintenance enable} & 当前实现返回 config-authority 提示；请编辑 \cfg{[maintenance.heartbeat].enabled}。 \\
+\cmd{ccb maintenance disable} & 当前实现返回 config-authority 提示；请编辑 \cfg{[maintenance.heartbeat].enabled}。 \\
+\bottomrule
+\end{longtable}
+
+\section{配置和 fault}
+
+\begin{longtable}{p{0.34\linewidth}p{0.56\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb config validate} & 验证配置。 \\
+\cmd{ccb fault list} & 列出 fault rules。 \\
+\cmd{ccb fault arm <agent> --task-id TASK --reason REASON --count N --error TEXT} & 注入故障。 \\
+\cmd{ccb fault clear <rule_id|all>} & 清理故障。 \\
+\bottomrule
+\end{longtable}
+
+\section{管理和辅助命令}
+
+\begin{longtable}{p{0.34\linewidth}p{0.56\linewidth}}
+\toprule
+命令 & 作用 \\
+\midrule
+\cmd{ccb version} & 版本。 \\
+\cmd{ccb update} & 更新。 \\
+\cmd{ccb uninstall} & 卸载。 \\
+\cmd{ccb reinstall} & 重装。 \\
+\cmd{ccb droid setup-delegation} & 配置 Droid delegation tools。 \\
+\cmd{ccb droid test-delegation} & 检查 Droid delegation tools。 \\
+\bottomrule
+\end{longtable}
+
+\section{已移除命令}
+
+\begin{itemize}
+  \item \cmd{ccb open} 已移除，直接用 \cmd{ccb}。
+  \item \cmd{ccb up} 已移除，agents 由 \src{.ccb/ccb.config} 配置。
+  \item \cmd{ccb mail} 和 \cmd{ccb provider} 已移除，使用 \cmd{ask}、\cmd{doctor}、\cmd{trace}。
+\end{itemize}

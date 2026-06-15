@@ -1,0 +1,16 @@
+{
+  "version": "7.5.2",
+  "commit": "6051495",
+  "date": "2026-06-13",
+  "build_time": "2026-06-13T04:24:27Z",
+  "platform": "linux",
+  "arch": "x86_64",
+  "channel": "stable",
+  "source_kind": "release",
+  "install_mode": "release",
+  "installed_at": "2026-06-13T05:06:36Z",
+  "install_user_id": 0,
+  "install_user_name": "root",
+  "root_install": true,
+  "sudo_user": ""
+}

@@ -1,0 +1,172 @@
+\chapter{配置、布局和 Role 加载}
+
+CCB 的配置系统把用户声明转成 runtime agent spec。它既支持紧凑布局，也支持完整 TOML，还支持 role id shorthand。理解配置加载路径，是理解“Archi role 怎么加载到 CCB 中”的基础。
+
+\section{配置来源}
+
+配置入口在 \src{lib/agents/config_loader.py}，实际实现位于 \src{lib/agents/config_loader_runtime/}。加载优先级为：
+
+\begin{enumerate}
+  \item 项目配置 \src{.ccb/ccb.config}。
+  \item 用户默认配置。
+  \item 内建默认配置。
+\end{enumerate}
+
+加载结果是 \src{ConfigLoadResult}，包含 source path、source kind 和 parsed \src{ProjectConfig}。
+
+\section{三种文档形态}
+
+\subsection{compact}
+
+compact 配置是布局文本。例如：
+
+\begin{lstlisting}
+cmd | archi:codex | reviewer:claude
+\end{lstlisting}
+
+解析逻辑在 \src{io_runtime/documents.py}。每个 leaf 必须是 \src{agent_name:provider}，或者保留 token \src{cmd}。\src{cmd} 不能声明 provider，也不能重复出现。compact 文档会转换成 version 2 config：
+
+\begin{itemize}
+  \item \src{default_agents}
+  \item \src{agents}
+  \item \src{cmd_enabled}
+  \item \src{layout}
+\end{itemize}
+
+\subsection{rich TOML}
+
+rich 配置是完整 TOML。它可以声明 version、agents、windows、tool windows、entry window、ui sidebar 和 maintenance。
+
+\subsection{hybrid}
+
+hybrid 是 compact layout 后跟 TOML overlay。overlay 只允许 \src{agents} 和 \src{maintenance}。它不能定义 compact layout 之外的新 agent，也不能覆盖 compact header 已经拥有的 \src{provider} 或 \src{workspace_mode}。
+
+\section{legacy layout 与 windows topology}
+
+配置 validation 位于 \src{lib/agents/config_loader_runtime/parsing_runtime/validation.py}。
+
+legacy 模式没有 \src{windows}。它要求 \src{default_agents}，允许 \src{layout} 和 \src{cmd_enabled}，拒绝 \src{ui} 和 \src{entry_window}。
+
+windows topology 模式声明 \src{windows}。它从 window leaves 推导 \src{default_agents}，拒绝 \src{default_agents}、\src{layout} 和 \src{cmd_enabled}。它允许 \src{tool_windows}、\src{entry_window} 和 \src{ui.sidebar}。
+
+这种互斥关系避免了两套布局语义同时定义前台结构。
+
+\section{window 和 tool window}
+
+\src{parse_topology_windows} 要求每个 window leaf 声明 provider，不支持 \src{cmd}，并禁止 agent 跨 window 重复。每个 leaf 被转换成 agent spec 默认值：
+
+\begin{itemize}
+  \item \src{target = "."}
+  \item \src{workspace_mode = "git-worktree"}，仅当 leaf 使用 worktree mode；
+  \item 否则 \src{workspace_mode = "inplace"}；
+  \item \src{restore = "auto"}；
+  \item \src{permission = "manual"}。
+\end{itemize}
+
+\src{tool_windows} 用于非 agent 工具窗口。每个条目要求 \src{command}，可选 \src{label} 和 \src{show_in_sidebar}。
+
+\section{sidebar 配置}
+
+\src{ui.sidebar} 支持：
+
+\begin{itemize}
+  \item \src{mode}
+  \item \src{width}
+  \item \src{bottom_height}
+  \item \src{view}
+\end{itemize}
+
+\src{ui.sidebar.view} 支持：
+
+\begin{itemize}
+  \item \src{agents_height}
+  \item \src{comms_height}
+  \item \src{tips_height}
+  \item \src{comms_limit}
+  \item \src{comms_compact}
+  \item \src{tips_enabled}
+  \item \src{tips}
+\end{itemize}
+
+sidebar 是 UI 投影，不应该改变 daemon ownership 或 agent mount set。
+
+\section{agent spec}
+
+agent spec 的允许字段在 \src{lib/agents/config_loader_runtime/common.py}：
+
+\begin{longtable}{p{0.30\linewidth}p{0.60\linewidth}}
+\toprule
+字段 & 含义 \\
+\midrule
+\src{provider} & provider 名称，必需。 \\
+\src{target} & agent 工作目标。 \\
+\src{workspace_mode} & \src{inplace}、\src{git-worktree} 等工作区模式。 \\
+\src{workspace_root}、\src{workspace_path}、\src{workspace_group} & 外部或共享工作区边界。 \\
+\src{provider_command_template} & provider 启动命令模板。 \\
+\src{runtime_mode} & runtime 类型，默认 pane-backed。 \\
+\src{restore}、\src{permission} & 默认恢复和权限策略。 \\
+\src{queue_policy} & 队列策略，默认 serial-per-agent。 \\
+\src{model}、\src{startup_args} & provider 参数。 \\
+\src{env}、\src{key}、\src{url}、\src{api}、\src{provider_profile} & provider API 和 profile 配置。 \\
+\src{branch_template} & worktree branch 命名模板。 \\
+\src{labels}、\src{description} & UI 和说明元数据。 \\
+\src{role} & 绑定 role id。 \\
+\src{watch_paths} & 关注路径。 \\
+\bottomrule
+\end{longtable}
+
+\section{maintenance heartbeat}
+
+\src{maintenance.heartbeat} 支持：
+
+\begin{itemize}
+  \item \src{enabled}
+  \item \src{assessor}
+  \item \src{interval_s}
+  \item \src{min_interval_s}
+  \item \src{unknown_streak_cap}
+  \item \src{escalation_policy}
+  \item \src{startup_ensure}
+\end{itemize}
+
+默认值是 disabled、assessor \src{ccb_self}、interval 3600 秒、min interval 300 秒、unknown streak cap 3、escalation policy \src{report_only}、startup ensure true。
+
+\section{Role 命令}
+
+role 命令入口在 \src{lib/cli/roles_runtime/commands.py}。当前命令包括：
+
+\begin{itemize}
+  \item \cmd{ccb roles list}
+  \item \cmd{ccb roles show <role_id>}
+  \item \cmd{ccb roles install [role_id] [--path PATH] [--skip-tools]}
+  \item \cmd{ccb roles update [role_id] [--path PATH] [--skip-tools]}
+  \item \cmd{ccb roles sync [path] [--with-tools]}
+  \item \cmd{ccb roles doctor <role_id>}
+  \item \cmd{ccb roles add <role_spec> [--agent NAME] [--provider PROVIDER] [--window WINDOW]}
+\end{itemize}
+
+\section{Archi role 怎么加载到 CCB 中}
+
+以 \src{agentroles.archi} 为例，加载路径可以分成安装、写配置、解析、运行四步。
+
+\begin{enumerate}
+  \item 安装或同步 rolepack。用户通过 \cmd{ccb roles install agentroles.archi}、\cmd{ccb roles update agentroles.archi} 或 \cmd{ccb roles sync} 把 role manifest、默认 agent 信息和可选 tools 放到 CCB 能发现的 role store。
+  \item 写入项目配置。用户可以手写 \src{agentroles.archi:codex} 这类 role id shorthand，也可以用 \cmd{ccb roles add agentroles.archi:codex}。后者会寻找最近的项目 \src{.ccb} anchor，并调用 rolepack service 修改项目配置。
+  \item 配置加载展开 role id。\src{role_lookup.py} 识别 publisher.role 形式，读取已安装 role，拿到 default agent name。compact layout 和 windows topology 都会把 role id leaf 展开成具体 agent name，并在 agent spec 中保留 \src{role = "agentroles.archi"}。
+  \item daemon 按展开后的 agent spec mount agent。此时运行时看到的是普通 agent：有 provider、workspace、permission、restore、role metadata。role 不直接替代 provider，它是生成 agent 配置和 provider/memory/tools 投影的上层来源。
+\end{enumerate}
+
+因此，“Archi role 加载到 CCB”并不是 daemon 动态 import 一个 Python 类。它是 rolepack 安装、项目配置声明、config loader 展开、agent spec materialization 和 daemon mount 的组合。
+
+\section{配置修改的维护原则}
+
+修改配置系统时，需要同步以下材料：
+
+\begin{itemize}
+  \item \src{docs/ccb-config-layout-contract.md}
+  \item 用户手册配置参考。
+  \item CLI parser tests 和 config validation tests。
+  \item rolepack loading tests，如果改动 role shorthand 或 \cmd{roles add}。
+\end{itemize}
+
+新增字段时要同时决定 compact、rich、hybrid、windows topology 是否支持。不能只在 agent model 加字段而不更新 validator，否则用户会看到 unknown field 或静默丢失。

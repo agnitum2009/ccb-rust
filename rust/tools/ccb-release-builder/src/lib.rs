@@ -37,6 +37,9 @@ pub const EXCLUDES: &[&str] = &[
     "roles",
 ];
 
+/// Rust binaries that must be built, packaged, and installed from the release artifact.
+pub const REQUIRED_BINARIES: &[&str] = &["ccbr", "ccbd", "ask", "autonew", "ctx-transfer"];
+
 const HOST_SYSTEMS: &[(&str, &str)] = &[("linux", "Linux"), ("macos", "Darwin")];
 
 #[derive(Debug, Clone)]
@@ -275,20 +278,32 @@ pub fn run_verify(opts: &VerifyOptions) -> Result<()> {
     let mut archive = tar::Archive::new(decoder);
 
     let mut found_build_info = false;
+    let mut found_binaries: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for entry in archive.entries()? {
         let entry = entry?;
         let path = entry.path()?;
-        if path
-            .as_os_str()
-            .to_string_lossy()
-            .ends_with("BUILD_INFO.json")
-        {
+        let path_str = path.as_os_str().to_string_lossy();
+        if path_str.ends_with("BUILD_INFO.json") {
             found_build_info = true;
+        }
+        for name in REQUIRED_BINARIES {
+            if path_str.ends_with(&format!("/bin/{}", name)) || path_str.ends_with(name) {
+                found_binaries.insert(*name);
+            }
         }
     }
 
     if !found_build_info {
         bail!("artifact missing BUILD_INFO.json");
+    }
+
+    let missing: Vec<&str> = REQUIRED_BINARIES
+        .iter()
+        .copied()
+        .filter(|name| !found_binaries.contains(name))
+        .collect();
+    if !missing.is_empty() {
+        bail!("artifact missing required binaries: {:?}", missing);
     }
 
     Ok(())
@@ -643,12 +658,47 @@ pub fn build_rust_workspace_for_release(
         );
     }
 
-    let binary = rust_dir.join("target").join("release").join("ccb");
-    if !binary.is_file() {
-        bail!("Rust build did not produce expected binary: {:?}", binary);
+    let release_dir = rust_dir.join("target").join("release");
+    let mut missing = Vec::new();
+    for name in REQUIRED_BINARIES {
+        let binary = release_dir.join(name);
+        if !binary.is_file() {
+            missing.push(name);
+        }
+    }
+    if !missing.is_empty() {
+        bail!(
+            "Rust build did not produce expected binaries: {:?}",
+            missing
+        );
     }
 
+    install_rust_binaries_into_release_tree(artifact_root, &release_dir)?;
     prune_rust_target_for_release(&rust_dir)?;
+    Ok(())
+}
+
+fn install_rust_binaries_into_release_tree(artifact_root: &Path, release_dir: &Path) -> Result<()> {
+    let bin_dir = artifact_root.join("bin");
+    fs::create_dir_all(&bin_dir).with_context(|| format!("creating bin dir {:?}", bin_dir))?;
+
+    for name in REQUIRED_BINARIES {
+        let source = release_dir.join(name);
+        let dest = if *name == "ccbr" {
+            artifact_root.join(name)
+        } else {
+            bin_dir.join(name)
+        };
+        fs::copy(&source, &dest).with_context(|| format!("copying {:?} to {:?}", source, dest))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&dest)?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&dest, perms)
+                .with_context(|| format!("setting permissions on {:?}", dest))?;
+        }
+    }
     Ok(())
 }
 
@@ -659,10 +709,12 @@ fn prune_rust_target_for_release(rust_dir: &Path) -> Result<()> {
         return Ok(());
     }
 
+    let keep: std::collections::HashSet<&str> = REQUIRED_BINARIES.iter().copied().collect();
     for entry in fs::read_dir(&release_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.file_name().and_then(|n| n.to_str()) == Some("ccb") {
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if keep.contains(file_name) {
             continue;
         }
         if path.is_dir() {

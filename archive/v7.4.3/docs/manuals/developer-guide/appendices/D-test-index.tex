@@ -1,0 +1,241 @@
+\chapter{测试入口索引}
+
+本附录按主题列出当前源码树中与架构分析相关的测试入口。它不是每个测试函数的索引，而是维护者选择验证范围时的路径地图。
+
+\section{ccbd、keeper、socket、startup}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_v2_ccbd_keeper.py} & keeper ownership 与 lifecycle。 \\
+\src{test/test_v2_ccbd_socket.py} & socket protocol。 \\
+\src{test/test_v2_ccbd_start_flow.py} & start flow。 \\
+\src{test/test_v2_ccbd_start_matrix.py} & start matrix。 \\
+\src{test/test_v2_ccbd_start_policy.py} & start policy。 \\
+\src{test/test_v2_ccbd_supervision_loop.py} & supervision loop。 \\
+\src{test/test_v2_ccbd_supervisor.py} & supervisor。 \\
+\src{test/test_ccbd_supervisor_lifecycle.py} & lifecycle supervision。 \\
+\src{test/test_ccbd_supervisor_namespace.py} & namespace supervision。 \\
+\src{test/test_ccbd_process_env.py} & process env。 \\
+\src{test/test_ccbd_socket_client.py} & socket client。 \\
+\src{test/test_ccbd_socket_server_loop.py} & socket server loop。 \\
+\src{test/test_ccbd_client_resolution.py} & client resolution。 \\
+\src{test/test_ccbd_start_handler.py} & start handler。 \\
+\src{test/test_ccbd_start_agent_runtime.py} & agent runtime start。 \\
+\src{test/test_ccbd_start_binding.py} & start binding。 \\
+\src{test/test_ccbd_start_preparation.py} & start preparation。 \\
+\src{test/test_ccbd_start_runtime_layout.py} & runtime layout。 \\
+\src{test/test_v2_daemon_startup_wait.py} & daemon startup wait。 \\
+\src{test/test_v2_daemon_config_drift.py} & daemon config drift。 \\
+\bottomrule
+\end{longtable}
+
+\section{dispatcher、message bureau、mailbox}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_v2_ccbd_dispatcher.py} & dispatcher。 \\
+\src{test/test_v2_job_store.py} & job store。 \\
+\src{test/test_v2_execution_service.py} & execution service。 \\
+\src{test/test_v2_snapshot_store.py} & completion snapshots。 \\
+\src{test/test_v2_message_bureau_store.py} & message-bureau store。 \\
+\src{test/test_v2_message_bureau_dispatcher_integration.py} & dispatcher integration。 \\
+\src{test/test_v2_mailbox_kernel_service.py} & mailbox kernel service。 \\
+\src{test/test_v2_mailbox_kernel_store.py} & mailbox store。 \\
+\src{test/test_message_bureau_control_queue.py} & queue/inbox/ack control view。 \\
+\src{test/test_message_bureau_submission_fastpath.py} & submission fastpath。 \\
+\src{test/test_cli_wait_replies.py} & wait replies。 \\
+\src{test/test_v2_cli_watch_reconnect.py} & watch reconnect。 \\
+\src{test/test_v2_ask_service.py} & ask service。 \\
+\src{test/test_v2_phase2_ask.py} & phase2 ask。 \\
+\src{test/test_ask_cli.py} & ask CLI。 \\
+\src{test/test_ask_internal_paths.py} & ask internal paths。 \\
+\src{test/test_ask_skill_templates.py} & ask skill templates。 \\
+\src{test/test_v2_fault_injection.py} & fault injection。 \\
+\src{test/test_ccbd_retry_failure_detail.py} & retry failure details。 \\
+\src{test/test_ccbd_comms_recover.py} & comms recover。 \\
+\src{test/test_reply_delivery_formatting.py} & reply delivery formatting。 \\
+\src{test/test_reply_delivery_start_completion.py} & reply delivery start completion。 \\
+\bottomrule
+\end{longtable}
+
+\section{config、layout、reload}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_v2_config_loader.py} & config loader。 \\
+\src{test/test_agents_layout_runtime.py} & agents layout runtime。 \\
+\src{test/test_terminal_runtime_layouts.py} & terminal layouts。 \\
+\src{test/test_v2_layout_plan.py} & layout plan。 \\
+\src{test/test_ccbd_reload_dry_run.py} & reload dry-run。 \\
+\src{test/test_ccbd_reload_apply.py} & reload apply。 \\
+\src{test/test_ccbd_reload_patch.py} & reload patch。 \\
+\src{test/test_ccbd_reload_drain.py} & reload drain。 \\
+\src{test/test_ccbd_reload_runtime_mount.py} & reload runtime mount。 \\
+\src{test/test_ccbd_reload_transaction.py} & reload transaction。 \\
+\src{test/test_ccbd_namespace_additive_patch.py} & namespace additive patch。 \\
+\src{test/test_ccbd_namespace_topology_plan.py} & namespace topology plan。 \\
+\src{test/test_v2_project_namespace_backend.py} & project namespace backend。 \\
+\src{test/test_v2_project_namespace_state.py} & project namespace state。 \\
+\src{test/test_v2_project_resolver.py} & project resolver。 \\
+\src{test/test_project_id.py} & project id。 \\
+\src{test/test_registry_project_id.py} & registry project id。 \\
+\bottomrule
+\end{longtable}
+
+\section{provider common 和 runtime isolation}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_v2_provider_binding.py} & provider binding。 \\
+\src{test/test_v2_provider_catalog.py} & provider catalog。 \\
+\src{test/test_v2_provider_core_registry.py} & provider core registry。 \\
+\src{test/test_v2_provider_health_store.py} & provider health store。 \\
+\src{test/test_v2_provider_restore_launchers.py} & restore launchers。 \\
+\src{test/test_provider_execution_common.py} & execution common。 \\
+\src{test/test_provider_execution_fake_runtime.py} & fake runtime。 \\
+\src{test/test_provider_execution_service_runtime.py} & execution service runtime。 \\
+\src{test/test_provider_execution_active_resume.py} & active resume。 \\
+\src{test/test_provider_profiles.py} & provider profiles。 \\
+\src{test/test_provider_source_home.py} & provider source home。 \\
+\src{test/test_provider_instance_resolution.py} & provider instance resolution。 \\
+\src{test/test_provider_helper_cleanup.py} & helper cleanup。 \\
+\src{test/test_provider_memory_external_context.py} & external memory context。 \\
+\src{test/test_provider_memory_external_matrix.py} & external memory matrix。 \\
+\src{test/test_provider_core_memory_projection.py} & memory projection。 \\
+\src{test/test_provider_core_session_binding_fields.py} & session binding fields。 \\
+\src{test/test_v2_runtime_isolation.py} & runtime isolation。 \\
+\src{test/test_source_runtime_guard.py} & source runtime guard。 \\
+\src{test/test_runtime_env_control_plane.py} & runtime env control plane。 \\
+\src{test/test_runtime_env_user_session.py} & runtime env user session。 \\
+\src{test/test_runtime_specs.py} & runtime specs。 \\
+\bottomrule
+\end{longtable}
+
+\section{Codex}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_codex_binding_update.py} & binding update。 \\
+\src{test/test_codex_bridge_runtime.py} & bridge runtime。 \\
+\src{test/test_codex_comm_binding.py} & communication binding。 \\
+\src{test/test_codex_comm_io.py} & communication IO。 \\
+\src{test/test_codex_comm_session_runtime.py} & session runtime。 \\
+\src{test/test_codex_communicator_state.py} & communicator state。 \\
+\src{test/test_codex_execution_polling.py} & execution polling。 \\
+\src{test/test_codex_launcher_session_paths.py} & session paths。 \\
+\src{test/test_codex_live_identity.py} & live identity。 \\
+\src{test/test_codex_log_entries.py} & log entries。 \\
+\src{test/test_codex_log_tail.py} & log tail。 \\
+\src{test/test_codex_polling_reader.py} & polling reader。 \\
+\src{test/test_codex_polling_reader_runtime.py} & polling reader runtime。 \\
+\src{test/test_codex_polling_runtime_state.py} & polling runtime state。 \\
+\src{test/test_codex_readiness.py} & readiness。 \\
+\src{test/test_codex_session_content.py} & session content。 \\
+\src{test/test_codex_session_discovery.py} & session discovery。 \\
+\src{test/test_codex_session_ensure_pane.py} & ensure pane。 \\
+\src{test/test_codex_session_fields.py} & session fields。 \\
+\src{test/test_codex_session_switch.py} & session switch。 \\
+\src{test/test_codex_start_cmd_fields.py} & start command fields。 \\
+\src{test/test_codex_start_cmd_parsing.py} & start command parsing。 \\
+\bottomrule
+\end{longtable}
+
+\section{Claude、Gemini、OpenCode}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_claude_comm.py} & Claude communication。 \\
+\src{test/test_claude_execution_polling.py} & Claude execution polling。 \\
+\src{test/test_claude_session_selection.py} & Claude session selection。 \\
+\src{test/test_claude_registry_logs_binding.py} & Claude registry logs binding。 \\
+\src{test/test_gemini_comm.py} & Gemini communication。 \\
+\src{test/test_gemini_execution_hook.py} & Gemini execution hook。 \\
+\src{test/test_gemini_polling_service.py} & Gemini polling service。 \\
+\src{test/test_gemini_session_binding.py} & Gemini session binding。 \\
+\src{test/test_gemini_watchdog.py} & Gemini watchdog。 \\
+\src{test/test_opencode_comm_fields.py} & OpenCode communication fields。 \\
+\src{test/test_opencode_comm_sqlite.py} & OpenCode sqlite communication。 \\
+\src{test/test_opencode_execution_polling.py} & OpenCode execution polling。 \\
+\src{test/test_opencode_reply_polling.py} & OpenCode reply polling。 \\
+\src{test/test_opencode_storage.py} & OpenCode storage。 \\
+\src{test/test_opencode_watch.py} & OpenCode watch。 \\
+\bottomrule
+\end{longtable}
+
+\section{completion}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_v2_completion_detectors.py} & completion detectors。 \\
+\src{test/test_v2_completion_models.py} & completion models。 \\
+\src{test/test_v2_completion_orchestration.py} & completion orchestration。 \\
+\src{test/test_v2_completion_registry.py} & completion registry。 \\
+\src{test/test_v2_completion_tracker.py} & completion tracker。 \\
+\src{test/test_active_runtime_polling.py} & active runtime polling。 \\
+\src{test/test_provider_finish_hook_script.py} & finish hook script。 \\
+\src{test/test_provider_activity_artifacts.py} & provider activity artifacts。 \\
+\src{test/test_provider_activity_hook_script.py} & activity hook script。 \\
+\bottomrule
+\end{longtable}
+
+\section{tmux、terminal、foreground}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_terminal_runtime_backend_env.py} & backend env。 \\
+\src{test/test_terminal_runtime_backend_selection.py} & backend selection。 \\
+\src{test/test_terminal_runtime_tmux.py} & tmux runtime。 \\
+\src{test/test_terminal_runtime_tmux_attach.py} & tmux attach。 \\
+\src{test/test_terminal_runtime_tmux_input.py} & tmux input。 \\
+\src{test/test_terminal_runtime_tmux_logs.py} & tmux logs。 \\
+\src{test/test_terminal_runtime_tmux_panes.py} & tmux panes。 \\
+\src{test/test_terminal_runtime_tmux_respawn.py} & tmux respawn。 \\
+\src{test/test_terminal_runtime_tmux_respawn_service.py} & respawn service。 \\
+\src{test/test_terminal_runtime_tmux_send.py} & tmux send。 \\
+\src{test/test_tmux_backend.py} & tmux backend。 \\
+\src{test/test_tmux_identity.py} & tmux identity。 \\
+\src{test/test_tmux_ownership_inspection.py} & ownership inspection。 \\
+\src{test/test_tmux_respawn_pane.py} & respawn pane。 \\
+\src{test/test_sidebar_click.py} & sidebar click。 \\
+\src{test/test_sidebar_resize_sync.py} & sidebar resize sync。 \\
+\src{test/test_ccbd_sidebar_helper.py} & sidebar helper。 \\
+\bottomrule
+\end{longtable}
+
+\section{install、update、management}
+
+\begin{longtable}{p{0.52\linewidth}p{0.38\linewidth}}
+\toprule
+测试文件 & 主题 \\
+\midrule
+\src{test/test_cli_management_install.py} & management install。 \\
+\src{test/test_cli_management_update.py} & management update。 \\
+\src{test/test_cli_management_version.py} & management version。 \\
+\src{test/test_cli_startup_update.py} & startup update。 \\
+\src{test/test_cli_versioning_local.py} & local versioning。 \\
+\src{test/test_build_linux_release_script.py} & Linux release build。 \\
+\src{test/test_build_macos_release_script.py} & macOS release build。 \\
+\src{test/test_install_source_dev_mode.py} & source dev mode install。 \\
+\src{test/test_install_line_endings.py} & line endings。 \\
+\src{test/test_install_tar_safety.py} & tar safety。 \\
+\src{test/test_install_major_upgrade_guard.py} & major upgrade guard。 \\
+\src{test/test_install_root_confirmation.py} & root confirmation。 \\
+\src{test/test_install_watchdog_optional.py} & optional watchdog。 \\
+\bottomrule
+\end{longtable}

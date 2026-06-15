@@ -1,0 +1,53 @@
+\chapter{常见问题}
+
+\section{ccb 启动后没有看到 agent}
+
+\begin{enumerate}
+  \item 运行 \cmd{ccb config validate}。
+  \item 运行 \cmd{ccb ps}。
+  \item 运行 \cmd{ccb doctor}。
+  \item 如果刚修改配置，运行 \cmd{ccb reload --dry-run}。
+\end{enumerate}
+
+\section{ask 没回复}
+
+\begin{enumerate}
+  \item 找到 job id。
+  \item 运行 \cmd{ccb trace <job_id>}。
+  \item 如果 job running，运行 \cmd{ccb watch <job_id>}。
+  \item 如果 job terminal 但没有看到 reply，检查 caller inbox。
+  \item 如果 provider failed，考虑 \cmd{retry}。
+\end{enumerate}
+
+\section{queue degraded}
+
+\begin{enumerate}
+  \item 运行 \cmd{ccb queue --detail <agent>}。
+  \item 看 \cfg{summary_status}。
+  \item 如果 missing 或 error，运行 \cmd{ccb doctor storage}。
+  \item 用 \cmd{trace} 判断 message lineage 是否仍完整。
+\end{enumerate}
+
+\section{role 找不到}
+
+\begin{enumerate}
+  \item 运行 \cmd{ccb roles list}。
+  \item 运行 \cmd{ccb roles doctor <role_id>}。
+  \item 确认 role id 是 publisher.role 形式。
+  \item 确认项目配置中的 role shorthand 使用了已安装 role。
+\end{enumerate}
+
+\section{配置报 unknown field}
+
+检查字段是否位于正确层级。常见问题：
+
+\begin{itemize}
+  \item 在基础布局模式中使用 \cfg{ui.sidebar}。
+  \item 在 windows topology 中仍写 \cfg{default_agents}。
+  \item 在 hybrid overlay 中定义 layout 外的新 agent。
+  \item agent spec 中写了未支持字段。
+\end{itemize}
+
+\section{什么时候用 retry，什么时候用 resubmit}
+
+\cmd{retry} 用于“同一条 message 的某次 attempt 失败，需要再试一次”。\cmd{resubmit} 用于“基于旧 message 重新提交一条新 message”。如果不确定，先 \cmd{trace}。

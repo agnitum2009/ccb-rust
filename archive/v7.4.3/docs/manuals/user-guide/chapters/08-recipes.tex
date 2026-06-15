@@ -1,0 +1,131 @@
+\chapter{操作配方}
+
+本章示例面向普通项目根目录。不要把 CCB 源码 checkout \src{/home/bfly/yunwei/ccb_source} 当作运行验证目录；源码验证应使用专门外部测试项目。
+
+\section{创建最小项目配置}
+
+\begin{lstlisting}
+cmd | archi:codex
+\end{lstlisting}
+
+验证：
+
+\begin{lstlisting}
+ccb config validate
+\end{lstlisting}
+
+启动：
+
+\begin{lstlisting}
+ccb
+\end{lstlisting}
+
+\section{两 agent 协作}
+
+\begin{lstlisting}
+cmd | archi:codex | reviewer:claude
+\end{lstlisting}
+
+提交任务：
+
+\begin{lstlisting}
+ccb ask archi analyze current architecture
+ccb ask reviewer review archi's result
+\end{lstlisting}
+
+\section{使用 windows topology}
+
+\begin{lstlisting}
+version = 2
+entry_window = "main"
+
+[windows]
+main = "archi:codex | reviewer:claude"
+ops = "ops:codex"
+
+[ui.sidebar]
+mode = "every_window"
+width = "15%"
+\end{lstlisting}
+
+\section{添加 Neovim tool window}
+
+\begin{lstlisting}
+version = 2
+entry_window = "main"
+
+[windows]
+main = "archi:codex"
+
+[tool_windows.nvim]
+command = "ccb-nvim"
+label = "Neovim"
+show_in_sidebar = true
+\end{lstlisting}
+
+安装 tool：
+
+\begin{lstlisting}
+ccb tools install neovim
+\end{lstlisting}
+
+\section{安装并使用 Archi role}
+
+\begin{lstlisting}
+ccb roles install agentroles.archi
+ccb roles add agentroles.archi:codex
+ccb config validate
+ccb reload --dry-run
+ccb reload
+\end{lstlisting}
+
+\section{长报告工作流}
+
+\begin{lstlisting}
+ccb ask --artifact-reply archi write detailed architecture report
+ccb trace <job_id>
+\end{lstlisting}
+
+\section{父任务请求子任务证据}
+
+在 active CCB task 中：
+
+\begin{lstlisting}
+ccb ask --callback --artifact-reply archi collect source evidence
+\end{lstlisting}
+
+不要用普通 nested ask 等待结果。
+
+\section{诊断失败任务}
+
+\begin{lstlisting}
+ccb trace job_xxx
+ccb watch job_xxx
+ccb queue --detail archi
+ccb inbox --detail talk1
+ccb doctor storage
+\end{lstlisting}
+
+\section{重试失败 attempt}
+
+\begin{lstlisting}
+ccb trace job_xxx
+ccb retry job_xxx
+ccb watch <new_job_id>
+\end{lstlisting}
+
+\section{重新提交旧 message}
+
+\begin{lstlisting}
+ccb trace msg_xxx
+ccb resubmit msg_xxx
+\end{lstlisting}
+
+\section{清理已读 reply}
+
+\begin{lstlisting}
+ccb inbox talk1
+ccb ack talk1
+\end{lstlisting}
+
+如果 ack 被拒绝，按提示使用当前 head inbound event id。
