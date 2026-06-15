@@ -11,10 +11,10 @@ pub use files::{
 pub use resolution::{resolve_work_dir, resolve_work_dir_with_registry};
 pub use watch::{SessionFileWatcher, HAS_WATCHDOG};
 
-pub mod writing;
-pub mod writable;
-pub mod pathing;
 pub mod discovery;
+pub mod pathing;
+pub mod writable;
+pub mod writing;
 
 #[cfg(test)]
 mod tests {

@@ -12,9 +12,9 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
-pub mod service;
-pub mod provider_home;
 pub mod models;
+pub mod provider_home;
+pub mod service;
 
 #[cfg(test)]
 mod tests {
