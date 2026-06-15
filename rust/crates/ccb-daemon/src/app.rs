@@ -410,6 +410,51 @@ impl CcbdApp {
             }
         }
 
+        // P0: Launch provider CLIs into their assigned panes.
+        // Collect provider info first to avoid borrow conflicts.
+        let agent_launches: Vec<(String, String, String, Option<String>)> = result
+            .agent_results
+            .iter()
+            .filter_map(|agent| {
+                let pane_id = agent.pane_id.as_ref()?;
+                let entry = self.registry.get(&agent.agent_name)?;
+                Some((
+                    agent.agent_name.clone(),
+                    pane_id.clone(),
+                    entry.provider.clone(),
+                    entry.workspace_path.clone(),
+                ))
+            })
+            .collect();
+
+        let launcher = crate::provider_launcher::ProviderLauncher::new();
+        let socket = self.tmux_socket_path();
+        let project_id = self.project_id().to_string();
+        let project_root_str = project_root.to_string();
+
+        for (agent_name, pane_id, provider, workspace) in &agent_launches {
+            if provider.trim().is_empty() {
+                continue;
+            }
+            let ws = workspace.as_deref().unwrap_or(project_root_str.as_str());
+            let ctx = crate::provider_launcher::LaunchContext {
+                provider: provider.as_str(),
+                agent_name: agent_name.as_str(),
+                project_id: project_id.as_str(),
+                project_root: project_root_str.as_str(),
+                workspace_path: ws,
+                pane_id: pane_id.as_str(),
+                socket_path: socket.as_str(),
+                restore,
+                command_template: None,
+                startup_args: &[],
+                auto_permission,
+            };
+            if let Err(e) = launcher.launch(&ctx) {
+                eprintln!("ccbd: provider launch failed for {agent_name}: {e}");
+            }
+        }
+
         self.project_namespace.mount(namespace)?;
         self.supervision.record_success("daemon");
 
