@@ -26,4 +26,3 @@ pub use session::{
     PROVIDER_NAME as OPENCODE_PROVIDER_NAME, SESSION_FILENAME,
 };
 pub use storage::OpenCodeStorageAccessor;
-pub mod protocol;
