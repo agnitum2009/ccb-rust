@@ -255,6 +255,8 @@ pub mod api_errors;
 pub mod active_jobs;
 pub mod active;
 
+pub mod droid;
+pub mod qwen;
 #[cfg(test)]
 mod tests {
     use super::*;
