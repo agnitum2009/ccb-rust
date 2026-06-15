@@ -13,7 +13,12 @@ impl TmuxPaneActions {
         Self { backend }
     }
 
-    pub fn split_pane(&self, parent_id: &str, direction: &str, percent: u32) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn split_pane(
+        &self,
+        parent_id: &str,
+        direction: &str,
+        percent: u32,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         // TODO: implement pane splitting
         Ok(String::new())
     }
@@ -23,7 +28,12 @@ impl TmuxPaneActions {
         Ok(())
     }
 
-    pub fn resize_pane(&self, pane_id: &str, direction: &str, size: u32) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn resize_pane(
+        &self,
+        pane_id: &str,
+        direction: &str,
+        size: u32,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // TODO: implement pane resizing
         Ok(())
     }

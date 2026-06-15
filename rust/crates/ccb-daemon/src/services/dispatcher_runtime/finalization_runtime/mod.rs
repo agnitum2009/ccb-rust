@@ -1,6 +1,5 @@
 //! Mirrors Python `lib/ccbd/services/dispatcher_runtime/finalization_runtime/`.
 
-
 pub mod artifacts;
 pub mod message_bureau;
 pub mod message_bureau_persistence;

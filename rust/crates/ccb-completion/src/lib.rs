@@ -1,18 +1,18 @@
 pub mod detectors;
+pub mod enums;
 pub mod error;
 pub mod models;
 pub mod orchestration;
 pub mod profiles;
+pub mod protocol;
+pub mod records;
 pub mod registry;
 pub mod selectors;
 pub mod snapshot_store;
 pub mod sources;
+pub mod status;
 pub mod tracker;
 pub mod utils;
-pub mod enums;
-pub mod protocol;
-pub mod records;
-pub mod status;
 
 pub use error::{CompletionError, CompletionValidationError, Result};
 pub use models::reply_candidates_from_item;

@@ -27,7 +27,10 @@ pub fn resolve_backend_for_session(
 
 /// Resolve pane ID from session
 pub fn resolve_pane_id_from_session(session_data: &crate::registry::UserSession) -> Option<String> {
-    session_data.pane_id.clone().or_else(|| session_data.tmux_session.clone())
+    session_data
+        .pane_id
+        .clone()
+        .or_else(|| session_data.tmux_session.clone())
 }
 
 /// Create layout

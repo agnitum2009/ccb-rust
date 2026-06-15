@@ -1,6 +1,5 @@
 //! Mirrors Python `lib/ccbd/services/project_namespace_runtime/`.
 
-
 pub mod additive_patch;
 pub mod additive_patch_agents;
 pub mod additive_patch_apply;

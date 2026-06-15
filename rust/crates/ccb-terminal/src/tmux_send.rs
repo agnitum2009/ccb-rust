@@ -10,5 +10,7 @@ pub fn send_text(
     text: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::backend::TerminalBackend;
-    backend.send_text(pane_id, text).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+    backend
+        .send_text(pane_id, text)
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }

@@ -1,6 +1,5 @@
 //! Mirrors Python `lib/ccbd/services/dispatcher_runtime/lifecycle_start_runtime/`.
 
-
 pub mod models;
 pub mod queue;
 pub mod recovery;

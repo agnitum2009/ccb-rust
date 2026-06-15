@@ -5,8 +5,8 @@
 //! Re-exports from `ccb_mailbox::models`.
 
 pub use ccb_mailbox::models::{
-    AttemptRecord, AttemptState, MessageRecord, MessageState, ReplyRecord,
-    ReplyTerminalStatus, SCHEMA_VERSION,
+    AttemptRecord, AttemptState, MessageRecord, MessageState, ReplyRecord, ReplyTerminalStatus,
+    SCHEMA_VERSION,
 };
 
 // TODO: translate any additional models.py functionality not in ccb_mailbox

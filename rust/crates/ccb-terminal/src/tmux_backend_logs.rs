@@ -18,7 +18,10 @@ impl TmuxBackendLogs {
         Ok(String::new())
     }
 
-    pub fn capture_session_logs(&self, session_name: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    pub fn capture_session_logs(
+        &self,
+        session_name: &str,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         // TODO: implement session log capture
         Ok(Vec::new())
     }

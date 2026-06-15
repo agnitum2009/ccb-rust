@@ -1,8 +1,8 @@
 //! Mirrors Python lib/terminal_runtime/tmux_panes_runtime/queries_runtime/service.py
 // TODO: translate from Python
 
-use crate::backend;
 use super::options::PaneQueryOptions;
+use crate::backend;
 
 /// Pane query service
 pub struct TmuxPaneQueryService {
@@ -20,12 +20,18 @@ impl TmuxPaneQueryService {
         Ok(Vec::new())
     }
 
-    pub fn find_pane_by_id(&self, pane_id: &str) -> Result<Option<crate::panes::PaneInfo>, Box<dyn std::error::Error>> {
+    pub fn find_pane_by_id(
+        &self,
+        pane_id: &str,
+    ) -> Result<Option<crate::panes::PaneInfo>, Box<dyn std::error::Error>> {
         // TODO: implement pane finding by ID
         Ok(None)
     }
 
-    pub fn find_panes_by_title(&self, title: &str) -> Result<Vec<crate::panes::PaneInfo>, Box<dyn std::error::Error>> {
+    pub fn find_panes_by_title(
+        &self,
+        title: &str,
+    ) -> Result<Vec<crate::panes::PaneInfo>, Box<dyn std::error::Error>> {
         // TODO: implement pane finding by title
         Ok(Vec::new())
     }

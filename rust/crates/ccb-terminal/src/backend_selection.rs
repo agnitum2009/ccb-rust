@@ -22,14 +22,23 @@ impl TerminalBackendSelection {
         self.cached.as_ref()
     }
 
-    pub fn get_backend_for_session(&self, session: &crate::registry::UserSession) -> backend::TmuxBackend {
+    pub fn get_backend_for_session(
+        &self,
+        session: &crate::registry::UserSession,
+    ) -> backend::TmuxBackend {
         let socket_name = session.tmux_socket_name.clone();
         let socket_path = session.tmux_socket_path.clone();
         backend::TmuxBackend::new(socket_name, socket_path)
     }
 
-    pub fn get_pane_id_from_session(&self, session: &crate::registry::UserSession) -> Option<String> {
-        session.pane_id.clone().or_else(|| session.tmux_session.clone())
+    pub fn get_pane_id_from_session(
+        &self,
+        session: &crate::registry::UserSession,
+    ) -> Option<String> {
+        session
+            .pane_id
+            .clone()
+            .or_else(|| session.tmux_session.clone())
     }
 }
 

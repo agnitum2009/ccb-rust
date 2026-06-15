@@ -11,5 +11,9 @@ pub fn pane_placeholder_cmd() -> String {
 
 /// Get pane placeholder argv
 pub fn pane_placeholder_argv() -> Vec<String> {
-    vec!["sh".to_string(), "-lc".to_string(), PANE_PLACEHOLDER_BODY.to_string()]
+    vec![
+        "sh".to_string(),
+        "-lc".to_string(),
+        PANE_PLACEHOLDER_BODY.to_string(),
+    ]
 }

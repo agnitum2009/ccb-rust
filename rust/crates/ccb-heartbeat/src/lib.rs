@@ -5,9 +5,9 @@ pub mod maintenance;
 pub mod models;
 pub mod store;
 
-mod time;
 pub mod classifier;
 pub mod engine_runtime;
+mod time;
 
 pub use engine::evaluate_heartbeat;
 pub use error::{HeartbeatError, Result};

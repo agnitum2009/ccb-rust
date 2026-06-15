@@ -13,12 +13,18 @@ impl TmuxPaneQueries {
         Self { backend }
     }
 
-    pub fn list_panes(&self, session: &str) -> Result<Vec<crate::panes::PaneInfo>, Box<dyn std::error::Error>> {
+    pub fn list_panes(
+        &self,
+        session: &str,
+    ) -> Result<Vec<crate::panes::PaneInfo>, Box<dyn std::error::Error>> {
         // TODO: implement pane listing
         Ok(Vec::new())
     }
 
-    pub fn get_pane_info(&self, pane_id: &str) -> Result<crate::panes::PaneInfo, Box<dyn std::error::Error>> {
+    pub fn get_pane_info(
+        &self,
+        pane_id: &str,
+    ) -> Result<crate::panes::PaneInfo, Box<dyn std::error::Error>> {
         // TODO: implement pane info retrieval
         Err("not implemented".into())
     }
