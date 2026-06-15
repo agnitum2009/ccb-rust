@@ -20,19 +20,20 @@ pub use crate::models::{
 };
 pub use crate::stores::{DeliveryLeaseStore, InboundEventStore, MailboxStore};
 
+pub mod transitions;
+pub mod terminal;
+pub mod summary;
+pub mod service_state;
+pub mod service;
+pub mod queries;
+pub mod model_enums;
+pub mod model_codecs;
+pub mod mailbox;
+pub mod leasing;
+pub mod claiming;
+
 #[cfg(test)]
 mod re_export_tests {
-pub mod claiming;
-pub mod leasing;
-pub mod mailbox;
-pub mod model_codecs;
-pub mod model_enums;
-pub mod queries;
-pub mod service;
-pub mod service_state;
-pub mod summary;
-pub mod terminal;
-pub mod transitions;
     // Compile-only test: every item in Python `lib/mailbox_kernel/__init__.py`
     // must be reachable from the crate root.
     use super::*;

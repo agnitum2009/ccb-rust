@@ -11,12 +11,13 @@ pub use files::{
 pub use resolution::{resolve_work_dir, resolve_work_dir_with_registry};
 pub use watch::{SessionFileWatcher, HAS_WATCHDOG};
 
+pub mod writing;
+pub mod writable;
+pub mod pathing;
+pub mod discovery;
+
 #[cfg(test)]
 mod tests {
-    pub mod discovery;
-    pub mod pathing;
-    pub mod writable;
-    pub mod writing;
     use super::*;
     use std::path::Path;
     use tempfile::TempDir;
