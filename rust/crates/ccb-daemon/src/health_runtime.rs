@@ -1,3 +1,4 @@
 //! Mirrors Python `lib/ccbd/services/health_runtime.py`.
-//! 1:1 file alignment stub.
-// TODO: align with Python
+//! Re-export shim: forwards to the actual health assessment implementation.
+
+pub use crate::services::health::{HealthMonitor, HealthState};

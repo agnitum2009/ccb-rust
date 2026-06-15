@@ -4,6 +4,9 @@ use std::collections::HashSet;
 use crate::services::project_namespace::ProjectNamespace;
 use crate::services::registry::{AgentRegistry, AgentRuntimeEntry};
 
+/// Type alias for health state strings
+pub type HealthState = String;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthInspection {
     pub generation: u32,

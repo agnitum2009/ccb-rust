@@ -18,8 +18,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd /home/agnitum/ccb\n# Revert ccb-terminal entirely — the 90 warnings are cosmetic, the broken cleanup made it worse\ngit checkout HEAD -- rust/crates/ccb-terminal/src/\ncd rust\necho \"=== build ===\"\ncargo build --workspace 2>&1 | grep -E \"^error|Finished\" | tail -2\necho \"=== fmt (issue 2 already applied) ===\"\ncargo fmt --check 2>&1 | head -2\necho \"fmt exit: $?\"\necho \"=== clippy count ===\"\ncargo clippy --workspace --all-targets 2>&1 | grep -cE \"^warning:\"\necho \"total warnings\"\necho \"=== tests ===\"\ncargo test --workspace -- --test-threads=1 --skip helper_binaries 2>&1 | grep \"test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'",
-    "testCommand": "cd /home/agnitum/ccb\n# Revert ccb-terminal entirely — the 90 warnings are cosmetic, the broken cleanup made it worse\ngit checkout HEAD -- rust/crates/ccb-terminal/src/\ncd rust\necho \"=== build ===\"\ncargo build --workspace 2>&1 | grep -E \"^error|Finished\" | tail -2\necho \"=== fmt (issue 2 already applied) ===\"\ncargo fmt --check 2>&1 | head -2\necho \"fmt exit: $?\"\necho \"=== clippy count ===\"\ncargo clippy --workspace --all-targets 2>&1 | grep -cE \"^warning:\"\necho \"total warnings\"\necho \"=== tests ===\"\ncargo test --workspace -- --test-threads=1 --skip helper_binaries 2>&1 | grep \"test result:\" | awk '{p+=$4; f+=$6} END {print \"Passed:\", p, \"Failed:\", f}'",
+    "buildCommand": "cd /home/agnitum/ccb/rust\ncargo build -p ccb-daemon 2>&1 | grep -B2 -A5 \"E0277\\|E0308\" | grep -v \"terminal\\|api_selection\" | head -20",
+    "testCommand": "cargo test -p ccb-daemon -- --test-threads=1 2>&1 | grep -E \"(test result|running)\"",
     "lintCommand": "cargo clippy",
     "devCommand": "cargo run",
     "scripts": {}
@@ -112,6 +112,18 @@
       "type": "file"
     },
     {
+      "path": "crates/ccb-daemon/src/tmux.rs",
+      "accessCount": 7,
+      "lastAccessed": 1781491701290,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/reload_transaction_signature.rs",
+      "accessCount": 7,
+      "lastAccessed": 1781491736398,
+      "type": "file"
+    },
+    {
       "path": "crates/ccb-agents/tests/rolepack_tests.rs",
       "accessCount": 6,
       "lastAccessed": 1781425568564,
@@ -121,6 +133,18 @@
       "path": "crates/ccb-cli/tests/cli_stub_commands_tests.rs",
       "accessCount": 6,
       "lastAccessed": 1781431453446,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/lib.rs",
+      "accessCount": 6,
+      "lastAccessed": 1781492510858,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/bootstrap.rs",
+      "accessCount": 5,
+      "lastAccessed": 1781491675543,
       "type": "file"
     },
     {
@@ -157,6 +181,12 @@
       "path": "crates/ccb-daemon/src/reload_plan.rs",
       "accessCount": 4,
       "lastAccessed": 1781454431469,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-daemon/src/services/dispatcher_runtime/reply_delivery_runtime/preparation_message.rs",
+      "accessCount": 4,
+      "lastAccessed": 1781491688665,
       "type": "file"
     },
     {
@@ -208,6 +238,12 @@
       "type": "file"
     },
     {
+      "path": "crates/ccb-agents/src/models.rs",
+      "accessCount": 3,
+      "lastAccessed": 1781492562673,
+      "type": "file"
+    },
+    {
       "path": "crates/ccb-memory/src/lib.rs",
       "accessCount": 2,
       "lastAccessed": 1781422774257,
@@ -256,12 +292,6 @@
       "type": "file"
     },
     {
-      "path": "crates/ccb-daemon/src/lib.rs",
-      "accessCount": 2,
-      "lastAccessed": 1781453556609,
-      "type": "file"
-    },
-    {
       "path": "crates/ccb-agents/src/policy.rs",
       "accessCount": 1,
       "lastAccessed": 1781422425496,
@@ -289,12 +319,6 @@
       "path": "crates/ccb-cli/src/release_artifacts.rs",
       "accessCount": 1,
       "lastAccessed": 1781424569416,
-      "type": "file"
-    },
-    {
-      "path": "crates/ccb-agents/src/models.rs",
-      "accessCount": 1,
-      "lastAccessed": 1781425402876,
       "type": "file"
     },
     {

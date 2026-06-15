@@ -114,10 +114,100 @@
       "status": "completed",
       "completed_at": "2026-06-15T00:52:25.232Z",
       "duration_ms": 145499
+    },
+    {
+      "agent_id": "ab3e11b1289365bd7",
+      "agent_type": "Explore",
+      "started_at": "2026-06-15T01:52:39.861Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T01:55:21.079Z",
+      "duration_ms": 161218
+    },
+    {
+      "agent_id": "afd5959ead1105ca3",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T01:55:21.261Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T01:55:54.930Z",
+      "duration_ms": 33669
+    },
+    {
+      "agent_id": "a70564a950f1ae87d",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T01:55:55.119Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:01:11.768Z",
+      "duration_ms": 316649
+    },
+    {
+      "agent_id": "aadba9313ddebe85a",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:01:11.949Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:07:47.590Z",
+      "duration_ms": 395641
+    },
+    {
+      "agent_id": "a68ccd0deb807280a",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:07:47.784Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:17:33.085Z",
+      "duration_ms": 585301
+    },
+    {
+      "agent_id": "a2d3bb1ddb286b411",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:17:33.267Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:21:53.610Z",
+      "duration_ms": 260343
+    },
+    {
+      "agent_id": "ac5cf1b09dea51a85",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:21:53.840Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:27:46.096Z",
+      "duration_ms": 352256
+    },
+    {
+      "agent_id": "ad18d5142bbe3a345",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:27:46.282Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:30:59.756Z",
+      "duration_ms": 193474
+    },
+    {
+      "agent_id": "a9f0e29da62928dc5",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:30:59.948Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:36:39.556Z",
+      "duration_ms": 339608
+    },
+    {
+      "agent_id": "a42bd12504cf9fd84",
+      "agent_type": "workflow-subagent",
+      "started_at": "2026-06-15T02:36:39.736Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-06-15T02:43:48.387Z",
+      "duration_ms": 428651
     }
   ],
-  "total_spawned": 8,
-  "total_completed": 12,
+  "total_spawned": 18,
+  "total_completed": 22,
   "total_failed": 0,
-  "last_updated": "2026-06-15T00:52:25.334Z"
+  "last_updated": "2026-06-15T02:43:48.489Z"
 }
