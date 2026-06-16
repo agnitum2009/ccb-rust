@@ -28,7 +28,7 @@ pub fn find_matching_version(target: &str, versions: &[String]) -> Option<String
     if matching.is_empty() {
         return None;
     }
-    matching.sort_by(|a, b| version_key(b).cmp(&version_key(a)));
+    matching.sort_by_key(|b| std::cmp::Reverse(version_key(b)));
     matching.into_iter().next()
 }
 
@@ -41,7 +41,7 @@ pub fn latest_version(versions: &[String]) -> Option<String> {
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .collect();
-    seen.sort_by(|a, b| version_key(b).cmp(&version_key(a)));
+    seen.sort_by_key(|b| std::cmp::Reverse(version_key(b)));
     seen.into_iter().next()
 }
 

@@ -35,10 +35,15 @@ fn find_ccb_binary() -> Option<PathBuf> {
     if let Ok(resolved) = std::fs::canonicalize(&exe) {
         exe = resolved;
     }
-    let candidate = exe.parent()?.join("ccb");
-    if candidate.is_file() {
-        Some(candidate)
-    } else {
-        None
+    let dir = exe.parent()?;
+    // The canonical Rust binary is named `ccbr`; fall back to legacy `ccb`.
+    let ccbr = dir.join("ccbr");
+    if ccbr.is_file() {
+        return Some(ccbr);
     }
+    let ccb = dir.join("ccb");
+    if ccb.is_file() {
+        return Some(ccb);
+    }
+    None
 }

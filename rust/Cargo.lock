@@ -194,6 +194,7 @@ dependencies = [
  "ccb-terminal",
  "ccb-types",
  "clap",
+ "libc",
  "serde",
  "serde_json",
  "tempfile",
