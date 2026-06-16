@@ -402,9 +402,28 @@ After this phase, the project will have a clean build/test/clippy baseline. The 
 
 ---
 
+## Execution Results (2026-06-16)
+
+| Check | Command | Result |
+|---|---|---|
+| ccb-cli build | `cargo build -p ccb-cli` | ✅ passes, 0 warnings in ccb-cli |
+| workspace build | `cargo build --workspace` | ✅ passes (warnings remain in ccb-terminal/ccb-daemon) |
+| workspace tests | `cargo test --workspace -- --test-threads=1` | ✅ **1393 passed, 0 failed** |
+| ccb-cli clippy | `cargo clippy -p ccb-cli --no-deps -- -D warnings` | ✅ passes |
+| workspace clippy | `cargo clippy --workspace -- -D warnings` | ❌ pre-existing debt: ~90 errors in ccb-terminal, 29 warnings in ccb-daemon |
+| format | `cargo fmt --check` | ✅ passes |
+
+### Notes discovered during execution
+
+1. **Closure signature fix refined:** The original plan proposed a single `F` type parameter. During compilation the internal call `wait_for_keeper_ready(ready_timeout_s, |_| true, |_| true)` failed because two closures have distinct types. The implemented fix uses two type parameters `F1, F2` for both `wait_for_keeper_ready` and `wait_for_keeper_exit`, matching `facade.rs`'s existing `L, F` declaration.
+2. **Helper binary delegation:** `ask`/`autonew`/`ctx-transfer` were looking for a `ccb` binary in `target/debug/`; the workspace builds `ccbr`. Updated to prefer `ccbr` and fall back to `ccb`, and updated `helper_binaries_tests.rs` to expect `ccbr 7.5.2`.
+3. **Workspace clippy debt:** Not addressed in this phase because it spans untouched crates (`ccb-terminal`, `ccb-daemon`) and would significantly expand scope. Filed as Phase 1 cleanup work.
+
+---
+
 ## Self-Review
 
 1. **Spec coverage:** This plan covers the immediate blocker (build failure) and establishes the baseline required before any Phase 1+ alignment work.
 2. **Placeholder scan:** No `TBD`, `TODO`, or vague "add error handling" steps. Each step has an exact file path, command, or code snippet.
-3. **Type consistency:** `wait_for_keeper_ready` and `wait_for_keeper_exit` both use a single `F: Fn(&Value) -> bool` parameter. `facade.rs` mirrors this. `shutdown.rs` retains its own `Fn(f64) -> bool` adapter shape unless proven otherwise.
+3. **Type consistency:** `wait_for_keeper_ready` and `wait_for_keeper_exit` both use type parameters `F1, F2: Fn(&Value) -> bool`. `facade.rs` mirrors this with `L, F`. `shutdown.rs` retains its own `Fn(f64) -> bool` adapter shape.
 4. **Gaps:** The master roadmap is intentionally high-level; detailed plans for Phase 1–5 will be written after Phase 0 approval.
