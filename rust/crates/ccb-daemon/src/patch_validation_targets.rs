@@ -1,12 +1,14 @@
 //! Mirrors Python `lib/ccbd/services/project_namespace_runtime/patch_validation_targets.py`.
 //! Compute which (window, agent) pairs were removed during a reload.
 
+#![allow(dead_code)]
+
 use std::collections::HashSet;
 
 use crate::reload_additive_agents::TopologyWindow;
 
 /// Return (window, agent) pairs that exist in old topology but not new.
-pub fn removed_agent_targets(
+pub(crate) fn removed_agent_targets(
     old_topology: &[TopologyWindow],
     new_topology: &[TopologyWindow],
 ) -> HashSet<(String, String)> {

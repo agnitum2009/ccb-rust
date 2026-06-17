@@ -42,6 +42,7 @@ pub(crate) fn remove_agent_steps(
                     agent: Some(agent_name.clone()),
                     role: Some("agent".into()),
                     slot_key: Some(agent_name.clone()),
+                    anchor_agent: None,
                     reason: Some("agent exists only in current published config".into()),
                 });
             }
@@ -81,6 +82,7 @@ pub(crate) fn remove_tool_window_steps(
                     agent: None,
                     role: Some("tool".into()),
                     slot_key: Some(format!("tool:{}", window_name)),
+                    anchor_agent: None,
                     reason: Some(
                         "managed tool window exists only in current published config".into(),
                     ),

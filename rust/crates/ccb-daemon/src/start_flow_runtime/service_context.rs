@@ -118,14 +118,8 @@ mod tests {
     fn test_build_start_context() {
         let paths = test_paths("/tmp/ccb-test");
         let agents = vec!["claude".to_string(), "codex".to_string()];
-        let (command, context) = build_start_context(
-            "/tmp/ccb-test",
-            "ccb-test-id",
-            &paths,
-            &agents,
-            true,
-            false,
-        );
+        let (command, context) =
+            build_start_context("/tmp/ccb-test", "ccb-test-id", &paths, &agents, true, false);
 
         assert_eq!(command.project, Some("/tmp/ccb-test".to_string()));
         assert_eq!(command.agent_names, agents);
@@ -166,12 +160,7 @@ mod tests {
     #[test]
     fn test_record_namespace_action_unknown_epoch() {
         let mut actions = Vec::new();
-        record_namespace_action(
-            &mut actions,
-            Some("/tmp/tmux.sock"),
-            Some("ccb-sess"),
-            None,
-        );
+        record_namespace_action(&mut actions, Some("/tmp/tmux.sock"), Some("ccb-sess"), None);
         assert_eq!(
             actions,
             vec!["ensure_namespace:epoch=unknown,session=ccb-sess"]

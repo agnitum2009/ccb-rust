@@ -4,7 +4,10 @@ use crate::reload_apply_models::AdditiveReloadApplyResult;
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// Generate a stage result
+/// Generate a stage result.
+///
+/// Arity mirrors the Python `reload_apply_results.stage_result` helper.
+#[allow(clippy::too_many_arguments)]
 pub fn stage_result(
     status: &str,
     stage: &str,

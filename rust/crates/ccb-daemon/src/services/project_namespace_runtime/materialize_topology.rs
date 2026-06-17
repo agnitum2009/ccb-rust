@@ -13,8 +13,9 @@ use ccb_terminal::placeholders::pane_placeholder_cmd;
 use ccb_terminal::theme::render_tmux_session_theme;
 
 use super::backend::{
-    create_session, ensure_server_policy, ensure_window, find_window, prepare_server, rename_window,
-    select_window, session_window_target, split_pane, window_root_pane, Backend, TmuxWindowRecord,
+    create_session, ensure_server_policy, ensure_window, find_window, prepare_server,
+    rename_window, select_window, session_window_target, split_pane, window_root_pane, Backend,
+    TmuxWindowRecord,
 };
 use super::ensure_context::{
     NamespaceController, NamespaceEnsureContext, NamespaceWindowPlan, TopologyPlan,
@@ -54,12 +55,7 @@ pub fn refresh_topology_ui(context: &NamespaceEnsureContext) -> Result<()> {
         None,
         &context.desired_session_name,
     )?;
-    _sync_topology_sidebar_widths(
-        None,
-        context,
-        context.topology_plan.as_ref(),
-        None,
-    );
+    _sync_topology_sidebar_widths(None, context, context.topology_plan.as_ref(), None);
     Ok(())
 }
 
@@ -76,12 +72,7 @@ pub fn refresh_topology_ui_for_project(
         Some(&controller.layout.ccbd_socket_path),
         &context.desired_session_name,
     )?;
-    _sync_topology_sidebar_widths(
-        Some(controller),
-        context,
-        Some(topology_plan),
-        timeout_s,
-    );
+    _sync_topology_sidebar_widths(Some(controller), context, Some(topology_plan), timeout_s);
     Ok(())
 }
 
@@ -132,12 +123,7 @@ pub fn materialize_topology(
         &context.desired_session_name,
     )?;
 
-    _rename_legacy_workspace_if_needed(
-        controller,
-        context,
-        &first_window.name,
-        timeout_s,
-    );
+    _rename_legacy_workspace_if_needed(controller, context, &first_window.name, timeout_s);
 
     let mut agent_panes: HashMap<String, String> = HashMap::new();
     for (index, window) in windows.iter().enumerate() {
@@ -153,39 +139,24 @@ pub fn materialize_topology(
         let target = session_window_target(&context.desired_session_name, Some(&window.name))?;
         let root_pane = window_root_pane(&context.backend, &target, timeout_s)?;
 
-        let user_root = _materialize_sidebar(
-            controller,
-            context,
-            window,
-            &root_pane,
-            epoch,
-            timeout_s,
-        )?;
+        let user_root =
+            _materialize_sidebar(controller, context, window, &root_pane, epoch, timeout_s)?;
 
         agent_panes.extend(_materialize_agent_layout(
-            controller,
-            context,
-            window,
-            &user_root,
-            epoch,
-            timeout_s,
+            controller, context, window, &user_root, epoch, timeout_s,
         )?);
 
-        _materialize_tool_window(
-            controller,
-            context,
-            window,
-            &user_root,
-            epoch,
-            timeout_s,
-        )?;
+        _materialize_tool_window(controller, context, window, &user_root, epoch, timeout_s)?;
     }
 
     refresh_topology_ui_for_project(controller, context, topology_plan, timeout_s)?;
 
     select_window(
         &context.backend,
-        &session_window_target(&context.desired_session_name, Some(&topology_plan.entry_window))?,
+        &session_window_target(
+            &context.desired_session_name,
+            Some(&topology_plan.entry_window),
+        )?,
     )?;
 
     Ok(agent_panes)
@@ -237,8 +208,11 @@ pub fn topology_active_panes(
 
         for pane_id in _list_panes_by_user_options(&context.backend, expected) {
             let window_name = _pane_option(&context.backend, &pane_id, "@ccb_window");
-            let sidebar_instance = _pane_option(&context.backend, &pane_id, "@ccb_sidebar_instance");
-            if expected_windows.contains(&window_name) || expected_windows.contains(&sidebar_instance) {
+            let sidebar_instance =
+                _pane_option(&context.backend, &pane_id, "@ccb_sidebar_instance");
+            if expected_windows.contains(&window_name)
+                || expected_windows.contains(&sidebar_instance)
+            {
                 panes.push(pane_id);
             }
         }
@@ -246,7 +220,10 @@ pub fn topology_active_panes(
 
     // Deduplicate while preserving order.
     let mut seen = std::collections::HashSet::new();
-    panes.into_iter().filter(|p| seen.insert(p.clone())).collect()
+    panes
+        .into_iter()
+        .filter(|p| seen.insert(p.clone()))
+        .collect()
 }
 
 /// Determine whether the existing topology needs to be recreated.
@@ -264,7 +241,9 @@ pub fn topology_recreate_reason(
             .unwrap_or_default()
             .trim()
             .to_string();
-        if !current_workspace.is_empty() && current_workspace != context.desired_workspace_window_name {
+        if !current_workspace.is_empty()
+            && current_workspace != context.desired_workspace_window_name
+        {
             return Some("topology_workspace_changed".to_string());
         }
     }
@@ -387,15 +366,9 @@ fn _rename_legacy_workspace_if_needed(
         .as_deref()
         .unwrap_or(&legacy_name)
         .to_string();
-    let target = session_window_target(&context.desired_session_name, Some(&target_id)).unwrap_or_else(|_| {
-        format!("{}:{}", context.desired_session_name, target_id)
-    });
-    let _ = rename_window(
-        &context.backend,
-        &target,
-        &first_name,
-        timeout_s,
-    );
+    let target = session_window_target(&context.desired_session_name, Some(&target_id))
+        .unwrap_or_else(|_| format!("{}:{}", context.desired_session_name, target_id));
+    let _ = rename_window(&context.backend, &target, &first_name, timeout_s);
 }
 
 fn _materialize_sidebar(
@@ -460,10 +433,15 @@ fn _materialize_agent_layout(
         return Ok(HashMap::new());
     }
 
-    let layout = parse_layout_spec(&window.user_layout)
-        .map_err(|e| DaemonError::Config(format!("invalid layout spec for {}: {e}", window.name)))?;
+    let layout = parse_layout_spec(&window.user_layout).map_err(|e| {
+        DaemonError::Config(format!("invalid layout spec for {}: {e}", window.name))
+    })?;
 
-    let agent_names: Vec<String> = window.agent_names.iter().map(|s| s.trim().to_string()).collect();
+    let agent_names: Vec<String> = window
+        .agent_names
+        .iter()
+        .map(|s| s.trim().to_string())
+        .collect();
     let style_index_by_agent: HashMap<String, usize> = agent_names
         .iter()
         .enumerate()
@@ -528,24 +506,12 @@ fn _materialize_tool_window(
         .unwrap_or_else(pane_placeholder_cmd);
 
     let _ = context.backend._tmux_run(
-        &[
-            "respawn-pane",
-            "-k",
-            "-t",
-            user_root,
-            "sh",
-            "-lc",
-            &command,
-        ],
+        &["respawn-pane", "-k", "-t", user_root, "sh", "-lc", &command],
         false,
         true,
     );
 
-    let title = window
-        .label
-        .as_deref()
-        .unwrap_or(&window.name)
-        .to_string();
+    let title = window.label.as_deref().unwrap_or(&window.name).to_string();
 
     apply_ccb_pane_identity(
         &context.backend,
@@ -636,17 +602,28 @@ where
                 timeout_s,
             )?;
 
-            _materialize_layout(controller, context, parent_pane_id, left, &mut *assign_leaf, timeout_s)?;
-            _materialize_layout(controller, context, &new_pane_id, right, &mut *assign_leaf, timeout_s)?;
+            _materialize_layout(
+                controller,
+                context,
+                parent_pane_id,
+                left,
+                &mut *assign_leaf,
+                timeout_s,
+            )?;
+            _materialize_layout(
+                controller,
+                context,
+                &new_pane_id,
+                right,
+                &mut *assign_leaf,
+                timeout_s,
+            )?;
         }
     }
     Ok(())
 }
 
-fn _find_window(
-    context: &NamespaceEnsureContext,
-    window_name: &str,
-) -> Option<TmuxWindowRecord> {
+fn _find_window(context: &NamespaceEnsureContext, window_name: &str) -> Option<TmuxWindowRecord> {
     find_window(
         &context.backend,
         &context.desired_session_name,
@@ -671,7 +648,11 @@ fn _sync_topology_sidebar_widths(
     let width_by_window: HashMap<String, String> = plan
         .windows
         .iter()
-        .filter_map(|w| w.sidebar.as_ref().map(|s| (w.name.clone(), s.width.clone())))
+        .filter_map(|w| {
+            w.sidebar
+                .as_ref()
+                .map(|s| (w.name.clone(), s.width.clone()))
+        })
         .collect();
 
     if width_by_window.is_empty() {
@@ -683,14 +664,13 @@ fn _sync_topology_sidebar_widths(
         .filter(|s| !s.is_empty())
         .unwrap_or_default();
 
-    let width_override = _session_sidebar_width_override(&context.backend, &context.desired_session_name);
+    let width_override =
+        _session_sidebar_width_override(&context.backend, &context.desired_session_name);
     _set_session_sidebar_sync_guard(&context.backend, &context.desired_session_name, true);
 
-    for record in _list_sidebar_geometry_records(
-        &context.backend,
-        &context.desired_session_name,
-        &project_id,
-    ) {
+    for record in
+        _list_sidebar_geometry_records(&context.backend, &context.desired_session_name, &project_id)
+    {
         let configured_width = if width_override > 0 {
             Some(width_override.to_string())
         } else {
@@ -776,12 +756,7 @@ fn _list_sidebar_geometry_records(
     records
 }
 
-fn _resize_pane_width(
-    backend: &Backend,
-    pane_id: &str,
-    width: i32,
-    _timeout_s: Option<f64>,
-) {
+fn _resize_pane_width(backend: &Backend, pane_id: &str, width: i32, _timeout_s: Option<f64>) {
     let width = width.max(1);
     let _ = backend._tmux_run(
         &["resize-pane", "-t", pane_id, "-x", &width.to_string()],
@@ -824,7 +799,13 @@ fn _pane_width_cells(backend: &Backend, pane_id: &str) -> i32 {
 
 fn _session_sidebar_width_override(backend: &Backend, session_name: &str) -> i32 {
     let output = match backend._tmux_run(
-        &["show-option", "-qv", "-t", session_name, "@ccb_sidebar_width_cells"],
+        &[
+            "show-option",
+            "-qv",
+            "-t",
+            session_name,
+            "@ccb_sidebar_width_cells",
+        ],
         false,
         true,
     ) {
@@ -836,31 +817,36 @@ fn _session_sidebar_width_override(backend: &Backend, session_name: &str) -> i32
 
 fn _set_session_sidebar_sync_guard(backend: &Backend, session_name: &str, enabled: bool) {
     let args = if enabled {
-        vec!["set-option", "-t", session_name, "@ccb_sidebar_sync_guard", "1"]
+        vec![
+            "set-option",
+            "-t",
+            session_name,
+            "@ccb_sidebar_sync_guard",
+            "1",
+        ]
     } else {
-        vec!["set-option", "-u", "-t", session_name, "@ccb_sidebar_sync_guard"]
+        vec![
+            "set-option",
+            "-u",
+            "-t",
+            session_name,
+            "@ccb_sidebar_sync_guard",
+        ]
     };
     let _ = backend._tmux_run(&args, false, true);
 }
 
 fn _positive_int(value: &str) -> i32 {
-    value
-        .trim()
-        .parse::<i32>()
-        .map(|n| n.max(0))
-        .unwrap_or(0)
+    value.trim().parse::<i32>().map(|n| n.max(0)).unwrap_or(0)
 }
 
 fn _pane_option(backend: &Backend, pane_id: &str, option_name: &str) -> String {
     let fmt = format!("#{{{option_name}}}");
-    let output = match backend._tmux_run(
-        &["display-message", "-p", "-t", pane_id, &fmt],
-        false,
-        true,
-    ) {
-        Ok(out) if out.success() => out.stdout,
-        _ => return String::new(),
-    };
+    let output =
+        match backend._tmux_run(&["display-message", "-p", "-t", pane_id, &fmt], false, true) {
+            Ok(out) if out.success() => out.stdout,
+            _ => return String::new(),
+        };
     output.lines().next().unwrap_or("").trim().to_string()
 }
 
@@ -907,15 +893,12 @@ fn _list_panes_by_user_options(
 
 fn _sidebar_percent(width: &str) -> i32 {
     let text = width.trim();
-    let value = if text.ends_with('%') {
-        &text[..text.len() - 1]
+    let value = if let Some(stripped) = text.strip_suffix('%') {
+        stripped
     } else {
         text
     };
-    value
-        .parse::<i32>()
-        .map(|v| v.clamp(1, 90))
-        .unwrap_or(15)
+    value.parse::<i32>().map(|v| v.clamp(1, 90)).unwrap_or(15)
 }
 
 fn _user_pane_percent_for_sidebar(width: &str, pane_width: i32) -> i32 {
@@ -952,7 +935,11 @@ fn shell_join(parts: &[String]) -> String {
 }
 
 fn shell_quote(s: &str) -> String {
-    if s.is_empty() || s.chars().any(|c| c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`') {
+    if s.is_empty()
+        || s.chars().any(|c| {
+            c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`'
+        })
+    {
         format!("'{}'", s.replace('\'', "'\"'\"'"))
     } else {
         s.to_string()
@@ -1016,7 +1003,13 @@ fn apply_project_tmux_ui(
         "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccb_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccb __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-pane \"#{{pane_id}}\" --project-id \"#{{@ccb_project_id}}\" >/dev/null 2>&1 || true'"
     );
     let _ = backend._tmux_run(
-        &["set-hook", "-t", tmux_session_name, "after-resize-pane", &resize_hook],
+        &[
+            "set-hook",
+            "-t",
+            tmux_session_name,
+            "after-resize-pane",
+            &resize_hook,
+        ],
         false,
         true,
     );
@@ -1034,12 +1027,13 @@ fn apply_project_tmux_ui(
 }
 
 fn _list_window_names(backend: &Backend, session_name: &str) -> Result<Vec<String>> {
-    let output = backend._tmux_run(
-        &["list-windows", "-t", session_name, "-F", "#{window_name}"],
-        false,
-        true,
-    )
-    .map_err(|e| DaemonError::Config(format!("failed to list windows: {e}")))?;
+    let output = backend
+        ._tmux_run(
+            &["list-windows", "-t", session_name, "-F", "#{window_name}"],
+            false,
+            true,
+        )
+        .map_err(|e| DaemonError::Config(format!("failed to list windows: {e}")))?;
 
     if !output.success() {
         return Ok(Vec::new());
@@ -1078,10 +1072,15 @@ mod tests {
             project_id: "p1".to_string(),
             layout_version: 1,
             layout: test_layout(),
-            backend_factory: crate::services::project_namespace_runtime::backend::BackendFactory::default(),
-            state_store: crate::services::project_namespace_runtime::ensure_context::StateStore::default(),
-            event_store: crate::services::project_namespace_runtime::ensure_context::EventStore::default(),
-            clock: crate::services::project_namespace_runtime::ensure_context::Clock::new(|| "2024-01-01T00:00:00Z".to_string()),
+            backend_factory:
+                crate::services::project_namespace_runtime::backend::BackendFactory::default(),
+            state_store:
+                crate::services::project_namespace_runtime::ensure_context::StateStore::default(),
+            event_store:
+                crate::services::project_namespace_runtime::ensure_context::EventStore::default(),
+            clock: crate::services::project_namespace_runtime::ensure_context::Clock::new(|| {
+                "2024-01-01T00:00:00Z".to_string()
+            }),
             last_materialized_agent_panes: HashMap::new(),
             last_topology_active_panes: Vec::new(),
             session_alive_override: None,

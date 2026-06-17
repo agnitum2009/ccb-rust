@@ -75,6 +75,8 @@ pub struct NamespacePatchStep {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slot_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_agent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 

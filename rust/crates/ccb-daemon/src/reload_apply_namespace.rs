@@ -11,6 +11,13 @@ use ccb_agents::models::ProjectConfig;
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Custom namespace patch implementation.
+type ApplyNamespacePatchFn<'a> = &'a dyn Fn(
+    &HashMap<String, Value>,
+    &NamespaceTopologyPlan,
+    &NamespaceTopologyPlan,
+) -> NamespacePatchApplyResult;
+
 /// Context required to apply a namespace patch.
 #[derive(Debug, Clone)]
 pub struct NamespacePatchContext {
@@ -62,13 +69,7 @@ pub fn apply_namespace_patch(
     plan: &HashMap<String, Value>,
     old_topology: &NamespaceTopologyPlan,
     new_topology: &NamespaceTopologyPlan,
-    apply_namespace_patch_fn: Option<
-        &dyn Fn(
-            &HashMap<String, Value>,
-            &NamespaceTopologyPlan,
-            &NamespaceTopologyPlan,
-        ) -> NamespacePatchApplyResult,
-    >,
+    apply_namespace_patch_fn: Option<ApplyNamespacePatchFn<'_>>,
 ) -> NamespacePatchApplyResult {
     let plan_class = plan
         .get("plan_class")
@@ -99,11 +100,7 @@ fn custom_namespace_patch(
     patch_plan: &HashMap<String, Value>,
     old_topology: &NamespaceTopologyPlan,
     new_topology: &NamespaceTopologyPlan,
-    apply_namespace_patch_fn: &dyn Fn(
-        &HashMap<String, Value>,
-        &NamespaceTopologyPlan,
-        &NamespaceTopologyPlan,
-    ) -> NamespacePatchApplyResult,
+    apply_namespace_patch_fn: ApplyNamespacePatchFn<'_>,
 ) -> NamespacePatchApplyResult {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         apply_namespace_patch_fn(patch_plan, old_topology, new_topology)

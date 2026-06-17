@@ -36,7 +36,9 @@ pub fn resolve_sidebar_helper(
         return resolve_explicit(Path::new(&override_path), SIDEBAR_ENV_PATH);
     }
 
-    let root = script_root.map(|p| p.to_path_buf()).unwrap_or_else(default_script_root);
+    let root = script_root
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(default_script_root);
     let root_candidate = root.join("bin").join(SIDEBAR_BINARY_NAME);
     if is_executable_file(&root_candidate) {
         return SidebarHelperResolution {

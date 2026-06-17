@@ -141,7 +141,11 @@ impl Backend {
         cmd: &str,
         cwd: &str,
     ) -> BackendResult<String> {
-        let mut args = vec!["split-window".to_string(), "-t".to_string(), target.to_string()];
+        let mut args = vec![
+            "split-window".to_string(),
+            "-t".to_string(),
+            target.to_string(),
+        ];
         match direction.to_lowercase().as_str() {
             "left" => args.push("-hb".to_string()),
             "right" => args.push("-h".to_string()),
@@ -175,7 +179,6 @@ impl Backend {
             )))
         }
     }
-
 }
 
 impl ccb_terminal::layouts::TmuxLayoutBackend for Backend {
@@ -225,10 +228,7 @@ impl ccb_terminal::layouts::TmuxLayoutBackend for Backend {
 
     fn set_pane_user_option(&self, pane_id: &str, name: &str, value: &str) {
         ccb_terminal::layouts::TmuxLayoutBackend::set_pane_user_option(
-            &self.tmux,
-            pane_id,
-            name,
-            value,
+            &self.tmux, pane_id, name, value,
         );
     }
 
@@ -302,7 +302,15 @@ pub fn ensure_server_policy(backend: &Backend, timeout_s: Option<f64>) -> Result
 
     apply_optional_tmux_policy(
         backend,
-        &["bind-key", "-T", "copy-mode-vi", "v", "send-keys", "-X", "begin-selection"],
+        &[
+            "bind-key",
+            "-T",
+            "copy-mode-vi",
+            "v",
+            "send-keys",
+            "-X",
+            "begin-selection",
+        ],
         "tmux copy-mode-vi begin-selection binding",
         timeout_s,
     )?;
@@ -487,7 +495,9 @@ fn resolved_session_size(terminal_size: Option<(i32, i32)>) -> (i32, i32) {
 pub fn session_window_target(session_name: &str, window_name: Option<&str>) -> Result<String> {
     let session_text = session_name.trim();
     if session_text.is_empty() {
-        return Err(DaemonError::Config("session_name cannot be empty".to_string()));
+        return Err(DaemonError::Config(
+            "session_name cannot be empty".to_string(),
+        ));
     }
     let window_text = window_name.map(|s| s.trim()).unwrap_or("");
     if window_text.is_empty() {
@@ -537,7 +547,11 @@ fn parse_list_windows_output(stdout: &str) -> Vec<TmuxWindowRecord> {
             continue;
         }
         let active = matches!(parts[2].trim(), "1" | "true" | "True");
-        windows.push(TmuxWindowRecord::new(window_id, window_name.to_string(), active));
+        windows.push(TmuxWindowRecord::new(
+            window_id,
+            window_name.to_string(),
+            active,
+        ));
     }
     windows
 }
@@ -577,15 +591,13 @@ pub fn create_window(
         project_root.to_string(),
     ]
     .into_iter()
-    .chain(pane_placeholder_argv().into_iter())
+    .chain(pane_placeholder_argv())
     .collect();
     let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     tmux_run_ready(
         backend,
         &args_ref,
-        &format!(
-            "failed to create tmux window {window_name:?} for session {session_name:?}"
-        ),
+        &format!("failed to create tmux window {window_name:?} for session {session_name:?}"),
         timeout_s,
     )
     .map_err(DaemonError::from)?;
@@ -623,7 +635,14 @@ pub fn ensure_window(
         }
         return Ok(record);
     }
-    create_window(backend, session_name, window_name, project_root, select, timeout_s)
+    create_window(
+        backend,
+        session_name,
+        window_name,
+        project_root,
+        select,
+        timeout_s,
+    )
 }
 
 /// Rename a window target.
@@ -689,7 +708,11 @@ pub fn session_root_pane(
 }
 
 /// Return the root pane id of `target_window`.
-pub fn window_root_pane(backend: &Backend, target_window: &str, timeout_s: Option<f64>) -> Result<String> {
+pub fn window_root_pane(
+    backend: &Backend,
+    target_window: &str,
+    timeout_s: Option<f64>,
+) -> Result<String> {
     let pane_id = wait_for_root_pane(backend, target_window, timeout_s)?;
     if !pane_id.starts_with('%') {
         return Err(DaemonError::Config(format!(
@@ -708,7 +731,13 @@ pub fn split_pane(
     project_root: &str,
     timeout_s: Option<f64>,
 ) -> Result<String> {
-    let pane_id = backend.split_pane(target, direction, percent, &pane_placeholder_cmd(), project_root)?;
+    let pane_id = backend.split_pane(
+        target,
+        direction,
+        percent,
+        &pane_placeholder_cmd(),
+        project_root,
+    )?;
     if pane_id.starts_with('%') {
         return Ok(pane_id);
     }
@@ -807,11 +836,18 @@ pub fn wait_for_root_pane(
 }
 
 fn root_pane_once(backend: &Backend, target_window: &str) -> BackendResult<Option<String>> {
-    let output = match tmux_run_once(backend, &["list-panes", "-t", target_window, "-F", "#{pane_id}"]) {
+    let output = match tmux_run_once(
+        backend,
+        &["list-panes", "-t", target_window, "-F", "#{pane_id}"],
+    ) {
         Some(out) => out,
         None => return Ok(None),
     };
-    let pane_id = output.stdout.lines().map(|l| l.trim()).find(|l| !l.is_empty());
+    let pane_id = output
+        .stdout
+        .lines()
+        .map(|l| l.trim())
+        .find(|l| !l.is_empty());
     Ok(pane_id.map(|s| s.to_string()))
 }
 
@@ -987,9 +1023,7 @@ impl From<BackendError> for DaemonError {
     fn from(err: BackendError) -> Self {
         match err {
             BackendError::Io(io_err) => DaemonError::Io(io_err),
-            BackendError::Transient(msg) | BackendError::Command(msg) => {
-                DaemonError::Config(msg)
-            }
+            BackendError::Transient(msg) | BackendError::Command(msg) => DaemonError::Config(msg),
         }
     }
 }

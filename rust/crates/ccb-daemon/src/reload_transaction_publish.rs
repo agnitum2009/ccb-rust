@@ -9,14 +9,20 @@ use crate::reload_transaction_results::failed_result;
 use crate::reload_transaction_signature_rollback::rollback_signatures;
 use serde_json::Value;
 
+/// Custom graph-publishing implementation.
+type PublishGraphFn<'a> = &'a dyn Fn(&mut CcbdApp, &ServiceGraph);
+
 /// Publish the new graph or roll back signatures on failure.
+///
+/// Arity mirrors the Python `reload_transaction_publish.publish_or_rollback` helper.
+#[allow(clippy::too_many_arguments)]
 pub fn publish_or_rollback(
     app: &mut CcbdApp,
     new_graph: &ServiceGraph,
     context: &TransactionContext,
     namespace_epoch: Option<u64>,
     expected_generation: u64,
-    publish_graph_fn: Option<&dyn Fn(&mut CcbdApp, &ServiceGraph)>,
+    publish_graph_fn: Option<PublishGraphFn<'_>>,
     lease: Option<Value>,
     lifecycle: Option<Value>,
 ) -> ReloadPublishTransactionResult {

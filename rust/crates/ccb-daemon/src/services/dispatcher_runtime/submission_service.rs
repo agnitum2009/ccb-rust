@@ -4,7 +4,7 @@
 //! by the `/ask` submission path and keeps all heavy dispatcher dependencies
 //! behind a small trait so that the pure logic can be unit-tested with mocks.
 
-use ccb_jobs::models::{DeliveryScope, JobRecord, JobStatus, MessageEnvelope, TargetKind};
+use ccb_jobs::models::{DeliveryScope, JobRecord, MessageEnvelope, TargetKind};
 use ccb_mailbox::models::{AttemptRecord, AttemptState, MessageRecord};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -246,7 +246,7 @@ pub fn latest_attempts_by_agent<D: Dispatcher>(
 
     let mut by_agent: HashMap<String, AttemptRecord> = HashMap::new();
     for record in by_attempt_id.into_values() {
-        let keep = by_agent.get(&record.agent_name).map_or(true, |current| {
+        let keep = by_agent.get(&record.agent_name).is_none_or(|current| {
             attempt_sort_key(&record) > attempt_sort_key(current)
         });
         if keep {
@@ -485,6 +485,7 @@ fn validate_callback_request<D: Dispatcher>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ccb_jobs::models::JobStatus;
     use std::cell::RefCell;
 
     fn envelope(body: &str) -> MessageEnvelope {

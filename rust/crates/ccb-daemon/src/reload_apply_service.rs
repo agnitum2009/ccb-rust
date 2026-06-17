@@ -21,40 +21,61 @@ use ccb_agents::models::ProjectConfig;
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Custom namespace patch implementation.
+type ApplyNamespacePatchFn<'a> = &'a dyn Fn(
+    &HashMap<String, Value>,
+    &NamespaceTopologyPlan,
+    &NamespaceTopologyPlan,
+) -> NamespacePatchApplyResult;
+
+/// Custom runtime mount implementation.
+type RunRuntimeMountFn<'a> = &'a dyn Fn(
+    &ServiceGraph,
+    &ServiceGraph,
+    &ProjectNamespace,
+    &crate::reload_apply_results::NamespacePatch,
+) -> crate::reload_apply_results::RuntimeMount;
+
+/// Optional post-mount start flow trigger.
+type RunStartFlowFn<'a> = &'a dyn Fn(&ServiceGraph);
+
+/// Custom publish-transaction implementation.
+type PublishTransactionFn<'a> = &'a dyn Fn(
+    &mut CcbdApp,
+    &ServiceGraph,
+    &crate::reload_transaction_context::TransactionContext,
+    NamespacePatchContext,
+) -> crate::reload_transaction_models::ReloadPublishTransactionResult;
+
+/// Custom graph-publishing implementation.
+type PublishGraphFn<'a> = &'a dyn Fn(&mut CcbdApp, &ServiceGraph);
+
+/// Lease config signature updater.
+type UpdateLeaseConfigSignatureFn<'a> = &'a dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>;
+
+/// Lifecycle config signature updater.
+type UpdateLifecycleConfigSignatureFn<'a> = &'a dyn Fn(
+    &mut CcbdApp,
+    &str,
+    Option<u64>,
+    u64,
+) -> Option<Value>;
+
 /// Run an additive reload apply under the optional maintenance lock.
+///
+/// Arity mirrors the Python `reload_apply_service.run_additive_reload_apply` entrypoint.
+#[allow(clippy::too_many_arguments)]
 pub fn run_additive_reload_apply(
     app: &mut CcbdApp,
     new_config: &ProjectConfig,
     provided_namespace: Option<&ProjectNamespace>,
-    apply_namespace_patch_fn: Option<
-        &dyn Fn(
-            &HashMap<String, Value>,
-            &NamespaceTopologyPlan,
-            &NamespaceTopologyPlan,
-        ) -> NamespacePatchApplyResult,
-    >,
-    run_runtime_mount_fn: Option<
-        &dyn Fn(
-            &ServiceGraph,
-            &ServiceGraph,
-            &ProjectNamespace,
-            &crate::reload_apply_results::NamespacePatch,
-        ) -> crate::reload_apply_results::RuntimeMount,
-    >,
-    run_start_flow_fn: Option<&dyn Fn(&ServiceGraph)>,
-    publish_transaction_fn: Option<
-        &dyn Fn(
-            &mut CcbdApp,
-            &ServiceGraph,
-            &crate::reload_transaction_context::TransactionContext,
-            NamespacePatchContext,
-        ) -> crate::reload_transaction_models::ReloadPublishTransactionResult,
-    >,
-    publish_graph_fn: Option<&dyn Fn(&mut CcbdApp, &ServiceGraph)>,
-    update_lease_config_signature_fn: Option<&dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>>,
-    update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>,
-    >,
+    apply_namespace_patch_fn: Option<ApplyNamespacePatchFn<'_>>,
+    run_runtime_mount_fn: Option<RunRuntimeMountFn<'_>>,
+    run_start_flow_fn: Option<RunStartFlowFn<'_>>,
+    publish_transaction_fn: Option<PublishTransactionFn<'_>>,
+    publish_graph_fn: Option<PublishGraphFn<'_>>,
+    update_lease_config_signature_fn: Option<UpdateLeaseConfigSignatureFn<'_>>,
+    update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
 ) -> AdditiveReloadApplyResult {
     if let Some(_lock) = app.start_maintenance_lock().as_ref() {
         return run_locked(
@@ -84,39 +105,19 @@ pub fn run_additive_reload_apply(
     )
 }
 
+/// Internal locked variant; arity kept to match the Python source.
+#[allow(clippy::too_many_arguments)]
 fn run_locked(
     app: &mut CcbdApp,
     new_config: &ProjectConfig,
     provided_namespace: Option<&ProjectNamespace>,
-    apply_namespace_patch_fn: Option<
-        &dyn Fn(
-            &HashMap<String, Value>,
-            &NamespaceTopologyPlan,
-            &NamespaceTopologyPlan,
-        ) -> NamespacePatchApplyResult,
-    >,
-    run_runtime_mount_fn: Option<
-        &dyn Fn(
-            &ServiceGraph,
-            &ServiceGraph,
-            &ProjectNamespace,
-            &crate::reload_apply_results::NamespacePatch,
-        ) -> crate::reload_apply_results::RuntimeMount,
-    >,
-    run_start_flow_fn: Option<&dyn Fn(&ServiceGraph)>,
-    publish_transaction_fn: Option<
-        &dyn Fn(
-            &mut CcbdApp,
-            &ServiceGraph,
-            &crate::reload_transaction_context::TransactionContext,
-            NamespacePatchContext,
-        ) -> crate::reload_transaction_models::ReloadPublishTransactionResult,
-    >,
-    publish_graph_fn: Option<&dyn Fn(&mut CcbdApp, &ServiceGraph)>,
-    update_lease_config_signature_fn: Option<&dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>>,
-    update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>,
-    >,
+    apply_namespace_patch_fn: Option<ApplyNamespacePatchFn<'_>>,
+    run_runtime_mount_fn: Option<RunRuntimeMountFn<'_>>,
+    run_start_flow_fn: Option<RunStartFlowFn<'_>>,
+    publish_transaction_fn: Option<PublishTransactionFn<'_>>,
+    publish_graph_fn: Option<PublishGraphFn<'_>>,
+    update_lease_config_signature_fn: Option<UpdateLeaseConfigSignatureFn<'_>>,
+    update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
 ) -> AdditiveReloadApplyResult {
     let old_graph = app.current_service_graph();
     let (namespace, namespace_diagnostics) = current_namespace_for_apply(app, provided_namespace);
@@ -131,7 +132,6 @@ fn run_locked(
             &blocker,
             &namespace_diagnostics
                 .into_iter()
-                .map(|(k, v)| (k, v))
                 .collect(),
         );
     }
@@ -143,7 +143,6 @@ fn run_locked(
             &blocker,
             &namespace_diagnostics
                 .into_iter()
-                .map(|(k, v)| (k, v))
                 .collect(),
         );
     }
@@ -153,7 +152,7 @@ fn run_locked(
     }
 
     let target_identity = project_config_identity_payload(new_config);
-    let handoff = begin_reload_handoff(app, target_identity);
+    let handoff = begin_reload_handoff(app, &target_identity);
 
     let result = run_apply_stages(
         app,
@@ -178,42 +177,22 @@ fn run_locked(
     result
 }
 
+/// Apply namespace/runtime/publish stages; arity kept to match the Python source.
+#[allow(clippy::too_many_arguments)]
 fn run_apply_stages(
     app: &mut CcbdApp,
     old_graph: &ServiceGraph,
     new_config: &ProjectConfig,
-    plan: &crate::reload_plan::ReloadPlan,
+    _plan: &crate::reload_plan::ReloadPlan,
     plan_json: &HashMap<String, Value>,
     namespace: Option<&ProjectNamespace>,
-    apply_namespace_patch_fn: Option<
-        &dyn Fn(
-            &HashMap<String, Value>,
-            &NamespaceTopologyPlan,
-            &NamespaceTopologyPlan,
-        ) -> NamespacePatchApplyResult,
-    >,
-    run_runtime_mount_fn: Option<
-        &dyn Fn(
-            &ServiceGraph,
-            &ServiceGraph,
-            &ProjectNamespace,
-            &crate::reload_apply_results::NamespacePatch,
-        ) -> crate::reload_apply_results::RuntimeMount,
-    >,
-    run_start_flow_fn: Option<&dyn Fn(&ServiceGraph)>,
-    publish_transaction_fn: Option<
-        &dyn Fn(
-            &mut CcbdApp,
-            &ServiceGraph,
-            &crate::reload_transaction_context::TransactionContext,
-            NamespacePatchContext,
-        ) -> crate::reload_transaction_models::ReloadPublishTransactionResult,
-    >,
-    publish_graph_fn: Option<&dyn Fn(&mut CcbdApp, &ServiceGraph)>,
-    update_lease_config_signature_fn: Option<&dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>>,
-    update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>,
-    >,
+    apply_namespace_patch_fn: Option<ApplyNamespacePatchFn<'_>>,
+    run_runtime_mount_fn: Option<RunRuntimeMountFn<'_>>,
+    run_start_flow_fn: Option<RunStartFlowFn<'_>>,
+    publish_transaction_fn: Option<PublishTransactionFn<'_>>,
+    publish_graph_fn: Option<PublishGraphFn<'_>>,
+    update_lease_config_signature_fn: Option<UpdateLeaseConfigSignatureFn<'_>>,
+    update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
 ) -> AdditiveReloadApplyResult {
     let target_graph = build_reload_service_graph(app, new_config);
 
@@ -293,13 +272,7 @@ fn namespace_patch_stage(
     old_config: &ProjectConfig,
     new_config: &ProjectConfig,
     plan_json: &HashMap<String, Value>,
-    apply_namespace_patch_fn: Option<
-        &dyn Fn(
-            &HashMap<String, Value>,
-            &NamespaceTopologyPlan,
-            &NamespaceTopologyPlan,
-        ) -> NamespacePatchApplyResult,
-    >,
+    apply_namespace_patch_fn: Option<ApplyNamespacePatchFn<'_>>,
 ) -> NamespacePatchApplyResult {
     apply_namespace_patch(
         app,

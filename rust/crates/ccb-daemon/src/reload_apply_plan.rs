@@ -44,11 +44,9 @@ pub fn plan_blocker(plan: &HashMap<String, serde_json::Value>) -> Option<(String
     if !ALLOWED_PLAN_CLASSES.contains(&plan_class.as_str()) {
         return Some((
             "unsupported_plan_class".to_string(),
-            format!(
-                "additive reload apply only accepts view_only_change, \
+            "additive reload apply only accepts view_only_change, \
                  maintenance_change, no_change, add_agent, add_window, idle remove_agent, \
-                 add_tool_window, and remove_tool_window"
-            ),
+                 add_tool_window, and remove_tool_window".to_string(),
         ));
     }
 
@@ -146,8 +144,7 @@ fn operation_blocker(plan: &HashMap<String, serde_json::Value>) -> Option<(Strin
 pub fn unsupported_operations(plan: &HashMap<String, serde_json::Value>) -> Vec<String> {
     let operations = plan
         .get("operations")
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.clone())
+        .and_then(|v| v.as_array()).cloned()
         .unwrap_or_default();
 
     let mut unsupported = HashSet::new();

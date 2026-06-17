@@ -1,7 +1,6 @@
 //! Mirrors Python `lib/ccbd/reload_runtime_mount_validation.py`.
 //! 1:1 file alignment stub.
 
-use crate::Result;
 use std::collections::{HashMap, HashSet};
 
 /// Check if runtime mount is blocked and return reason
@@ -119,14 +118,14 @@ fn namespace_scope_reason(
         ));
     }
 
-    if clean_text(namespace.tmux_socket_path.as_deref()).map_or(true, |s| s.is_empty()) {
+    if clean_text(namespace.tmux_socket_path.as_deref()).is_none_or(|s| s.is_empty()) {
         return Some((
             "namespace_scope_missing".to_string(),
             "namespace tmux socket path is missing".to_string(),
         ));
     }
 
-    if clean_text(namespace.tmux_session_name.as_deref()).map_or(true, |s| s.is_empty()) {
+    if clean_text(namespace.tmux_session_name.as_deref()).is_none_or(|s| s.is_empty()) {
         return Some((
             "namespace_scope_missing".to_string(),
             "namespace tmux session name is missing".to_string(),
@@ -157,7 +156,7 @@ fn agent_scope_reason(
         .collect();
 
     if !overlap.is_empty() {
-        let overlap_str = overlap.iter().cloned().collect::<Vec<_>>().join(",");
+        let overlap_str = overlap.to_vec().join(",");
         return Some((
             "preserved_agent_mount_blocked".to_string(),
             format!(
@@ -174,7 +173,7 @@ fn agent_scope_reason(
         .collect();
 
     if !missing_panes.is_empty() {
-        let missing_str = missing_panes.iter().cloned().collect::<Vec<_>>().join(",");
+        let missing_str = missing_panes.to_vec().join(",");
         return Some((
             "agent_pane_missing".to_string(),
             format!("new agent pane evidence is missing: {}", missing_str),
@@ -189,7 +188,7 @@ fn agent_scope_reason(
         .collect();
 
     if !unknown.is_empty() {
-        let unknown_str = unknown.iter().cloned().collect::<Vec<_>>().join(",");
+        let unknown_str = unknown.to_vec().join(",");
         return Some((
             "agent_not_configured".to_string(),
             format!("new agent is not in target config: {}", unknown_str),
@@ -259,6 +258,12 @@ pub struct AgentRecord {
     pub reconcile_state: Option<String>,
     // Additional fields accessed via get_field
     pub fields: HashMap<String, String>,
+}
+
+impl Default for AgentRecord {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AgentRecord {

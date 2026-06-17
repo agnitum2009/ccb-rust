@@ -2,7 +2,6 @@
 //! 1:1 file alignment stub.
 
 use std::collections::HashMap;
-use std::io;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -220,13 +219,13 @@ pub struct HeartbeatPolicy {
 }
 
 pub fn evaluate_heartbeat(
-    policy: &HeartbeatPolicy,
-    subject_kind: &str,
-    subject_id: &str,
-    owner: &str,
+    _policy: &HeartbeatPolicy,
+    _subject_kind: &str,
+    _subject_id: &str,
+    _owner: &str,
     observed_last_progress_at: &str,
-    now: &str,
-    state: Option<&HeartbeatState>,
+    _now: &str,
+    _state: Option<&HeartbeatState>,
 ) -> Result<(HeartbeatState, HeartbeatDecision)> {
     // Simplified stub implementation
     let decision = HeartbeatDecision {
@@ -241,14 +240,14 @@ pub fn evaluate_heartbeat(
     Ok((next_state, decision))
 }
 
-pub fn normalize_mailbox_target(from: &str, known: &[String]) -> Result<String> {
+pub fn normalize_mailbox_target(from: &str, _known: &[String]) -> Result<String> {
     Ok(from.to_string())
 }
 
 pub fn heartbeat_diagnostics(
     job: &Job,
-    decision: &HeartbeatDecision,
-    snapshot: Option<&JobSnapshot>,
+    _decision: &HeartbeatDecision,
+    _snapshot: Option<&JobSnapshot>,
     mailbox_target: &str,
     subject_kind: &str,
 ) -> Result<serde_json::Value> {
@@ -261,9 +260,9 @@ pub fn heartbeat_diagnostics(
 }
 
 pub fn heartbeat_timeout_decision(
-    job: &Job,
-    decision: &HeartbeatDecision,
-    snapshot: Option<&JobSnapshot>,
+    _job: &Job,
+    _decision: &HeartbeatDecision,
+    _snapshot: Option<&JobSnapshot>,
     finished_at: &str,
 ) -> Result<serde_json::Value> {
     Ok(serde_json::json!({
@@ -272,7 +271,7 @@ pub fn heartbeat_timeout_decision(
     }))
 }
 
-fn snapshot_is_terminal(snapshot: &Option<JobSnapshot>) -> bool {
+fn snapshot_is_terminal(_snapshot: &Option<JobSnapshot>) -> bool {
     // Stub: assume non-terminal for now
     false
 }

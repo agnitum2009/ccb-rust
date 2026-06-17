@@ -7,7 +7,9 @@ use std::sync::Arc;
 use crate::services::project_namespace_runtime::backend::{
     build_backend, prepare_server, session_alive, Backend, BackendFactory,
 };
-use crate::services::project_namespace_runtime::models::{ProjectNamespaceEvent, ProjectNamespaceState};
+use crate::services::project_namespace_runtime::models::{
+    ProjectNamespaceEvent, ProjectNamespaceState,
+};
 use crate::services::project_namespace_runtime::records::normalized_layout_signature;
 use crate::Result;
 

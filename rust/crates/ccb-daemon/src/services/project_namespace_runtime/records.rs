@@ -71,6 +71,8 @@ pub fn build_created_event(
     }
 }
 
+/// Arity mirrors the Python `records.build_destroyed_state` helper.
+#[allow(clippy::too_many_arguments)]
 pub fn build_destroyed_state(
     current: Option<&ProjectNamespaceState>,
     project_id: String,
@@ -161,7 +163,10 @@ mod tests {
             normalized_layout_signature(Some("  abc  ")),
             Some("abc".to_string())
         );
-        assert_eq!(normalized_layout_signature(Some("abc")), Some("abc".to_string()));
+        assert_eq!(
+            normalized_layout_signature(Some("abc")),
+            Some("abc".to_string())
+        );
         assert_eq!(normalized_layout_signature(Some("")), None);
     }
 
@@ -258,7 +263,10 @@ mod tests {
             "shutdown".to_string(),
         );
         assert_eq!(event.event_kind, "namespace_destroyed");
-        assert_eq!(event.details.get("destroyed").unwrap(), &serde_json::Value::Bool(true));
+        assert_eq!(
+            event.details.get("destroyed").unwrap(),
+            &serde_json::Value::Bool(true)
+        );
     }
 
     #[test]

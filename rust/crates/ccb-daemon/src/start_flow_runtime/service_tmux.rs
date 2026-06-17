@@ -153,10 +153,7 @@ pub fn tmux_layout_for_start(
     }
 
     if !launch_targets.is_empty() {
-        actions_taken.push(format!(
-            "prepare_tmux_layout:{}",
-            launch_targets.join(",")
-        ));
+        actions_taken.push(format!("prepare_tmux_layout:{}", launch_targets.join(",")));
     }
 
     prepare_start_layout(&launch_targets, root_pane_id, cmd_enabled)
@@ -452,13 +449,8 @@ mod tests {
     #[test]
     fn test_project_socket_active_panes_cmd_from_layout() {
         let layout = TmuxStartLayout::new(Some("%5".to_string()), HashMap::new());
-        let (panes, cmd) = project_socket_active_panes(
-            &layout,
-            Some("/tmp/tmux.sock"),
-            false,
-            Some("%0"),
-            None,
-        );
+        let (panes, cmd) =
+            project_socket_active_panes(&layout, Some("/tmp/tmux.sock"), false, Some("%0"), None);
         assert_eq!(cmd, Some("%5".to_string()));
         assert_eq!(panes, vec!["%0", "%5"]);
     }

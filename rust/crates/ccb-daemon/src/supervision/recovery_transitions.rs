@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 const SUCCESS_RUNTIME_HEALTHS: &[&str] = &["healthy", "restored"];
 
 /// Start recovery process for an agent

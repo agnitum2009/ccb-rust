@@ -3,14 +3,12 @@
 
 use std::collections::HashMap;
 
-use crate::DaemonError;
-use crate::Result;
 use crate::services::project_namespace_runtime::backend::kill_server;
 #[allow(unused_imports)]
 use crate::services::project_namespace_runtime::ensure_context::{
-    load_namespace_context, rebuild_namespace_backend, refresh_session_liveness, Clock,
-    EventStore, LayoutConfig, NamespaceController, NamespaceEnsureContext, NamespaceState,
-    NamespaceWindowPlan, StateStore, TopologyPlan,
+    load_namespace_context, rebuild_namespace_backend, refresh_session_liveness, Clock, EventStore,
+    LayoutConfig, NamespaceController, NamespaceEnsureContext, NamespaceState, NamespaceWindowPlan,
+    StateStore, TopologyPlan,
 };
 use crate::services::project_namespace_runtime::materialize_topology::{
     existing_topology_agent_panes, materialize_topology, refresh_topology_ui_for_project,
@@ -20,6 +18,8 @@ use crate::services::project_namespace_runtime::models::ProjectNamespace;
 use crate::services::project_namespace_runtime::records::{
     build_active_state, build_created_event, namespace_from_state,
 };
+use crate::DaemonError;
+use crate::Result;
 
 /// Ensure the project namespace exists and matches desired configuration.
 ///
@@ -35,12 +35,8 @@ pub fn ensure_project_namespace(
 ) -> Result<ProjectNamespace> {
     std::fs::create_dir_all(&controller.layout.ccbd_dir)?;
 
-    let mut context = load_namespace_context(
-        controller,
-        layout_signature,
-        topology_plan,
-        recreate_reason,
-    )?;
+    let mut context =
+        load_namespace_context(controller, layout_signature, topology_plan, recreate_reason)?;
     context = refresh_session_liveness(controller, &context, session_probe_timeout_s)?;
 
     if force_recreate {
@@ -88,8 +84,7 @@ pub fn ensure_project_namespace(
             session_probe_timeout_s,
         )?;
         controller.last_materialized_agent_panes = agent_panes;
-        controller.last_topology_active_panes =
-            topology_active_panes(controller, &context, plan);
+        controller.last_topology_active_panes = topology_active_panes(controller, &context, plan);
     } else {
         prepare_namespace_root_pane(
             controller,
@@ -245,16 +240,13 @@ fn build_created_namespace(
         context.desired_socket_path.clone(),
         context.desired_session_name.clone(),
         current.is_some(),
-        context
-            .recreate_cause
-            .clone()
-            .unwrap_or_else(|| {
-                if current.is_some() {
-                    "missing_session".to_string()
-                } else {
-                    "initial_create".to_string()
-                }
-            }),
+        context.recreate_cause.clone().unwrap_or_else(|| {
+            if current.is_some() {
+                "missing_session".to_string()
+            } else {
+                "initial_create".to_string()
+            }
+        }),
     );
     controller.event_store.append(event);
 
@@ -320,7 +312,8 @@ mod tests {
             project_id: "p1".to_string(),
             layout_version: 1,
             layout: test_layout(),
-            backend_factory: crate::services::project_namespace_runtime::backend::BackendFactory::default(),
+            backend_factory:
+                crate::services::project_namespace_runtime::backend::BackendFactory::default(),
             state_store: StateStore::default(),
             event_store: EventStore::default(),
             clock: test_clock(),
@@ -397,7 +390,11 @@ mod tests {
         let state = test_state(1, None);
         let mut context = NamespaceEnsureContext {
             current: Some(state),
-            backend: build_backend(&BackendFactory::default(), "/tmp/ccb-ensure-test/.ccb/tmux.sock").unwrap(),
+            backend: build_backend(
+                &BackendFactory::default(),
+                "/tmp/ccb-ensure-test/.ccb/tmux.sock",
+            )
+            .unwrap(),
             session_is_alive: true,
             desired_socket_path: String::new(),
             desired_session_name: String::new(),
@@ -425,23 +422,18 @@ mod tests {
     #[test]
     fn test_ensure_project_namespace_initial_create() {
         let mut controller = test_controller();
-        let ns = ensure_project_namespace(
-            &mut controller,
-            None,
-            None,
-            false,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+        let ns =
+            ensure_project_namespace(&mut controller, None, None, false, None, None, None).unwrap();
         assert_eq!(ns.project_id, "p1");
         assert!(ns.created_this_call);
         assert_eq!(ns.namespace_epoch, 1);
         let saved = controller.state_store.namespace.unwrap();
         assert_eq!(saved.namespace_epoch, 1);
         assert_eq!(controller.event_store.events.len(), 1);
-        assert_eq!(controller.event_store.events[0].event_kind, "namespace_created");
+        assert_eq!(
+            controller.event_store.events[0].event_kind,
+            "namespace_created"
+        );
     }
 
     #[test]
@@ -478,16 +470,9 @@ mod tests {
         let mut controller = test_controller();
         controller.state_store.namespace = Some(test_state(1, Some("old")));
         controller.session_alive_override = Some(true);
-        let ns = ensure_project_namespace(
-            &mut controller,
-            Some("new"),
-            None,
-            false,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+        let ns =
+            ensure_project_namespace(&mut controller, Some("new"), None, false, None, None, None)
+                .unwrap();
         assert!(ns.created_this_call);
         assert_eq!(ns.namespace_epoch, 3);
         assert_eq!(controller.event_store.events.len(), 1);
@@ -507,16 +492,9 @@ mod tests {
         let mut controller = test_controller();
         controller.state_store.namespace = Some(test_state(1, Some("same")));
         controller.session_alive_override = Some(true);
-        let ns = ensure_project_namespace(
-            &mut controller,
-            Some("same"),
-            None,
-            false,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+        let ns =
+            ensure_project_namespace(&mut controller, Some("same"), None, false, None, None, None)
+                .unwrap();
         assert!(!ns.created_this_call);
         assert_eq!(ns.namespace_epoch, 2);
         assert_eq!(controller.event_store.events.len(), 0);
@@ -545,16 +523,9 @@ mod tests {
             }],
             sidebar_enabled: false,
         };
-        let ns = ensure_project_namespace(
-            &mut controller,
-            None,
-            Some(&plan),
-            false,
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+        let ns =
+            ensure_project_namespace(&mut controller, None, Some(&plan), false, None, None, None)
+                .unwrap();
         assert!(ns.created_this_call);
         assert_eq!(controller.event_store.events.len(), 1);
         assert_eq!(

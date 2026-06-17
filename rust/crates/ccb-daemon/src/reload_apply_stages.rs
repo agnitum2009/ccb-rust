@@ -8,6 +8,29 @@ use crate::reload_apply_results::{
 };
 use std::collections::HashMap;
 
+/// Custom publish-transaction implementation.
+type PublishTransactionFn<'a> = &'a dyn Fn(
+    &mut crate::app::CcbdApp,
+    &crate::reload_apply_models::ServiceGraph,
+    &crate::reload_transaction_context::TransactionContext,
+    crate::reload_apply_namespace::NamespacePatchContext,
+) -> crate::reload_transaction_models::ReloadPublishTransactionResult;
+
+/// Custom graph-publishing implementation.
+type PublishGraphFn<'a> = &'a dyn Fn(&mut crate::app::CcbdApp, &crate::reload_apply_models::ServiceGraph);
+
+/// Lease config signature updater.
+type UpdateLeaseConfigSignatureFn<'a> =
+    &'a dyn Fn(&mut crate::app::CcbdApp, &str, u64) -> Option<serde_json::Value>;
+
+/// Lifecycle config signature updater.
+type UpdateLifecycleConfigSignatureFn<'a> = &'a dyn Fn(
+    &mut crate::app::CcbdApp,
+    &str,
+    Option<u64>,
+    u64,
+) -> Option<serde_json::Value>;
+
 /// Generate a failed namespace patch stage result
 pub fn namespace_patch_failed(
     old_graph: &dyn GraphVersion,
@@ -148,7 +171,10 @@ pub fn publish_failed(
     )
 }
 
-/// Execute the publish stage
+/// Execute the publish stage.
+///
+/// Arity mirrors the Python `reload_apply_stages.publish_stage` helper.
+#[allow(clippy::too_many_arguments)]
 pub fn publish_stage(
     _app: &mut crate::app::CcbdApp,
     old_graph: &dyn GraphVersion,
@@ -157,23 +183,10 @@ pub fn publish_stage(
     _namespace: &crate::services::project_namespace::ProjectNamespace,
     namespace_patch: &NamespacePatch,
     runtime_mount: &RuntimeMount,
-    publish_transaction_fn: Option<
-        &dyn Fn(
-            &mut crate::app::CcbdApp,
-            &crate::reload_apply_models::ServiceGraph,
-            &crate::reload_transaction_context::TransactionContext,
-            crate::reload_apply_namespace::NamespacePatchContext,
-        ) -> crate::reload_transaction_models::ReloadPublishTransactionResult,
-    >,
-    _publish_graph_fn: Option<
-        &dyn Fn(&mut crate::app::CcbdApp, &crate::reload_apply_models::ServiceGraph),
-    >,
-    _update_lease_config_signature_fn: Option<
-        &dyn Fn(&mut crate::app::CcbdApp, &str, u64) -> Option<serde_json::Value>,
-    >,
-    _update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut crate::app::CcbdApp, &str, Option<u64>, u64) -> Option<serde_json::Value>,
-    >,
+    publish_transaction_fn: Option<PublishTransactionFn<'_>>,
+    _publish_graph_fn: Option<PublishGraphFn<'_>>,
+    _update_lease_config_signature_fn: Option<UpdateLeaseConfigSignatureFn<'_>>,
+    _update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
 ) -> AdditiveReloadApplyResult {
     let mut diagnostics = HashMap::new();
     diagnostics.insert("reason".to_string(), "publish_success".to_string());

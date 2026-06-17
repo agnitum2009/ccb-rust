@@ -1,7 +1,6 @@
 //! Mirrors Python `lib/ccbd/services/dispatcher_runtime/restore_runtime/execution.py`.
 //! 1:1 file alignment stub.
 
-use std::collections::HashMap;
 
 /// Restore running jobs after daemon restart
 pub fn restore_running_jobs(dispatcher: &dyn Dispatcher) -> Result<Vec<JobRestoreResult>, String> {
@@ -23,7 +22,7 @@ pub fn restore_running_jobs(dispatcher: &dyn Dispatcher) -> Result<Vec<JobRestor
 
 fn restore_current_job(
     dispatcher: &dyn Dispatcher,
-    target_kind: &TargetKind,
+    _target_kind: &TargetKind,
     job_id: &str,
 ) -> Result<Option<JobRestoreResult>, String> {
     // Get the current job
@@ -38,7 +37,7 @@ fn restore_current_job(
     }
 
     // Create restore entry
-    let entry = RestoreEntry {
+    let _entry = RestoreEntry {
         job_id: current.job_id.clone(),
         agent_name: current.agent_name.clone(),
         provider: current.provider.clone(),

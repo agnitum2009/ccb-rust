@@ -10,8 +10,8 @@ use super::events::MountEventStore;
 use super::starting::AgentSpec;
 use super::transitions::{
     in_backoff_window, missing_mount_action_health, mount_actions_missing, mount_or_reflow,
-    persist_mount_exception, persist_mount_success, persist_mount_superseded, persist_mount_transient,
-    start_mount_attempt, MountActionError, SUCCESS_RUNTIME_HEALTHS,
+    persist_mount_exception, persist_mount_success, persist_mount_superseded,
+    persist_mount_transient, start_mount_attempt, MountActionError, SUCCESS_RUNTIME_HEALTHS,
 };
 
 /// Registry abstraction used by mount orchestration.
@@ -75,6 +75,8 @@ pub trait MountRegistryWithSpec: MountRegistry {
 
 /// Runtime-service abstraction used during mount-start preparation.
 pub trait MountRuntimeServiceStart {
+    /// Arity mirrors the Python `mount_runtime.service` attach helper.
+    #[allow(clippy::too_many_arguments)]
     fn attach(
         &self,
         agent_name: &str,
@@ -116,12 +118,10 @@ pub struct EnsureMountedRequest<'a> {
     pub clock: Box<dyn Fn() -> String + 'a>,
     pub event_store: &'a dyn MountEventStore,
     pub upsert_if_changed_fn: Box<dyn Fn(AgentRuntime) -> crate::Result<AgentRuntime> + 'a>,
-    pub build_starting_runtime_fn: Box<
-        dyn Fn(&str, Option<&AgentRuntime>, &str) -> crate::Result<AgentRuntime> + 'a,
-    >,
-    pub persist_mount_failure_fn: Box<
-        dyn Fn(&AgentRuntime, &str, &str, &str, &str, u32, &str) -> crate::Result<String> + 'a,
-    >,
+    pub build_starting_runtime_fn:
+        Box<dyn Fn(&str, Option<&AgentRuntime>, &str) -> crate::Result<AgentRuntime> + 'a>,
+    pub persist_mount_failure_fn:
+        Box<dyn Fn(&AgentRuntime, &str, &str, &str, &str, u32, &str) -> crate::Result<String> + 'a>,
     pub is_in_backoff_window_fn: Box<dyn Fn(&AgentRuntime, &str) -> bool + 'a>,
     pub should_reflow_project_mount_fn: Box<dyn Fn(&str) -> bool + 'a>,
     pub align_runtime_authority_fn: Box<dyn Fn(AgentRuntime) -> AgentRuntime + 'a>,
@@ -135,17 +135,18 @@ pub fn ensure_mounted(req: &mut EnsureMountedRequest<'_>) -> crate::Result<Strin
     let runtime_opt = req.runtime.clone();
     let runtime_ref = runtime_opt.as_ref();
 
-    if mount_actions_missing(req.mount_agent_fn.as_deref(), req.remount_project_fn.as_deref()) {
+    if mount_actions_missing(
+        req.mount_agent_fn.as_deref(),
+        req.remount_project_fn.as_deref(),
+    ) {
         return Ok(missing_mount_action_health(runtime_ref));
     }
 
     let attempted_at = (req.clock)();
-    if in_backoff_window(
-        runtime_ref,
-        &attempted_at,
-        &*req.is_in_backoff_window_fn,
-    ) {
-        return Ok(runtime_ref.map(|r| r.health.clone()).unwrap_or_else(|| "unmounted".to_string()));
+    if in_backoff_window(runtime_ref, &attempted_at, &*req.is_in_backoff_window_fn) {
+        return Ok(runtime_ref
+            .map(|r| r.health.clone())
+            .unwrap_or_else(|| "unmounted".to_string()));
     }
 
     let (starting, prior_health, next_restart_count) = start_mount_attempt(
@@ -202,8 +203,8 @@ pub fn ensure_mounted(req: &mut EnsureMountedRequest<'_>) -> crate::Result<Strin
     }
 
     let refreshed = (req.align_runtime_authority_fn)(refreshed.unwrap());
-    let refreshed_health = (req.normalized_runtime_health_fn)(&refreshed)
-        .unwrap_or_else(|| refreshed.health.clone());
+    let refreshed_health =
+        (req.normalized_runtime_health_fn)(&refreshed).unwrap_or_else(|| refreshed.health.clone());
 
     if !SUCCESS_RUNTIME_HEALTHS.contains(&refreshed_health.as_str()) {
         return handle_unhealthy_after_mount(
@@ -254,6 +255,8 @@ pub fn ensure_mounted(req: &mut EnsureMountedRequest<'_>) -> crate::Result<Strin
     Ok(mounted.health)
 }
 
+/// Arity mirrors the Python `mount_runtime.service` error handler.
+#[allow(clippy::too_many_arguments)]
 fn handle_mount_action_error(
     req: &mut EnsureMountedRequest<'_>,
     starting: &AgentRuntime,
@@ -408,10 +411,7 @@ fn handle_unhealthy_after_mount(
     } else {
         refreshed_health
     };
-    let lifecycle_state = refreshed
-        .lifecycle_state
-        .as_deref()
-        .unwrap_or("failed");
+    let lifecycle_state = refreshed.lifecycle_state.as_deref().unwrap_or("failed");
 
     let (finalized, applied) = req.runtime_service.finalize_mount_attempt_failure(
         req.agent_name,
@@ -462,16 +462,8 @@ pub fn stabilize_superseded_runtime(
     attempted_at: &str,
     runtime_service: &dyn MountRuntimeService,
 ) -> crate::Result<AgentRuntime> {
-    if runtime.state == AgentState::Idle
-        && runtime.reconcile_state.as_deref() == Some("starting")
-    {
-        return runtime_service.patch_runtime_state(
-            runtime,
-            "steady",
-            attempted_at,
-            None,
-            "idle",
-        );
+    if runtime.state == AgentState::Idle && runtime.reconcile_state.as_deref() == Some("starting") {
+        return runtime_service.patch_runtime_state(runtime, "steady", attempted_at, None, "idle");
     }
     Ok(runtime.clone())
 }
@@ -647,7 +639,13 @@ mod tests {
                 Ok(starting)
             }),
             persist_mount_failure_fn: Box::new(
-                |runtime, agent_name, project_id, attempted_at, prior_health, next_restart_count, reason| {
+                |runtime,
+                 agent_name,
+                 project_id,
+                 attempted_at,
+                 prior_health,
+                 next_restart_count,
+                 reason| {
                     let mut failed = runtime.clone();
                     failed.state = AgentState::Failed;
                     failed.health = "start-failed".to_string();
@@ -679,7 +677,9 @@ mod tests {
         let registry = TestRegistry {
             entries: std::collections::HashMap::new(),
         };
-        let service = TestRuntimeService { apply_success: true };
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let store = VecEventStore::default();
         let mut req = build_request(&registry, &service, &store, None);
         let health = ensure_mounted(&mut req).unwrap();
@@ -692,8 +692,12 @@ mod tests {
         let mut registry = TestRegistry {
             entries: std::collections::HashMap::new(),
         };
-        registry.entries.insert("claude".to_string(), test_runtime());
-        let service = TestRuntimeService { apply_success: true };
+        registry
+            .entries
+            .insert("claude".to_string(), test_runtime());
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let store = VecEventStore::default();
         let mount = |_name: &str| Ok(());
         let mut req = build_request(&registry, &service, &store, Some(Box::new(mount)));
@@ -716,7 +720,9 @@ mod tests {
                 ..test_runtime()
             },
         );
-        let service = TestRuntimeService { apply_success: true };
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let store = VecEventStore::default();
         let mount = |_name: &str| Ok(());
         let mut req = build_request(&registry, &service, &store, Some(Box::new(mount)));
@@ -732,7 +738,9 @@ mod tests {
         let registry = TestRegistry {
             entries: std::collections::HashMap::new(),
         };
-        let service = TestRuntimeService { apply_success: true };
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let store = VecEventStore::default();
         let mount = |_name: &str| Ok(());
         let mut req = build_request(&registry, &service, &store, Some(Box::new(mount)));
@@ -747,8 +755,12 @@ mod tests {
         let mut registry = TestRegistry {
             entries: std::collections::HashMap::new(),
         };
-        registry.entries.insert("claude".to_string(), test_runtime());
-        let service = TestRuntimeService { apply_success: true };
+        registry
+            .entries
+            .insert("claude".to_string(), test_runtime());
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let store = VecEventStore::default();
         let mount = |_name: &str| Err(MountActionError::Transient("tmux away".to_string()));
         let mut req = build_request(&registry, &service, &store, Some(Box::new(mount)));
@@ -764,8 +776,12 @@ mod tests {
         let mut registry = TestRegistry {
             entries: std::collections::HashMap::new(),
         };
-        registry.entries.insert("claude".to_string(), test_runtime());
-        let service = TestRuntimeService { apply_success: true };
+        registry
+            .entries
+            .insert("claude".to_string(), test_runtime());
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let store = VecEventStore::default();
         let mount = |_name: &str| Err(MountActionError::Fatal("kaboom".to_string()));
         let mut req = build_request(&registry, &service, &store, Some(Box::new(mount)));
@@ -780,8 +796,12 @@ mod tests {
         let mut registry = TestRegistry {
             entries: std::collections::HashMap::new(),
         };
-        registry.entries.insert("claude".to_string(), test_runtime());
-        let service = TestRuntimeService { apply_success: false };
+        registry
+            .entries
+            .insert("claude".to_string(), test_runtime());
+        let service = TestRuntimeService {
+            apply_success: false,
+        };
         let store = VecEventStore::default();
         let mount = |_name: &str| Ok(());
         let mut req = build_request(&registry, &service, &store, Some(Box::new(mount)));
@@ -793,7 +813,9 @@ mod tests {
 
     #[test]
     fn test_stabilize_superseded_runtime() {
-        let service = TestRuntimeService { apply_success: true };
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let runtime = AgentRuntime {
             state: AgentState::Idle,
             reconcile_state: Some("starting".to_string()),
@@ -807,7 +829,9 @@ mod tests {
 
     #[test]
     fn test_stabilize_superseded_runtime_noop() {
-        let service = TestRuntimeService { apply_success: true };
+        let service = TestRuntimeService {
+            apply_success: true,
+        };
         let runtime = test_runtime();
         let stabilized = stabilize_superseded_runtime(&runtime, "now", &service).unwrap();
         assert_eq!(stabilized.reconcile_state, Some("steady".to_string()));

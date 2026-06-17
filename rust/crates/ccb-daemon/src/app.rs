@@ -368,6 +368,7 @@ impl CcbdApp {
     pub fn persist_start_policy(&self, auto_permission: bool, source: &str) -> crate::Result<()> {
         let policy = crate::services::start_policy::StartPolicy {
             auto_permission,
+            recovery_restore: true,
             source: source.into(),
             created_at: chrono::Utc::now().to_rfc3339(),
         };

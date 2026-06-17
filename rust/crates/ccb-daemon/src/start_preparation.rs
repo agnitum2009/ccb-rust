@@ -66,11 +66,14 @@ pub struct StartContext {
     pub project_path: PathBuf,
 }
 
-/// Prepare agents for starting
+/// Prepare agents for starting.
+///
+/// Arity mirrors the Python `start_preparation.prepare_start_agents` entrypoint.
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_start_agents(
     targets: &[String],
     config: &ProjectConfig,
-    paths: &ProjectPaths,
+    _paths: &ProjectPaths,
     context: &StartContext,
     _project_root: &PathBuf,
     _project_id: &str,

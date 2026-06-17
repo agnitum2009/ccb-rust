@@ -190,6 +190,7 @@ pub(crate) fn view_refresh_steps(operations: &[ReloadOperation]) -> Vec<Namespac
         agent: None,
         role: None,
         slot_key: None,
+        anchor_agent: None,
         reason: Some(reason.into()),
     }]
 }

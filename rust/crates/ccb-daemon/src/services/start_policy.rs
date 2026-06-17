@@ -3,8 +3,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StartPolicy {
     pub auto_permission: bool,
+    #[serde(default = "default_recovery_restore")]
+    pub recovery_restore: bool,
     pub source: String,
     pub created_at: String,
+}
+
+fn default_recovery_restore() -> bool {
+    true
 }
 
 pub struct StartPolicyStore {
@@ -39,5 +45,13 @@ impl StartPolicyStore {
             std::fs::remove_file(&self.path).map_err(|e| e.to_string())?;
         }
         Ok(())
+    }
+}
+
+/// Convert a stored start policy into (restore, auto_permission) options.
+pub fn recovery_start_options(policy: Option<&StartPolicy>) -> (bool, bool) {
+    match policy {
+        None => (false, false),
+        Some(p) => (p.recovery_restore, p.auto_permission),
     }
 }

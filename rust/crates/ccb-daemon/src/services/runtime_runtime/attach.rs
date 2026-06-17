@@ -13,7 +13,7 @@ pub fn attach_runtime(
     timestamp: &str,
 ) -> Result<AgentRuntime, String> {
     let spec = registry.spec_for(agent_name)?;
-    let existing = registry.get(agent_name);
+    let _existing = registry.get(agent_name);
 
     // Create new runtime with minimal fields
     let runtime = AgentRuntime {

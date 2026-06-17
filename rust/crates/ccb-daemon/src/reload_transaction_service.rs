@@ -15,18 +15,30 @@ use crate::reload_transaction_signature::{
 use crate::reload_transaction_signature_rollback::rollback_signatures;
 use serde_json::Value;
 
+/// Lease config signature updater.
+type UpdateLeaseConfigSignatureFn<'a> = &'a dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>;
+
+/// Lifecycle config signature updater.
+type UpdateLifecycleConfigSignatureFn<'a> =
+    &'a dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>;
+
+/// Custom graph-publishing implementation.
+type PublishGraphFn<'a> = &'a dyn Fn(&mut CcbdApp, &ServiceGraph);
+
 /// Publish an additive reload transaction: write signatures, publish graph, rollback on failure.
+///
+/// Arity mirrors the Python `reload_transaction_service.publish_additive_reload_transaction`
+/// entrypoint.
+#[allow(clippy::too_many_arguments)]
 pub fn publish_additive_reload_transaction(
     app: &mut CcbdApp,
     new_graph: &ServiceGraph,
     namespace: Option<&crate::services::project_namespace::ProjectNamespace>,
     namespace_patch_result: Option<Value>,
     runtime_mount_result: Option<Value>,
-    update_lease_config_signature_fn: Option<&dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>>,
-    update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>,
-    >,
-    publish_graph_fn: Option<&dyn Fn(&mut CcbdApp, &ServiceGraph)>,
+    update_lease_config_signature_fn: Option<UpdateLeaseConfigSignatureFn<'_>>,
+    update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
+    publish_graph_fn: Option<PublishGraphFn<'_>>,
 ) -> ReloadPublishTransactionResult {
     let old_graph = app.current_service_graph();
     let context = transaction_context(
@@ -89,15 +101,15 @@ struct SignatureWriteResult {
     failure: Option<ReloadPublishTransactionResult>,
 }
 
+/// Arity mirrors the Python `reload_transaction_service` signature helper.
+#[allow(clippy::too_many_arguments)]
 fn write_signatures(
     app: &mut CcbdApp,
     context: &TransactionContext,
     namespace_epoch: Option<u64>,
     expected_generation: u64,
-    update_lease_config_signature_fn: Option<&dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>>,
-    update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>,
-    >,
+    update_lease_config_signature_fn: Option<UpdateLeaseConfigSignatureFn<'_>>,
+    update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
 ) -> SignatureWriteResult {
     let mut lease: Option<Value> = None;
     let mut lifecycle: Option<Value> = None;
@@ -174,9 +186,7 @@ fn update_lifecycle_signature(
     context: &TransactionContext,
     namespace_epoch: Option<u64>,
     expected_generation: u64,
-    update_lifecycle_config_signature_fn: Option<
-        &dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>,
-    >,
+    update_lifecycle_config_signature_fn: Option<UpdateLifecycleConfigSignatureFn<'_>>,
 ) -> Result<Option<Value>, anyhow::Error> {
     if let Some(update_fn) = update_lifecycle_config_signature_fn {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

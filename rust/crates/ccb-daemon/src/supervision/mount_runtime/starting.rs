@@ -27,6 +27,8 @@ pub trait StartingRegistry {
 
 /// Runtime-service abstraction used during mount-start preparation.
 pub trait StartingRuntimeService {
+    /// Arity mirrors the Python `mount_runtime.starting` attach helper.
+    #[allow(clippy::too_many_arguments)]
     fn attach(
         &self,
         agent_name: &str,
@@ -121,7 +123,10 @@ pub fn authority_adopt_required(runtime: &AgentRuntime, generation: i64) -> bool
     if runtime.binding_source == RuntimeBindingSource::ExternalAttach {
         return false;
     }
-    if !matches!(runtime.state, AgentState::Idle | AgentState::Busy | AgentState::Degraded) {
+    if !matches!(
+        runtime.state,
+        AgentState::Idle | AgentState::Busy | AgentState::Degraded
+    ) {
         return false;
     }
     let current_generation = runtime.daemon_generation.unwrap_or(0);
@@ -163,7 +168,8 @@ mod tests {
             self.entries.get(agent_name).cloned()
         }
         fn upsert_authority(&mut self, runtime: AgentRuntime) -> AgentRuntime {
-            self.entries.insert(runtime.agent_name.clone(), runtime.clone());
+            self.entries
+                .insert(runtime.agent_name.clone(), runtime.clone());
             runtime
         }
     }

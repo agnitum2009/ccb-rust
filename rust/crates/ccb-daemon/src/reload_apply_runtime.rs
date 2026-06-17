@@ -8,6 +8,14 @@ use crate::services::project_namespace::ProjectNamespace;
 /// Runtime mount statuses that allow proceeding to the publish transaction.
 pub const PUBLISH_READY_RUNTIME_STATUSES: &[&str] = &["applied", "mounted"];
 
+/// Custom runtime mount implementation.
+type RunRuntimeMountFn<'a> = &'a dyn Fn(
+    &ServiceGraph,
+    &ServiceGraph,
+    &ProjectNamespace,
+    &NamespacePatch,
+) -> RuntimeMount;
+
 /// Mount or verify runtime state for the target graph.
 pub fn run_runtime_mount(
     _app: &mut CcbdApp,
@@ -15,9 +23,7 @@ pub fn run_runtime_mount(
     _old_graph: &ServiceGraph,
     _namespace: &ProjectNamespace,
     _namespace_patch: &NamespacePatch,
-    run_runtime_mount_fn: Option<
-        &dyn Fn(&ServiceGraph, &ServiceGraph, &ProjectNamespace, &NamespacePatch) -> RuntimeMount,
-    >,
+    run_runtime_mount_fn: Option<RunRuntimeMountFn<'_>>,
     _run_start_flow_fn: Option<&dyn Fn(&ServiceGraph)>,
 ) -> RuntimeMount {
     if let Some(run_fn) = run_runtime_mount_fn {

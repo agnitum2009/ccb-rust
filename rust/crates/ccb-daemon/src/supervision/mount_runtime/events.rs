@@ -73,7 +73,10 @@ pub fn record_mount_started(
 ) {
     let mut details = serde_json::Map::new();
     if let Some(id) = runtime.mount_attempt_id.as_deref() {
-        details.insert("mount_attempt_id".to_string(), serde_json::Value::String(id.to_string()));
+        details.insert(
+            "mount_attempt_id".to_string(),
+            serde_json::Value::String(id.to_string()),
+        );
     }
     event_store.append(SupervisionEvent {
         event_kind: "mount_started".to_string(),
@@ -103,7 +106,10 @@ pub fn record_mount_failed(
     reason: &str,
 ) {
     let mut details = serde_json::Map::new();
-    details.insert("reason".to_string(), serde_json::Value::String(reason.to_string()));
+    details.insert(
+        "reason".to_string(),
+        serde_json::Value::String(reason.to_string()),
+    );
     event_store.append(SupervisionEvent {
         event_kind: "mount_failed".to_string(),
         project_id: project_id.to_string(),
@@ -185,7 +191,7 @@ pub fn record_mount_succeeded(
 }
 
 fn runtime_state_str(runtime: &AgentRuntime) -> String {
-    serde_json::to_value(&runtime.state)
+    serde_json::to_value(runtime.state)
         .ok()
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .unwrap_or_else(|| format!("{:?}", runtime.state).to_lowercase())

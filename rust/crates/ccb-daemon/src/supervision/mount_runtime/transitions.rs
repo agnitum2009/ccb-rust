@@ -10,10 +10,23 @@ use super::events::{record_mount_failed, record_mount_superseded, MountEventStor
 /// Health values that indicate a successful mount.
 pub const SUCCESS_RUNTIME_HEALTHS: &[&str] = &["healthy", "restored"];
 
+/// Per-agent mount action callback.
+type MountAgentFn<'a> = &'a dyn Fn(&str) -> Result<(), MountActionError>;
+
+/// Project-wide remount action callback.
+type RemountProjectFn<'a> = &'a dyn Fn(&str) -> Result<(), MountActionError>;
+
+/// Factory that builds a starting runtime for a new mount attempt.
+type BuildStartingRuntimeFn<'a> = &'a dyn Fn(
+    &str,
+    Option<&AgentRuntime>,
+    &str,
+) -> crate::Result<AgentRuntime>;
+
 /// Returns `true` when neither per-agent nor project-wide mount actions are available.
 pub fn mount_actions_missing(
-    mount_agent_fn: Option<&dyn Fn(&str) -> Result<(), MountActionError>>,
-    remount_project_fn: Option<&dyn Fn(&str) -> Result<(), MountActionError>>,
+    mount_agent_fn: Option<MountAgentFn<'_>>,
+    remount_project_fn: Option<RemountProjectFn<'_>>,
 ) -> bool {
     mount_agent_fn.is_none() && remount_project_fn.is_none()
 }
@@ -31,7 +44,7 @@ pub fn in_backoff_window(
     attempted_at: &str,
     is_in_backoff_window_fn: &dyn Fn(&AgentRuntime, &str) -> bool,
 ) -> bool {
-    runtime.map_or(false, |r| is_in_backoff_window_fn(r, attempted_at))
+    runtime.is_some_and(|r| is_in_backoff_window_fn(r, attempted_at))
 }
 
 /// Build the "starting" runtime for a new mount attempt.
@@ -41,14 +54,12 @@ pub fn start_mount_attempt(
     agent_name: &str,
     runtime: Option<&AgentRuntime>,
     attempted_at: &str,
-    build_starting_runtime_fn: &dyn Fn(
-        &str,
-        Option<&AgentRuntime>,
-        &str,
-    ) -> crate::Result<AgentRuntime>,
+    build_starting_runtime_fn: BuildStartingRuntimeFn<'_>,
 ) -> crate::Result<(AgentRuntime, String, u32)> {
     let starting = build_starting_runtime_fn(agent_name, runtime, attempted_at)?;
-    let prior_health = runtime.map(|r| r.health.clone()).unwrap_or_else(|| "unmounted".to_string());
+    let prior_health = runtime
+        .map(|r| r.health.clone())
+        .unwrap_or_else(|| "unmounted".to_string());
     let next_restart_count = starting.restart_count.saturating_add(1);
     Ok((starting, prior_health, next_restart_count))
 }
@@ -127,8 +138,8 @@ pub fn persist_mount_superseded(
 /// Decide whether to remount the whole project namespace or just this agent.
 pub fn mount_or_reflow(
     agent_name: &str,
-    mount_agent_fn: Option<&dyn Fn(&str) -> Result<(), MountActionError>>,
-    remount_project_fn: Option<&dyn Fn(&str) -> Result<(), MountActionError>>,
+    mount_agent_fn: Option<MountAgentFn<'_>>,
+    remount_project_fn: Option<RemountProjectFn<'_>>,
     should_reflow_project_mount_fn: &dyn Fn(&str) -> bool,
 ) -> Result<(), MountActionError> {
     if should_reflow_project_mount_fn(agent_name) {
