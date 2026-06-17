@@ -1,3 +1,14 @@
 //! Mirrors Python `lib/ccbd/reload_runtime_unload.py`.
-//! 1:1 file alignment stub.
-// TODO: align with Python
+
+use crate::app::CcbdApp;
+use crate::reload_apply_models::ServiceGraph;
+use crate::reload_plan::ReloadPlan;
+
+/// Check for a blocker that requires pre-namespace unload before applying.
+pub fn pre_namespace_unload_blocker(
+    _app: &CcbdApp,
+    _old_graph: &ServiceGraph,
+    _plan: &ReloadPlan,
+) -> Option<(String, String)> {
+    None
+}

@@ -88,7 +88,8 @@ pub fn plan_blocked_result(
     let (reason, message) = blocker.clone();
     let old_graph_version = old_graph
         .as_ref()
-        .and_then(|g| g.get("version").and_then(|v| v.as_i64()));
+        .and_then(|g| g.get("version").and_then(|v| v.as_str()))
+        .map(|s| s.to_string());
 
     let old_config_signature = old_graph
         .as_ref()

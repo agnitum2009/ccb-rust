@@ -138,6 +138,12 @@ impl ProjectNamespace {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NamespacePatchApplyResult {
+    pub status: String,
+    pub diagnostics: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectNamespaceDestroySummary {
     pub project_id: String,
     pub namespace_epoch: Option<i64>,

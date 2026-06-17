@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Result of an additive reload apply operation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdditiveReloadApplyResult {
     pub status: String,
@@ -11,11 +12,11 @@ pub struct AdditiveReloadApplyResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plan_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub old_graph_version: Option<i64>,
+    pub old_graph_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub target_graph_version: Option<i64>,
+    pub target_graph_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub published_graph_version: Option<i64>,
+    pub published_graph_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub old_config_signature: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -23,11 +24,11 @@ pub struct AdditiveReloadApplyResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plan: Option<HashMap<String, serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub namespace_patch: Option<HashMap<String, serde_json::Value>>,
+    pub namespace_patch: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_mount: Option<HashMap<String, serde_json::Value>>,
+    pub runtime_mount: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub publish_transaction: Option<HashMap<String, serde_json::Value>>,
+    pub publish_transaction: Option<serde_json::Value>,
     #[serde(default)]
     pub diagnostics: HashMap<String, serde_json::Value>,
 }
@@ -40,19 +41,19 @@ impl AdditiveReloadApplyResult {
         if let Some(plan_class) = &self.plan_class {
             record.insert("plan_class".to_string(), serde_json::json!(plan_class));
         }
-        if let Some(old_graph_version) = self.old_graph_version {
+        if let Some(old_graph_version) = &self.old_graph_version {
             record.insert(
                 "old_graph_version".to_string(),
                 serde_json::json!(old_graph_version),
             );
         }
-        if let Some(target_graph_version) = self.target_graph_version {
+        if let Some(target_graph_version) = &self.target_graph_version {
             record.insert(
                 "target_graph_version".to_string(),
                 serde_json::json!(target_graph_version),
             );
         }
-        if let Some(published_graph_version) = self.published_graph_version {
+        if let Some(published_graph_version) = &self.published_graph_version {
             record.insert(
                 "published_graph_version".to_string(),
                 serde_json::json!(published_graph_version),
@@ -97,4 +98,13 @@ impl AdditiveReloadApplyResult {
         );
         record
     }
+}
+
+/// In-memory representation of the published service graph.
+#[derive(Debug, Clone)]
+pub struct ServiceGraph {
+    pub version: Option<String>,
+    pub config: ccb_agents::models::ProjectConfig,
+    pub config_identity: serde_json::Value,
+    pub config_signature: String,
 }

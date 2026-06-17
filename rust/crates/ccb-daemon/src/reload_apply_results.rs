@@ -1,6 +1,6 @@
 //! Mirrors Python `lib/ccbd/reload_apply_results.py`.
-//! 1:1 file alignment stub.
 
+use crate::reload_apply_models::AdditiveReloadApplyResult;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -11,9 +11,9 @@ pub fn stage_result(
     old_graph: &dyn GraphVersion,
     target_graph: &dyn GraphVersion,
     plan: &HashMap<String, Value>,
-    namespace_patch: Option<&NamespacePatch>,
-    runtime_mount: Option<&RuntimeMount>,
-    publish_transaction: Option<&PublishTransaction>,
+    namespace_patch: Option<&dyn RecordProvider>,
+    runtime_mount: Option<&dyn RecordProvider>,
+    publish_transaction: Option<&dyn RecordProvider>,
     diagnostics: HashMap<String, String>,
 ) -> AdditiveReloadApplyResult {
     AdditiveReloadApplyResult {
@@ -22,18 +22,20 @@ pub fn stage_result(
         plan_class: plan
             .get("plan_class")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
+            .map(|s| s.to_string()),
         old_graph_version: old_graph.version(),
         target_graph_version: target_graph.version(),
         published_graph_version: None,
-        old_config_signature: graph_signature(old_graph),
-        new_config_signature: graph_signature(target_graph),
-        plan: plan.clone(),
+        old_config_signature: Some(graph_signature(old_graph)),
+        new_config_signature: Some(graph_signature(target_graph)),
+        plan: Some(plan.clone()),
         namespace_patch: namespace_patch.and_then(|p| p.to_record()),
         runtime_mount: runtime_mount.and_then(|m| m.to_record()),
         publish_transaction: publish_transaction.and_then(|t| t.to_record()),
-        diagnostics,
+        diagnostics: diagnostics
+            .into_iter()
+            .map(|(k, v)| (k, serde_json::json!(v)))
+            .collect(),
     }
 }
 
@@ -59,27 +61,28 @@ pub fn noop_result(
         plan_class: plan
             .get("plan_class")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
+            .map(|s| s.to_string()),
         old_graph_version: old_graph.version(),
         target_graph_version: None,
         published_graph_version: None,
-        old_config_signature: graph_signature(old_graph),
+        old_config_signature: Some(graph_signature(old_graph)),
         new_config_signature: plan
             .get("new_config_signature")
             .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        plan: plan.clone(),
+            .map(|s| s.to_string()),
+        plan: Some(plan.clone()),
         namespace_patch: None,
         runtime_mount: None,
         publish_transaction: None,
-        diagnostics,
+        diagnostics: diagnostics
+            .into_iter()
+            .map(|(k, v)| (k, serde_json::json!(v)))
+            .collect(),
     }
 }
 
 /// Extract namespace residue from patch
-pub fn namespace_residue(namespace_patch: &NamespacePatch) -> HashMap<String, String> {
+pub fn namespace_residue(namespace_patch: &dyn RecordProvider) -> HashMap<String, String> {
     let mut residue = HashMap::new();
     if let Some(record) = namespace_patch.to_record() {
         residue.insert(
@@ -95,7 +98,7 @@ pub fn namespace_residue(namespace_patch: &NamespacePatch) -> HashMap<String, St
 }
 
 /// Extract runtime residue from mount
-pub fn runtime_residue(runtime_mount: &RuntimeMount) -> HashMap<String, String> {
+pub fn runtime_residue(runtime_mount: &dyn RecordProvider) -> HashMap<String, String> {
     let mut residue = HashMap::new();
     if let Some(record) = runtime_mount.to_record() {
         residue.insert(
@@ -160,7 +163,7 @@ pub fn not_published_diagnostics() -> HashMap<String, String> {
 
 /// Generate graph signature
 pub fn graph_signature(graph: &dyn GraphVersion) -> String {
-    graph.version().unwrap_or("unknown".to_string())
+    graph.version().unwrap_or_else(|| "unknown".to_string())
 }
 
 pub trait GraphVersion {
@@ -173,26 +176,16 @@ pub trait RecordProvider {
     fn to_record(&self) -> Option<Value>;
 }
 
-#[derive(Debug, Clone)]
-pub struct AdditiveReloadApplyResult {
-    pub status: String,
-    pub stage: String,
-    pub plan_class: String,
-    pub old_graph_version: Option<String>,
-    pub target_graph_version: Option<String>,
-    pub published_graph_version: Option<String>,
-    pub old_config_signature: String,
-    pub new_config_signature: String,
-    pub plan: HashMap<String, Value>,
-    pub namespace_patch: Option<Value>,
-    pub runtime_mount: Option<Value>,
-    pub publish_transaction: Option<Value>,
-    pub diagnostics: HashMap<String, String>,
+impl GraphVersion for crate::reload_apply_models::ServiceGraph {
+    fn version(&self) -> Option<String> {
+        self.version.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct NamespacePatch {
     pub status: String,
+    pub diagnostics: serde_json::Value,
 }
 impl StatusProvider for NamespacePatch {
     fn status(&self) -> String {
@@ -201,13 +194,17 @@ impl StatusProvider for NamespacePatch {
 }
 impl RecordProvider for NamespacePatch {
     fn to_record(&self) -> Option<Value> {
-        None
+        let mut map = serde_json::Map::new();
+        map.insert("status".to_string(), serde_json::json!(self.status.clone()));
+        map.insert("diagnostics".to_string(), self.diagnostics.clone());
+        Some(Value::Object(map))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RuntimeMount {
     pub status: String,
+    pub diagnostics: serde_json::Value,
 }
 impl StatusProvider for RuntimeMount {
     fn status(&self) -> String {
@@ -216,13 +213,17 @@ impl StatusProvider for RuntimeMount {
 }
 impl RecordProvider for RuntimeMount {
     fn to_record(&self) -> Option<Value> {
-        None
+        let mut map = serde_json::Map::new();
+        map.insert("status".to_string(), serde_json::json!(self.status.clone()));
+        map.insert("diagnostics".to_string(), self.diagnostics.clone());
+        Some(Value::Object(map))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct PublishTransaction {
     pub status: String,
+    pub diagnostics: serde_json::Value,
 }
 impl StatusProvider for PublishTransaction {
     fn status(&self) -> String {
@@ -231,6 +232,9 @@ impl StatusProvider for PublishTransaction {
 }
 impl RecordProvider for PublishTransaction {
     fn to_record(&self) -> Option<Value> {
-        None
+        let mut map = serde_json::Map::new();
+        map.insert("status".to_string(), serde_json::json!(self.status.clone()));
+        map.insert("diagnostics".to_string(), self.diagnostics.clone());
+        Some(Value::Object(map))
     }
 }

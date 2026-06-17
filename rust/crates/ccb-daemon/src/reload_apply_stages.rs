@@ -1,6 +1,7 @@
 //! Mirrors Python `lib/ccbd/reload_apply_stages.py`.
 //! 1:1 file alignment stub.
 
+use crate::reload_apply_models::AdditiveReloadApplyResult;
 use crate::reload_apply_results::{
     self, message_of, namespace_residue, not_published_diagnostics, reason_of, runtime_residue,
     status_of, GraphVersion, NamespacePatch, PublishTransaction, RuntimeMount,
@@ -13,7 +14,7 @@ pub fn namespace_patch_failed(
     target_graph: &dyn GraphVersion,
     plan: &HashMap<String, serde_json::Value>,
     namespace_patch: &NamespacePatch,
-) -> reload_apply_results::AdditiveReloadApplyResult {
+) -> AdditiveReloadApplyResult {
     let status = if status_of(namespace_patch) == "blocked" {
         "blocked"
     } else {
@@ -57,7 +58,7 @@ pub fn runtime_mount_failed(
     plan: &HashMap<String, serde_json::Value>,
     namespace_patch: &NamespacePatch,
     runtime_mount: &RuntimeMount,
-) -> reload_apply_results::AdditiveReloadApplyResult {
+) -> AdditiveReloadApplyResult {
     let status = if status_of(runtime_mount) == "blocked" {
         "blocked"
     } else {
@@ -106,7 +107,7 @@ pub fn publish_failed(
     namespace_patch: &NamespacePatch,
     runtime_mount: &RuntimeMount,
     transaction: &PublishTransaction,
-) -> reload_apply_results::AdditiveReloadApplyResult {
+) -> AdditiveReloadApplyResult {
     let status = if status_of(transaction) == "blocked" {
         "blocked"
     } else {
@@ -149,20 +150,37 @@ pub fn publish_failed(
 
 /// Execute the publish stage
 pub fn publish_stage(
-    _app: &dyn CcbdApp,
+    _app: &mut crate::app::CcbdApp,
     old_graph: &dyn GraphVersion,
     target_graph: &dyn GraphVersion,
     plan: &HashMap<String, serde_json::Value>,
-    _namespace: &NamespaceContext,
+    _namespace: &crate::services::project_namespace::ProjectNamespace,
     namespace_patch: &NamespacePatch,
     runtime_mount: &RuntimeMount,
-    _publish_transaction_fn: &dyn PublishTransactionFn,
-    _publish_graph_fn: &dyn PublishGraphFn,
-    _update_lease_config_signature_fn: &dyn UpdateLeaseConfigSignatureFn,
-    _update_lifecycle_config_signature_fn: &dyn UpdateLifecycleConfigSignatureFn,
-) -> reload_apply_results::AdditiveReloadApplyResult {
+    publish_transaction_fn: Option<
+        &dyn Fn(
+            &mut crate::app::CcbdApp,
+            &crate::reload_apply_models::ServiceGraph,
+            &crate::reload_transaction_context::TransactionContext,
+            crate::reload_apply_namespace::NamespacePatchContext,
+        ) -> crate::reload_transaction_models::ReloadPublishTransactionResult,
+    >,
+    _publish_graph_fn: Option<
+        &dyn Fn(&mut crate::app::CcbdApp, &crate::reload_apply_models::ServiceGraph),
+    >,
+    _update_lease_config_signature_fn: Option<
+        &dyn Fn(&mut crate::app::CcbdApp, &str, u64) -> Option<serde_json::Value>,
+    >,
+    _update_lifecycle_config_signature_fn: Option<
+        &dyn Fn(&mut crate::app::CcbdApp, &str, Option<u64>, u64) -> Option<serde_json::Value>,
+    >,
+) -> AdditiveReloadApplyResult {
     let mut diagnostics = HashMap::new();
     diagnostics.insert("reason".to_string(), "publish_success".to_string());
+
+    if publish_transaction_fn.is_some() {
+        diagnostics.insert("transaction_injected".to_string(), "true".to_string());
+    }
 
     reload_apply_results::stage_result(
         "published",
@@ -176,10 +194,3 @@ pub fn publish_stage(
         diagnostics,
     )
 }
-
-pub struct NamespaceContext;
-pub trait CcbdApp {}
-pub trait PublishTransactionFn {}
-pub trait PublishGraphFn {}
-pub trait UpdateLeaseConfigSignatureFn {}
-pub trait UpdateLifecycleConfigSignatureFn {}
