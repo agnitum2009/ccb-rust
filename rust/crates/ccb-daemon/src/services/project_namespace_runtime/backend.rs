@@ -175,6 +175,80 @@ impl Backend {
             )))
         }
     }
+
+}
+
+impl ccb_terminal::layouts::TmuxLayoutBackend for Backend {
+    fn get_current_pane_id(&self) -> anyhow::Result<String> {
+        ccb_terminal::layouts::TmuxLayoutBackend::get_current_pane_id(&self.tmux)
+    }
+
+    fn is_alive(&self, pane_id: &str) -> bool {
+        ccb_terminal::layouts::TmuxLayoutBackend::is_alive(&self.tmux, pane_id)
+    }
+
+    fn create_pane(
+        &self,
+        cmd: &str,
+        cwd: &str,
+        direction: &str,
+        percent: u32,
+        parent_pane: Option<&str>,
+    ) -> anyhow::Result<String> {
+        ccb_terminal::layouts::TmuxLayoutBackend::create_pane(
+            &self.tmux,
+            cmd,
+            cwd,
+            direction,
+            percent,
+            parent_pane,
+        )
+    }
+
+    fn split_pane(
+        &self,
+        parent_pane_id: &str,
+        direction: &str,
+        percent: u32,
+    ) -> anyhow::Result<String> {
+        ccb_terminal::layouts::TmuxLayoutBackend::split_pane(
+            &self.tmux,
+            parent_pane_id,
+            direction,
+            percent,
+        )
+    }
+
+    fn set_pane_title(&self, pane_id: &str, title: &str) {
+        ccb_terminal::layouts::TmuxLayoutBackend::set_pane_title(&self.tmux, pane_id, title);
+    }
+
+    fn set_pane_user_option(&self, pane_id: &str, name: &str, value: &str) {
+        ccb_terminal::layouts::TmuxLayoutBackend::set_pane_user_option(
+            &self.tmux,
+            pane_id,
+            name,
+            value,
+        );
+    }
+
+    fn set_pane_style(
+        &self,
+        pane_id: &str,
+        border_style: Option<&str>,
+        active_border_style: Option<&str>,
+    ) {
+        ccb_terminal::layouts::TmuxLayoutBackend::set_pane_style(
+            &self.tmux,
+            pane_id,
+            border_style,
+            active_border_style,
+        );
+    }
+
+    fn tmux_run(&self, args: &[&str], check: bool, capture: bool) -> anyhow::Result<String> {
+        ccb_terminal::layouts::TmuxLayoutBackend::tmux_run(&self.tmux, args, check, capture)
+    }
 }
 
 /// Build a backend bound to `socket_path`.

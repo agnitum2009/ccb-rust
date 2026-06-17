@@ -6,10 +6,15 @@ use std::collections::HashMap;
 use crate::DaemonError;
 use crate::Result;
 use crate::services::project_namespace_runtime::backend::kill_server;
+#[allow(unused_imports)]
 use crate::services::project_namespace_runtime::ensure_context::{
     load_namespace_context, rebuild_namespace_backend, refresh_session_liveness, Clock,
     EventStore, LayoutConfig, NamespaceController, NamespaceEnsureContext, NamespaceState,
-    NamespaceWindowPlan, SidebarPanePlan, StateStore, TopologyPlan,
+    NamespaceWindowPlan, StateStore, TopologyPlan,
+};
+use crate::services::project_namespace_runtime::materialize_topology::{
+    existing_topology_agent_panes, materialize_topology, refresh_topology_ui_for_project,
+    topology_active_panes, topology_recreate_reason,
 };
 use crate::services::project_namespace_runtime::models::ProjectNamespace;
 use crate::services::project_namespace_runtime::records::{
@@ -285,117 +290,6 @@ fn apply_namespace_identity(
     _tmux_session_name: &str,
 ) -> Result<()> {
     // Placeholder: real implementation lives in `ensure_identity.py` / `ensure_identity.rs`.
-    Ok(())
-}
-
-// Placeholder helpers mirroring Python `materialize_topology.py` ---------------------
-
-fn materialize_topology(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    topology_plan: &TopologyPlan,
-    _epoch: i64,
-    _terminal_size: Option<(i32, i32)>,
-    _timeout_s: Option<f64>,
-) -> Result<HashMap<String, String>> {
-    // Placeholder: real implementation lives in `materialize_topology.py` / `materialize_topology.rs`.
-    // Returns an empty map; a real implementation would split panes and return agent ids.
-    let _ = topology_plan;
-    Ok(HashMap::new())
-}
-
-fn existing_topology_agent_panes(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    _topology_plan: &TopologyPlan,
-) -> HashMap<String, String> {
-    HashMap::new()
-}
-
-fn topology_active_panes(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    _topology_plan: &TopologyPlan,
-) -> Vec<String> {
-    Vec::new()
-}
-
-fn topology_recreate_reason(
-    _controller: &NamespaceController,
-    context: &NamespaceEnsureContext,
-    _topology_plan: &TopologyPlan,
-) -> Option<String> {
-    if let Some(current) = &context.current {
-        let current_workspace = current
-            .workspace_window_name
-            .clone()
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-        if !current_workspace.is_empty() && current_workspace != context.desired_workspace_window_name {
-            return Some("topology_workspace_changed".to_string());
-        }
-    }
-    None
-}
-
-fn refresh_topology_ui_for_project(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    _topology_plan: &TopologyPlan,
-    _timeout_s: Option<f64>,
-) -> Result<()> {
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn materialize_sidebar(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    window: &NamespaceWindowPlan,
-    root_pane: &str,
-    _epoch: i64,
-    _timeout_s: Option<f64>,
-) -> Result<String> {
-    match &window.sidebar {
-        Some(_sidebar) => {
-            // Placeholder: real implementation splits the pane.
-            // Returning the original root pane keeps the flow intact for tests.
-            Ok(root_pane.to_string())
-        }
-        None => Ok(root_pane.to_string()),
-    }
-}
-
-#[allow(dead_code)]
-fn materialize_agent_layout(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    window: &NamespaceWindowPlan,
-    _user_root: &str,
-    _epoch: i64,
-    _timeout_s: Option<f64>,
-) -> Result<HashMap<String, String>> {
-    if window.kind == "tool" {
-        return Ok(HashMap::new());
-    }
-    // Placeholder: real implementation parses `window.user_layout` and splits panes.
-    Ok(HashMap::new())
-}
-
-#[allow(dead_code)]
-fn materialize_tool_window(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    window: &NamespaceWindowPlan,
-    _user_root: &str,
-    _epoch: i64,
-    _timeout_s: Option<f64>,
-) -> Result<()> {
-    if window.kind != "tool" {
-        return Ok(());
-    }
-    // Placeholder: real implementation respawns the pane with the tool command.
     Ok(())
 }
 
