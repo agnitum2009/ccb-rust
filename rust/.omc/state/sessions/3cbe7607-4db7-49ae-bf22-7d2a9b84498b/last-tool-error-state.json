@@ -1,7 +1,7 @@
 {
   "tool_name": "Read",
-  "tool_input_preview": "{\"file_path\":\"/home/agnitum/ccb/rust/crates/ccb-daemon/src/project_focus.rs\",\"limit\":50}",
-  "error": "File does not exist. Note: your current working directory is /home/agnitum/ccb/rust. Did you mean project_focus?",
-  "timestamp": "2026-06-15T02:44:04.231Z",
+  "tool_input_preview": "{\"file_path\":\"/home/agnitum/ccb/lib/ccbd/models_runtime.py\",\"offset\":1,\"limit\":200}",
+  "error": "File does not exist. Note: your current working directory is /home/agnitum/ccb/rust. Did you mean models_runtime?",
+  "timestamp": "2026-06-15T10:15:23.900Z",
   "retry_count": 2
 }

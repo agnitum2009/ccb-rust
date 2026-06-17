@@ -9,7 +9,9 @@ use std::collections::{HashMap, HashSet};
 
 use ccb_agents::models::ProjectConfig;
 
-use crate::reload_append_layout::{rightmost_leaf_append_plan, AppendAgentPlan, WindowLayoutAccess};
+use crate::reload_append_layout::{
+    rightmost_leaf_append_plan, AppendAgentPlan, WindowLayoutAccess,
+};
 use crate::reload_plan::{NamespacePatchStep, ReloadOperation};
 
 #[derive(Debug, Clone)]

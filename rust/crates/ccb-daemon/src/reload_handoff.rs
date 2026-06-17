@@ -94,9 +94,14 @@ impl ReloadHandoff {
 
     pub fn from_record(record: &serde_json::Map<String, serde_json::Value>) -> Self {
         if record.get("schema_version")
-            != Some(&serde_json::json!(crate::models::api_models::common::SCHEMA_VERSION))
+            != Some(&serde_json::json!(
+                crate::models::api_models::common::SCHEMA_VERSION
+            ))
         {
-            panic!("schema_version must be {}", crate::models::api_models::common::SCHEMA_VERSION);
+            panic!(
+                "schema_version must be {}",
+                crate::models::api_models::common::SCHEMA_VERSION
+            );
         }
         if record.get("record_type") != Some(&serde_json::json!(RECORD_TYPE)) {
             panic!("record_type must be '{RECORD_TYPE}'");
@@ -195,7 +200,11 @@ pub fn begin_reload_handoff(
             .get("config_signature")
             .and_then(|v| v.as_str()),
     );
-    let target_signature = clean_text(target_config_identity.get("config_signature").and_then(|v| v.as_str()));
+    let target_signature = clean_text(
+        target_config_identity
+            .get("config_signature")
+            .and_then(|v| v.as_str()),
+    );
     let old_signature = old_signature?;
     let target_signature = target_signature?;
     if old_signature == target_signature {
@@ -377,15 +386,7 @@ mod tests {
         let app = stub_app(&dir);
         let store = ReloadHandoffStore::new(&app.layout);
         assert!(store.load().unwrap().is_none());
-        let handoff = ReloadHandoff::new(
-            "p1",
-            "2024-01-01T00:00:00Z",
-            "old",
-            "new",
-            1,
-            "inst",
-            1,
-        );
+        let handoff = ReloadHandoff::new("p1", "2024-01-01T00:00:00Z", "old", "new", 1, "inst", 1);
         store.save(&handoff).unwrap();
         let loaded = store.load().unwrap();
         assert!(loaded.is_some());
@@ -417,15 +418,7 @@ mod tests {
 
     #[test]
     fn test_handoff_age_valid() {
-        let handoff = ReloadHandoff::new(
-            "p1",
-            "2024-01-01T00:00:00Z",
-            "old",
-            "new",
-            1,
-            "inst",
-            1,
-        );
+        let handoff = ReloadHandoff::new("p1", "2024-01-01T00:00:00Z", "old", "new", 1, "inst", 1);
         assert!(handoff_age_valid(&handoff, "2024-01-01T00:00:30Z"));
         assert!(!handoff_age_valid(&handoff, "2024-01-01T00:02:00Z"));
         assert!(!handoff_age_valid(&handoff, "not-a-timestamp"));

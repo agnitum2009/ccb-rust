@@ -18,7 +18,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd /home/agnitum/ccb/rust\ncargo build -p ccb-daemon 2>&1 | grep -B2 -A5 \"E0277\\|E0308\" | grep -v \"terminal\\|api_selection\" | head -20",
+    "buildCommand": "echo \"=== facade.rs:48-60 ===\" && sed -n '48,60p' crates/ccb-cli/src/services/daemon_runtime/facade.rs && echo \"=== keeper.rs:258-272 ===\" && sed -n '258,272p' crates/ccb-cli/src/services/daemon_runtime/keeper.rs && echo \"=== facade error detail ===\" && cargo build -p ccb-cli 2>&1 | grep -A12 \"facade.rs:53\" | head -16",
     "testCommand": "cargo test -p ccb-daemon -- --test-threads=1 2>&1 | grep -E \"(test result|running)\"",
     "lintCommand": "cargo clippy",
     "devCommand": "cargo run",
@@ -109,6 +109,12 @@
       "path": "crates/ccb-cli/src/commands.rs",
       "accessCount": 8,
       "lastAccessed": 1781438095107,
+      "type": "file"
+    },
+    {
+      "path": "crates/ccb-cli/src/lib.rs",
+      "accessCount": 8,
+      "lastAccessed": 1781505311113,
       "type": "file"
     },
     {
@@ -205,12 +211,6 @@
       "path": "crates/ccb-agents/src/role_aliases.rs",
       "accessCount": 3,
       "lastAccessed": 1781424532692,
-      "type": "file"
-    },
-    {
-      "path": "crates/ccb-cli/src/lib.rs",
-      "accessCount": 3,
-      "lastAccessed": 1781424579886,
       "type": "file"
     },
     {

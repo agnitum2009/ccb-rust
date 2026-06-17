@@ -384,14 +384,13 @@ impl DrainQueue {
 
     pub fn enqueue(&self, intent: &DrainIntent, now_s: f64) -> DrainQueueResult {
         if now_s > intent.created_at_s + self.bounds.max_age_s {
-            let expired =
-                DrainRecord::pending(intent, &self.bounds, now_s).with_transition(
-                    "draining",
-                    "timed_out",
-                    now_s,
-                    "intent age exceeds max_age_s",
-                    None,
-                );
+            let expired = DrainRecord::pending(intent, &self.bounds, now_s).with_transition(
+                "draining",
+                "timed_out",
+                now_s,
+                "intent age exceeds max_age_s",
+                None,
+            );
             return DrainQueueResult {
                 queue: self.clone(),
                 record: expired,
@@ -626,7 +625,10 @@ pub fn drain_intent_suggestions_for_reload_operations(
         suggestion.insert("intent_id".to_string(), serde_json::json!(intent_id));
         suggestion.insert("intent_kind".to_string(), serde_json::json!(intent_kind));
         suggestion.insert("agent".to_string(), serde_json::json!(agent_name));
-        suggestion.insert("initial_phase".to_string(), serde_json::json!(initial_phase));
+        suggestion.insert(
+            "initial_phase".to_string(),
+            serde_json::json!(initial_phase),
+        );
         suggestion.insert("dry_run_only".to_string(), serde_json::json!(true));
         suggestion.insert("reason".to_string(), serde_json::json!(reason));
         suggestions.push(suggestion);
@@ -706,13 +708,7 @@ mod tests {
     fn test_drain_record_terminal() {
         let record = DrainRecord::pending(&sample_intent(), &sample_bounds(), 1000.0);
         assert!(!record.terminal());
-        let timed_out = record.with_transition(
-            "draining",
-            "timed_out",
-            1001.0,
-            "timeout",
-            None,
-        );
+        let timed_out = record.with_transition("draining", "timed_out", 1001.0, "timeout", None);
         assert!(timed_out.terminal());
     }
 
@@ -752,13 +748,10 @@ mod tests {
         let queue = DrainQueue::empty(Some(sample_bounds()));
         let intent = sample_intent();
         let enqueued = queue.enqueue(&intent, 1000.0);
-        let record = enqueued.record.with_transition(
-            "draining",
-            "waiting",
-            1001.0,
-            "busy",
-            Some(true),
-        );
+        let record =
+            enqueued
+                .record
+                .with_transition("draining", "waiting", 1001.0, "busy", Some(true));
         let replaced = enqueued.queue.replace_record(&record);
         assert_eq!(replaced.records[0].status, "waiting");
         assert_eq!(replaced.records[0].transition_count, 1);
@@ -776,13 +769,7 @@ mod tests {
     #[test]
     fn test_plan_drain_transition_idle_ready_unchanged() {
         let record = DrainRecord::pending(&sample_intent(), &sample_bounds(), 1000.0)
-            .with_transition(
-                "retiring",
-                "idle_ready",
-                1001.0,
-                "ready",
-                Some(false),
-            );
+            .with_transition("retiring", "idle_ready", 1001.0, "ready", Some(false));
         let next = plan_drain_transition(&record, 1002.0, &|_| true);
         assert_eq!(next.status, "idle_ready");
         assert_eq!(next.transition_count, record.transition_count);
@@ -806,7 +793,8 @@ mod tests {
 
     #[test]
     fn test_plan_drain_transition_timeout() {
-        let record = DrainRecord::pending(&sample_intent(), &DrainBounds::new(1, 5.0, 60.0), 1000.0);
+        let record =
+            DrainRecord::pending(&sample_intent(), &DrainBounds::new(1, 5.0, 60.0), 1000.0);
         let next = plan_drain_transition(&record, 1006.0, &|_| false);
         assert_eq!(next.status, "timed_out");
     }
@@ -814,13 +802,7 @@ mod tests {
     #[test]
     fn test_retire_record() {
         let record = DrainRecord::pending(&sample_intent(), &sample_bounds(), 1000.0)
-            .with_transition(
-                "retiring",
-                "idle_ready",
-                1001.0,
-                "ready",
-                Some(false),
-            );
+            .with_transition("retiring", "idle_ready", 1001.0, "ready", Some(false));
         let retired = retire_record(&record, 1002.0);
         assert_eq!(retired.status, "retired");
         assert_eq!(retired.phase, "retired");

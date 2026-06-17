@@ -9,27 +9,25 @@ use crate::reload_apply_results::{
 use std::collections::HashMap;
 
 /// Custom publish-transaction implementation.
-type PublishTransactionFn<'a> = &'a dyn Fn(
-    &mut crate::app::CcbdApp,
-    &crate::reload_apply_models::ServiceGraph,
-    &crate::reload_transaction_context::TransactionContext,
-    crate::reload_apply_namespace::NamespacePatchContext,
-) -> crate::reload_transaction_models::ReloadPublishTransactionResult;
+type PublishTransactionFn<'a> =
+    &'a dyn Fn(
+        &mut crate::app::CcbdApp,
+        &crate::reload_apply_models::ServiceGraph,
+        &crate::reload_transaction_context::TransactionContext,
+        crate::reload_apply_namespace::NamespacePatchContext,
+    ) -> crate::reload_transaction_models::ReloadPublishTransactionResult;
 
 /// Custom graph-publishing implementation.
-type PublishGraphFn<'a> = &'a dyn Fn(&mut crate::app::CcbdApp, &crate::reload_apply_models::ServiceGraph);
+type PublishGraphFn<'a> =
+    &'a dyn Fn(&mut crate::app::CcbdApp, &crate::reload_apply_models::ServiceGraph);
 
 /// Lease config signature updater.
 type UpdateLeaseConfigSignatureFn<'a> =
     &'a dyn Fn(&mut crate::app::CcbdApp, &str, u64) -> Option<serde_json::Value>;
 
 /// Lifecycle config signature updater.
-type UpdateLifecycleConfigSignatureFn<'a> = &'a dyn Fn(
-    &mut crate::app::CcbdApp,
-    &str,
-    Option<u64>,
-    u64,
-) -> Option<serde_json::Value>;
+type UpdateLifecycleConfigSignatureFn<'a> =
+    &'a dyn Fn(&mut crate::app::CcbdApp, &str, Option<u64>, u64) -> Option<serde_json::Value>;
 
 /// Generate a failed namespace patch stage result
 pub fn namespace_patch_failed(

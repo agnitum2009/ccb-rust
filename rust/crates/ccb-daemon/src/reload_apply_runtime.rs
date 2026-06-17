@@ -9,12 +9,8 @@ use crate::services::project_namespace::ProjectNamespace;
 pub const PUBLISH_READY_RUNTIME_STATUSES: &[&str] = &["applied", "mounted"];
 
 /// Custom runtime mount implementation.
-type RunRuntimeMountFn<'a> = &'a dyn Fn(
-    &ServiceGraph,
-    &ServiceGraph,
-    &ProjectNamespace,
-    &NamespacePatch,
-) -> RuntimeMount;
+type RunRuntimeMountFn<'a> =
+    &'a dyn Fn(&ServiceGraph, &ServiceGraph, &ProjectNamespace, &NamespacePatch) -> RuntimeMount;
 
 /// Mount or verify runtime state for the target graph.
 pub fn run_runtime_mount(

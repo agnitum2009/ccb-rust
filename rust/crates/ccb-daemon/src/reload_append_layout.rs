@@ -109,8 +109,16 @@ fn trailing_sequence_append_plan(
     old_node: &LayoutNode,
     new_node: &LayoutNode,
 ) -> Option<Vec<AppendAgentPlan>> {
-    let old_leaves: Vec<String> = old_node.iter_leaves().iter().map(|l| l.name.clone()).collect();
-    let new_leaves: Vec<String> = new_node.iter_leaves().iter().map(|l| l.name.clone()).collect();
+    let old_leaves: Vec<String> = old_node
+        .iter_leaves()
+        .iter()
+        .map(|l| l.name.clone())
+        .collect();
+    let new_leaves: Vec<String> = new_node
+        .iter_leaves()
+        .iter()
+        .map(|l| l.name.clone())
+        .collect();
     if old_leaves.is_empty() || new_leaves[..old_leaves.len()] != old_leaves {
         return None;
     }

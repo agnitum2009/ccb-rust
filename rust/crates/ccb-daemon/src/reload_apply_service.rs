@@ -40,12 +40,13 @@ type RunRuntimeMountFn<'a> = &'a dyn Fn(
 type RunStartFlowFn<'a> = &'a dyn Fn(&ServiceGraph);
 
 /// Custom publish-transaction implementation.
-type PublishTransactionFn<'a> = &'a dyn Fn(
-    &mut CcbdApp,
-    &ServiceGraph,
-    &crate::reload_transaction_context::TransactionContext,
-    NamespacePatchContext,
-) -> crate::reload_transaction_models::ReloadPublishTransactionResult;
+type PublishTransactionFn<'a> =
+    &'a dyn Fn(
+        &mut CcbdApp,
+        &ServiceGraph,
+        &crate::reload_transaction_context::TransactionContext,
+        NamespacePatchContext,
+    ) -> crate::reload_transaction_models::ReloadPublishTransactionResult;
 
 /// Custom graph-publishing implementation.
 type PublishGraphFn<'a> = &'a dyn Fn(&mut CcbdApp, &ServiceGraph);
@@ -54,12 +55,8 @@ type PublishGraphFn<'a> = &'a dyn Fn(&mut CcbdApp, &ServiceGraph);
 type UpdateLeaseConfigSignatureFn<'a> = &'a dyn Fn(&mut CcbdApp, &str, u64) -> Option<Value>;
 
 /// Lifecycle config signature updater.
-type UpdateLifecycleConfigSignatureFn<'a> = &'a dyn Fn(
-    &mut CcbdApp,
-    &str,
-    Option<u64>,
-    u64,
-) -> Option<Value>;
+type UpdateLifecycleConfigSignatureFn<'a> =
+    &'a dyn Fn(&mut CcbdApp, &str, Option<u64>, u64) -> Option<Value>;
 
 /// Run an additive reload apply under the optional maintenance lock.
 ///
@@ -130,9 +127,7 @@ fn run_locked(
             &old_graph_value(&old_graph),
             &plan_json,
             &blocker,
-            &namespace_diagnostics
-                .into_iter()
-                .collect(),
+            &namespace_diagnostics.into_iter().collect(),
         );
     }
 
@@ -141,9 +136,7 @@ fn run_locked(
             &old_graph_value(&old_graph),
             &plan_json,
             &blocker,
-            &namespace_diagnostics
-                .into_iter()
-                .collect(),
+            &namespace_diagnostics.into_iter().collect(),
         );
     }
 

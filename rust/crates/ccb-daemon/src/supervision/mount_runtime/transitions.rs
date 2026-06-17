@@ -17,11 +17,8 @@ type MountAgentFn<'a> = &'a dyn Fn(&str) -> Result<(), MountActionError>;
 type RemountProjectFn<'a> = &'a dyn Fn(&str) -> Result<(), MountActionError>;
 
 /// Factory that builds a starting runtime for a new mount attempt.
-type BuildStartingRuntimeFn<'a> = &'a dyn Fn(
-    &str,
-    Option<&AgentRuntime>,
-    &str,
-) -> crate::Result<AgentRuntime>;
+type BuildStartingRuntimeFn<'a> =
+    &'a dyn Fn(&str, Option<&AgentRuntime>, &str) -> crate::Result<AgentRuntime>;
 
 /// Returns `true` when neither per-agent nor project-wide mount actions are available.
 pub fn mount_actions_missing(

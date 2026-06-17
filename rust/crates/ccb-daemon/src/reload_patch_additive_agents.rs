@@ -10,15 +10,8 @@ use serde_json::json;
 use std::collections::HashMap;
 
 /// Factory for additive namespace patch steps.
-type StepFactoryFn<'a> = &'a dyn Fn(
-    &str,
-    &str,
-    &str,
-    &str,
-    &str,
-    Option<&str>,
-    &str,
-) -> NamespacePatchStep;
+type StepFactoryFn<'a> =
+    &'a dyn Fn(&str, &str, &str, &str, &str, Option<&str>, &str) -> NamespacePatchStep;
 
 /// A single blocked additive step with a human-readable reason.
 #[derive(Debug, Clone)]
@@ -53,12 +46,7 @@ pub(crate) fn additive_agent_steps(
             Some(w) => *w,
             None => continue,
         };
-        let result = steps_for_window(
-            window_name,
-            old_window,
-            new_window,
-            step_factory,
-        );
+        let result = steps_for_window(window_name, old_window, new_window, step_factory);
         steps.extend(result.steps);
         blocked.extend(result.blocked);
     }

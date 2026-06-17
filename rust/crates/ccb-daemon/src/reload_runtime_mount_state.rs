@@ -4,7 +4,9 @@ use crate::reload_runtime_mount_validation::AgentRecord;
 use std::collections::HashMap;
 
 /// Extract a map of agent names to pane ids from a record.
-pub fn agent_panes_from_record(value: &serde_json::Map<String, serde_json::Value>) -> HashMap<String, String> {
+pub fn agent_panes_from_record(
+    value: &serde_json::Map<String, serde_json::Value>,
+) -> HashMap<String, String> {
     let mut panes = HashMap::new();
     for (agent, pane) in value {
         let agent_name = agent.trim();
@@ -118,7 +120,9 @@ pub fn summary_started(summary: Option<&serde_json::Value>, fallback: &[String])
                     if let Some(name) = v.as_str() {
                         Some(name.to_string())
                     } else {
-                        v.get("agent_name").and_then(|n| n.as_str()).map(|s| s.to_string())
+                        v.get("agent_name")
+                            .and_then(|n| n.as_str())
+                            .map(|s| s.to_string())
                     }
                 })
                 .collect();
@@ -237,7 +241,8 @@ mod tests {
     #[test]
     fn test_runtime_snapshots() {
         let registry = test_registry();
-        let snapshots = runtime_snapshots(&registry, &["claude".to_string(), "missing".to_string()]);
+        let snapshots =
+            runtime_snapshots(&registry, &["claude".to_string(), "missing".to_string()]);
         assert!(snapshots.contains_key("claude"));
         assert!(snapshots.get("claude").unwrap().is_some());
         assert!(snapshots.get("missing").unwrap().is_none());
@@ -246,11 +251,8 @@ mod tests {
     #[test]
     fn test_runtime_guard_agents() {
         let registry = test_registry();
-        let guarded = runtime_guard_agents(
-            &registry,
-            &["claude".to_string()],
-            &["gemini".to_string()],
-        );
+        let guarded =
+            runtime_guard_agents(&registry, &["claude".to_string()], &["gemini".to_string()]);
         assert!(guarded.contains(&"gemini".to_string()));
         assert!(guarded.contains(&"codex".to_string()));
         assert!(!guarded.contains(&"claude".to_string()));

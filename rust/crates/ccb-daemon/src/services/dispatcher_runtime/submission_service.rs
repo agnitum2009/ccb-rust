@@ -246,9 +246,9 @@ pub fn latest_attempts_by_agent<D: Dispatcher>(
 
     let mut by_agent: HashMap<String, AttemptRecord> = HashMap::new();
     for record in by_attempt_id.into_values() {
-        let keep = by_agent.get(&record.agent_name).is_none_or(|current| {
-            attempt_sort_key(&record) > attempt_sort_key(current)
-        });
+        let keep = by_agent
+            .get(&record.agent_name)
+            .is_none_or(|current| attempt_sort_key(&record) > attempt_sort_key(current));
         if keep {
             by_agent.insert(record.agent_name.clone(), record);
         }

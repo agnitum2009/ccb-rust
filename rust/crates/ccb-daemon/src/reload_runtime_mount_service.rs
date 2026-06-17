@@ -10,8 +10,8 @@ use crate::reload_runtime_mount_state::{
 };
 use crate::reload_runtime_mount_validation::{
     blocked_mount_reason, existing_runtime_agents, AgentConfig as ValidationAgentConfig,
-    AgentRecord, GraphConfig as ValidationGraphConfig, NamespaceState, RuntimeSupervisor as ValidationRuntimeSupervisor,
-    ServiceGraph as ValidationServiceGraph,
+    AgentRecord, GraphConfig as ValidationGraphConfig, NamespaceState,
+    RuntimeSupervisor as ValidationRuntimeSupervisor, ServiceGraph as ValidationServiceGraph,
 };
 use crate::services::project_namespace::ProjectNamespace;
 use crate::services::project_namespace_runtime::models::NamespacePatchApplyResult;
@@ -33,11 +33,7 @@ type RunStartFlowFn<'a> = &'a dyn Fn(
 ) -> Result<StartFlowResult, String>;
 
 /// Prepared additive mount context: pane map, requested agents, preserved agents.
-type MountContext = (
-    HashMap<String, String>,
-    Vec<String>,
-    Vec<String>,
-);
+type MountContext = (HashMap<String, String>, Vec<String>, Vec<String>);
 
 /// Registry adapter used during additive runtime mounts.
 pub struct AdditiveMountRegistry<'a> {
@@ -73,12 +69,24 @@ fn records_from_snapshots(
         .iter()
         .map(|(agent, record)| {
             let rec = record.as_ref().map(|v| AgentRecord {
-                    state: v.get("state").and_then(|s| s.as_str()).map(|s| s.to_string()),
-                    health: v.get("health").and_then(|s| s.as_str()).map(|s| s.to_string()),
-                    desired_state: v.get("desired_state").and_then(|s| s.as_str()).map(|s| s.to_string()),
-                    reconcile_state: v.get("reconcile_state").and_then(|s| s.as_str()).map(|s| s.to_string()),
-                    fields: HashMap::new(),
-                });
+                state: v
+                    .get("state")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string()),
+                health: v
+                    .get("health")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string()),
+                desired_state: v
+                    .get("desired_state")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string()),
+                reconcile_state: v
+                    .get("reconcile_state")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s.to_string()),
+                fields: HashMap::new(),
+            });
             (agent.clone(), rec)
         })
         .collect()
@@ -113,7 +121,9 @@ pub fn run_additive_agent_mounts(
         return noop_mount_result(&preserved_agents);
     }
 
-    let registry = AdditiveMountRegistry { inner: &app.registry };
+    let registry = AdditiveMountRegistry {
+        inner: &app.registry,
+    };
     let before_new = runtime_snapshots(&registry, &requested_agents);
     let before_new_records = records_from_snapshots(&before_new);
     let existing = existing_runtime_agents(&before_new_records, &requested_agents);
@@ -236,7 +246,11 @@ fn service_graph_to_validation(graph: &ServiceGraph) -> ValidationServiceGraph {
                 .collect(),
         },
         runtime_supervisor: Some(ValidationRuntimeSupervisor {
-            project_id: graph.config_identity.get("project_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            project_id: graph
+                .config_identity
+                .get("project_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
         }),
     }
 }
@@ -270,9 +284,8 @@ fn run_start_flow_and_validate(
         None => {
             return Err((
                 "runtime_mount_failed".to_string(),
-                Box::new(std::io::Error::other(
-                    "no start flow function provided",
-                )) as Box<dyn std::error::Error>,
+                Box::new(std::io::Error::other("no start flow function provided"))
+                    as Box<dyn std::error::Error>,
             ));
         }
     };
@@ -289,8 +302,7 @@ fn run_start_flow_and_validate(
     .map_err(|e| {
         (
             "runtime_mount_failed".to_string(),
-            Box::new(std::io::Error::other(e))
-                as Box<dyn std::error::Error>,
+            Box::new(std::io::Error::other(e)) as Box<dyn std::error::Error>,
         )
     })?;
 
@@ -302,7 +314,12 @@ fn run_start_flow_and_validate(
         before_new,
         &summary,
     )
-    .map_err(|e| ("preserved_runtime_authority_changed".to_string(), Box::new(e) as Box<dyn std::error::Error>))
+    .map_err(|e| {
+        (
+            "preserved_runtime_authority_changed".to_string(),
+            Box::new(e) as Box<dyn std::error::Error>,
+        )
+    })
 }
 
 fn validate_mount_result(
@@ -313,18 +330,18 @@ fn validate_mount_result(
     before_new: &HashMap<String, Option<serde_json::Value>>,
     summary: &StartFlowResult,
 ) -> Result<AdditiveRuntimeMountResult, std::io::Error> {
-    let registry = AdditiveMountRegistry { inner: &app.registry };
+    let registry = AdditiveMountRegistry {
+        inner: &app.registry,
+    };
     let after_preserved = runtime_snapshots(&registry, preserved_agents);
     let after_new = runtime_snapshots(&registry, requested_agents);
 
     let preserved_changed = changed_agents(before_preserved, &after_preserved);
     if !preserved_changed.is_empty() {
-        return Err(std::io::Error::other(
-            format!(
-                "preserved runtime authority changed: {}",
-                preserved_changed.join(",")
-            ),
-        ));
+        return Err(std::io::Error::other(format!(
+            "preserved runtime authority changed: {}",
+            preserved_changed.join(",")
+        )));
     }
 
     let missing: Vec<String> = requested_agents
@@ -333,12 +350,10 @@ fn validate_mount_result(
         .cloned()
         .collect();
     if !missing.is_empty() {
-        return Err(std::io::Error::other(
-            format!(
-                "runtime authority missing after mount: {}",
-                missing.join(",")
-            ),
-        ));
+        return Err(std::io::Error::other(format!(
+            "runtime authority missing after mount: {}",
+            missing.join(",")
+        )));
     }
 
     let summary_value = serde_json::to_value(summary).unwrap_or_default();
@@ -410,7 +425,10 @@ pub fn failed_mount_result(
     diagnostics.insert("reason".to_string(), serde_json::json!(reason));
     diagnostics.insert(
         "error_type".to_string(),
-        serde_json::json!(std::any::type_name_of_val(error).split("::").last().unwrap_or("Error")),
+        serde_json::json!(std::any::type_name_of_val(error)
+            .split("::")
+            .last()
+            .unwrap_or("Error")),
     );
     diagnostics.insert("error".to_string(), serde_json::json!(error.to_string()));
     diagnostics.insert(
@@ -486,7 +504,10 @@ pub fn mounted_result(
 /// Build a noop mount result.
 pub fn noop_mount_result(preserved_agents: &[String]) -> AdditiveRuntimeMountResult {
     let mut diagnostics = HashMap::new();
-    diagnostics.insert("reason".to_string(), serde_json::json!("no_requested_agents"));
+    diagnostics.insert(
+        "reason".to_string(),
+        serde_json::json!("no_requested_agents"),
+    );
     diagnostics.insert(
         "preserved_agents".to_string(),
         serde_json::json!(preserved_agents),
@@ -627,13 +648,8 @@ mod tests {
                 actions_taken: vec![],
             })
         };
-        let result = run_additive_agent_mounts(
-            &mut app,
-            &sample_graph(),
-            &namespace,
-            &patch,
-            Some(&run_fn),
-        );
+        let result =
+            run_additive_agent_mounts(&mut app, &sample_graph(), &namespace, &patch, Some(&run_fn));
         assert_eq!(result.status, "mounted");
     }
 
@@ -648,7 +664,10 @@ mod tests {
             None,
         );
         assert_eq!(result.status, "blocked");
-        assert_eq!(result.diagnostics.as_ref().unwrap()["reason"], "test_reason");
+        assert_eq!(
+            result.diagnostics.as_ref().unwrap()["reason"],
+            "test_reason"
+        );
         assert_eq!(
             result.diagnostics.as_ref().unwrap()["requested_agents"],
             serde_json::json!(["claude"])

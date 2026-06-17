@@ -59,16 +59,10 @@ pub fn start_options(supervisor: &CcbdApp, fallback_app: Option<&CcbdApp>) -> (b
     recovery_start_options(policy.as_ref())
 }
 
-fn namespace_window_specs(
-    app: &CcbdApp,
-    namespace: &ProjectNamespace,
-) -> Option<Vec<WindowSpec>> {
+fn namespace_window_specs(app: &CcbdApp, namespace: &ProjectNamespace) -> Option<Vec<WindowSpec>> {
     app.current_config.as_ref().and_then(|config| {
-        let expected_names: std::collections::HashSet<String> = namespace
-            .windows
-            .iter()
-            .map(|w| w.name.clone())
-            .collect();
+        let expected_names: std::collections::HashSet<String> =
+            namespace.windows.iter().map(|w| w.name.clone()).collect();
         config.windows.as_ref().map(|ws| {
             ws.iter()
                 .filter(|w| expected_names.contains(&w.name))
