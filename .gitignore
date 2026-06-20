@@ -8,7 +8,7 @@ docs/
 !docs/
 !docs/**/*.md
 docs/ppt_materials/
-tests/
+/tests/
 test/dir1/.ccb/
 .ccb_config/
 .ccb/*
