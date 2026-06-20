@@ -1,0 +1,29 @@
+{
+  "id": "06-20-rust-deep-parity",
+  "name": "06-20-rust-deep-parity",
+  "title": "Rust 深层 parity 迁移",
+  "description": "完成 provider、daemon、terminal、sidebar、cross-cutting 等深层 Rust 化与 Python 测试 parity。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "luck",
+  "assignee": "luck",
+  "createdAt": "2026-06-20",
+  "completedAt": "2026-06-20",
+  "branch": null,
+  "base_branch": "python-rust/rolepacks-versioning-translation",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "06-20-py2rust-providers-deep",
+    "py2rust-providers-health-store"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
