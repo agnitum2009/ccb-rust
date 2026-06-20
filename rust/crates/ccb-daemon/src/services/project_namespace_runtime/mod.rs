@@ -26,4 +26,5 @@ pub mod remove_patch_agents;
 pub mod remove_patch_tools;
 pub mod sidebar_helper;
 pub mod slot_replacement;
+pub mod test_support;
 pub mod topology_plan;

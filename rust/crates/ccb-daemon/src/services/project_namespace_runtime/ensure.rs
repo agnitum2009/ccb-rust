@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use crate::services::project_namespace_runtime::backend::kill_server;
+use crate::services::project_namespace_runtime::ensure_identity::prepare_namespace_root_pane;
 #[allow(unused_imports)]
 use crate::services::project_namespace_runtime::ensure_context::{
     load_namespace_context, rebuild_namespace_backend, refresh_session_liveness, Clock, EventStore,
@@ -259,32 +260,6 @@ fn next_namespace_epoch(current: Option<&NamespaceState>) -> i64 {
     current.map(|s| s.namespace_epoch + 1).unwrap_or(1)
 }
 
-// Placeholder helpers mirroring Python `ensure_identity.py` --------------------------
-
-fn prepare_namespace_root_pane(
-    _controller: &NamespaceController,
-    _context: &NamespaceEnsureContext,
-    _epoch: i64,
-    _terminal_size: Option<(i32, i32)>,
-    _timeout_s: Option<f64>,
-) -> Result<()> {
-    // Placeholder: real implementation lives in `ensure_identity.py` / `ensure_identity.rs`.
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn apply_namespace_identity(
-    _controller: &NamespaceController,
-    _backend: &crate::services::project_namespace_runtime::backend::Backend,
-    _pane_id: &str,
-    _namespace_epoch: i64,
-    _tmux_socket_path: &str,
-    _tmux_session_name: &str,
-) -> Result<()> {
-    // Placeholder: real implementation lives in `ensure_identity.py` / `ensure_identity.rs`.
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -312,8 +287,7 @@ mod tests {
             project_id: "p1".to_string(),
             layout_version: 1,
             layout: test_layout(),
-            backend_factory:
-                crate::services::project_namespace_runtime::backend::BackendFactory::default(),
+            backend_factory: crate::services::project_namespace_runtime::test_support::FakeTmuxBackend::new().backend_factory(),
             state_store: StateStore::default(),
             event_store: EventStore::default(),
             clock: test_clock(),

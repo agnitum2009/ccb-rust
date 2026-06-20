@@ -1,6 +1,7 @@
 //! Mirrors Python `lib/ccbd/services/project_namespace_runtime/backend.py`.
 //! 1:1 file alignment stub.
 
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -61,12 +62,53 @@ impl TmuxWindowRecord {
     }
 }
 
+type BackendBuilder = Arc<dyn Fn(&str) -> Result<Backend> + Send + Sync>;
+
 /// Factory that produces a tmux backend bound to a socket path.
 ///
-/// Kept as a unit struct for backwards compatibility with callers that construct
-/// `BackendFactory {}` directly. The actual socket is supplied to `build_backend`.
-#[derive(Debug, Clone, Default)]
-pub struct BackendFactory {}
+/// Backwards compatible with `BackendFactory::default()`; callers may also supply
+/// a custom builder closure (used by tests that inject a fake tmux backend).
+#[derive(Clone)]
+pub struct BackendFactory {
+    builder: BackendBuilder,
+}
+
+impl BackendFactory {
+    /// Create a factory from a custom backend builder.
+    pub fn new<F>(builder: F) -> Self
+    where
+        F: Fn(&str) -> Result<Backend> + Send + Sync + 'static,
+    {
+        Self {
+            builder: Arc::new(builder),
+        }
+    }
+
+    /// Build a backend for the given socket path.
+    pub fn build(&self, socket_path: &str) -> Result<Backend> {
+        (self.builder)(socket_path)
+    }
+}
+
+impl Default for BackendFactory {
+    fn default() -> Self {
+        Self::new(|socket_path| {
+            let socket_path = socket_path.to_string();
+            let tmux = TmuxBackend::new(None, Some(socket_path.clone()));
+            Ok(Backend {
+                socket_path,
+                session_name: String::new(),
+                tmux,
+            })
+        })
+    }
+}
+
+impl std::fmt::Debug for BackendFactory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BackendFactory").finish()
+    }
+}
 
 /// Operational handle for a tmux backend.
 #[derive(Debug, Clone)]
@@ -77,6 +119,15 @@ pub struct Backend {
 }
 
 impl Backend {
+    /// Construct a backend directly from its parts.
+    pub fn new(socket_path: String, session_name: String, tmux: TmuxBackend) -> Self {
+        Self {
+            socket_path,
+            session_name,
+            tmux,
+        }
+    }
+
     /// Run a raw tmux command through the backend.
     ///
     /// Mirrors Python `TmuxBackend._tmux_run(args, check=False, capture=True)`.
@@ -253,17 +304,9 @@ impl ccb_terminal::layouts::TmuxLayoutBackend for Backend {
 
 /// Build a backend bound to `socket_path`.
 ///
-/// Mirrors Python `build_backend(backend_factory, socket_path=socket_path)`. The factory
-/// is accepted for API compatibility but is currently a unit struct; the socket path is
-/// the authoritative binding parameter.
-pub fn build_backend(_factory: &BackendFactory, socket_path: &str) -> Result<Backend> {
-    let socket_path = socket_path.to_string();
-    let tmux = TmuxBackend::new(None, Some(socket_path.clone()));
-    Ok(Backend {
-        socket_path,
-        session_name: String::new(),
-        tmux,
-    })
+/// Mirrors Python `build_backend(backend_factory, socket_path=socket_path)`.
+pub fn build_backend(factory: &BackendFactory, socket_path: &str) -> Result<Backend> {
+    factory.build(socket_path)
 }
 
 /// Start the tmux server if it is not already running.

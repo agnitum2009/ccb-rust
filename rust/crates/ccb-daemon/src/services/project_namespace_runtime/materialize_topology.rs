@@ -934,7 +934,7 @@ fn shell_join(parts: &[String]) -> String {
         .join(" ")
 }
 
-fn shell_quote(s: &str) -> String {
+pub(crate) fn shell_quote(s: &str) -> String {
     if s.is_empty()
         || s.chars().any(|c| {
             c.is_whitespace() || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`'
@@ -946,7 +946,7 @@ fn shell_quote(s: &str) -> String {
     }
 }
 
-fn apply_project_tmux_ui(
+pub(crate) fn apply_project_tmux_ui(
     backend: &Backend,
     tmux_socket_path: &str,
     _ccbd_socket_path: Option<&str>,
@@ -1014,6 +1014,21 @@ fn apply_project_tmux_ui(
         true,
     );
 
+    let select_hook = format!(
+        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; ccb __active-pane-border-sync --tmux-socket {socket} --session {session} --pane \"#{{pane_id}}\" >/dev/null 2>&1 || true'"
+    );
+    let _ = backend._tmux_run(
+        &[
+            "set-hook",
+            "-t",
+            tmux_session_name,
+            "after-select-pane",
+            &select_hook,
+        ],
+        false,
+        true,
+    );
+
     let window_hook = format!(
         "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccb_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccb __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-window \"#{{window_id}}\" --project-id \"#{{@ccb_project_id}}\" --from-stored-width >/dev/null 2>&1 || true'"
     );
@@ -1026,7 +1041,7 @@ fn apply_project_tmux_ui(
     Ok(())
 }
 
-fn _list_window_names(backend: &Backend, session_name: &str) -> Result<Vec<String>> {
+pub(crate) fn _list_window_names(backend: &Backend, session_name: &str) -> Result<Vec<String>> {
     let output = backend
         ._tmux_run(
             &["list-windows", "-t", session_name, "-F", "#{window_name}"],
