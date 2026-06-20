@@ -157,6 +157,7 @@ pub mod config_validate;
 pub mod daemon;
 pub mod daemon_runtime;
 pub mod diagnostics;
+pub mod diagnostics_runtime;
 pub mod doctor;
 pub mod doctor_runtime;
 pub mod doctor_storage;

@@ -23,6 +23,8 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 | runtime_env | `test_env_utils.py` | `crates/ccb-runtime-env/src/env.rs` (inline tests), `crates/ccb-runtime-env/tests/smoke.rs` | partial | `env_bool`/`env_int`/`env_float` parity mapped to `test_env_utils.py` (py2rust-runtime-env). |
 | stdio_runtime | `test_compat_stdin_decode.py` | `crates/ccb-stdio-runtime/src/decoding.rs` (inline tests), `crates/ccb-stdio-runtime/tests/smoke.rs` | partial | Robust stdin decoding (BOM, forced encoding, locale fallback, invalid UTF-8) parity mapped to `test_compat_stdin_decode.py` (py2rust-stdio-runtime). |
 | doctor_runtime | `test_doctor_runtime_identity.py` | `crates/ccb-cli/tests/doctor_runtime_identity_tests.rs` | partial | `runtime_identity_summary` (uid/user/ownership warnings) and `render_doctor` root-runtime identity lines parity mapped to `test_doctor_runtime_identity.py` (py2rust-doctor-runtime). |
+| diagnostics_bundle | `test_v2_diagnostics_bundle.py` | `crates/ccb-cli/tests/v2_diagnostics_bundle_tests.rs` | partial | Diagnostic bundle export (`export_diagnostic_bundle`), manifest/tarball, storage summary integration, provider-state secret/cache exclusion, and relocated runtime state inclusion parity mapped to `test_v2_diagnostics_bundle.py` (py2rust-diagnostics-bundle). |
+| cleanup_service | `test_cleanup_service.py` | `crates/ccb-cli/tests/cleanup_service_tests.rs`, `crates/ccb-cli/src/services/cleanup.rs` (inline logic) | partial | Project storage cleanup (Claude/Gemini cache pruning, pane-crash log trimming, pending-job guards, stopped-daemon guard) parity mapped to `test_cleanup_service.py` (py2rust-cleanup-service). |
 | management_cleanup | `test_management_cleanup.py` | `crates/ccb-cli/src/claude_home_cleanup.rs` (inline tests) | partial | Retired Claude command-doc filenames and `settings.json` permission allow-entry constants parity mapped to `test_management_cleanup.py` (py2rust-management-cleanup). |
 | storage_paths | `test_claude_binding_runtime_session.py`, `test_claude_session_auto_transfer.py`, `test_claude_session_fields.py`, `test_claude_session_index_runtime.py`, `test_claude_session_pathing.py` (+37 more) | `crates/ccb-storage/tests/integration_storage_classification.rs`, `crates/ccb-storage/tests/integration_storage_paths.rs`, `crates/ccb-storage/tests/integration_text_artifacts.rs` (+1 more) | partial | Storage paths, classification, and text artifacts in Rust are complete (py2rust-core). Provider session pathing tests remain in Python reference; covered by py2rust-providers. |
 | agents_roles | `test_agents_layout_runtime.py`, `test_role_lock_refresh.py`, `test_rolepacks.py`, `test_v2_agent_store.py`, `test_v2_policy.py` | `crates/ccb-agents/tests/layout_runtime_tests.rs`, `crates/ccb-agents/tests/rolepack_tests.rs`, `crates/ccb-agents/tests/store_tests.rs` | partial | Role packs and role lock refresh (`find_project_role_lock_updates`, `confirm_project_role_lock_refresh`) covered (py2rust-agents); `AgentSpecStore`, `AgentRuntimeStore`, and `AgentRestoreStore` persistence parity added and mapped to `test_v2_agent_store.py` (py2rust-agents-store); `resolve_agent_launch_policy` parity (including kebab-case `queue_policy`) mapped to `test_v2_policy.py` (py2rust-agents-policy). Layout parsing parity (`parse_layout_spec`, `iter_layout_names`, `prune_layout`, `build_balanced_layout`, `resolve_layout_spec`) mapped to `test_agents_layout_runtime.py` (py2rust-agents-layout). Broader agent workspace tests still in Python. |
@@ -40,7 +42,6 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 - `test_ask_skill_templates.py`
 - `test_ccb_github_skill.py`
 - `test_ccb_restart.py`
-- `test_cleanup_service.py`
 - `test_install_identity_output.py`
 - `test_install_line_endings.py`
 - `test_install_major_upgrade_guard.py`
@@ -60,7 +61,6 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 - `test_stability_regressions.py`
 - `test_v2_ask_service.py`
 - `test_v2_daemon_startup_wait.py`
-- `test_v2_diagnostics_bundle.py`
 - `test_v2_kill_service.py`
 - `test_v2_runtime_launch.py`
 - `test_v2_start_foreground.py`

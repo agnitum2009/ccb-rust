@@ -30,7 +30,10 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 camino = { workspace = true }
 ccb-storage = { workspace = true }
+ccb-storage-classification = { workspace = true }
 ccb-types = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
 ccb-provider-core = { workspace = true }
 ccb-agents = { workspace = true }
 ccb-mailbox = { workspace = true }
