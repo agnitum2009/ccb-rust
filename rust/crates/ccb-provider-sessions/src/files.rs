@@ -327,6 +327,78 @@ pub fn find_project_session_file<P: AsRef<Path>>(
     candidate.exists().then_some(candidate)
 }
 
+/// Find a session file honoring workspace binding agent names and the
+/// `CCB_SESSION_FILE` environment variable.
+///
+/// Mirrors Python `provider_core.session_binding_runtime.find_bound_session_file`.
+pub fn find_bound_session_file<P: AsRef<Path>>(
+    work_dir: P,
+    _provider: &str,
+    base_filename: &str,
+) -> Option<PathBuf> {
+    let current = resolve_dir(work_dir.as_ref());
+
+    if let Some(env_path) = env_bound_session_file(base_filename) {
+        return Some(env_path);
+    }
+
+    if let Some(agent_name) = workspace_binding_agent_name(&current) {
+        let agent_filename = session_filename_for_instance(base_filename, &agent_name);
+        if let Some(candidate) = find_project_session_file(&current, &agent_filename) {
+            return Some(candidate);
+        }
+    }
+
+    find_project_session_file(&current, base_filename)
+}
+
+fn env_bound_session_file(base_filename: &str) -> Option<PathBuf> {
+    let raw = std::env::var("CCB_SESSION_FILE").ok()?;
+    let expanded = expand_user_path_str(&raw);
+    let path = PathBuf::from(expanded);
+    if !path.is_file() {
+        return None;
+    }
+    let name = path.file_name()?.to_str()?;
+    if !session_filename_matches(base_filename, name) {
+        return None;
+    }
+    Some(path)
+}
+
+fn session_filename_for_instance(base_filename: &str, instance: &str) -> String {
+    let instance = instance.trim();
+    if instance.is_empty() {
+        return base_filename.to_string();
+    }
+    if let Some(prefix) = base_filename.strip_suffix("-session") {
+        format!("{}-{}-session", prefix, instance)
+    } else {
+        format!("{}-{}", base_filename, instance)
+    }
+}
+
+fn workspace_binding_agent_name(current: &Path) -> Option<String> {
+    let binding_path = find_workspace_binding(current)?;
+    let text = fs::read_to_string(&binding_path).ok()?;
+    let data: serde_json::Value = serde_json::from_str(&text).ok()?;
+    data.get("agent_name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn session_filename_matches(base: &str, name: &str) -> bool {
+    if name == base {
+        return true;
+    }
+    if let Some(prefix) = base.strip_suffix("-session") {
+        name.starts_with(&format!("{}-", prefix)) && name.ends_with("-session")
+    } else {
+        name.starts_with(&format!("{}-", base))
+    }
+}
+
 pub(crate) fn expand_user_path_str(raw: &str) -> String {
     if let Some(rest) = raw.strip_prefix('~') {
         if let Ok(home) = std::env::var("HOME") {
