@@ -161,6 +161,40 @@ fn test_create_tmux_auto_layout_allocates_detached_session_when_outside_tmux() {
     assert_eq!(result.root_pane_id, "%root-detached");
     assert_eq!(result.created_panes, vec!["%root-detached"]);
     assert!(result.needs_attach);
+    let tmux_calls = backend.tmux_calls.lock().unwrap();
+    assert_eq!(tmux_calls.len(), 2);
+    assert_eq!(
+        tmux_calls[0],
+        (
+            vec![
+                "new-session".to_string(),
+                "-d".to_string(),
+                "-s".to_string(),
+                "ccb-demo-1".to_string(),
+                "-c".to_string(),
+                "/tmp/demo".to_string(),
+                "sh".to_string(),
+                "-lc".to_string(),
+                "while :; do sleep 3600; done".to_string(),
+            ],
+            true,
+            false,
+        )
+    );
+    assert_eq!(
+        tmux_calls[1],
+        (
+            vec![
+                "list-panes".to_string(),
+                "-t".to_string(),
+                "ccb-demo-1".to_string(),
+                "-F".to_string(),
+                "#{pane_id}".to_string(),
+            ],
+            true,
+            true,
+        )
+    );
 }
 
 #[test]
@@ -191,5 +225,21 @@ fn test_create_tmux_auto_layout_reuses_existing_session() {
             ("%root-detached".to_string(), "right".to_string(), 50),
             ("%1".to_string(), "bottom".to_string(), 50),
         ]
+    );
+    let tmux_calls = backend.tmux_calls.lock().unwrap();
+    assert_eq!(tmux_calls.len(), 1);
+    assert_eq!(
+        tmux_calls[0],
+        (
+            vec![
+                "list-panes".to_string(),
+                "-t".to_string(),
+                "ccb-demo-2".to_string(),
+                "-F".to_string(),
+                "#{pane_id}".to_string(),
+            ],
+            true,
+            true,
+        )
     );
 }
