@@ -58,8 +58,8 @@ pub fn current_namespace(
 pub fn topology_for(app: &CcbdApp, config: &ProjectConfig) -> NamespaceTopologyPlan {
     build_namespace_topology_plan(
         config,
-        app.socket_path(),
-        app.project_root.to_string_lossy().to_string(),
+        Some(app.socket_path()),
+        Some(app.project_root.to_string_lossy().to_string()),
     )
 }
 
@@ -216,7 +216,7 @@ fn controller_apply_reload_patch(
         .iter()
         .flat_map(|w| w.agents.clone())
         .collect();
-    namespace.project_root = new_topology.project_root.clone();
+    namespace.project_root = new_topology.project_root.clone().unwrap_or_default();
 
     if let Err(e) = controller.mount(namespace) {
         return NamespacePatchApplyResult {
