@@ -36,6 +36,8 @@ ccb-mailbox = { workspace = true }
 ccb-terminal = { workspace = true }
 ccb-provider-sessions = { workspace = true }
 ccb-provider-hooks = { workspace = true }
+ccb-provider-profiles = { workspace = true }
+ccb-providers = { workspace = true }
 ccb-memory = { workspace = true }
 tempfile = { workspace = true }
 libc = "0.2"

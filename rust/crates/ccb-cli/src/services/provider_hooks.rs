@@ -4,6 +4,9 @@
 //! managed provider home.
 
 use camino::{Utf8Path, Utf8PathBuf};
+use ccb_provider_profiles::models::ResolvedProviderProfile;
+use ccb_providers::claude::launcher_runtime::home::resolve_claude_home_layout;
+use ccb_storage::paths::PathLayout;
 
 use ccb_provider_hooks::settings::{
     build_activity_hook_command, build_hook_command, install_workspace_activity_hooks,
@@ -72,6 +75,33 @@ pub fn prepare_workspace_provider_hooks(
     }
 
     settings_path
+}
+
+/// Return the managed provider home root used for hook installation.
+///
+/// Mirrors Python `provider_hook_home_root`.
+pub fn provider_hook_home_root(
+    layout: &PathLayout,
+    provider: &str,
+    agent_name: &str,
+    runtime_dir: &Utf8Path,
+    resolved_profile: Option<&ResolvedProviderProfile>,
+) -> Option<Utf8PathBuf> {
+    let normalized = provider.trim().to_lowercase();
+    match normalized.as_str() {
+        "claude" => Some(resolve_claude_home_layout(runtime_dir, resolved_profile).home_root),
+        "gemini" => Some(resolve_gemini_home_root(layout, agent_name)),
+        _ => None,
+    }
+}
+
+/// Resolve the Gemini managed home root.
+///
+/// Mirrors Python `resolve_gemini_home_root`.
+pub fn resolve_gemini_home_root(layout: &PathLayout, agent_name: &str) -> Utf8PathBuf {
+    layout
+        .agent_provider_state_dir(agent_name, "gemini")
+        .join("home")
 }
 
 /// Locate a native provider hook binary.

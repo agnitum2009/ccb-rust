@@ -5,7 +5,9 @@ use std::io::Write;
 
 use camino::Utf8Path;
 
-use ccb_cli::provider_hooks::prepare_workspace_provider_hooks;
+use ccb_cli::provider_hooks::{
+    prepare_workspace_provider_hooks, provider_hook_home_root, resolve_gemini_home_root,
+};
 
 fn tmp_dir() -> (tempfile::TempDir, camino::Utf8PathBuf) {
     let dir = tempfile::tempdir().unwrap();
@@ -211,4 +213,55 @@ fn test_prepare_hooks_gemini_installs_completion_hooks() {
         .unwrap()
         .values()
         .any(|v| v.to_string().contains("ccb-provider-activity-hook")));
+}
+
+#[test]
+fn test_resolve_gemini_home_root() {
+    let (_tmp, root) = tmp_dir();
+    let layout = ccb_storage::paths::PathLayout::new(root);
+    let expected = layout
+        .agent_provider_state_dir("agent1", "gemini")
+        .join("home");
+    assert_eq!(resolve_gemini_home_root(&layout, "agent1"), expected);
+}
+
+#[test]
+fn test_provider_hook_home_root_claude_uses_runtime_home() {
+    let (_tmp, root) = tmp_dir();
+    let runtime_dir = root.join("runtime");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+    let layout = ccb_storage::paths::PathLayout::new(&root);
+
+    let home_root = provider_hook_home_root(&layout, "claude", "agent1", &runtime_dir, None);
+
+    assert_eq!(home_root, Some(runtime_dir.join("home")));
+}
+
+#[test]
+fn test_provider_hook_home_root_gemini() {
+    let (_tmp, root) = tmp_dir();
+    let runtime_dir = root.join("runtime");
+    let layout = ccb_storage::paths::PathLayout::new(&root);
+
+    let home_root = provider_hook_home_root(&layout, "gemini", "agent1", &runtime_dir, None);
+
+    assert_eq!(
+        home_root,
+        Some(
+            layout
+                .agent_provider_state_dir("agent1", "gemini")
+                .join("home")
+        )
+    );
+}
+
+#[test]
+fn test_provider_hook_home_root_unsupported_returns_none() {
+    let (_tmp, root) = tmp_dir();
+    let runtime_dir = root.join("runtime");
+    let layout = ccb_storage::paths::PathLayout::new(&root);
+
+    let home_root = provider_hook_home_root(&layout, "droid", "agent1", &runtime_dir, None);
+
+    assert!(home_root.is_none());
 }

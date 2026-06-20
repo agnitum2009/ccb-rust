@@ -8,6 +8,7 @@ pub use session::{find_project_session_file, load_project_session, ClaudeProject
 pub mod comm_runtime;
 pub mod execution;
 pub mod execution_runtime;
+pub mod home_layout;
 pub mod launcher_runtime;
 pub mod protocol_runtime;
 pub mod registry_runtime;
