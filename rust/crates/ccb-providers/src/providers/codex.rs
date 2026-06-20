@@ -96,6 +96,22 @@ pub fn load_project_session(
     Some(CodexProjectSession { session_file, data })
 }
 
+/// Load a Codex project session for an agent without falling back to the
+/// primary session when the agent is named.
+///
+/// Mirrors Python `provider_backends.codex.execution_runtime.start.load_session`.
+pub fn load_session<F>(
+    load_project_session_fn: F,
+    work_dir: &Path,
+    agent_name: &str,
+) -> Option<CodexProjectSession>
+where
+    F: FnOnce(&Path, Option<&str>) -> Option<CodexProjectSession>,
+{
+    let instance = ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "codex");
+    load_project_session_fn(work_dir, instance.as_deref())
+}
+
 fn read_session_json(path: &Path) -> Option<HashMap<String, Value>> {
     let raw = std::fs::read_to_string(path).ok()?;
     let raw = raw.strip_prefix('\u{feff}').unwrap_or(&raw);

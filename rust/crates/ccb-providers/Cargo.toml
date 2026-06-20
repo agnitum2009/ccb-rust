@@ -80,6 +80,10 @@ path = "tests/provider_session_paths_tests.rs"
 name = "provider_helper_cleanup_tests"
 path = "tests/provider_helper_cleanup_tests.rs"
 
+[[test]]
+name = "provider_instance_resolution_tests"
+path = "tests/provider_instance_resolution_tests.rs"
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,3 +1,4 @@
+use ccb_provider_core::pathing::session_filename_for_instance;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -43,15 +44,20 @@ impl DroidProjectSession {
 /// Find the Droid project session file for a working directory.
 ///
 /// Mirrors Python `provider_backends.droid.comm_runtime.session_runtime.find_droid_session_file`.
-pub fn find_project_session_file(work_dir: &Path) -> Option<PathBuf> {
-    find_workspace_bound_session(work_dir).or_else(|| find_nearest_project_session(work_dir))
+pub fn find_project_session_file(work_dir: &Path, instance: Option<&str>) -> Option<PathBuf> {
+    let filename = session_filename_for_instance(DROID_SESSION_FILENAME, instance);
+    find_workspace_bound_session(work_dir, &filename)
+        .or_else(|| find_nearest_project_session(work_dir, &filename))
 }
 
 /// Load the Droid project session, returning `None` if missing or inactive.
 ///
 /// Mirrors Python `provider_backends.droid.session_runtime.loading.load_project_session`.
-pub fn load_project_session(work_dir: &Path) -> Option<DroidProjectSession> {
-    let session_file = find_project_session_file(work_dir)?;
+pub fn load_project_session(
+    work_dir: &Path,
+    instance: Option<&str>,
+) -> Option<DroidProjectSession> {
+    let session_file = find_project_session_file(work_dir, instance)?;
     let data = read_json(&session_file)?;
     if data.get("active").and_then(Value::as_bool) == Some(false) {
         return None;
@@ -59,16 +65,36 @@ pub fn load_project_session(work_dir: &Path) -> Option<DroidProjectSession> {
     Some(DroidProjectSession { session_file, data })
 }
 
-fn find_workspace_bound_session(work_dir: &Path) -> Option<PathBuf> {
+/// Load a Droid project session for an agent without falling back to the
+/// primary session when the agent is named.
+///
+/// Mirrors Python `provider_backends.droid.execution_runtime.helpers.load_session`.
+pub fn load_session<F>(
+    load_project_session_fn: F,
+    work_dir: &Path,
+    agent_name: &str,
+    primary_agent: &str,
+) -> Option<DroidProjectSession>
+where
+    F: FnOnce(&Path, Option<&str>) -> Option<DroidProjectSession>,
+{
+    let instance = ccb_provider_core::instance_resolution::named_agent_instance(
+        agent_name,
+        primary_agent,
+    );
+    load_project_session_fn(work_dir, instance.as_deref())
+}
+
+fn find_workspace_bound_session(work_dir: &Path, filename: &str) -> Option<PathBuf> {
     let binding_path = find_workspace_binding(work_dir)?;
     let target = load_workspace_binding(&binding_path)?;
-    let candidate = project_config_dir(&target).join(DROID_SESSION_FILENAME);
+    let candidate = project_config_dir(&target).join(filename);
     candidate.exists().then_some(candidate)
 }
 
-fn find_nearest_project_session(work_dir: &Path) -> Option<PathBuf> {
+fn find_nearest_project_session(work_dir: &Path, filename: &str) -> Option<PathBuf> {
     let anchor = find_nearest_project_anchor(work_dir)?;
-    let candidate = project_config_dir(&anchor).join(DROID_SESSION_FILENAME);
+    let candidate = project_config_dir(&anchor).join(filename);
     candidate.exists().then_some(candidate)
 }
 
@@ -184,7 +210,7 @@ mod tests {
         let mut file = std::fs::File::create(&session_file).unwrap();
         file.write_all(br#"{"active": false}"#).unwrap();
 
-        assert!(load_project_session(dir.path()).is_none());
+        assert!(load_project_session(dir.path(), None).is_none());
     }
 
     #[test]
@@ -197,7 +223,7 @@ mod tests {
         file.write_all(br#"{"active": true, "droid_session_id": "s1"}"#)
             .unwrap();
 
-        let session = load_project_session(dir.path()).unwrap();
+        let session = load_project_session(dir.path(), None).unwrap();
         assert_eq!(session.droid_session_id(), Some("s1"));
         assert!(session.is_active());
     }
@@ -216,7 +242,7 @@ mod tests {
         )
         .unwrap();
 
-        let found = find_project_session_file(dir.path()).unwrap();
+        let found = find_project_session_file(dir.path(), None).unwrap();
         assert!(found.ends_with(".ccb/.droid-session"));
     }
 }

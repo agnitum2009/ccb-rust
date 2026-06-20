@@ -86,6 +86,26 @@ pub fn load_project_session(
     Some(OpenCodeProjectSession { session_file, data })
 }
 
+/// Load an OpenCode project session for an agent without falling back to the
+/// primary session when the agent is named.
+///
+/// Mirrors Python `provider_backends.opencode.execution_runtime.helpers.load_session`.
+pub fn load_session<F>(
+    work_dir: &Path,
+    agent_name: &str,
+    primary_agent: &str,
+    load_project_session_fn: F,
+) -> Option<OpenCodeProjectSession>
+where
+    F: FnOnce(&Path, Option<&str>) -> Option<OpenCodeProjectSession>,
+{
+    let instance = ccb_provider_core::instance_resolution::named_agent_instance(
+        agent_name,
+        primary_agent,
+    );
+    load_project_session_fn(work_dir, instance.as_deref())
+}
+
 fn read_json(path: &Path) -> Option<HashMap<String, Value>> {
     let raw = std::fs::read_to_string(path).ok()?;
     // Strip UTF-8 BOM if present.

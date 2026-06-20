@@ -138,7 +138,7 @@ fn start_active_submission(
             if workspace_path.is_empty() {
                 return None;
             }
-            load_project_session(Path::new(&workspace_path))
+            load_project_session(Path::new(&workspace_path), None)
                 .and_then(|s| s.droid_session_path().map(|p| p.to_string()))
         })
         .unwrap_or_default();

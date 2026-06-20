@@ -97,6 +97,22 @@ pub fn find_project_session_file(work_dir: &Path, instance: Option<&str>) -> Opt
     find_session_file_for_work_dir(work_dir, &filename)
 }
 
+/// Load a Claude project session for an agent without falling back to the
+/// primary session when the agent is named.
+///
+/// Mirrors Python `provider_backends.claude.execution_runtime.start.load_session`.
+pub fn load_session<F>(
+    load_project_session_fn: F,
+    work_dir: &Path,
+    agent_name: &str,
+) -> Option<ClaudeProjectSession>
+where
+    F: FnOnce(&Path, Option<&str>) -> Option<ClaudeProjectSession>,
+{
+    let instance = ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "claude");
+    load_project_session_fn(work_dir, instance.as_deref())
+}
+
 /// Load a Claude project session.
 /// Mirrors Python `provider_backends.claude.session.load_project_session`.
 pub fn load_project_session(

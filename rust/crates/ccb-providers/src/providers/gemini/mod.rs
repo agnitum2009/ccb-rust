@@ -10,7 +10,7 @@ use ccb_provider_core::contracts::{
     LaunchMode, ProviderBackend, ProviderRuntimeLauncher, ProviderSessionBinding,
 };
 use ccb_provider_core::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};
-use ccb_provider_core::pathing::find_session_file_for_work_dir;
+use ccb_provider_core::pathing::{find_session_file_for_work_dir, session_filename_for_instance};
 use ccb_provider_core::protocol;
 use serde_json::Value;
 
@@ -108,7 +108,7 @@ impl ExecutionAdapter for GeminiExecutionAdapter {
                     return None;
                 }
                 let work_dir = expand_path(path);
-                load_project_session(&work_dir)
+                load_project_session(&work_dir, None)
                     .map(|data| (data, work_dir.clone()))
                     .or_else(|| Some((HashMap::new(), work_dir)))
             })
@@ -547,10 +547,31 @@ fn expand_path(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-fn load_project_session(work_dir: &Path) -> Option<HashMap<String, Value>> {
-    let path = find_session_file_for_work_dir(work_dir, GEMINI_SESSION_FILENAME)?;
+/// Load the Gemini project session for a work directory.
+pub fn load_project_session(
+    work_dir: &Path,
+    instance: Option<&str>,
+) -> Option<HashMap<String, Value>> {
+    let filename = session_filename_for_instance(GEMINI_SESSION_FILENAME, instance);
+    let path = find_session_file_for_work_dir(work_dir, &filename)?;
     let raw = std::fs::read_to_string(&path).ok()?;
     serde_json::from_str(&raw).ok()
+}
+
+/// Load a Gemini project session for an agent without falling back to the
+/// primary session when the agent is named.
+///
+/// Mirrors Python `provider_backends.gemini.execution_runtime.start_runtime.session.load_session`.
+pub fn load_session<F>(
+    load_project_session_fn: F,
+    work_dir: &Path,
+    agent_name: &str,
+) -> Option<HashMap<String, Value>>
+where
+    F: FnOnce(&Path, Option<&str>) -> Option<HashMap<String, Value>>,
+{
+    let instance = ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "gemini");
+    load_project_session_fn(work_dir, instance.as_deref())
 }
 
 fn store_backend_config_from_session_data(
