@@ -23,6 +23,7 @@ ccb-agents = { workspace = true }
 ccb-providers = { workspace = true }
 ccb-completion = { workspace = true }
 ccb-provider-profiles = { workspace = true }
+ccb-provider-sessions = { workspace = true }
 ccb-workspace = { workspace = true }
 ccb-project = { workspace = true }
 camino = { workspace = true }

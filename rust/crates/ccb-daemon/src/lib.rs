@@ -24,6 +24,7 @@ pub mod bootstrap;
 pub mod callbacks;
 pub mod cancellation;
 pub mod claims;
+pub mod client_runtime;
 pub mod cmd_slot;
 pub mod completion;
 pub mod constants;
