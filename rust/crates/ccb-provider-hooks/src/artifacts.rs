@@ -180,7 +180,17 @@ pub fn current_turn_req_id_from_transcript_text(
     if assistant_reply.unwrap_or("").trim().is_empty() {
         return empty_reply_turn_req_id(&records, content);
     }
-    let index = current_assistant_index(&records, assistant_reply)?;
+    let index = match current_assistant_index(&records, assistant_reply) {
+        Some(i) => i,
+        None => {
+            // When the transcript has no assistant records at all, fall back to
+            // the latest user/last-prompt req id. Mirrors Python behavior.
+            if records.iter().any(is_assistant_record) {
+                return None;
+            }
+            return latest_req_id_from_transcript_text(content);
+        }
+    };
     let indexed = uuid_index(&records);
     req_id_for_assistant_turn(&records[index], &indexed)
 }
@@ -245,9 +255,10 @@ fn empty_reply_turn_req_id(records: &[serde_json::Value], content: &str) -> Opti
         if is_assistant_record(record) {
             latest_assistant_index = Some(index);
         }
-        let text = user_message_text(record)?;
-        if let Some(req_id) = extract_outer_req_id(&text) {
-            latest_ccb_user = Some((index, req_id));
+        if let Some(text) = user_message_text(record) {
+            if let Some(req_id) = extract_outer_req_id(&text) {
+                latest_ccb_user = Some((index, req_id));
+            }
         }
     }
     if let Some((user_index, req_id)) = latest_ccb_user {
@@ -614,6 +625,19 @@ mod tests {
         assert_eq!(
             current_turn_req_id_from_transcript_text(&content, Some("done")),
             Some("job_current123".into())
+        );
+    }
+
+    #[test]
+    fn test_current_turn_req_id_empty_reply_after_prior_assistant() {
+        let content = jsonl(&[
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_previous111\n\nPrevious task."}}),
+            json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "previous done"}]}}),
+            json!({"uuid": "u2", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_emptyclaude123\n\nRun the task."}}),
+        ]);
+        assert_eq!(
+            current_turn_req_id_from_transcript_text(&content, None),
+            Some("job_emptyclaude123".into())
         );
     }
 
