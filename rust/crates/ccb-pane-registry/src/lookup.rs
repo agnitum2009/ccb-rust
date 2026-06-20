@@ -166,4 +166,19 @@ mod tests {
     fn test_load_registry_by_claude_pane_empty() {
         assert!(load_registry_by_claude_pane("", backend_fn).is_none());
     }
+
+    #[test]
+    fn test_load_registry_by_claude_pane_ignores_flat_legacy_field() {
+        // Mirrors test/test_registry_cleanup.py.
+        let tmp = tempfile::tempdir().unwrap();
+        set_cwd(&tmp);
+        // A legacy record stores the pane id as a top-level flat field, not
+        // under providers.claude.pane_id. The lookup should ignore it.
+        write_registry(
+            &tmp,
+            "sess-legacy",
+            r#"{"updated_at": 9999999999, "claude_pane_id": "%legacy"}"#,
+        );
+        assert!(load_registry_by_claude_pane("%legacy", backend_fn).is_none());
+    }
 }
