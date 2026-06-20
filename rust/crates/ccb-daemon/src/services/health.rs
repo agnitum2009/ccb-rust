@@ -353,12 +353,22 @@ mod tests {
             created_at: "2024-01-01T00:00:00Z".into(),
         };
 
+        // Ensure tmux binary is not found so the test is independent of whether
+        // the runner happens to be executing inside a tmux session.
+        let original_path = std::env::var("PATH").ok();
+        std::env::set_var("PATH", "");
+
         let monitor = HealthMonitor::new(None);
         let assessments = monitor.assess_provider_panes(&registry, Some(&namespace), None);
 
         assert_eq!(assessments.len(), 1);
         // Pane is owned by namespace but tmux server is absent, so missing.
         assert_eq!(assessments[0].pane_state, TmuxPaneState::Missing);
+
+        match original_path {
+            Some(p) => std::env::set_var("PATH", p),
+            None => std::env::remove_var("PATH"),
+        }
     }
 
     #[test]
