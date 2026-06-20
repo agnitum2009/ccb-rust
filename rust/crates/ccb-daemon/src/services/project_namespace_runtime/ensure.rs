@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use crate::services::project_namespace_runtime::backend::kill_server;
+use crate::services::project_namespace_runtime::backend::{ensure_server_policy, kill_server};
 use crate::services::project_namespace_runtime::ensure_identity::prepare_namespace_root_pane;
 #[allow(unused_imports)]
 use crate::services::project_namespace_runtime::ensure_context::{
@@ -181,8 +181,10 @@ fn persist_refreshed_namespace(
             .unwrap_or_else(|| context.desired_workspace_window_name.clone())
     };
 
-    // Placeholder: real implementation applies server policy, resolves windows via tmux,
-    // and applies namespace identity. Here we preserve the current window ids.
+    // Apply server policy on every refresh, matching Python ensure_state.py.
+    ensure_server_policy(&context.backend, _timeout_s)?;
+
+    // Placeholder: real implementation resolves windows via tmux.
     let state = build_active_state(
         controller.project_id.clone(),
         Some(current),

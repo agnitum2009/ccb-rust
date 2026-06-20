@@ -199,9 +199,9 @@ impl Backend {
         ];
         match direction.to_lowercase().as_str() {
             "left" => args.push("-hb".to_string()),
-            "right" => args.push("-h".to_string()),
-            "up" => args.push("-vb".to_string()),
-            "down" => args.push("-v".to_string()),
+            "right" | "horizontal" => args.push("-h".to_string()),
+            "up" | "top" => args.push("-vb".to_string()),
+            "down" | "bottom" | "vertical" => args.push("-v".to_string()),
             _ => {}
         }
         args.extend([

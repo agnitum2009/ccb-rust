@@ -38,41 +38,44 @@ fn strip_tmux_base(args: Vec<String>) -> Vec<String> {
         iter.next();
     }
     let mut result = Vec::new();
+    let mut in_options = true;
     while let Some(arg) = iter.next() {
-        match arg.as_str() {
-            "-S" | "-L" | "-f" => {
-                iter.next();
-            }
-            _ => {
-                result.push(arg);
+        if in_options {
+            match arg.as_str() {
+                "-S" | "-L" | "-f" | "-c" => {
+                    iter.next();
+                    continue;
+                }
+                s if s.starts_with('-') => {
+                    // Other tmux global flags with no argument (e.g. -2, -u, -v).
+                    continue;
+                }
+                _ => {
+                    in_options = false;
+                }
             }
         }
+        result.push(arg);
     }
     result
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Window {
-    #[allow(dead_code)]
-    id: String,
-    pub(crate) name: String,
-    #[allow(dead_code)]
-    width: i32,
-    pub(crate) panes: Vec<String>,
+    pub id: String,
+    pub name: String,
+    pub width: i32,
+    pub panes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Pane {
-    #[allow(dead_code)]
-    id: String,
-    pub(crate) title: String,
-    pub(crate) options: HashMap<String, String>,
-    #[allow(dead_code)]
-    width: i32,
-    #[allow(dead_code)]
-    session: String,
-    #[allow(dead_code)]
-    window: String,
+    pub id: String,
+    pub title: String,
+    pub options: HashMap<String, String>,
+    pub width: i32,
+    pub session: String,
+    pub window: String,
 }
 
 #[derive(Debug, Default)]
@@ -88,6 +91,8 @@ pub struct FakeTmuxState {
     pub hooks: HashMap<String, HashMap<String, String>>,
     pub tmux_calls: Vec<(Vec<String>, bool)>,
     pub split_calls: Vec<(String, String, i32)>,
+    pub resize_calls: Vec<(String, i32)>,
+    pub has_session_error: Option<String>,
     pane_counter: usize,
     window_counter: usize,
     pub server_killed: bool,
@@ -169,7 +174,7 @@ impl FakeTmuxState {
         self.server_killed = true;
     }
 
-    fn drop_session(&mut self, session: &str) {
+    pub fn drop_session(&mut self, session: &str) {
         self.sessions.remove(session);
         self.active_windows.remove(session);
     }
@@ -232,8 +237,8 @@ impl FakeTmuxState {
     }
 
     fn handle(&mut self, args: Vec<String>, check: bool, capture: bool) -> TmuxOutput {
-        self.tmux_calls.push((args.clone(), capture));
         let args = strip_tmux_base(args);
+        self.tmux_calls.push((args.clone(), capture));
 
         if args.is_empty() {
             return success("");
@@ -259,6 +264,8 @@ impl FakeTmuxState {
             let session = &args[2];
             return if self.sessions.contains_key(session) {
                 success("")
+            } else if let Some(ref err) = self.has_session_error {
+                failure(err.clone())
             } else {
                 failure("session not found")
             };
@@ -461,7 +468,7 @@ impl FakeTmuxState {
             while i < args.len() {
                 match args[i].as_str() {
                     "-h" => direction = "right".to_string(),
-                    "-v" => direction = "down".to_string(),
+                    "-v" => direction = "bottom".to_string(),
                     "-hb" => direction = "left".to_string(),
                     "-vb" => direction = "up".to_string(),
                     "-p" => {
@@ -676,6 +683,17 @@ impl FakeTmuxState {
                     return success(target);
                 }
             }
+            if let Some((session_name, window)) = self
+                .pane_window(&target)
+                .or_else(|| self.find_window(&target))
+            {
+                let pane_id = if self.panes.contains_key(&target) {
+                    target.clone()
+                } else {
+                    window.panes.first().cloned().unwrap_or_default()
+                };
+                return success(self.render_format(&session_name, &window, &pane_id, fmt));
+            }
             return success("");
         }
 
@@ -693,6 +711,19 @@ impl FakeTmuxState {
                     .and_then(|m| m.get(option).cloned())
             };
             return success(value.unwrap_or_default());
+        }
+
+        if args.starts_with(&["resize-pane".to_string()]) {
+            if let Some(pos) = args.iter().position(|a| a == "-x") {
+                let pane_id = args.get(2).cloned().unwrap_or_default();
+                let width = args
+                    .get(pos + 1)
+                    .and_then(|s| s.parse::<i32>().ok())
+                    .unwrap_or(0);
+                self.resize_calls.push((pane_id.clone(), width));
+                self.pane_widths.insert(pane_id, width);
+            }
+            return success("");
         }
 
         if args[0] == "send-keys" || args[0] == "select-layout" || args[0] == "break-pane" {
@@ -720,6 +751,24 @@ impl FakeTmuxBackend {
 
     pub fn state(&self) -> Arc<Mutex<FakeTmuxState>> {
         self.state.clone()
+    }
+
+    pub fn with_state<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&FakeTmuxState) -> R,
+    {
+        let state = self.state.clone();
+        let guard = state.lock().unwrap();
+        f(&guard)
+    }
+
+    pub fn with_state_mut<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut FakeTmuxState) -> R,
+    {
+        let state = self.state.clone();
+        let mut guard = state.lock().unwrap();
+        f(&mut guard)
     }
 
     pub fn backend_factory(&self) -> BackendFactory {
