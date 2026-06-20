@@ -27,6 +27,7 @@ ccb-provider-sessions = { workspace = true }
 ccb-workspace = { workspace = true }
 ccb-project = { workspace = true }
 camino = { workspace = true }
+libc = "0.2"
 sha2 = { workspace = true }
 hex = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
