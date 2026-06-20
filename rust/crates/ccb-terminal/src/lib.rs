@@ -36,9 +36,11 @@ pub mod tmux_backend_control;
 pub mod tmux_backend_logs;
 pub mod tmux_backend_panes;
 pub mod tmux_backend_runtime;
+pub mod tmux_identity;
 pub mod tmux_panes_runtime;
 pub mod tmux_respawn_service;
 pub mod tmux_send;
+pub mod tmux_theme;
 
 /// Re-export the most commonly used types.
 pub use api::{
