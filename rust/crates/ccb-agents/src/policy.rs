@@ -49,6 +49,13 @@ pub fn should_restore_provider_history(
     !matches!(restore_mode, EffectiveRestoreMode::Fresh)
 }
 
+fn queue_policy_name(policy: crate::models::QueuePolicy) -> String {
+    match policy {
+        crate::models::QueuePolicy::SerialPerAgent => "serial-per-agent".to_string(),
+        crate::models::QueuePolicy::RejectWhenBusy => "reject-when-busy".to_string(),
+    }
+}
+
 pub fn resolve_effective_permission_mode(
     spec: &AgentSpec,
     requested: Option<PermissionMode>,
@@ -67,7 +74,7 @@ pub fn resolve_agent_launch_policy(
         agent_name: spec.name.clone(),
         restore_mode,
         permission_mode: resolve_effective_permission_mode(spec, requested_permission),
-        queue_policy: format!("{:?}", spec.queue_policy),
+        queue_policy: queue_policy_name(spec.queue_policy),
         restore_provider_history: should_restore_provider_history(spec, restore_mode),
         binding_source: RuntimeBindingSource::ProviderSession,
     }
@@ -111,5 +118,117 @@ mod tests {
             resolve_effective_permission_mode(&spec, None),
             PermissionMode::Auto
         );
+    }
+
+    /// Mirrors Python `test_v2_policy.py::test_launch_policy_matrix`.
+    #[test]
+    fn test_launch_policy_matrix() {
+        let cases = [
+            (
+                PermissionMode::Manual,
+                RestoreMode::Fresh,
+                PermissionMode::Manual,
+                EffectiveRestoreMode::Fresh,
+            ),
+            (
+                PermissionMode::Manual,
+                RestoreMode::Provider,
+                PermissionMode::Manual,
+                EffectiveRestoreMode::Provider,
+            ),
+            (
+                PermissionMode::Manual,
+                RestoreMode::Auto,
+                PermissionMode::Manual,
+                EffectiveRestoreMode::Auto,
+            ),
+            (
+                PermissionMode::Auto,
+                RestoreMode::Fresh,
+                PermissionMode::Auto,
+                EffectiveRestoreMode::Fresh,
+            ),
+            (
+                PermissionMode::Auto,
+                RestoreMode::Provider,
+                PermissionMode::Auto,
+                EffectiveRestoreMode::Provider,
+            ),
+            (
+                PermissionMode::Auto,
+                RestoreMode::Auto,
+                PermissionMode::Auto,
+                EffectiveRestoreMode::Auto,
+            ),
+        ];
+
+        for (permission_default, restore_default, expected_permission, expected_restore) in cases {
+            let spec = AgentSpec {
+                name: "agent1".into(),
+                provider: "codex".into(),
+                target: ".".into(),
+                workspace_mode: WorkspaceMode::GitWorktree,
+                workspace_root: None,
+                runtime_mode: crate::models::RuntimeMode::PaneBacked,
+                restore_default,
+                permission_default,
+                queue_policy: crate::models::QueuePolicy::SerialPerAgent,
+                workspace_path: None,
+                workspace_group: None,
+                provider_command_template: None,
+                model: None,
+                startup_args: Vec::new(),
+                env: Default::default(),
+                api: Default::default(),
+                provider_profile: crate::models::ProviderProfileSpec::default(),
+                branch_template: None,
+                labels: Vec::new(),
+                description: None,
+                role: None,
+                watch_paths: Vec::new(),
+            };
+            let policy = resolve_agent_launch_policy(&spec, None, None, None);
+            assert_eq!(policy.permission_mode, expected_permission);
+            assert_eq!(policy.restore_mode, expected_restore);
+        }
+    }
+
+    /// Mirrors Python `test_v2_policy.py::test_cli_new_context_forces_fresh_restore_policy`.
+    #[test]
+    fn test_cli_new_context_forces_fresh_restore_policy() {
+        let spec = AgentSpec {
+            name: "agent1".into(),
+            provider: "claude".into(),
+            target: ".".into(),
+            workspace_mode: WorkspaceMode::GitWorktree,
+            workspace_root: None,
+            runtime_mode: crate::models::RuntimeMode::PaneBacked,
+            restore_default: RestoreMode::Provider,
+            permission_default: PermissionMode::Manual,
+            queue_policy: crate::models::QueuePolicy::RejectWhenBusy,
+            workspace_path: None,
+            workspace_group: None,
+            provider_command_template: None,
+            model: None,
+            startup_args: Vec::new(),
+            env: Default::default(),
+            api: Default::default(),
+            provider_profile: crate::models::ProviderProfileSpec::default(),
+            branch_template: None,
+            labels: Vec::new(),
+            description: None,
+            role: None,
+            watch_paths: Vec::new(),
+        };
+        let policy = resolve_agent_launch_policy(
+            &spec,
+            None,
+            Some(RestoreMode::Fresh),
+            Some(PermissionMode::Auto),
+        );
+        assert_eq!(policy.agent_name, "agent1");
+        assert_eq!(policy.restore_mode, EffectiveRestoreMode::Fresh);
+        assert_eq!(policy.permission_mode, PermissionMode::Auto);
+        assert_eq!(policy.queue_policy, "reject-when-busy");
     }
 }
