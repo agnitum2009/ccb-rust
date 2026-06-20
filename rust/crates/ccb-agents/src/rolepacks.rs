@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 
 use camino::Utf8PathBuf;
@@ -1535,6 +1536,171 @@ pub fn write_project_role_lock(project_root: &Path, role: &RoleManifest) -> crat
     })?;
     ccb_storage::atomic::atomic_write_json(utf8_path, &serde_json::Value::Object(existing))?;
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct ProjectRoleLockUpdate {
+    pub role_id: String,
+    pub locked_version: String,
+    pub locked_digest: String,
+    pub current_version: String,
+    pub current_digest: String,
+    pub lock_path: PathBuf,
+}
+
+/// Find role-lock.json entries whose locked version/digest no longer match the
+/// currently installed role (the `current` symlink).
+///
+/// Mirrors Python `find_project_role_lock_updates`.
+pub fn find_project_role_lock_updates(
+    project_root: &Path,
+) -> crate::Result<Vec<ProjectRoleLockUpdate>> {
+    let root = project_root
+        .expand_home()
+        .canonicalize()
+        .unwrap_or_else(|_| project_root.expand_home());
+    let utf8_root = camino::Utf8Path::from_path(&root)
+        .ok_or_else(|| crate::AgentError::Config("project root is not valid utf-8".into()))?;
+    let layout = ccb_storage::paths::PathLayout::new(utf8_root);
+    let config = load_project_config(&layout)
+        .map_err(|e| crate::AgentError::Config(format!("failed to load project config: {e}")))?;
+
+    let mut updates = Vec::new();
+    let mut seen = HashSet::new();
+    for spec in config.config.agents.values() {
+        let role_text = spec.role.as_deref().unwrap_or("").trim();
+        if role_text.is_empty() {
+            continue;
+        }
+        let role_id = normalize_role_id(role_text)?;
+        if !seen.insert(role_id.clone()) {
+            continue;
+        }
+        let entry = match project_role_lock_entry(&root, &role_id) {
+            Ok(Some(e)) => e,
+            _ => continue,
+        };
+        let Some(installed) = load_installed_role(&role_id)? else {
+            continue;
+        };
+        let locked_version = entry
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let locked_digest = entry
+            .get("digest")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let current_digest = installed_current_digest(&installed)?;
+        if locked_version == installed.version && locked_digest == current_digest {
+            continue;
+        }
+        updates.push(ProjectRoleLockUpdate {
+            role_id: installed.id,
+            locked_version,
+            locked_digest,
+            current_version: installed.version.clone(),
+            current_digest,
+            lock_path: project_role_lock_path(&root),
+        });
+    }
+    Ok(updates)
+}
+
+/// Prompt the user (when interactive) to refresh role-lock.json to the
+/// currently installed role versions.  When non-interactive, emits warnings
+/// and leaves the lock file untouched.
+///
+/// Mirrors Python `confirm_project_role_lock_refresh`.
+pub fn confirm_project_role_lock_refresh<W: Write, R: BufRead>(
+    project_root: &Path,
+    out: &mut W,
+    stdin: &mut R,
+    is_tty: bool,
+) -> crate::Result<Vec<ProjectRoleLockUpdate>> {
+    let updates = find_project_role_lock_updates(project_root)?;
+    if updates.is_empty() {
+        return Ok(updates);
+    }
+
+    if !is_tty {
+        for update in &updates {
+            writeln!(out, "{}", format_update_available(update))?;
+        }
+        writeln!(out, "role_lock_refresh: skipped_noninteractive")?;
+        return Ok(updates);
+    }
+
+    writeln!(out, "Role Pack updates are available for this project:")?;
+    for update in &updates {
+        writeln!(out, "  {}: {}", update.role_id, format_versions(update))?;
+    }
+    write!(
+        out,
+        "Refresh {} to installed Role Pack versions now? [y/N] ",
+        updates[0].lock_path.display()
+    )?;
+    out.flush().map_err(crate::AgentError::Io)?;
+
+    let mut reply = String::new();
+    stdin.read_line(&mut reply).map_err(crate::AgentError::Io)?;
+    if !matches!(reply.trim().to_lowercase().as_str(), "y" | "yes") {
+        writeln!(out, "role_lock_refresh: skipped")?;
+        return Ok(updates);
+    }
+
+    for update in &updates {
+        let Some(role) = load_installed_role(&update.role_id)? else {
+            continue;
+        };
+        write_project_role_lock(project_root, &role)?;
+        let digest = installed_current_digest(&role)?;
+        writeln!(
+            out,
+            "role_lock_refreshed: {} version={} digest={}",
+            role.id, role.version, digest
+        )?;
+    }
+    Ok(updates)
+}
+
+fn installed_current_digest(role: &RoleManifest) -> crate::Result<String> {
+    let metadata = installed_role_metadata(&role.id)?.unwrap_or_default();
+    Ok(metadata
+        .get("digest")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| format!("sha256:{}", tree_digest(&role.root))))
+}
+
+fn format_update_available(update: &ProjectRoleLockUpdate) -> String {
+    format!(
+        "role_lock_update_available: {} {}",
+        update.role_id,
+        format_versions(update)
+    )
+}
+
+fn format_versions(update: &ProjectRoleLockUpdate) -> String {
+    let locked_version = if update.locked_version.is_empty() {
+        "unknown"
+    } else {
+        &update.locked_version
+    };
+    let locked_digest = if update.locked_digest.is_empty() {
+        "unknown"
+    } else {
+        &update.locked_digest
+    };
+    format!(
+        "locked version={} digest={} -> installed version={} digest={}",
+        locked_version, locked_digest, update.current_version, update.current_digest
+    )
 }
 
 fn same_path(left: &Path, right: &Path) -> bool {
