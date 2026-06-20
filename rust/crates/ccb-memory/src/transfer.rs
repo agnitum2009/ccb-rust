@@ -2,7 +2,7 @@ use crate::deduper::ConversationDeduper;
 use crate::formatter::ContextFormatter;
 use crate::session_parser::ClaudeSessionParser;
 use crate::types::{ConversationEntry, MemoryError, Result, SessionStats, TransferContext};
-use ccb_provider_sessions::files::{find_project_session_file, ProviderClientSpec};
+use ccb_provider_sessions::files::find_bound_session_file;
 use ccb_storage::path_helpers::normalize_agent_name;
 
 use ccb_types::env::env_bool;
@@ -425,8 +425,7 @@ pub fn auto_source_candidates(
         let Some(filename) = source_session_files.get(*provider) else {
             continue;
         };
-        let spec = ProviderClientSpec::new(provider, filename);
-        let session_file = find_project_session_file(work_dir, &spec.session_filename);
+        let session_file = find_bound_session_file(work_dir, provider, filename);
         if session_file.is_none() || !session_file.as_ref().unwrap().exists() {
             continue;
         }
@@ -464,8 +463,7 @@ pub fn load_session_data(
     if filename.is_empty() {
         return (None, serde_json::Map::new());
     }
-    let spec = ProviderClientSpec::new(provider, &filename);
-    let session_file = find_project_session_file(work_dir, &spec.session_filename);
+    let session_file = find_bound_session_file(work_dir, provider, &filename);
     let Some(session_file) = session_file else {
         return (None, serde_json::Map::new());
     };
