@@ -189,6 +189,7 @@ dependencies = [
  "ccb-mailbox",
  "ccb-memory",
  "ccb-provider-core",
+ "ccb-provider-hooks",
  "ccb-provider-sessions",
  "ccb-storage",
  "ccb-terminal",
