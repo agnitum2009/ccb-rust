@@ -20,6 +20,8 @@ pub enum TerminalError {
 
 pub type Result<T> = std::result::Result<T, TerminalError>;
 
+pub use crate::backend_selection::TerminalBackendSelection;
+
 /// Abstract terminal backend trait. Maps to Python `TerminalBackend` ABC.
 pub trait TerminalBackend: Send + Sync {
     fn send_text(&self, pane_id: &str, text: &str) -> Result<()>;
@@ -546,53 +548,6 @@ pub fn isolated_tmux_env() -> Vec<(String, String)> {
     crate::env::isolated_tmux_env().into_iter().collect()
 }
 
-/// Backend selection that mimics Python `TerminalBackendSelection`.
-#[derive(Debug, Default)]
-pub struct TerminalBackendSelection {
-    cached: Option<TmuxBackend>,
-}
-
-impl TerminalBackendSelection {
-    pub fn new() -> Self {
-        Self { cached: None }
-    }
-
-    /// Always return a tmux backend regardless of terminal type.
-    pub fn get_backend(&mut self) -> &TmuxBackend {
-        if self.cached.is_none() {
-            self.cached = Some(TmuxBackend::new(None, None));
-        }
-        self.cached.as_ref().unwrap()
-    }
-
-    /// Resolve a backend given an explicit terminal type.
-    ///
-    /// Only `"tmux"` is supported by this selection; other values leave the
-    /// cache empty and return `None`.
-    pub fn get_backend_by_type(&mut self, terminal_type: &str) -> Option<&TmuxBackend> {
-        if self.cached.is_none() && terminal_type == "tmux" {
-            self.cached = Some(TmuxBackend::new(None, None));
-        }
-        self.cached.as_ref()
-    }
-
-    pub fn get_backend_for_session(&self, session: &crate::registry::UserSession) -> TmuxBackend {
-        let socket_name = session.tmux_socket_name.clone();
-        let socket_path = session.tmux_socket_path.clone();
-        TmuxBackend::new(socket_name, socket_path)
-    }
-
-    pub fn get_pane_id_from_session(
-        &self,
-        session: &crate::registry::UserSession,
-    ) -> Option<String> {
-        session
-            .pane_id
-            .clone()
-            .or_else(|| session.tmux_session.clone())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -625,13 +580,5 @@ mod tests {
         let base = backend.tmux_base();
         assert!(base.contains(&"-L".to_string()));
         assert!(base.contains(&"mysock".to_string()));
-    }
-
-    #[test]
-    fn test_backend_selection_caches() {
-        let mut selection = TerminalBackendSelection::new();
-        let first = selection.get_backend() as *const TmuxBackend;
-        let second = selection.get_backend() as *const TmuxBackend;
-        assert_eq!(first, second);
     }
 }
