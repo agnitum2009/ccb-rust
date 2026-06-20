@@ -59,6 +59,10 @@ impl LayoutNode {
         }
     }
 
+    pub fn iter_names(&self) -> Vec<&str> {
+        self.iter_leaves().into_iter().map(|leaf| leaf.name.as_str()).collect()
+    }
+
     pub fn render(&self) -> String {
         match self {
             LayoutNode::Leaf { leaf } => render_leaf(leaf),
@@ -99,9 +103,9 @@ fn render_leaf(leaf: &LayoutLeaf) -> String {
 
 fn precedence(kind: &str) -> u8 {
     match kind {
-        "vertical" => 1,
-        "horizontal" => 2,
-        _ => 0,
+        "horizontal" => 1,
+        "vertical" => 2,
+        _ => 3,
     }
 }
 
@@ -109,14 +113,17 @@ fn render_child(node: &LayoutNode, parent_kind: &str) -> String {
     if matches!(node, LayoutNode::Leaf { .. }) {
         return node.render();
     }
-    let child_rank = precedence(node_kind(node));
+    let child_kind = node_kind(node);
+    let child_rank = precedence(child_kind);
     let parent_rank = precedence(parent_kind);
     let text = node.render();
     if child_rank < parent_rank {
-        format!("({text})")
-    } else {
-        text
+        return format!("({text})");
     }
+    if parent_kind == "vertical" && child_kind == "horizontal" {
+        return format!("({text})");
+    }
+    text
 }
 
 fn node_kind(node: &LayoutNode) -> &'static str {
@@ -263,6 +270,13 @@ impl LayoutParser {
 
 pub fn parse_layout_spec(text: &str) -> Result<LayoutNode, LayoutParseError> {
     LayoutParser::new(text).parse()
+}
+
+/// Return the leaf names of a layout in left-to-right order.
+///
+/// Mirrors Python `iter_layout_names`.
+pub fn iter_layout_names(node: &LayoutNode) -> Vec<&str> {
+    node.iter_names()
 }
 
 fn tokenize(text: &str) -> Vec<String> {
