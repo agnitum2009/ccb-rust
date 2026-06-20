@@ -559,3 +559,31 @@ fn test_global_session_registry_is_singleton() {
     let r2 = get_session_registry();
     assert!(std::ptr::eq(r1, r2));
 }
+
+#[test]
+fn test_route_claude_binary_cache_moves_versions_to_shared_cache() {
+    let tmp = TempDir::new().unwrap();
+    let home_root = camino::Utf8PathBuf::from_path_buf(tmp.path().join("home")).unwrap();
+    let cache_root = camino::Utf8PathBuf::from_path_buf(tmp.path().join("cache")).unwrap();
+    let versions_dir = home_root
+        .join(".local")
+        .join("share")
+        .join("claude")
+        .join("versions");
+    std::fs::create_dir_all(&versions_dir).unwrap();
+    std::fs::write(versions_dir.join("v1"), "v1 binary").unwrap();
+
+    ccb_providers::claude::launcher_runtime::binary_cache::route_claude_binary_cache(
+        &home_root,
+        &cache_root,
+        None,
+    )
+    .unwrap();
+
+    assert!(cache_root.join("versions").join("v1").exists());
+    assert!(versions_dir.is_symlink());
+    assert_eq!(
+        std::fs::read_link(versions_dir.as_std_path()).unwrap(),
+        cache_root.join("versions").as_std_path()
+    );
+}
