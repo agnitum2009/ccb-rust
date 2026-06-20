@@ -6,6 +6,8 @@ pub mod mimo;
 pub mod model_shortcuts;
 pub mod native_cli_support;
 pub mod opencode;
+pub mod pane_log_support;
+pub mod pane_quiet_support;
 pub mod providers;
 pub mod runtime;
 

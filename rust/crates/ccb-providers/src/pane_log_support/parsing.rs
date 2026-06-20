@@ -1,17 +1,24 @@
 //! Mirrors Python `lib/provider_backends/pane_log_support/parsing.py`.
 
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 
 fn ansi_escape_re() -> Regex {
     Regex::new(r"\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\].*?(?:\x07|\x1b\\)|[\x40-\x5f])").unwrap()
 }
 
 fn ccb_req_id_re() -> Regex {
-    Regex::new(r"^\s*CCB_REQ_ID:\s*(\S+)\s*$").unwrap()
+    RegexBuilder::new(r"^\s*CCB_REQ_ID:\s*(\S+)\s*$")
+        .multi_line(true)
+        .build()
+        .unwrap()
 }
 
 fn ccb_done_re() -> Regex {
-    Regex::new(r"(?i)^\s*CCB_DONE:\s*req-[a-f0-9]{8}\s*$").unwrap()
+    RegexBuilder::new(r"^\s*CCB_DONE:\s*req-[a-f0-9]{8}\s*$")
+        .multi_line(true)
+        .case_insensitive(true)
+        .build()
+        .unwrap()
 }
 
 /// Strip ANSI escape sequences from text.

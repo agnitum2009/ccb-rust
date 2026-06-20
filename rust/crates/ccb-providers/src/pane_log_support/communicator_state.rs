@@ -1,7 +1,8 @@
 //! Mirrors Python `lib/provider_backends/pane_log_support/communicator_state.py`.
 
+use std::any::Any;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde_json::Value;
 
@@ -23,10 +24,11 @@ pub struct CommunicatorState {
 }
 
 /// Trait for a pane-log reader so that `ensure_log_reader` can remain generic.
-pub trait LogReader: std::fmt::Debug {
+pub trait LogReader: std::fmt::Debug + Any {
     fn new(work_dir: Option<PathBuf>, pane_log_path: Option<PathBuf>) -> Self
     where
         Self: Sized;
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// Initialize communicator state from session info.
@@ -145,6 +147,9 @@ mod tests {
                 pane_log_path,
             }
         }
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
     }
 
     #[test]
@@ -208,6 +213,7 @@ mod tests {
             .log_reader
             .as_ref()
             .unwrap()
+            .as_any()
             .downcast_ref::<TestReader>()
             .unwrap();
         assert_eq!(reader.work_dir, Some(tmp.join("workspace")));
