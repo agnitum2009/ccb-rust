@@ -195,4 +195,28 @@ mod tests {
         assert_eq!(svc.clear_rule("all").unwrap().len(), 2);
         assert!(svc.list_rules().is_empty());
     }
+
+    /// Mirrors Python `test_v2_fault_injection.py::test_fault_injection_service_arm_consume_and_clear`.
+    #[test]
+    fn test_fault_injection_service_arm_consume_and_clear() {
+        let mut svc = FaultInjectionService::new();
+        let rule = svc
+            .arm_rule("agent1", "drill-1", "api_error", 2, None)
+            .unwrap();
+        assert_eq!(rule.agent_name, "agent1");
+        assert_eq!(rule.remaining_count, 2);
+        assert_eq!(svc.list_rules().len(), 1);
+
+        let first = svc.consume("agent1", "drill-1").unwrap();
+        assert_eq!(first.rule_id, rule.rule_id);
+        assert_eq!(first.remaining_count, 1);
+        assert_eq!(svc.list_rules()[0].remaining_count, 1);
+
+        let second = svc.consume("agent1", "drill-1").unwrap();
+        assert_eq!(second.remaining_count, 0);
+        assert!(svc.list_rules().is_empty());
+
+        let cleared = svc.clear_rule("all").unwrap();
+        assert!(cleared.is_empty());
+    }
 }
