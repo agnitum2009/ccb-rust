@@ -260,6 +260,15 @@ fn test_provider_hook_home_root_gemini() {
     );
 }
 
+fn base_spec(name: &str, provider: &str) -> AgentSpec {
+    let mut spec = claude_spec(name);
+    spec.provider = provider.into();
+    if provider == "codex" {
+        spec.provider_profile.mode = "isolated".into();
+    }
+    spec
+}
+
 fn claude_spec(name: &str) -> AgentSpec {
     AgentSpec {
         name: name.into(),
@@ -395,6 +404,79 @@ fn test_prepare_provider_workspace_materializes_codex_home() {
     assert!(config_path.exists());
     let text = std::fs::read_to_string(&config_path).unwrap();
     assert!(text.contains("model = \"gpt-5\""));
+}
+
+#[test]
+fn test_prepare_provider_workspace_materializes_gemini_home() {
+    let (_tmp, root) = tmp_dir();
+    let project_root = root.join("repo");
+    let workspace = project_root.join("workspace");
+    let system_home = root.join("system-home");
+    std::fs::create_dir_all(&system_home).unwrap();
+
+    std::env::set_var("HOME", system_home.as_str());
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = ccb_storage::paths::PathLayout::new(&project_root);
+    let completion_dir = layout
+        .agent_provider_runtime_dir("agent1", "gemini")
+        .join("completion");
+
+    let spec = base_spec("agent1", "gemini");
+
+    let profile = prepare_provider_workspace(
+        &layout,
+        &spec,
+        &workspace,
+        &completion_dir,
+        "agent1",
+        true,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(profile.provider, "gemini");
+
+    let gemini_dir = layout
+        .agent_provider_state_dir("agent1", "gemini")
+        .join("home")
+        .join(".gemini");
+    assert!(gemini_dir.is_dir());
+    assert!(gemini_dir.join("trustedFolders.json").exists());
+}
+
+#[test]
+fn test_prepare_provider_workspace_materializes_opencode_config() {
+    let (_tmp, root) = tmp_dir();
+    let project_root = root.join("repo");
+    let workspace = project_root.join("workspace");
+
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = ccb_storage::paths::PathLayout::new(&project_root);
+    let completion_dir = layout
+        .agent_provider_runtime_dir("agent1", "opencode")
+        .join("completion");
+
+    let spec = base_spec("agent1", "opencode");
+
+    let profile = prepare_provider_workspace(
+        &layout,
+        &spec,
+        &workspace,
+        &completion_dir,
+        "agent1",
+        true,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(profile.provider, "opencode");
+
+    let config_path = layout
+        .agent_provider_state_dir("agent1", "opencode")
+        .join("opencode.json");
+    assert!(config_path.exists());
 }
 
 #[test]
