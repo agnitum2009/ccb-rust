@@ -23,6 +23,22 @@ pub struct JobRecord {
 }
 
 impl JobRecord {
+    /// Normalize agent/target identifiers in place.
+    pub fn normalize(&mut self) {
+        self.agent_name = super::common::normalize_agent_name(&self.agent_name);
+        self.target_name = super::common::normalize_agent_name(&self.target_name);
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.status.is_terminal() && self.terminal_decision.is_none() {
+            return Err(format!(
+                "terminal status {:?} requires terminal_decision",
+                self.status
+            ));
+        }
+        Ok(())
+    }
+
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
@@ -59,6 +75,29 @@ pub struct SubmissionRecord {
     pub updated_at: String,
 }
 
+impl SubmissionRecord {
+    /// Normalize the sender actor name in place.
+    pub fn normalize(&mut self) -> Result<(), String> {
+        self.from_actor = super::common::normalize_actor_name(&self.from_actor)?;
+        Ok(())
+    }
+
+    pub fn to_record(&self) -> serde_json::Value {
+        serde_json::json!({
+            "schema_version": SCHEMA_VERSION,
+            "record_type": "submission_record",
+            "submission_id": self.submission_id,
+            "project_id": self.project_id,
+            "from_actor": self.from_actor,
+            "target_scope": self.target_scope,
+            "task_id": self.task_id,
+            "job_ids": self.job_ids,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobEvent {
     pub event_id: String,
@@ -72,4 +111,27 @@ pub struct JobEvent {
     pub target_kind: TargetKind,
     #[serde(default)]
     pub target_name: String,
+}
+
+impl JobEvent {
+    /// Normalize agent/target identifiers in place.
+    pub fn normalize(&mut self) {
+        self.agent_name = super::common::normalize_agent_name(&self.agent_name);
+        self.target_name = super::common::normalize_agent_name(&self.target_name);
+    }
+
+    pub fn to_record(&self) -> serde_json::Value {
+        serde_json::json!({
+            "schema_version": SCHEMA_VERSION,
+            "record_type": "job_event",
+            "event_id": self.event_id,
+            "job_id": self.job_id,
+            "agent_name": self.agent_name,
+            "type": self.event_type,
+            "payload": self.payload,
+            "timestamp": self.timestamp,
+            "target_kind": self.target_kind,
+            "target_name": self.target_name,
+        })
+    }
 }

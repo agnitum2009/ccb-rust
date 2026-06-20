@@ -20,6 +20,13 @@ pub struct MessageEnvelope {
 }
 
 impl MessageEnvelope {
+    /// Normalize agent/actor identifiers in place.
+    pub fn normalize(&mut self) -> Result<(), String> {
+        self.to_agent = super::common::normalize_agent_name(&self.to_agent);
+        self.from_actor = super::common::normalize_actor_name(&self.from_actor)?;
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.project_id.is_empty() {
             return Err("project_id cannot be empty".into());
@@ -32,6 +39,9 @@ impl MessageEnvelope {
         }
         if self.body.trim().is_empty() {
             return Err("body cannot be empty".into());
+        }
+        if self.to_agent == "all" && matches!(self.delivery_scope, super::common::DeliveryScope::Single) {
+            return Err("delivery_scope 'single' cannot target 'all'".into());
         }
         Ok(())
     }

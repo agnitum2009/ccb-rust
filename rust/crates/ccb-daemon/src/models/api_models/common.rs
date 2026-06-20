@@ -58,3 +58,23 @@ pub enum LeaseHealth {
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("{0}")]
 pub struct CcbdModelError(pub String);
+
+/// Normalize an agent identifier (lowercase, trimmed).
+pub fn normalize_agent_name(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+/// Normalize a message actor name.
+///
+/// Mirrors Python `MessageEnvelope` actor normalization: lowercase and reject
+/// values containing whitespace.
+pub fn normalize_actor_name(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("actor name cannot be empty".into());
+    }
+    if trimmed.chars().any(|c| c.is_whitespace()) {
+        return Err(format!("invalid actor name: {trimmed}"));
+    }
+    Ok(trimmed.to_lowercase())
+}
