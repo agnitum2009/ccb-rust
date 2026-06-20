@@ -480,6 +480,53 @@ fn test_prepare_provider_workspace_materializes_opencode_config() {
 }
 
 #[test]
+fn test_prepare_provider_workspace_records_claude_binary_cache_drift() {
+    let (_tmp, root) = tmp_dir();
+    let project_root = root.join("repo");
+    let workspace = project_root.join("workspace");
+    let system_home = root.join("system-home");
+    std::fs::create_dir_all(&system_home).unwrap();
+
+    // Pre-create a per-agent Claude versions cache.
+    let versions_dir = system_home
+        .join(".local")
+        .join("share")
+        .join("claude")
+        .join("versions");
+    std::fs::create_dir_all(&versions_dir).unwrap();
+    std::fs::write(versions_dir.join("v1"), "binary").unwrap();
+
+    std::env::set_var("HOME", system_home.as_str());
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = ccb_storage::paths::PathLayout::new(&project_root);
+    let completion_dir = layout
+        .agent_provider_runtime_dir("agent1", "claude")
+        .join("completion");
+
+    prepare_provider_workspace(
+        &layout,
+        &claude_spec("agent1"),
+        &workspace,
+        &completion_dir,
+        "agent1",
+        true,
+        false,
+    )
+    .unwrap();
+
+    let marker_path = layout
+        .agent_provider_runtime_dir("agent1", "claude")
+        .join("claude-binary-cache-drift.json");
+    assert!(marker_path.exists());
+
+    let events_path = layout.agent_events_path("agent1");
+    assert!(events_path.exists());
+    let events_text = std::fs::read_to_string(&events_path).unwrap();
+    assert!(events_text.contains("claude_binary_cache_drift"));
+}
+
+#[test]
 fn test_provider_hook_home_root_unsupported_returns_none() {
     let (_tmp, root) = tmp_dir();
     let runtime_dir = root.join("runtime");
