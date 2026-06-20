@@ -279,6 +279,105 @@ fn settings_install_gemini_completion_hooks() {
 }
 
 #[test]
+fn settings_install_claude_completion_hooks_preserves_existing_entries() {
+    let dir = TempDir::new().unwrap();
+    let home_root = Utf8Path::from_path(dir.path()).unwrap().join("claude-home");
+    let workspace = Utf8Path::from_path(dir.path()).unwrap().join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    let command = "/usr/bin/python3 /tmp/ccb-provider-finish-hook --provider claude";
+    let settings_path = home_root.join(".claude").join("settings.json");
+    std::fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&serde_json::json!({
+            "hooks": {
+                "Stop": [
+                    {"hooks": [{"type": "command", "command": "echo existing"}]},
+                    {"hooks": [{"type": "command", "command": command}]},
+                ]
+            }
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    settings::install_workspace_completion_hooks(
+        "claude",
+        &workspace,
+        Some(&home_root),
+        command,
+    )
+    .unwrap();
+
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&settings_path).unwrap()).unwrap();
+    assert_eq!(data["hooks"]["Stop"].as_array().unwrap().len(), 2);
+    assert!(!workspace.join(".claude").exists());
+}
+
+#[test]
+fn settings_install_claude_activity_hooks_prunes_stale_activity_hooks() {
+    let dir = TempDir::new().unwrap();
+    let home_root = Utf8Path::from_path(dir.path()).unwrap().join("claude-home");
+    let workspace = Utf8Path::from_path(dir.path()).unwrap().join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    let activity_command =
+        "/usr/bin/python3 /current/bin/ccb-provider-activity-hook --provider claude";
+    let stale_activity_command =
+        "/usr/bin/python3 /old/bin/ccb-provider-activity-hook --provider claude";
+    let finish_command = "/usr/bin/python3 /old/bin/ccb-provider-finish-hook --provider claude";
+    let settings_path = home_root.join(".claude").join("settings.json");
+    std::fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &settings_path,
+        serde_json::to_string_pretty(&serde_json::json!({
+            "hooks": {
+                "Stop": [
+                    {"hooks": [{"type": "command", "command": finish_command}]},
+                    {"hooks": [{"type": "command", "command": stale_activity_command}]},
+                ],
+                "PostToolUse": [
+                    {"hooks": [{"type": "command", "command": "echo existing"}]},
+                    {"hooks": [{"type": "command", "command": stale_activity_command}]},
+                ]
+            }
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    settings::install_workspace_activity_hooks(
+        "claude",
+        &workspace,
+        Some(&home_root),
+        activity_command,
+    )
+    .unwrap();
+
+    let data: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&settings_path).unwrap()).unwrap();
+    let stop_commands: Vec<String> = data["hooks"]["Stop"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|group| group["hooks"].as_array().unwrap().iter())
+        .filter_map(|hook| hook["command"].as_str().map(|s| s.to_string()))
+        .collect();
+    let post_tool_commands: Vec<String> = data["hooks"]["PostToolUse"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|group| group["hooks"].as_array().unwrap().iter())
+        .filter_map(|hook| hook["command"].as_str().map(|s| s.to_string()))
+        .collect();
+    assert!(stop_commands.contains(&finish_command.to_string()));
+    assert!(stop_commands.contains(&activity_command.to_string()));
+    assert!(!stop_commands.contains(&stale_activity_command.to_string()));
+    assert_eq!(post_tool_commands, vec!["echo existing", activity_command]);
+    assert!(!workspace.join(".claude").exists());
+}
+
+#[test]
 fn notifications_status_helpers() {
     assert_eq!(
         notifications::normalize_completion_status(Some("failed"), true),
