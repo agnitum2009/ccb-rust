@@ -188,7 +188,15 @@ mod tests {
 
     #[test]
     fn test_client_tty_matches_false_without_tmux() {
+        // Ensure tmux binary is not found so the function returns false even when
+        // the test runner happens to be executing inside a tmux session.
+        let original_path = std::env::var("PATH").ok();
+        std::env::set_var("PATH", "");
         assert!(!client_tty_matches("/dev/pts/0"));
+        match original_path {
+            Some(p) => std::env::set_var("PATH", p),
+            None => std::env::remove_var("PATH"),
+        }
     }
 
     #[test]

@@ -1,3 +1,10 @@
+// TODO: remove these allowances once the stub modules are fully implemented.
+// These suppress warnings in the current partial-Rust migration state.
+#![allow(clippy::new_without_default)]
+#![allow(clippy::too_many_arguments)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 pub mod api;
 pub mod api_selection;
 pub mod backend;

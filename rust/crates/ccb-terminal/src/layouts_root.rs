@@ -29,8 +29,7 @@ pub fn first_pane_id(stdout: &str) -> String {
     stdout
         .lines()
         .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .next()
+        .find(|l| !l.is_empty())
         .unwrap_or("")
         .to_string()
 }
