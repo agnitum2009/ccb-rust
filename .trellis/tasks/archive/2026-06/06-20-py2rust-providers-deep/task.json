@@ -1,0 +1,31 @@
+{
+  "id": "py2rust-providers-deep",
+  "name": "py2rust-providers-deep",
+  "title": "Provider 后端深层 parity",
+  "description": "补齐 provider 实例绑定、health store、registry、restore launchers、hook runtime 等 parity。",
+  "status": "completed",
+  "dev_type": "backend",
+  "scope": "registry static maps parity",
+  "package": "ccb-provider-core",
+  "priority": "P2",
+  "creator": "luck",
+  "assignee": "luck",
+  "createdAt": "2026-06-20",
+  "completedAt": "2026-06-20",
+  "branch": null,
+  "base_branch": "python-rust/rolepacks-versioning-translation",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "06-20-06-20-rust-deep-parity",
+  "relatedFiles": [
+    "rust/crates/ccb-provider-core/src/registry.rs",
+    "rust/crates/ccb-provider-core/tests/registry_tests.rs",
+    "rust/crates/ccb-provider-core/tests/source_home_tests.rs",
+    "plans/rust-python-test-parity-matrix.md"
+  ],
+  "notes": "Registry default session-binding and runtime-launcher maps populated to match Python test_v2_provider_core_registry.py. Full workspace tests and clippy pass.",
+  "meta": {}
+}
