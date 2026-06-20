@@ -1,4 +1,5 @@
 use std::process::{Command, Output, Stdio};
+use std::sync::Arc;
 use std::time::Duration;
 
 use thiserror::Error;
@@ -56,11 +57,35 @@ impl TmuxOutput {
     }
 }
 
+type TmuxRunFn = Arc<
+    dyn Fn(
+            Vec<String>,
+            bool,
+            bool,
+            Option<Vec<u8>>,
+            Option<Duration>,
+            Vec<(String, String)>,
+        ) -> std::io::Result<TmuxOutput>
+        + Send
+        + Sync,
+>;
+
 /// Tmux backend implementation.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TmuxBackend {
     socket_name: Option<String>,
     socket_path: Option<String>,
+    runner: Option<TmuxRunFn>,
+}
+
+impl std::fmt::Debug for TmuxBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TmuxBackend")
+            .field("socket_name", &self.socket_name)
+            .field("socket_path", &self.socket_path)
+            .field("has_runner", &self.runner.is_some())
+            .finish()
+    }
 }
 
 impl TmuxBackend {
@@ -75,7 +100,30 @@ impl TmuxBackend {
         Self {
             socket_name,
             socket_path,
+            runner: None,
         }
+    }
+
+    /// Replace the real subprocess runner with a custom function.
+    ///
+    /// Intended for tests that need to assert on the commands and environment
+    /// that would be passed to tmux without spawning a real tmux server.
+    pub fn with_runner<F>(mut self, runner: F) -> Self
+    where
+        F: Fn(
+                Vec<String>,
+                bool,
+                bool,
+                Option<Vec<u8>>,
+                Option<Duration>,
+                Vec<(String, String)>,
+            ) -> std::io::Result<TmuxOutput>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.runner = Some(Arc::new(runner));
+        self
     }
 
     pub fn socket_name(&self) -> Option<&str> {
@@ -101,15 +149,29 @@ impl TmuxBackend {
         timeout: Option<Duration>,
     ) -> std::io::Result<TmuxOutput> {
         let base = self.tmux_base();
-        let mut cmd = Command::new(&base[0]);
-        for arg in &base[1..] {
-            cmd.arg(arg);
+        let full: Vec<String> = base
+            .into_iter()
+            .chain(args.iter().map(|s| s.to_string()))
+            .collect();
+        let env: Vec<(String, String)> = crate::env::isolated_tmux_env().into_iter().collect();
+
+        if let Some(runner) = &self.runner {
+            return runner(
+                full,
+                check,
+                capture,
+                input_bytes.map(|b| b.to_vec()),
+                timeout,
+                env,
+            );
         }
-        for arg in args {
+
+        let mut cmd = Command::new(&full[0]);
+        for arg in &full[1..] {
             cmd.arg(arg);
         }
         cmd.env_clear();
-        for (key, value) in crate::env::isolated_tmux_env() {
+        for (key, value) in env {
             cmd.env(key, value);
         }
         if input_bytes.is_some() {
@@ -177,6 +239,66 @@ impl TmuxBackend {
 
     pub fn env_tmux_pane(&self) -> String {
         std::env::var("TMUX_PANE").unwrap_or_default()
+    }
+
+    pub fn get_current_pane_id(&self) -> Result<String> {
+        self.pane_service()
+            .get_current_pane_id(&self.env_tmux_pane())
+            .map_err(|e| TerminalError::CommandFailed(e.to_string()))
+    }
+
+    pub fn pane_exists(&self, pane_id: &str) -> bool {
+        self.pane_service().pane_exists(pane_id)
+    }
+
+    pub fn find_pane_by_title_marker(&self, marker: &str) -> Option<String> {
+        self.pane_service().find_pane_by_title_marker(marker)
+    }
+
+    pub fn describe_pane(
+        &self,
+        pane_id: &str,
+        user_options: &[&str],
+    ) -> Option<std::collections::HashMap<String, String>> {
+        let opts: Vec<String> = user_options.iter().map(|s| s.to_string()).collect();
+        self.pane_service().describe_pane(pane_id, &opts)
+    }
+
+    pub fn is_pane_alive(&self, pane_id: &str) -> bool {
+        self.pane_service().is_pane_alive(pane_id)
+    }
+
+    pub fn is_tmux_pane_alive(&self, pane_id: &str) -> Result<bool> {
+        let _ = self.require_pane_id(pane_id, "is_tmux_pane_alive")?;
+        Ok(self.is_pane_alive(pane_id))
+    }
+
+    pub fn send_text_to_pane(&self, pane_id: &str, text: &str) -> Result<()> {
+        let pane_id = self.require_pane_id(pane_id, "send_text_to_pane")?;
+        self.send_text(&pane_id, text)
+    }
+
+    pub fn kill_tmux_pane(&self, pane_id: &str) -> Result<()> {
+        let pane_id = self.require_pane_id(pane_id, "kill_tmux_pane")?;
+        self.kill_pane(&pane_id)
+    }
+
+    pub fn activate_tmux_pane(&self, pane_id: &str) -> Result<()> {
+        let pane_id = self.require_pane_id(pane_id, "activate_tmux_pane")?;
+        self.activate(&pane_id)
+    }
+
+    pub fn split_pane(
+        &self,
+        parent_pane_id: &str,
+        direction: &str,
+        percent: u32,
+        cmd: Option<&str>,
+        cwd: Option<&str>,
+    ) -> Result<String> {
+        self.pane_service()
+            .split_pane(parent_pane_id, direction, percent, cmd, cwd)
+            .map_err(|e| TerminalError::CommandFailed(e.to_string()))
     }
 
     /// Ensure the pane is not in copy mode, cancelling it if necessary.

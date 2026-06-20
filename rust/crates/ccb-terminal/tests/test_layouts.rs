@@ -198,6 +198,167 @@ fn test_create_tmux_auto_layout_allocates_detached_session_when_outside_tmux() {
 }
 
 #[test]
+fn test_create_auto_layout_topologies() {
+    use std::sync::Mutex;
+
+    struct SeqBackend {
+        split_calls: Mutex<Vec<(String, String)>>,
+        title_calls: Mutex<Vec<(String, String)>>,
+        seq: Mutex<u32>,
+    }
+
+    impl TmuxLayoutBackend for SeqBackend {
+        fn get_current_pane_id(&self) -> anyhow::Result<String> {
+            Ok("%root".to_string())
+        }
+        fn is_alive(&self, _pane_id: &str) -> bool {
+            true
+        }
+        fn create_pane(
+            &self,
+            _cmd: &str,
+            _cwd: &str,
+            _direction: &str,
+            _percent: u32,
+            _parent_pane: Option<&str>,
+        ) -> anyhow::Result<String> {
+            Ok("%created".to_string())
+        }
+        fn split_pane(
+            &self,
+            parent_pane_id: &str,
+            direction: &str,
+            _percent: u32,
+        ) -> anyhow::Result<String> {
+            self.split_calls
+                .lock()
+                .unwrap()
+                .push((parent_pane_id.to_string(), direction.to_string()));
+            let n = *self.seq.lock().unwrap();
+            *self.seq.lock().unwrap() += 1;
+            Ok(format!("%r{n}"))
+        }
+        fn set_pane_title(&self, pane_id: &str, title: &str) {
+            self.title_calls
+                .lock()
+                .unwrap()
+                .push((pane_id.to_string(), title.to_string()));
+        }
+        fn set_pane_user_option(&self, _pane_id: &str, _name: &str, _value: &str) {}
+        fn set_pane_style(
+            &self,
+            _pane_id: &str,
+            _border_style: Option<&str>,
+            _active_border_style: Option<&str>,
+        ) {
+        }
+        fn tmux_run(&self, _args: &[&str], _check: bool, _capture: bool) -> anyhow::Result<String> {
+            Ok("".to_string())
+        }
+    }
+
+    let backend = SeqBackend {
+        split_calls: Mutex::new(Vec::new()),
+        title_calls: Mutex::new(Vec::new()),
+        seq: Mutex::new(1),
+    };
+
+    let r2 = create_tmux_auto_layout(
+        &["codex".to_string(), "gemini".to_string()],
+        "/tmp",
+        &backend,
+        None,
+        None,
+        50,
+        true,
+        "M",
+        None,
+        true,
+    )
+    .unwrap();
+    assert_eq!(r2.panes.get("codex"), Some(&"%root".to_string()));
+    assert_eq!(r2.panes.get("gemini"), Some(&"%r1".to_string()));
+    assert_eq!(
+        *backend.split_calls.lock().unwrap(),
+        vec![("%root".to_string(), "right".to_string())]
+    );
+    {
+        let titles: Vec<String> = backend
+            .title_calls
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, t)| t.clone())
+            .collect();
+        assert!(titles.contains(&"M-codex".to_string()));
+        assert!(titles.contains(&"M-gemini".to_string()));
+    }
+
+    backend.split_calls.lock().unwrap().clear();
+
+    let r3 = create_tmux_auto_layout(
+        &[
+            "codex".to_string(),
+            "gemini".to_string(),
+            "opencode".to_string(),
+        ],
+        "/tmp",
+        &backend,
+        None,
+        None,
+        50,
+        true,
+        "M",
+        None,
+        true,
+    )
+    .unwrap();
+    assert_eq!(r3.panes.get("codex"), Some(&"%root".to_string()));
+    assert_eq!(r3.panes.get("gemini"), Some(&"%r2".to_string()));
+    assert_eq!(r3.panes.get("opencode"), Some(&"%r3".to_string()));
+    assert_eq!(
+        *backend.split_calls.lock().unwrap(),
+        vec![
+            ("%root".to_string(), "right".to_string()),
+            ("%r2".to_string(), "bottom".to_string()),
+        ]
+    );
+
+    backend.split_calls.lock().unwrap().clear();
+
+    let r4 = create_tmux_auto_layout(
+        &[
+            "codex".to_string(),
+            "gemini".to_string(),
+            "opencode".to_string(),
+            "x".to_string(),
+        ],
+        "/tmp",
+        &backend,
+        None,
+        None,
+        50,
+        true,
+        "M",
+        None,
+        true,
+    )
+    .unwrap();
+    assert_eq!(r4.panes.get("codex"), Some(&"%root".to_string()));
+    assert_eq!(r4.panes.get("gemini"), Some(&"%r4".to_string()));
+    assert_eq!(r4.panes.get("opencode"), Some(&"%r5".to_string()));
+    assert_eq!(r4.panes.get("x"), Some(&"%r6".to_string()));
+    assert_eq!(
+        *backend.split_calls.lock().unwrap(),
+        vec![
+            ("%root".to_string(), "right".to_string()),
+            ("%root".to_string(), "bottom".to_string()),
+            ("%r4".to_string(), "bottom".to_string()),
+        ]
+    );
+}
+
+#[test]
 fn test_create_tmux_auto_layout_reuses_existing_session() {
     let backend = FakeLayoutBackend::new(None, &["ccb-demo-2"]);
     let result = create_tmux_auto_layout(
