@@ -1,7 +1,28 @@
 use ccb_storage::{jsonl::JsonlStore, paths::PathLayout};
+use serde::Serialize;
 
 use crate::models::{JobEvent, JobRecord, SubmissionRecord, TargetKind};
 use crate::Result;
+
+const SCHEMA_VERSION: i32 = 2;
+
+#[derive(Serialize)]
+struct Record<'a, T: Serialize> {
+    schema_version: i32,
+    record_type: &'a str,
+    #[serde(flatten)]
+    payload: &'a T,
+}
+
+impl<'a, T: Serialize> Record<'a, T> {
+    fn new(record_type: &'a str, payload: &'a T) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            record_type,
+            payload,
+        }
+    }
+}
 
 /// Store for job records, persisted per target.
 #[derive(Clone)]
@@ -23,7 +44,9 @@ impl JobStore {
             &format!("{:?}", record.target_kind).to_lowercase(),
             &record.target_name,
         )?;
-        self.jsonl.append(&path, record).map_err(Into::into)
+        self.jsonl
+            .append(&path, &Record::new("job_record", record))
+            .map_err(Into::into)
     }
 
     pub fn list_agent(&self, agent_name: &str) -> Vec<JobRecord> {
@@ -101,7 +124,9 @@ impl JobEventStore {
             &format!("{:?}", event.target_kind).to_lowercase(),
             &event.target_name,
         )?;
-        self.jsonl.append(&path, event).map_err(Into::into)
+        self.jsonl
+            .append(&path, &Record::new("job_event", event))
+            .map_err(Into::into)
     }
 
     pub fn read_since(&self, agent_name: &str, start_line: usize) -> (usize, Vec<JobEvent>) {
@@ -145,7 +170,9 @@ impl SubmissionStore {
 
     pub fn append(&self, record: &SubmissionRecord) -> Result<()> {
         let path = self.layout.ccbd_submissions_path();
-        self.jsonl.append(&path, record).map_err(Into::into)
+        self.jsonl
+            .append(&path, &Record::new("submission_record", record))
+            .map_err(Into::into)
     }
 
     pub fn list_all(&self) -> Vec<SubmissionRecord> {

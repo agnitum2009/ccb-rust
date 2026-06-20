@@ -97,6 +97,7 @@ pub struct JobEvent {
     pub target_kind: TargetKind,
     #[serde(default)]
     pub target_name: String,
+    #[serde(rename = "type")]
     pub event_type: String,
     #[serde(default)]
     pub payload: Value,
