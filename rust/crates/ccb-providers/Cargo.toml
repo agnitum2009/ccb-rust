@@ -72,6 +72,10 @@ path = "tests/provider_mimo_tests.rs"
 name = "provider_fake_tests"
 path = "tests/provider_fake_tests.rs"
 
+[[test]]
+name = "provider_session_paths_tests"
+path = "tests/provider_session_paths_tests.rs"
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
