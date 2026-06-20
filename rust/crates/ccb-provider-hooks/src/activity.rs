@@ -511,6 +511,7 @@ fn safe_diagnostics(
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::fs;
     use tempfile::TempDir;
 
     #[test]
@@ -770,5 +771,270 @@ mod tests {
         .unwrap();
 
         assert_eq!(evidence.diagnostics, Some(Map::new()));
+    }
+
+    #[test]
+    fn test_write_activity_strips_secret_diagnostics() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        let mut diagnostics = HashMap::new();
+        diagnostics.insert("tool_name".into(), json!("shell"));
+        diagnostics.insert("api_key".into(), json!("must-not-leak"));
+
+        let result = write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "tool",
+            "codex_hook",
+            Some("PreToolUse"),
+            Some("ccb-agent2-1"),
+            Some("%42"),
+            Some("/tmp/workspace"),
+            None,
+            None,
+            None,
+            Some(&diagnostics),
+            Some("2026-05-27T00:00:00Z"),
+        )
+        .unwrap();
+
+        assert_eq!(result, runtime.join("activity.json"));
+        let payload = load_activity(&runtime).unwrap();
+        assert_eq!(payload["record_type"], "provider_activity");
+        assert_eq!(payload["state"], "active");
+        assert_eq!(payload["provider"], "codex");
+        assert_eq!(payload["agent_name"], "agent2");
+        let persisted_diagnostics = payload["diagnostics"].as_object().unwrap();
+        assert_eq!(persisted_diagnostics["tool_name"], "shell");
+        assert!(!persisted_diagnostics.contains_key("api_key"));
+    }
+
+    #[test]
+    fn test_read_activity_evidence_treats_provider_session_as_diagnostic_identity() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "active",
+            "codex_hook",
+            Some("UserPromptSubmit"),
+            Some("ccb-agent2-launch"),
+            Some("%1"),
+            None,
+            Some("codex-session-1"),
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:00Z"),
+        )
+        .unwrap();
+
+        let evidence = read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "codex",
+            None,
+            Some("codex-session-1"),
+            Some("%1"),
+            None,
+            Some("2026-05-27T00:00:01Z"),
+            30.0,
+        )
+        .unwrap();
+        assert_eq!(evidence.state, "active");
+
+        let mismatched = read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "codex",
+            None,
+            Some("codex-session-2"),
+            Some("%1"),
+            None,
+            Some("2026-05-27T00:00:01Z"),
+            30.0,
+        )
+        .unwrap();
+        assert_eq!(mismatched.provider_session_id, Some("codex-session-1".into()));
+    }
+
+    #[test]
+    fn test_read_activity_evidence_rejects_wrong_identity() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "active",
+            "codex_hook",
+            None,
+            Some("ccb-agent2-old"),
+            Some("%1"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:00Z"),
+        )
+        .unwrap();
+
+        assert!(
+            read_activity_evidence(
+                &runtime,
+                "project-1",
+                "agent2",
+                "codex",
+                Some("ccb-agent2-new"),
+                None,
+                Some("%1"),
+                None,
+                Some("2026-05-27T00:00:01Z"),
+                30.0,
+            )
+            .is_none()
+        );
+        assert!(
+            read_activity_evidence(
+                &runtime,
+                "project-1",
+                "agent2",
+                "claude",
+                Some("ccb-agent2-old"),
+                None,
+                Some("%1"),
+                None,
+                Some("2026-05-27T00:00:01Z"),
+                30.0,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn test_read_activity_evidence_rejects_malformed_and_future_timestamp() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+        let activity_file = runtime.join("activity.json");
+        fs::create_dir_all(activity_file.parent().unwrap()).unwrap();
+        fs::write(&activity_file, "{not-json").unwrap();
+
+        assert!(
+            read_activity_evidence(
+                &runtime, "project-1", "agent2", "codex", None, None, None, None, None, 30.0,
+            )
+            .is_none()
+        );
+
+        write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "active",
+            "codex_hook",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:10:00Z"),
+        )
+        .unwrap();
+
+        assert!(
+            read_activity_evidence(
+                &runtime,
+                "project-1",
+                "agent2",
+                "codex",
+                None,
+                None,
+                None,
+                None,
+                Some("2026-05-27T00:00:00Z"),
+                30.0,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn test_load_activity_returns_none_for_missing_or_invalid_payload() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        assert!(load_activity(&runtime).is_none());
+        fs::create_dir_all(&runtime).unwrap();
+        fs::write(runtime.join("activity.json"), "[]").unwrap();
+        assert!(load_activity(&runtime).is_none());
+    }
+
+    #[test]
+    fn test_failed_activity_is_sticky_until_identity_change() {
+        let dir = TempDir::new().unwrap();
+        let path = Utf8Path::from_path(dir.path()).unwrap();
+        let runtime = path.join("runtime");
+
+        write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "failed",
+            "codex_hook",
+            None,
+            Some("ccb-agent2-1"),
+            Some("%1"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:03Z"),
+        )
+        .unwrap();
+        write_activity(
+            "codex",
+            "project-1",
+            "agent2",
+            &runtime,
+            "idle",
+            "codex_hook",
+            None,
+            Some("ccb-agent2-2"),
+            Some("%2"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:04Z"),
+        )
+        .unwrap();
+
+        let payload = load_activity(&runtime).unwrap();
+        assert_eq!(payload["state"], "idle");
+        assert_eq!(payload["ccb_session_id"], "ccb-agent2-2");
     }
 }
