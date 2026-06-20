@@ -24,6 +24,7 @@ pub struct RpcResponse {
 }
 
 /// Unix-socket based daemon client.
+#[derive(Debug, Clone)]
 pub struct UnixDaemonClient {
     socket_path: String,
 }

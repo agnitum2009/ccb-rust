@@ -671,6 +671,12 @@ fn parse_compact_config_document(
         cmd_enabled,
         layout_spec: Some(layout.render()),
         windows_explicit: Some(false),
+        windows: None,
+        tool_windows: None,
+        entry_window: None,
+        sidebar: None,
+        sidebar_view: None,
+        maintenance_heartbeat: None,
         ..ProjectConfig::default()
     })
 }

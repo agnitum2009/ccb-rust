@@ -1174,11 +1174,13 @@ impl ProjectConfig {
                 self.layout_spec = Some(layout.render());
             }
         }
-        if self.sidebar.is_none() {
-            self.sidebar = Some(SidebarSpec::default());
-        }
-        if self.sidebar_view.is_none() {
-            self.sidebar_view = Some(SidebarViewSpec::default());
+        if self.windows.is_some() {
+            if self.sidebar.is_none() {
+                self.sidebar = Some(SidebarSpec::default());
+            }
+            if self.sidebar_view.is_none() {
+                self.sidebar_view = Some(SidebarViewSpec::default());
+            }
         }
         if self.maintenance_heartbeat.is_none() {
             self.maintenance_heartbeat = Some(MaintenanceHeartbeatConfig::default());
