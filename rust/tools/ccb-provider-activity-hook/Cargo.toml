@@ -11,3 +11,6 @@ path = "src/main.rs"
 camino = { workspace = true }
 ccb-provider-hooks = { path = "../../crates/ccb-provider-hooks" }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
