@@ -158,6 +158,7 @@ pub mod daemon;
 pub mod daemon_runtime;
 pub mod diagnostics;
 pub mod doctor;
+pub mod doctor_runtime;
 pub mod doctor_storage;
 pub mod fault;
 pub mod inbox;
