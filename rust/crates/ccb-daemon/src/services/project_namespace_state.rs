@@ -1,3 +1,6 @@
 //! Mirrors Python `lib/ccbd/services/project_namespace_state.py`.
-//! 1:1 file alignment stub.
-// TODO: align with Python
+
+pub use crate::services::project_namespace_state_runtime::{
+    next_namespace_epoch, ProjectNamespaceEvent, ProjectNamespaceEventStore, ProjectNamespaceState,
+    ProjectNamespaceStateStore,
+};
