@@ -1,0 +1,31 @@
+{
+  "id": "py2rust-providers-health-store",
+  "name": "py2rust-providers-health-store",
+  "title": "Provider health store parity",
+  "description": "补齐 ccb-providers ProviderHealthSnapshotStore 与 Python test_v2_provider_health_store.py 的 parity。",
+  "status": "completed",
+  "dev_type": "backend",
+  "scope": "provider health snapshot store test coverage",
+  "package": "ccb-providers",
+  "priority": "P2",
+  "creator": "luck",
+  "assignee": "luck",
+  "createdAt": "2026-06-20",
+  "completedAt": "2026-06-20",
+  "branch": null,
+  "base_branch": "python-rust/rolepacks-versioning-translation",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "06-20-06-20-rust-deep-parity",
+  "relatedFiles": [
+    "rust/crates/ccb-providers/src/runtime/store.rs",
+    "rust/crates/ccb-providers/src/runtime/health.rs",
+    "rust/crates/ccb-providers/tests/runtime_tests.rs",
+    "plans/rust-python-test-parity-matrix.md"
+  ],
+  "notes": "",
+  "meta": {}
+}
