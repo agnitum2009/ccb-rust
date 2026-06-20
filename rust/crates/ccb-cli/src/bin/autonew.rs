@@ -1,21 +1,41 @@
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
 fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+
+    if args
+        .iter()
+        .any(|a| matches!(a.as_str(), "-h" | "--help" | "help"))
+    {
+        let mut stdout = std::io::stdout();
+        let _ = write_autonew_usage(&mut stdout);
+        return ExitCode::from(0);
+    }
+
     delegate_to_ccb("autonew")
+}
+
+fn write_autonew_usage<W: Write>(out: &mut W) -> std::io::Result<()> {
+    writeln!(out, "Usage: autonew <provider>")?;
+    writeln!(out)?;
+    writeln!(out, "Providers:")?;
+    writeln!(out, "  gemini, codex, opencode, droid, claude")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "Sends /new to the provider's pane to start a new session."
+    )?;
+    Ok(())
 }
 
 fn delegate_to_ccb(subcommand: &str) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let ccb_path = find_ccb_binary().unwrap_or_else(|| PathBuf::from("ccb"));
 
-    // Introspection flags are safe even in source checkouts, so route them to
-    // the top-level ccb binary without the subcommand prefix.
     let mut cmd = Command::new(&ccb_path);
-    if args
-        .iter()
-        .any(|a| a == "--version" || a == "-h" || a == "--help")
-    {
+    if args.iter().any(|a| a == "--version") {
         cmd.args(&args);
     } else {
         cmd.arg(subcommand).args(&args);
@@ -36,7 +56,6 @@ fn find_ccb_binary() -> Option<PathBuf> {
         exe = resolved;
     }
     let dir = exe.parent()?;
-    // The canonical Rust binary is named `ccbr`; fall back to legacy `ccb`.
     let ccbr = dir.join("ccbr");
     if ccbr.is_file() {
         return Some(ccbr);
