@@ -256,6 +256,7 @@ pub mod watch;
 pub mod watchdog;
 pub mod watchdog_facade;
 pub mod watchers;
+pub mod workspace_preparation;
 
 pub mod droid;
 pub mod qwen;

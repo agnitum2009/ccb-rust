@@ -99,6 +99,7 @@ ccb-storage = { workspace = true }
 ccb-types = { workspace = true }
 ccb-provider-core = { workspace = true }
 ccb-provider-profiles = { workspace = true }
+ccb-provider-hooks = { workspace = true }
 ccb-completion = { workspace = true }
 ccb-mailbox = { workspace = true }
 ccb-agents = { workspace = true }
