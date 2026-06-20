@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
 use ccb_completion::models::{
     CompletionConfidence, CompletionCursor, CompletionDecision, CompletionItemKind,
     CompletionSourceKind, CompletionStatus, JobRecord,
@@ -762,4 +763,378 @@ mod dirs {
             .map(PathBuf::from)
             .filter(|p| !p.as_os_str().is_empty())
     }
+}
+
+/// Materialize a managed Gemini home directory.
+///
+/// Mirrors Python `materialize_gemini_home_config`. Minimal parity
+/// implementation: creates layout directories, inherits settings/auth, and
+/// writes a simple memory bundle.
+#[allow(clippy::too_many_arguments)]
+pub fn materialize_gemini_home_config(
+    target_home: &Path,
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+    source_home: Option<&Path>,
+    project_root: Option<&Path>,
+    agent_name: Option<&str>,
+    workspace_path: Option<&Path>,
+    memory_projection_event_path: Option<&Path>,
+    memory_projection_marker_path: Option<&Path>,
+) -> anyhow::Result<GeminiHomeLayout> {
+    let layout = gemini_layout_for_home(target_home);
+
+    std::fs::create_dir_all(&layout.home_root)?;
+    std::fs::create_dir_all(&layout.gemini_dir)?;
+    std::fs::create_dir_all(&layout.tmp_root)?;
+
+    ensure_json_file(&layout.settings_path)?;
+    ensure_json_file(&layout.trusted_folders_path)?;
+
+    let source_root: PathBuf = source_home
+        .map(Path::to_path_buf)
+        .unwrap_or_else(ccb_provider_core::source_home::current_provider_source_home);
+
+    let memory_result = if layout.home_root == source_root {
+        ccb_provider_core::memory_projection::memory_projection_result(
+            "skipped",
+            "source_home_is_target_home",
+            layout.gemini_dir.join("GEMINI.md").as_path(),
+            None,
+            None,
+            None,
+            None,
+        )
+    } else {
+        materialize_gemini_settings(&source_root, &layout, profile)?;
+        materialize_gemini_trusted_folders(&source_root, &layout)?;
+        materialize_gemini_env_file(&source_root, &layout, profile)?;
+        materialize_gemini_auth(&source_root, &layout, profile)?;
+        materialize_gemini_memory(
+            &source_root,
+            &layout,
+            profile,
+            project_root,
+            agent_name,
+            workspace_path,
+        )?
+    };
+
+    ccb_provider_core::memory_projection::record_memory_projection_event(
+        &memory_result,
+        "gemini",
+        memory_projection_event_path,
+        memory_projection_marker_path,
+        agent_name,
+    )
+    .with_context(|| "failed to record gemini memory projection event")?;
+
+    Ok(layout)
+}
+
+fn materialize_gemini_settings(
+    source_home: &Path,
+    layout: &GeminiHomeLayout,
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> anyhow::Result<()> {
+    let source_path = source_home.join(".gemini").join("settings.json");
+    let mut projected = read_json_object(&source_path);
+
+    if !gemini_inherits_config(profile) {
+        // Keep only hooks/contextFileName when config inheritance is disabled.
+        let hooks = projected.get("hooks").cloned();
+        let context_file_name = projected.get("contextFileName").cloned();
+        projected = serde_json::Map::new();
+        if let Some(h) = hooks {
+            projected.insert("hooks".into(), h);
+        }
+        if let Some(c) = context_file_name {
+            projected.insert("contextFileName".into(), c);
+        }
+    }
+
+    // Project env keys based on API inheritance policy.
+    if let Some(env) = projected.get_mut("env").and_then(|v| v.as_object_mut()) {
+        let api_keys: std::collections::HashSet<String> =
+            ccb_provider_profiles::provider_api_env_keys("gemini");
+        if gemini_inherits_api(profile) {
+            // Keep all source env; already present.
+            let _ = api_keys;
+        } else {
+            for key in api_keys {
+                env.remove(&key);
+            }
+        }
+        if env.is_empty() {
+            projected.remove("env");
+        }
+    }
+
+    let existing = read_json_object(&layout.settings_path);
+    let mut merged = existing;
+    for (k, v) in projected {
+        merged.insert(k, v);
+    }
+
+    if merged.is_empty() {
+        let _ = std::fs::remove_file(&layout.settings_path);
+        return Ok(());
+    }
+
+    write_json_object(&layout.settings_path, &merged)?;
+    Ok(())
+}
+
+fn materialize_gemini_trusted_folders(
+    source_home: &Path,
+    layout: &GeminiHomeLayout,
+) -> anyhow::Result<()> {
+    let source_path = source_home.join(".gemini").join("trustedFolders.json");
+    let projected = read_json_object(&source_path);
+    let existing = read_json_object(&layout.trusted_folders_path);
+    let mut merged = existing;
+    for (k, v) in projected {
+        merged.entry(k).or_insert(v);
+    }
+    write_json_object(&layout.trusted_folders_path, &merged)?;
+    Ok(())
+}
+
+fn materialize_gemini_env_file(
+    source_home: &Path,
+    layout: &GeminiHomeLayout,
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> anyhow::Result<()> {
+    if !gemini_inherits_config(profile) {
+        let _ = std::fs::remove_file(layout.gemini_dir.join(".env"));
+        return Ok(());
+    }
+
+    let source_env = source_home.join(".gemini").join(".env");
+    let target_env = layout.gemini_dir.join(".env");
+    if !source_env.is_file() {
+        let _ = std::fs::remove_file(&target_env);
+        return Ok(());
+    }
+
+    let text = std::fs::read_to_string(&source_env)?;
+    if gemini_inherits_api(profile) {
+        std::fs::copy(&source_env, &target_env)?;
+        let _ = text;
+    } else {
+        let api_keys: std::collections::HashSet<String> =
+            ccb_provider_profiles::provider_api_env_keys("gemini");
+        let filtered: Vec<String> = text
+            .lines()
+            .filter(|line| {
+                let key = line.split('=').next().unwrap_or("").trim();
+                !api_keys.contains(key)
+            })
+            .map(String::from)
+            .collect();
+        if filtered.is_empty() {
+            let _ = std::fs::remove_file(&target_env);
+        } else {
+            std::fs::write(&target_env, filtered.join("\n") + "\n")?;
+        }
+    }
+
+    Ok(())
+}
+
+fn materialize_gemini_auth(
+    source_home: &Path,
+    layout: &GeminiHomeLayout,
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> anyhow::Result<()> {
+    let filenames = ["oauth_creds.json", "google_accounts.json"];
+    if !gemini_inherits_auth(profile) {
+        for name in &filenames {
+            let _ = std::fs::remove_file(layout.gemini_dir.join(name));
+        }
+        return Ok(());
+    }
+
+    for name in &filenames {
+        let source = source_home.join(".gemini").join(name);
+        let target = layout.gemini_dir.join(name);
+        if source.is_file() {
+            std::fs::copy(&source, &target)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn materialize_gemini_memory(
+    source_home: &Path,
+    layout: &GeminiHomeLayout,
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+    project_root: Option<&Path>,
+    agent_name: Option<&str>,
+    workspace_path: Option<&Path>,
+) -> anyhow::Result<ccb_provider_core::memory_projection::MemoryProjectionResult> {
+    let target = layout.gemini_dir.join("GEMINI.md");
+
+    if !gemini_inherits_memory(profile) {
+        let _ = std::fs::remove_file(&target);
+        return Ok(
+            ccb_provider_core::memory_projection::memory_projection_result(
+                "skipped",
+                "inherit_memory_disabled",
+                target.as_path(),
+                None,
+                None,
+                None,
+                None,
+            ),
+        );
+    }
+
+    let (Some(project_root), Some(agent_name)) = (project_root, agent_name) else {
+        return Ok(
+            ccb_provider_core::memory_projection::memory_projection_result(
+                "failed",
+                "missing_project_context",
+                target.as_path(),
+                None,
+                None,
+                None,
+                None,
+            ),
+        );
+    };
+
+    let mut parts = Vec::new();
+    let ccb_memory = project_root.join(".ccb").join("ccb_memory.md");
+    if ccb_memory.is_file() {
+        if let Ok(text) = std::fs::read_to_string(&ccb_memory) {
+            parts.push(text);
+        }
+    }
+    let docs_memory = project_root.join("docs").join("memory");
+    if docs_memory.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&docs_memory) {
+            let mut entries: Vec<_> = entries
+                .flatten()
+                .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
+                .collect();
+            entries.sort_by_key(|e| e.file_name());
+            for entry in entries {
+                if let Ok(text) = std::fs::read_to_string(entry.path()) {
+                    parts.push(text);
+                }
+            }
+        }
+    }
+    let source_memory = source_home.join(".gemini").join("GEMINI.md");
+    if source_memory.is_file() {
+        if let Ok(text) = std::fs::read_to_string(&source_memory) {
+            parts.push(text);
+        }
+    }
+
+    if parts.is_empty() {
+        let _ = std::fs::remove_file(&target);
+        return Ok(
+            ccb_provider_core::memory_projection::memory_projection_result(
+                "skipped",
+                "no_memory_sources",
+                target.as_path(),
+                None,
+                None,
+                None,
+                None,
+            ),
+        );
+    }
+
+    let rendered = parts.join("\n\n---\n\n");
+    let rendered = if let Some(workspace_path) = workspace_path {
+        format!(
+            "# Gemini project memory for {} (workspace: {})\n\n{}",
+            agent_name,
+            workspace_path.display(),
+            rendered
+        )
+    } else {
+        rendered
+    };
+
+    std::fs::create_dir_all(target.parent().unwrap_or(&layout.gemini_dir))?;
+    std::fs::write(&target, rendered.as_bytes())?;
+    let sha = ccb_provider_core::memory_projection::text_file_sha256(target.as_path());
+    let sha_ref = if sha.is_empty() {
+        None
+    } else {
+        Some(sha.as_str())
+    };
+    Ok(
+        ccb_provider_core::memory_projection::memory_projection_result(
+            "ok",
+            "written",
+            target.as_path(),
+            sha_ref,
+            Some(parts.len() as i64),
+            None,
+            None,
+        ),
+    )
+}
+
+fn ensure_json_file(path: &Path) -> anyhow::Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, b"{}\n")?;
+    Ok(())
+}
+
+fn read_json_object(path: &Path) -> serde_json::Map<String, serde_json::Value> {
+    if !path.is_file() {
+        return serde_json::Map::new();
+    }
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|v| v.as_object().cloned())
+        .unwrap_or_default()
+}
+
+fn write_json_object(
+    path: &Path,
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let text = serde_json::to_string_pretty(&serde_json::Value::Object(obj.clone()))?;
+    std::fs::write(path, text.as_bytes())?;
+    Ok(())
+}
+
+fn gemini_inherits_config(
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> bool {
+    profile.map(|p| p.inherit_config).unwrap_or(true)
+}
+
+fn gemini_inherits_api(
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> bool {
+    profile.map(|p| p.inherit_api).unwrap_or(true)
+}
+
+fn gemini_inherits_auth(
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> bool {
+    profile.map(|p| p.inherit_auth).unwrap_or(true)
+}
+
+fn gemini_inherits_memory(
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> bool {
+    profile.map(|p| p.inherit_memory).unwrap_or(true)
 }

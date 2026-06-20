@@ -4,9 +4,14 @@
 use std::io::Write;
 
 use camino::Utf8Path;
+use ccb_agents::models::{
+    AgentSpec, PermissionMode, ProviderProfileSpec, QueuePolicy, RestoreMode, RuntimeMode,
+    WorkspaceMode,
+};
 
 use ccb_cli::provider_hooks::{
-    prepare_workspace_provider_hooks, provider_hook_home_root, resolve_gemini_home_root,
+    prepare_provider_workspace, prepare_workspace_provider_hooks, provider_hook_home_root,
+    resolve_gemini_home_root,
 };
 
 fn tmp_dir() -> (tempfile::TempDir, camino::Utf8PathBuf) {
@@ -253,6 +258,143 @@ fn test_provider_hook_home_root_gemini() {
                 .join("home")
         )
     );
+}
+
+fn claude_spec(name: &str) -> AgentSpec {
+    AgentSpec {
+        name: name.into(),
+        provider: "claude".into(),
+        target: ".".into(),
+        workspace_mode: WorkspaceMode::GitWorktree,
+        workspace_root: None,
+        runtime_mode: RuntimeMode::PaneBacked,
+        restore_default: RestoreMode::Auto,
+        permission_default: PermissionMode::Manual,
+        queue_policy: QueuePolicy::SerialPerAgent,
+        workspace_path: None,
+        workspace_group: None,
+        provider_command_template: None,
+        model: None,
+        startup_args: Vec::new(),
+        env: Default::default(),
+        api: Default::default(),
+        provider_profile: ProviderProfileSpec::default(),
+        branch_template: None,
+        labels: Vec::new(),
+        description: None,
+        role: None,
+        watch_paths: Vec::new(),
+    }
+}
+
+#[test]
+fn test_prepare_provider_workspace_materializes_claude_settings_before_hooks() {
+    let (_tmp, root) = tmp_dir();
+    let project_root = root.join("repo");
+    let workspace = project_root.join("workspace");
+    let system_home = root.join("system-home");
+    let system_settings = system_home.join(".claude").join("settings.json");
+    std::fs::create_dir_all(system_settings.parent().unwrap()).unwrap();
+    std::fs::write(
+        &system_settings,
+        serde_json::json!({
+            "env": {
+                "ANTHROPIC_AUTH_TOKEN": "system-token",
+                "ANTHROPIC_BASE_URL": "https://claude.example.test",
+            },
+            "theme": "light",
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    // Point provider source home at the synthetic system home.
+    std::env::set_var("HOME", system_home.as_str());
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = ccb_storage::paths::PathLayout::new(&project_root);
+    let completion_dir = layout
+        .agent_provider_runtime_dir("agent1", "claude")
+        .join("completion");
+
+    let profile = prepare_provider_workspace(
+        &layout,
+        &claude_spec("agent1"),
+        &workspace,
+        &completion_dir,
+        "agent1",
+        true,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(profile.provider, "claude");
+    assert_eq!(profile.agent_name, "agent1");
+
+    let settings_path = layout
+        .agent_provider_state_dir("agent1", "claude")
+        .join("home")
+        .join(".claude")
+        .join("settings.json");
+    assert!(
+        settings_path.exists(),
+        "settings missing at {settings_path}"
+    );
+    assert!(settings_path.exists());
+    let settings = read_settings(&settings_path);
+    assert_eq!(
+        settings
+            .get("env")
+            .unwrap()
+            .get("ANTHROPIC_AUTH_TOKEN")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        "system-token"
+    );
+}
+
+#[test]
+fn test_prepare_provider_workspace_materializes_codex_home() {
+    let (_tmp, root) = tmp_dir();
+    let project_root = root.join("repo");
+    let workspace = project_root.join("workspace");
+    let system_home = root.join("system-codex-home");
+    std::fs::create_dir_all(&system_home).unwrap();
+    std::fs::write(system_home.join("config.toml"), "model = \"gpt-5\"\n").unwrap();
+
+    std::env::set_var("HOME", system_home.as_str());
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = ccb_storage::paths::PathLayout::new(&project_root);
+    let completion_dir = layout
+        .agent_provider_runtime_dir("agent1", "codex")
+        .join("completion");
+
+    let mut spec = claude_spec("agent1");
+    spec.provider = "codex".into();
+    spec.provider_profile.mode = "isolated".into();
+
+    let profile = prepare_provider_workspace(
+        &layout,
+        &spec,
+        &workspace,
+        &completion_dir,
+        "agent1",
+        true,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(profile.provider, "codex");
+
+    let config_path = layout
+        .agent_provider_state_dir("agent1", "codex")
+        .join("home")
+        .join("config.toml");
+    assert!(config_path.exists());
+    let text = std::fs::read_to_string(&config_path).unwrap();
+    assert!(text.contains("model = \"gpt-5\""));
 }
 
 #[test]

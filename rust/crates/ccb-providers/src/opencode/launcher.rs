@@ -60,6 +60,195 @@ pub fn build_start_cmd(
     apply_provider_command_template(&cmd, command_template).unwrap_or(cmd)
 }
 
+/// Result of materializing the OpenCode memory config.
+#[derive(Debug, Clone, Default)]
+pub struct OpenCodeMemoryConfigResult {
+    pub env: HashMap<String, String>,
+}
+
+/// Materialize the OpenCode memory config file.
+///
+/// Mirrors Python `materialize_opencode_memory_config`. Minimal parity
+/// implementation: builds a simple memory bundle and writes `opencode.json`.
+#[allow(clippy::too_many_arguments)]
+pub fn materialize_opencode_memory_config(
+    project_root: &Path,
+    agent_name: &str,
+    workspace_path: Option<&Path>,
+    config_path: Option<&Path>,
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+    event_path: Option<&Path>,
+    marker_path: Option<&Path>,
+) -> OpenCodeMemoryConfigResult {
+    let Some(config_path) = config_path else {
+        let result = ccb_provider_core::memory_projection::memory_projection_result(
+            "failed",
+            "missing_config_path",
+            Path::new(""),
+            None,
+            None,
+            None,
+            None,
+        );
+        let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+            &result,
+            "opencode",
+            event_path,
+            marker_path,
+            Some(agent_name),
+        );
+        return OpenCodeMemoryConfigResult::default();
+    };
+
+    if !opencode_inherits_memory(profile) {
+        let _ = std::fs::remove_file(config_path);
+        let result = ccb_provider_core::memory_projection::memory_projection_result(
+            "skipped",
+            "inherit_memory_disabled",
+            Path::new(""),
+            None,
+            None,
+            None,
+            None,
+        );
+        let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+            &result,
+            "opencode",
+            event_path,
+            marker_path,
+            Some(agent_name),
+        );
+        return OpenCodeMemoryConfigResult::default();
+    }
+
+    let mut parts = Vec::new();
+    let ccb_memory = project_root.join(".ccb").join("ccb_memory.md");
+    if ccb_memory.is_file() {
+        if let Ok(text) = std::fs::read_to_string(&ccb_memory) {
+            parts.push(text);
+        }
+    }
+    let docs_memory = project_root.join("docs").join("memory");
+    if docs_memory.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&docs_memory) {
+            let mut entries: Vec<_> = entries
+                .flatten()
+                .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
+                .collect();
+            entries.sort_by_key(|e| e.file_name());
+            for entry in entries {
+                if let Ok(text) = std::fs::read_to_string(entry.path()) {
+                    parts.push(text);
+                }
+            }
+        }
+    }
+
+    let rendered = if parts.is_empty() {
+        "No project memory configured.".to_string()
+    } else {
+        parts.join("\n\n---\n\n")
+    };
+    let rendered = if let Some(workspace_path) = workspace_path {
+        format!(
+            "# OpenCode project memory for {} (workspace: {})\n\n{}",
+            agent_name,
+            workspace_path.display(),
+            rendered
+        )
+    } else {
+        rendered
+    };
+
+    let config_text = match serde_json::to_string_pretty(&serde_json::json!({
+        "memory": {
+            "instruction": rendered,
+        }
+    })) {
+        Ok(t) => t,
+        Err(err) => {
+            let result = ccb_provider_core::memory_projection::memory_projection_result(
+                "failed",
+                "config_render_failed",
+                Path::new(""),
+                None,
+                None,
+                None,
+                Some(&err.to_string()),
+            );
+            let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+                &result,
+                "opencode",
+                event_path,
+                marker_path,
+                Some(agent_name),
+            );
+            return OpenCodeMemoryConfigResult::default();
+        }
+    };
+
+    if let Some(parent) = config_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let write_res = std::fs::write(config_path, config_text.as_bytes());
+
+    if let Err(err) = write_res {
+        let result = ccb_provider_core::memory_projection::memory_projection_result(
+            "failed",
+            "config_write_failed",
+            config_path,
+            None,
+            None,
+            None,
+            Some(&err.to_string()),
+        );
+        let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+            &result,
+            "opencode",
+            event_path,
+            marker_path,
+            Some(agent_name),
+        );
+        return OpenCodeMemoryConfigResult::default();
+    }
+
+    let sha = ccb_provider_core::memory_projection::text_file_sha256(config_path);
+    let sha_ref = if sha.is_empty() {
+        None
+    } else {
+        Some(sha.as_str())
+    };
+    let result = ccb_provider_core::memory_projection::memory_projection_result(
+        "ok",
+        "written",
+        config_path,
+        sha_ref,
+        Some(parts.len() as i64),
+        None,
+        None,
+    );
+    let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+        &result,
+        "opencode",
+        event_path,
+        marker_path,
+        Some(agent_name),
+    );
+
+    let mut env = HashMap::new();
+    env.insert(
+        "OPENCODE_CONFIG".into(),
+        config_path.to_string_lossy().to_string(),
+    );
+    OpenCodeMemoryConfigResult { env }
+}
+
+fn opencode_inherits_memory(
+    profile: Option<&ccb_provider_profiles::models::ResolvedProviderProfile>,
+) -> bool {
+    profile.map(|p| p.inherit_memory).unwrap_or(true)
+}
+
 /// Build the session payload written to the session file.
 pub fn build_session_payload(
     launch_context: &OpenCodeLaunchContext,
