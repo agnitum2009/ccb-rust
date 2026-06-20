@@ -6,8 +6,9 @@ use ccb_provider_profiles::{
     codex_api_authority, codex_provider_authority_fingerprint, load_resolved_provider_profile,
     materialize_codex_home_config, materialize_provider_profile,
     materialize_provider_profile_with_source, provider_api_env_keys, provider_api_shortcut_env,
-    supported_provider_api_shortcuts, validate_provider_runtime_home_policy,
-    validate_provider_runtime_home_uniqueness, ProviderProfileSpec, ResolvedProviderProfile,
+    resolve_codex_home_layout, supported_provider_api_shortcuts,
+    validate_provider_runtime_home_policy, validate_provider_runtime_home_uniqueness,
+    CodexHomeLayout, ProviderProfileSpec, ResolvedProviderProfile,
 };
 use ccb_storage::paths::PathLayout;
 
@@ -415,4 +416,92 @@ fn test_materialize_codex_home_config_with_explicit_source() {
     assert!(target_home.join("sessions").is_dir());
     let text = fs::read_to_string(config_path).unwrap();
     assert!(text.contains("model = \"gpt-5\""));
+}
+
+#[test]
+fn test_resolve_codex_home_layout_uses_profile_runtime_home() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let runtime_dir = tmp_path(&tmp, "runtime");
+    let explicit_home = tmp_path(&tmp, "explicit-codex-home");
+    fs::create_dir_all(&explicit_home).unwrap();
+
+    let mut profile = ResolvedProviderProfile::new("codex", "agent1");
+    profile.runtime_home = Some(explicit_home.to_string());
+
+    let layout = resolve_codex_home_layout(&runtime_dir, Some(&profile));
+    assert_eq!(
+        layout,
+        CodexHomeLayout {
+            codex_home: explicit_home.clone(),
+            session_root: explicit_home.join("sessions"),
+        }
+    );
+}
+
+#[test]
+fn test_resolve_codex_home_layout_prefers_existing_home_config() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let runtime_dir = tmp_path(&tmp, "runtime");
+    let existing_home = runtime_dir.join("home");
+    fs::create_dir_all(&existing_home).unwrap();
+    fs::write(existing_home.join("config.toml"), "model = \"gpt-5\"\n").unwrap();
+
+    let layout = resolve_codex_home_layout(&runtime_dir, None);
+    assert_eq!(
+        layout,
+        CodexHomeLayout {
+            codex_home: existing_home.clone(),
+            session_root: existing_home.join("sessions"),
+        }
+    );
+}
+
+#[test]
+fn test_resolve_codex_home_layout_falls_back_to_legacy_dot_codex_home() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let runtime_dir = tmp_path(&tmp, "runtime");
+    let legacy_home = runtime_dir.join(".codex").join("home");
+    fs::create_dir_all(&legacy_home).unwrap();
+    fs::write(legacy_home.join("config.toml"), "model = \"gpt-5\"\n").unwrap();
+
+    let layout = resolve_codex_home_layout(&runtime_dir, None);
+    assert_eq!(
+        layout,
+        CodexHomeLayout {
+            codex_home: legacy_home.clone(),
+            session_root: legacy_home.join("sessions"),
+        }
+    );
+}
+
+#[test]
+fn test_resolve_codex_home_layout_creates_managed_home_when_no_existing() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let runtime_dir = tmp_path(&tmp, "runtime");
+
+    let layout = resolve_codex_home_layout(&runtime_dir, None);
+    let expected_home = runtime_dir.join("home");
+    assert_eq!(
+        layout,
+        CodexHomeLayout {
+            codex_home: expected_home.clone(),
+            session_root: expected_home.join("sessions"),
+        }
+    );
+    assert!(!expected_home.exists());
+}
+
+#[test]
+fn test_resolve_codex_home_layout_ignores_whitespace_profile_home() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let runtime_dir = tmp_path(&tmp, "runtime");
+    let existing_home = runtime_dir.join("home");
+    fs::create_dir_all(&existing_home).unwrap();
+    fs::write(existing_home.join("config.toml"), "model = \"gpt-5\"\n").unwrap();
+
+    let mut profile = ResolvedProviderProfile::new("codex", "agent1");
+    profile.runtime_home = Some("   ".into());
+
+    let layout = resolve_codex_home_layout(&runtime_dir, Some(&profile));
+    assert_eq!(layout.codex_home, existing_home);
 }

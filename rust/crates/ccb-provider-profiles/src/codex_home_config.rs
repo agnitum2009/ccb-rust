@@ -6,7 +6,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
-use crate::models::ProviderProfileSpec;
+use crate::models::{ProviderProfileSpec, ResolvedProviderProfile};
 
 const CODEX_CUSTOM_PROVIDER_ID: &str = "custom";
 const MANAGED_CODEX_DISABLED_FEATURES: &[&str] = &["external_migration"];
@@ -33,6 +33,67 @@ const CODEX_PLUGIN_REQUIRED_RELATIVE_PATHS: &[&str] = &[
     ".agents/skills",
     "plugins",
 ];
+
+/// Paths that make up a managed Codex home.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodexHomeLayout {
+    pub codex_home: Utf8PathBuf,
+    pub session_root: Utf8PathBuf,
+}
+
+/// Resolve the isolated Codex home layout for a runtime directory.
+///
+/// Mirrors Python `resolve_codex_home_layout`.
+pub fn resolve_codex_home_layout(
+    runtime_dir: &Utf8Path,
+    profile: Option<&ResolvedProviderProfile>,
+) -> CodexHomeLayout {
+    if let Some(home) = profile_runtime_home(profile) {
+        return CodexHomeLayout {
+            codex_home: home.clone(),
+            session_root: home.join("sessions"),
+        };
+    }
+
+    if let Some(existing) = existing_codex_layout(runtime_dir) {
+        return existing;
+    }
+
+    let isolated_home = managed_isolated_codex_home(runtime_dir);
+    CodexHomeLayout {
+        session_root: isolated_home.join("sessions"),
+        codex_home: isolated_home,
+    }
+}
+
+fn profile_runtime_home(profile: Option<&ResolvedProviderProfile>) -> Option<Utf8PathBuf> {
+    let home = profile?.runtime_home.as_deref()?;
+    let home = home.trim();
+    if home.is_empty() {
+        return None;
+    }
+    Some(Utf8PathBuf::from(home))
+}
+
+fn managed_isolated_codex_home(runtime_dir: &Utf8Path) -> Utf8PathBuf {
+    runtime_dir.join("home")
+}
+
+fn existing_codex_layout(runtime_dir: &Utf8Path) -> Option<CodexHomeLayout> {
+    let candidates = [
+        runtime_dir.join("home"),
+        runtime_dir.join(".codex").join("home"),
+    ];
+    for candidate in candidates {
+        if candidate.join("config.toml").exists() {
+            return Some(CodexHomeLayout {
+                codex_home: candidate.clone(),
+                session_root: candidate.join("sessions"),
+            });
+        }
+    }
+    None
+}
 
 #[derive(Debug, Clone)]
 pub struct CodexApiAuthority {
