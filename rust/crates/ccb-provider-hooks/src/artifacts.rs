@@ -547,6 +547,7 @@ fn expand_user_path_str(value: &str) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::fs;
     use tempfile::TempDir;
 
     fn jsonl(records: &[serde_json::Value]) -> String {
@@ -639,6 +640,74 @@ mod tests {
             current_turn_req_id_from_transcript_text(&content, None),
             Some("job_emptyclaude123".into())
         );
+    }
+
+    #[test]
+    fn test_latest_user_req_id_ignores_tool_result_after_outer_marker() {
+        let content = jsonl(&[
+            json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_current123\n\nRun the check."}}),
+            json!({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "Command output mentioned CCB_REQ_ID: job_tool999"}]}}),
+        ]);
+        assert_eq!(
+            latest_user_req_id_from_transcript_text(&content),
+            Some("job_current123".into())
+        );
+    }
+
+    #[test]
+    fn test_latest_req_id_prefers_latest_outer_user_marker() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("transcript.jsonl");
+        fs::write(
+            &path,
+            jsonl(&[
+                json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_first111\n\nInitial request."}}),
+                json!({"type": "assistant", "message": {"role": "assistant", "content": "Working."}}),
+                json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_second222\n\nForwarded text contains CCB_REQ_ID: job_old333."}}),
+            ]),
+        )
+        .unwrap();
+        assert_eq!(
+            latest_req_id_from_transcript(Some(path.to_str().unwrap())),
+            Some("job_second222".into())
+        );
+    }
+
+    #[test]
+    fn test_last_prompt_req_id_uses_outer_marker() {
+        let content = jsonl(&[json!({
+            "type": "last-prompt",
+            "lastPrompt": "CCB_REQ_ID: job_prompt123\n\nThe request body includes CCB_REQ_ID: job_body456."
+        })]);
+        assert_eq!(
+            latest_last_prompt_req_id_from_transcript_text(&content),
+            Some("job_prompt123".into())
+        );
+    }
+
+    #[test]
+    fn test_current_turn_req_id_ignores_scheduled_task_after_interrupted_prompt() {
+        let content = jsonl(&[
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_stale123\n\nRun a long task."}}),
+            json!({"uuid": "u2", "parentUuid": "u1", "type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "[Request interrupted by user]"}]}}),
+            json!({"uuid": "s1", "parentUuid": "u2", "type": "system", "subtype": "scheduled_task_fire", "content": "Running scheduled task"}),
+            json!({"uuid": "u3", "parentUuid": "s1", "type": "user", "message": {"role": "user", "content": "循环计数，共50次"}, "isMeta": true}),
+            json!({"uuid": "a1", "parentUuid": "u3", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "当前进度：已完成第9次。"}]}}),
+            json!({"type": "last-prompt", "lastPrompt": "CCB_REQ_ID: job_stale123\n\nRun a long task."}),
+        ]);
+        assert_eq!(
+            current_turn_req_id_from_transcript_text(&content, Some("当前进度：已完成第9次。")),
+            None
+        );
+    }
+
+    #[test]
+    fn test_current_turn_req_id_empty_reply_does_not_reuse_previous_assistant_req_id() {
+        let content = jsonl(&[
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_old111\n\nOld task."}}),
+            json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "old done"}]}}),
+        ]);
+        assert_eq!(current_turn_req_id_from_transcript_text(&content, None), None);
     }
 
     #[test]
