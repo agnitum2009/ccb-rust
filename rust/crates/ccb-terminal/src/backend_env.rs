@@ -27,17 +27,38 @@ pub fn get_backend_env() -> Option<String> {
 ///
 /// Mirrors Python `apply_backend_env`.
 pub fn apply_backend_env() {
-    if std::env::consts::OS != "windows" || get_backend_env().as_deref() != Some("wsl") {
+    apply_backend_env_with(
+        std::env::consts::OS == "windows",
+        wsl_probe_distro_and_home,
+        |p| Path::new(p).exists(),
+    );
+}
+
+/// Injected version of `apply_backend_env` for testing.
+pub fn apply_backend_env_with<P, E>(is_windows: bool, probe_fn: P, exists_fn: E)
+where
+    P: FnOnce() -> (String, String),
+    E: Fn(&str) -> bool,
+{
+    if !is_windows || get_backend_env().as_deref() != Some("wsl") {
         return;
     }
     if std::env::var("CODEX_SESSION_ROOT").is_ok() && std::env::var("GEMINI_ROOT").is_ok() {
         return;
     }
-    let (distro, home) = wsl_probe_distro_and_home();
-    if apply_existing_wsl_session_roots(&distro, &home) {
-        return;
+    let (distro, home) = probe_fn();
+    let prefixes = wsl_prefixes(&distro, &home);
+    for prefix in [prefixes.0.clone(), prefixes.1.clone()] {
+        let (codex_path, gemini_path) = session_roots(&prefix);
+        if exists_fn(&codex_path) || exists_fn(&gemini_path) {
+            std::env::set_var("CODEX_SESSION_ROOT", codex_path);
+            std::env::set_var("GEMINI_ROOT", gemini_path);
+            return;
+        }
     }
-    apply_fallback_wsl_session_roots(&distro, &home);
+    let (codex_path, gemini_path) = session_roots(&prefixes.0);
+    std::env::set_var("CODEX_SESSION_ROOT", codex_path);
+    std::env::set_var("GEMINI_ROOT", gemini_path);
 }
 
 fn run_wsl(args: &[&str]) -> Option<std::process::Output> {
@@ -128,26 +149,6 @@ pub(crate) fn session_roots(prefix: &str) -> (String, String) {
         format!(r"{prefix}\.codex\sessions"),
         format!(r"{prefix}\.gemini\tmp"),
     )
-}
-
-fn apply_existing_wsl_session_roots(distro: &str, home: &str) -> bool {
-    let prefixes = wsl_prefixes(distro, home);
-    for prefix in [prefixes.0, prefixes.1] {
-        let (codex_path, gemini_path) = session_roots(&prefix);
-        if Path::new(&codex_path).exists() || Path::new(&gemini_path).exists() {
-            std::env::set_var("CODEX_SESSION_ROOT", codex_path);
-            std::env::set_var("GEMINI_ROOT", gemini_path);
-            return true;
-        }
-    }
-    false
-}
-
-fn apply_fallback_wsl_session_roots(distro: &str, home: &str) {
-    let prefix = wsl_prefixes(distro, home).0;
-    let (codex_path, gemini_path) = session_roots(&prefix);
-    std::env::set_var("CODEX_SESSION_ROOT", codex_path);
-    std::env::set_var("GEMINI_ROOT", gemini_path);
 }
 
 #[cfg(test)]
