@@ -2,9 +2,7 @@
 
 use super::backend::{build_backend, kill_server};
 use super::ensure_context::NamespaceController;
-use super::records::{
-    build_destroy_summary, build_destroyed_event, build_destroyed_state,
-};
+use super::records::{build_destroy_summary, build_destroyed_event, build_destroyed_state};
 use crate::Result;
 
 /// Destroy the project namespace and persist the destroyed state.

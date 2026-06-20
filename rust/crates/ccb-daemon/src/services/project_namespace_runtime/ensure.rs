@@ -4,13 +4,13 @@
 use std::collections::HashMap;
 
 use crate::services::project_namespace_runtime::backend::{ensure_server_policy, kill_server};
-use crate::services::project_namespace_runtime::ensure_identity::prepare_namespace_root_pane;
 #[allow(unused_imports)]
 use crate::services::project_namespace_runtime::ensure_context::{
     load_namespace_context, rebuild_namespace_backend, refresh_session_liveness, Clock, EventStore,
     LayoutConfig, NamespaceController, NamespaceEnsureContext, NamespaceState, NamespaceWindowPlan,
     StateStore, TopologyPlan,
 };
+use crate::services::project_namespace_runtime::ensure_identity::prepare_namespace_root_pane;
 use crate::services::project_namespace_runtime::materialize_topology::{
     existing_topology_agent_panes, materialize_topology, refresh_topology_ui_for_project,
     topology_active_panes, topology_recreate_reason,
@@ -289,7 +289,9 @@ mod tests {
             project_id: "p1".to_string(),
             layout_version: 1,
             layout: test_layout(),
-            backend_factory: crate::services::project_namespace_runtime::test_support::FakeTmuxBackend::new().backend_factory(),
+            backend_factory:
+                crate::services::project_namespace_runtime::test_support::FakeTmuxBackend::new()
+                    .backend_factory(),
             state_store: StateStore::default(),
             event_store: EventStore::default(),
             clock: test_clock(),

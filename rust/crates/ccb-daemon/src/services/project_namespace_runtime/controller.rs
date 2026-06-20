@@ -18,7 +18,8 @@ use super::models::{
     ProjectNamespaceState as RuntimeState,
 };
 use super::records::namespace_from_state;
-use super::topology_plan::{NamespaceTopologyPlan, SidebarPanePlan, NamespaceWindowPlan};
+use super::reflow::reflow_project_workspace;
+use super::topology_plan::{NamespaceTopologyPlan, NamespaceWindowPlan, SidebarPanePlan};
 use crate::services::project_namespace_state::{
     ProjectNamespaceEvent as PersistentEvent, ProjectNamespaceEventStore,
     ProjectNamespaceState as PersistentState, ProjectNamespaceStateStore,
@@ -55,7 +56,9 @@ impl ProjectNamespaceController {
     ) -> Result<Self> {
         let project_id = project_id.trim().to_string();
         if project_id.is_empty() {
-            return Err(DaemonError::Config("project_id cannot be empty".to_string()));
+            return Err(DaemonError::Config(
+                "project_id cannot be empty".to_string(),
+            ));
         }
         if layout_version <= 0 {
             return Err(DaemonError::Config(
@@ -120,6 +123,29 @@ impl ProjectNamespaceController {
         Ok(result)
     }
 
+    /// Reflow the project workspace window without killing the tmux server.
+    pub fn reflow_workspace(
+        &mut self,
+        layout_signature: Option<&str>,
+        reason: Option<&str>,
+        session_probe_timeout_s: Option<f64>,
+    ) -> Result<ProjectNamespace> {
+        std::fs::create_dir_all(self.layout.ccbd_dir())?;
+
+        let mut inner = self.build_inner_controller()?;
+        let result = reflow_project_workspace(
+            &mut inner,
+            layout_signature,
+            reason,
+            session_probe_timeout_s,
+        )?;
+
+        self.persist_inner_results(&inner)?;
+        self.last_materialized_agent_panes = inner.last_materialized_agent_panes.clone();
+        self.last_topology_active_panes = inner.last_topology_active_panes.clone();
+        Ok(result)
+    }
+
     /// Destroy the project namespace and persist the destroyed state.
     pub fn destroy(
         &mut self,
@@ -146,7 +172,10 @@ impl ProjectNamespaceController {
             ccbd_tmux_socket_path: self.layout.ccbd_tmux_socket_path().to_string(),
             ccbd_tmux_session_name: self.layout.ccbd_tmux_session_name(),
             ccbd_tmux_control_window_name: self.layout.ccbd_tmux_control_window_name().to_string(),
-            ccbd_tmux_workspace_window_name: self.layout.ccbd_tmux_workspace_window_name().to_string(),
+            ccbd_tmux_workspace_window_name: self
+                .layout
+                .ccbd_tmux_workspace_window_name()
+                .to_string(),
         };
 
         Ok(NamespaceController {
@@ -292,12 +321,16 @@ fn persistent_event_from_runtime(event: &RuntimeEvent) -> Result<PersistentEvent
         event_kind: event.event_kind.clone(),
         project_id: event.project_id.clone(),
         occurred_at: event.occurred_at.clone(),
-        namespace_epoch: event.namespace_epoch.map(u64::try_from).transpose().map_err(|_| {
-            DaemonError::Config(format!(
-                "namespace_epoch {:?} cannot be negative for persistence",
-                event.namespace_epoch
-            ))
-        })?,
+        namespace_epoch: event
+            .namespace_epoch
+            .map(u64::try_from)
+            .transpose()
+            .map_err(|_| {
+                DaemonError::Config(format!(
+                    "namespace_epoch {:?} cannot be negative for persistence",
+                    event.namespace_epoch
+                ))
+            })?,
         tmux_socket_path: event.tmux_socket_path.clone(),
         tmux_session_name: event.tmux_session_name.clone(),
         details,
@@ -318,16 +351,9 @@ mod tests {
         let root = tmp.path().join("repo");
         std::fs::create_dir_all(&root).unwrap();
         let layout = PathLayout::new(camino::Utf8PathBuf::from_path_buf(root).unwrap());
-        assert!(ProjectNamespaceController::new(
-            &layout,
-            "   ",
-            None,
-            None,
-            None,
-            None,
-            1,
-        )
-        .is_err());
+        assert!(
+            ProjectNamespaceController::new(&layout, "   ", None, None, None, None, 1,).is_err()
+        );
     }
 
     #[test]
@@ -336,15 +362,8 @@ mod tests {
         let root = tmp.path().join("repo");
         std::fs::create_dir_all(&root).unwrap();
         let layout = PathLayout::new(camino::Utf8PathBuf::from_path_buf(root).unwrap());
-        assert!(ProjectNamespaceController::new(
-            &layout,
-            "p1",
-            None,
-            None,
-            None,
-            None,
-            0,
-        )
-        .is_err());
+        assert!(
+            ProjectNamespaceController::new(&layout, "p1", None, None, None, None, 0,).is_err()
+        );
     }
 }

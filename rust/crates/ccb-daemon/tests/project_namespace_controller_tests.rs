@@ -36,7 +36,9 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
     )
     .unwrap();
 
-    let namespace = controller.ensure(None, None, false, None, None, None).unwrap();
+    let namespace = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
 
     let state_store = ProjectNamespaceStateStore::new(&layout);
     let event_store = ProjectNamespaceEventStore::new(&layout);
@@ -73,7 +75,11 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
         Some(&"cmd".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%2").unwrap().get("@ccb_namespace_epoch"),
+        guard
+            .pane_options
+            .get("%2")
+            .unwrap()
+            .get("@ccb_namespace_epoch"),
         Some(&"1".to_string())
     );
     assert_eq!(
@@ -101,7 +107,10 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
     assert!(latest_event.is_some());
     let event = latest_event.unwrap();
     assert_eq!(event.event_kind, "namespace_created");
-    assert_eq!(event.details.get("recreated"), Some(&serde_json::json!(false)));
+    assert_eq!(
+        event.details.get("recreated"),
+        Some(&serde_json::json!(false))
+    );
     assert_eq!(
         event.details.get("reason"),
         Some(&serde_json::json!("initial_create"))
@@ -123,7 +132,9 @@ fn test_project_namespace_controller_destroy_persists_destroyed_state() {
     )
     .unwrap();
 
-    controller.ensure(None, None, false, None, None, None).unwrap();
+    controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     let summary = controller.destroy("kill", false).unwrap();
 
     let state_store = ProjectNamespaceStateStore::new(&layout);
@@ -137,9 +148,11 @@ fn test_project_namespace_controller_destroy_persists_destroyed_state() {
     assert!(!state.ui_attachable);
     assert_eq!(state.last_destroy_reason, Some("kill".to_string()));
     assert_eq!(latest_event.event_kind, "namespace_destroyed");
-    assert_eq!(latest_event.details.get("destroyed"), Some(&serde_json::json!(true)));
+    assert_eq!(
+        latest_event.details.get("destroyed"),
+        Some(&serde_json::json!(true))
+    );
 }
-
 
 fn two_window_sidebar_config() -> ProjectConfig {
     let mut config = ProjectConfig::default();
@@ -167,7 +180,10 @@ fn two_window_sidebar_config() -> ProjectConfig {
     config
 }
 
-fn topology_plan(config: &ProjectConfig, layout: &PathLayout) -> ccb_daemon::services::project_namespace_runtime::topology_plan::NamespaceTopologyPlan {
+fn topology_plan(
+    config: &ProjectConfig,
+    layout: &PathLayout,
+) -> ccb_daemon::services::project_namespace_runtime::topology_plan::NamespaceTopologyPlan {
     build_namespace_topology_plan(
         config,
         Some(layout.ccbd_socket_path().to_string()),
@@ -191,7 +207,9 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
     .unwrap();
 
     let plan = topology_plan(&two_window_sidebar_config(), &layout);
-    let namespace = controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    let namespace = controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     let state_arc = backend.state();
     let guard = state_arc.lock().unwrap();
@@ -203,12 +221,18 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
         .map(|w| (w.name.clone(), w.clone()))
         .collect();
 
-    assert_eq!(windows.keys().cloned().collect::<std::collections::HashSet<_>>(), {
-        let mut s = std::collections::HashSet::new();
-        s.insert("main".to_string());
-        s.insert("review".to_string());
-        s
-    });
+    assert_eq!(
+        windows
+            .keys()
+            .cloned()
+            .collect::<std::collections::HashSet<_>>(),
+        {
+            let mut s = std::collections::HashSet::new();
+            s.insert("main".to_string());
+            s.insert("review".to_string());
+            s
+        }
+    );
     assert_eq!(namespace.workspace_window_name, Some("review".to_string()));
     assert_eq!(
         guard.active_windows.get(&layout.ccbd_tmux_session_name()),
@@ -219,7 +243,11 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
         Some(&"sidebar".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%1").unwrap().get("@ccb_sidebar_instance"),
+        guard
+            .pane_options
+            .get("%1")
+            .unwrap()
+            .get("@ccb_sidebar_instance"),
         Some(&"main".to_string())
     );
     assert_eq!(
@@ -227,7 +255,11 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
         Some(&"sidebar".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%3").unwrap().get("@ccb_sidebar_instance"),
+        guard
+            .pane_options
+            .get("%3")
+            .unwrap()
+            .get("@ccb_sidebar_instance"),
         Some(&"review".to_string())
     );
     assert_eq!(
@@ -242,32 +274,48 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
         guard.pane_options.get("%5").unwrap().get("@ccb_slot"),
         Some(&"agent3".to_string())
     );
-    assert!(guard.split_calls.contains(&("%1".to_string(), "right".to_string(), 85)));
-    assert!(guard.split_calls.contains(&("%3".to_string(), "right".to_string(), 85)));
-    assert_eq!(
-        controller.last_materialized_agent_panes,
-        {
-            let mut m = std::collections::HashMap::new();
-            m.insert("agent1".to_string(), "%2".to_string());
-            m.insert("agent2".to_string(), "%4".to_string());
-            m.insert("agent3".to_string(), "%5".to_string());
-            m
-        }
-    );
+    assert!(guard
+        .split_calls
+        .contains(&("%1".to_string(), "right".to_string(), 85)));
+    assert!(guard
+        .split_calls
+        .contains(&("%3".to_string(), "right".to_string(), 85)));
+    assert_eq!(controller.last_materialized_agent_panes, {
+        let mut m = std::collections::HashMap::new();
+        m.insert("agent1".to_string(), "%2".to_string());
+        m.insert("agent2".to_string(), "%4".to_string());
+        m.insert("agent3".to_string(), "%5".to_string());
+        m
+    });
     let main_key = format!("{}:main", layout.ccbd_tmux_session_name());
     let review_key = format!("{}:review", layout.ccbd_tmux_session_name());
     assert_eq!(
-        guard.window_options.get(&main_key).unwrap().get("pane-border-status"),
+        guard
+            .window_options
+            .get(&main_key)
+            .unwrap()
+            .get("pane-border-status"),
         Some(&"top".to_string())
     );
     assert_eq!(
-        guard.window_options.get(&review_key).unwrap().get("pane-border-status"),
+        guard
+            .window_options
+            .get(&review_key)
+            .unwrap()
+            .get("pane-border-status"),
         Some(&"top".to_string())
     );
-    assert!(guard.window_options.get(&main_key).unwrap().contains_key("pane-border-format"));
-    assert!(guard.window_options.get(&review_key).unwrap().contains_key("pane-border-format"));
+    assert!(guard
+        .window_options
+        .get(&main_key)
+        .unwrap()
+        .contains_key("pane-border-format"));
+    assert!(guard
+        .window_options
+        .get(&review_key)
+        .unwrap()
+        .contains_key("pane-border-format"));
 }
-
 
 fn config_with_windows(windows: Vec<WindowSpec>, sidebar_width: SidebarDimension) -> ProjectConfig {
     let mut config = ProjectConfig::default();
@@ -310,7 +358,9 @@ fn test_project_namespace_sidebar_width_preserves_agent_grid_area() {
         SidebarDimension::Percent("15%".into()),
     );
     let plan = topology_plan(&config, &layout);
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     let state = backend.state();
     let guard = state.lock().unwrap();
@@ -361,7 +411,9 @@ fn test_project_namespace_controller_refreshes_topology_ui_for_existing_session(
     .unwrap();
 
     let plan = topology_plan(&two_window_sidebar_config(), &layout);
-    let first = controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    let first = controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     {
         let state = backend.state();
@@ -369,10 +421,15 @@ fn test_project_namespace_controller_refreshes_topology_ui_for_existing_session(
         let review_key = format!("{}:review", layout.ccbd_tmux_session_name());
         let opts = guard.window_options.entry(review_key).or_default();
         opts.insert("pane-border-status".to_string(), "off".to_string());
-        opts.insert("pane-border-format".to_string(), "#{pane_index}".to_string());
+        opts.insert(
+            "pane-border-format".to_string(),
+            "#{pane_index}".to_string(),
+        );
     }
 
-    let second = controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    let second = controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     let state = backend.state();
     let guard = state.lock().unwrap();
@@ -380,11 +437,19 @@ fn test_project_namespace_controller_refreshes_topology_ui_for_existing_session(
     assert!(!second.created_this_call);
     assert_eq!(second.namespace_epoch, first.namespace_epoch);
     assert_eq!(
-        guard.window_options.get(&review_key).unwrap().get("pane-border-status"),
+        guard
+            .window_options
+            .get(&review_key)
+            .unwrap()
+            .get("pane-border-status"),
         Some(&"top".to_string())
     );
     assert_ne!(
-        guard.window_options.get(&review_key).unwrap().get("pane-border-format"),
+        guard
+            .window_options
+            .get(&review_key)
+            .unwrap()
+            .get("pane-border-format"),
         Some(&"#{pane_index}".to_string())
     );
 }
@@ -422,7 +487,9 @@ fn test_project_namespace_controller_refreshes_all_sidebar_widths() {
         SidebarDimension::Percent("15%".into()),
     );
     let plan = topology_plan(&config, &layout);
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     {
         let state = backend.state();
@@ -432,7 +499,9 @@ fn test_project_namespace_controller_refreshes_all_sidebar_widths() {
         guard.resize_calls.clear();
     }
 
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     let state = backend.state();
     let guard = state.lock().unwrap();
@@ -477,7 +546,9 @@ fn test_project_namespace_controller_preserves_manual_sidebar_width_override() {
         SidebarDimension::Percent("15%".into()),
     );
     let plan = topology_plan(&config, &layout);
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     {
         let state = backend.state();
@@ -492,7 +563,9 @@ fn test_project_namespace_controller_preserves_manual_sidebar_width_override() {
         guard.resize_calls.clear();
     }
 
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     let state = backend.state();
     let guard = state.lock().unwrap();
@@ -526,11 +599,16 @@ fn test_project_namespace_sidebar_integer_width_uses_columns() {
         SidebarDimension::Pixels(30),
     );
     let plan = topology_plan(&config, &layout);
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
 
     let state = backend.state();
     let guard = state.lock().unwrap();
-    assert_eq!(guard.split_calls[0], ("%1".to_string(), "right".to_string(), 81));
+    assert_eq!(
+        guard.split_calls[0],
+        ("%1".to_string(), "right".to_string(), 81)
+    );
     assert_eq!(guard.pane_widths.get("%1"), Some(&30));
 }
 
@@ -567,10 +645,14 @@ fn test_project_namespace_controller_clears_topology_panes_when_reusing_without_
         SidebarDimension::Percent("15%".into()),
     );
     let plan = topology_plan(&config, &layout);
-    controller.ensure(None, Some(&plan), false, None, None, None).unwrap();
+    controller
+        .ensure(None, Some(&plan), false, None, None, None)
+        .unwrap();
     assert!(!controller.last_materialized_agent_panes.is_empty());
 
-    let namespace = controller.ensure(None, None, false, None, None, None).unwrap();
+    let namespace = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
 
     assert!(!namespace.created_this_call);
     assert!(controller.last_materialized_agent_panes.is_empty());
@@ -592,38 +674,79 @@ fn test_project_namespace_controller_applies_server_policy_when_reusing_session(
     )
     .unwrap();
 
-    controller.ensure(None, None, false, None, None, None).unwrap();
+    controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     {
         let state = backend.state();
         let mut guard = state.lock().unwrap();
         guard.tmux_calls.clear();
     }
-    let namespace = controller.ensure(None, None, false, None, None, None).unwrap();
+    let namespace = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
 
     let state = backend.state();
     let guard = state.lock().unwrap();
     assert!(!namespace.created_this_call);
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "destroy-unattached", "off"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "mouse", "on"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "history-limit", "50000"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "set-clipboard", "on"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "focus-events", "on"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "escape-time", "10"]));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "destroy-unattached", "off"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "mouse", "on"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "history-limit", "50000"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "set-clipboard", "on"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "focus-events", "on"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "escape-time", "10"]
+    ));
     assert!(contains_call(
         &guard.tmux_calls,
         &["set-window-option", "-g", "mode-keys", "vi"]
     ));
     assert!(contains_call(
         &guard.tmux_calls,
-        &["bind-key", "-T", "copy-mode-vi", "v", "send-keys", "-X", "begin-selection"]
+        &[
+            "bind-key",
+            "-T",
+            "copy-mode-vi",
+            "v",
+            "send-keys",
+            "-X",
+            "begin-selection"
+        ]
     ));
     assert!(!contains_call(
         &guard.tmux_calls,
-        &["bind-key", "-T", "copy-mode-vi", "y", "send-keys", "-X", "copy-selection-and-cancel"]
+        &[
+            "bind-key",
+            "-T",
+            "copy-mode-vi",
+            "y",
+            "send-keys",
+            "-X",
+            "copy-selection-and-cancel"
+        ]
     ));
     assert!(clipboard_bind_call(&guard.tmux_calls, "y"));
     assert!(clipboard_bind_call(&guard.tmux_calls, "MouseDragEnd1Pane"));
-    assert!(contains_call(&guard.tmux_calls, &["bind-key", "h", "select-pane", "-L"]));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["bind-key", "h", "select-pane", "-L"]
+    ));
 }
 
 fn contains_call(calls: &[(Vec<String>, bool)], expected: &[&str]) -> bool {
@@ -659,13 +782,17 @@ fn test_project_namespace_controller_recreates_missing_session_with_new_epoch() 
     )
     .unwrap();
 
-    let first = controller.ensure(None, None, false, None, None, None).unwrap();
+    let first = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     {
         let state = backend.state();
         let mut guard = state.lock().unwrap();
         guard.drop_session(&layout.ccbd_tmux_session_name());
     }
-    let second = controller.ensure(None, None, false, None, None, None).unwrap();
+    let second = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     let event_store = ProjectNamespaceEventStore::new(&layout);
     let latest_event = event_store.load_latest().unwrap();
 
@@ -675,8 +802,14 @@ fn test_project_namespace_controller_recreates_missing_session_with_new_epoch() 
     let event = latest_event.unwrap();
     assert_eq!(event.event_kind, "namespace_created");
     assert_eq!(event.namespace_epoch, Some(2));
-    assert_eq!(event.details.get("recreated"), Some(&serde_json::json!(true)));
-    assert_eq!(event.details.get("reason"), Some(&serde_json::json!("missing_session")));
+    assert_eq!(
+        event.details.get("recreated"),
+        Some(&serde_json::json!(true))
+    );
+    assert_eq!(
+        event.details.get("reason"),
+        Some(&serde_json::json!("missing_session"))
+    );
 }
 
 #[test]
@@ -695,7 +828,9 @@ fn test_project_namespace_controller_recreates_after_kill_when_has_session_repor
     )
     .unwrap();
 
-    let first = controller.ensure(None, None, false, None, None, None).unwrap();
+    let first = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     controller.destroy("kill", false).unwrap();
     {
         let state = backend.state();
@@ -705,7 +840,9 @@ fn test_project_namespace_controller_recreates_after_kill_when_has_session_repor
             layout.ccbd_tmux_socket_path()
         ));
     }
-    let second = controller.ensure(None, None, false, None, None, None).unwrap();
+    let second = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     let event_store = ProjectNamespaceEventStore::new(&layout);
     let latest_event = event_store.load_latest().unwrap();
 
@@ -722,7 +859,10 @@ fn test_project_namespace_controller_recreates_after_kill_when_has_session_repor
     let event = latest_event.unwrap();
     assert_eq!(event.event_kind, "namespace_created");
     assert_eq!(event.namespace_epoch, Some(2));
-    assert_eq!(event.details.get("reason"), Some(&serde_json::json!("missing_session")));
+    assert_eq!(
+        event.details.get("reason"),
+        Some(&serde_json::json!("missing_session"))
+    );
 }
 
 #[test]
@@ -764,7 +904,9 @@ fn test_project_namespace_controller_recreates_session_when_layout_version_chang
                 panes: vec!["%8".to_string()],
             }],
         );
-        guard.active_windows.insert(session.clone(), window_name.to_string());
+        guard
+            .active_windows
+            .insert(session.clone(), window_name.to_string());
         guard.panes.insert(
             "%8".to_string(),
             Pane {
@@ -789,13 +931,18 @@ fn test_project_namespace_controller_recreates_session_when_layout_version_chang
     )
     .unwrap();
 
-    let namespace = controller.ensure(None, None, false, None, None, None).unwrap();
+    let namespace = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     let event_store = ProjectNamespaceEventStore::new(&layout);
     let latest_event = event_store.load_latest().unwrap();
 
     assert_eq!(namespace.namespace_epoch, 5);
     assert!(backend.state().lock().unwrap().server_killed);
-    assert_eq!(backend.state().lock().unwrap().pane_titles.get("%2"), Some(&"cmd".to_string()));
+    assert_eq!(
+        backend.state().lock().unwrap().pane_titles.get("%2"),
+        Some(&"cmd".to_string())
+    );
     assert!(latest_event.is_some());
     assert_eq!(
         latest_event.unwrap().details.get("reason"),
@@ -842,7 +989,9 @@ fn test_project_namespace_controller_recreates_session_when_layout_signature_cha
                 panes: vec!["%9".to_string()],
             }],
         );
-        guard.active_windows.insert(session.clone(), window_name.to_string());
+        guard
+            .active_windows
+            .insert(session.clone(), window_name.to_string());
         guard.panes.insert(
             "%9".to_string(),
             Pane {
@@ -868,15 +1017,28 @@ fn test_project_namespace_controller_recreates_session_when_layout_signature_cha
     .unwrap();
 
     let namespace = controller
-        .ensure(Some("cmd, agent1:codex; agent2:claude"), None, false, None, None, None)
+        .ensure(
+            Some("cmd, agent1:codex; agent2:claude"),
+            None,
+            false,
+            None,
+            None,
+            None,
+        )
         .unwrap();
     let event_store = ProjectNamespaceEventStore::new(&layout);
     let latest_event = event_store.load_latest().unwrap();
 
     assert_eq!(namespace.namespace_epoch, 8);
-    assert_eq!(namespace.layout_signature, Some("cmd, agent1:codex; agent2:claude".to_string()));
+    assert_eq!(
+        namespace.layout_signature,
+        Some("cmd, agent1:codex; agent2:claude".to_string())
+    );
     assert!(backend.state().lock().unwrap().server_killed);
-    assert_eq!(backend.state().lock().unwrap().pane_titles.get("%2"), Some(&"cmd".to_string()));
+    assert_eq!(
+        backend.state().lock().unwrap().pane_titles.get("%2"),
+        Some(&"cmd".to_string())
+    );
     assert!(latest_event.is_some());
     assert_eq!(
         latest_event.unwrap().details.get("reason"),
@@ -899,7 +1061,9 @@ fn test_project_namespace_controller_destroy_marks_state_and_event() {
     )
     .unwrap();
 
-    controller.ensure(None, None, false, None, None, None).unwrap();
+    controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     let summary = controller.destroy("kill", false).unwrap();
     let state_store = ProjectNamespaceStateStore::new(&layout);
     let event_store = ProjectNamespaceEventStore::new(&layout);
@@ -916,7 +1080,10 @@ fn test_project_namespace_controller_destroy_marks_state_and_event() {
     assert!(latest_event.is_some());
     let event = latest_event.unwrap();
     assert_eq!(event.event_kind, "namespace_destroyed");
-    assert_eq!(event.details.get("reason"), Some(&serde_json::json!("kill")));
+    assert_eq!(
+        event.details.get("reason"),
+        Some(&serde_json::json!("kill"))
+    );
 }
 
 #[test]
@@ -934,7 +1101,9 @@ fn test_project_namespace_controller_uses_silent_server_commands() {
     )
     .unwrap();
 
-    controller.ensure(None, None, false, None, None, None).unwrap();
+    controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
     controller.destroy("kill", false).unwrap();
 
     let state = backend.state();
@@ -948,22 +1117,52 @@ fn test_project_namespace_controller_uses_silent_server_commands() {
     let args = &new_session_calls[0].0;
     assert_eq!(
         args[args.len() - 3..],
-        ["sh".to_string(), "-lc".to_string(), "while :; do sleep 3600; done".to_string()]
+        [
+            "sh".to_string(),
+            "-lc".to_string(),
+            "while :; do sleep 3600; done".to_string()
+        ]
     );
     assert!(contains_call(&guard.tmux_calls, &["start-server"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "destroy-unattached", "off"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "mouse", "on"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "history-limit", "50000"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "set-clipboard", "on"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "focus-events", "on"]));
-    assert!(contains_call(&guard.tmux_calls, &["set-option", "-g", "escape-time", "10"]));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "destroy-unattached", "off"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "mouse", "on"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "history-limit", "50000"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "set-clipboard", "on"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "focus-events", "on"]
+    ));
+    assert!(contains_call(
+        &guard.tmux_calls,
+        &["set-option", "-g", "escape-time", "10"]
+    ));
     assert!(contains_call(
         &guard.tmux_calls,
         &["set-window-option", "-g", "mode-keys", "vi"]
     ));
     assert!(!contains_call(
         &guard.tmux_calls,
-        &["bind-key", "-T", "copy-mode-vi", "y", "send-keys", "-X", "copy-selection-and-cancel"]
+        &[
+            "bind-key",
+            "-T",
+            "copy-mode-vi",
+            "y",
+            "send-keys",
+            "-X",
+            "copy-selection-and-cancel"
+        ]
     ));
     assert!(clipboard_bind_call(&guard.tmux_calls, "y"));
     assert!(clipboard_bind_call(&guard.tmux_calls, "Enter"));
@@ -972,4 +1171,284 @@ fn test_project_namespace_controller_uses_silent_server_commands() {
         &["bind-key", "-r", "L", "resize-pane", "-R", "5"]
     ));
     assert!(contains_call(&guard.tmux_calls, &["kill-server"]));
+}
+
+#[test]
+fn test_project_namespace_controller_reflow_workspace_persists_epoch_and_event() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-reflow",
+        Some(Clock::new(|| "2026-04-03T06:00:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
+    let before_state = ProjectNamespaceStateStore::new(&layout)
+        .load()
+        .unwrap()
+        .unwrap();
+    assert_eq!(before_state.workspace_epoch, 1);
+
+    let namespace = controller
+        .reflow_workspace(None, Some("reload"), None)
+        .unwrap();
+
+    let state_store = ProjectNamespaceStateStore::new(&layout);
+    let event_store = ProjectNamespaceEventStore::new(&layout);
+    let state = state_store.load().unwrap().unwrap();
+    let latest_event = event_store.load_latest().unwrap().unwrap();
+
+    assert!(!namespace.created_this_call);
+    assert!(namespace.workspace_recreated_this_call);
+    assert_eq!(namespace.workspace_epoch, 2);
+    assert_eq!(state.workspace_epoch, 2);
+    assert_eq!(state.namespace_epoch, before_state.namespace_epoch);
+    assert_eq!(latest_event.event_kind, "workspace_reflowed");
+    assert_eq!(
+        latest_event.details.get("reason"),
+        Some(&serde_json::json!("reload"))
+    );
+}
+
+#[test]
+fn test_project_namespace_controller_waits_for_delayed_window_and_pane_visibility() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    backend.set_window_visibility_lag(1);
+    backend.set_pane_visibility_lag(1);
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-delay-1",
+        Some(Clock::new(|| "2026-04-03T07:30:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    let namespace = controller
+        .ensure(None, None, false, None, Some(0.5), None)
+        .unwrap();
+
+    let state_store = ProjectNamespaceStateStore::new(&layout);
+    let state = state_store.load().unwrap();
+
+    assert_eq!(
+        namespace.workspace_window_name,
+        Some(layout.ccbd_tmux_workspace_window_name().to_string())
+    );
+    assert!(state.is_some());
+    let state = state.unwrap();
+    assert_eq!(
+        state.workspace_window_name,
+        Some(layout.ccbd_tmux_workspace_window_name().to_string())
+    );
+    let state = backend.state();
+    let guard = state.lock().unwrap();
+    let has_cmd_pane = guard.pane_titles.values().any(|t| t == "cmd");
+    assert!(
+        has_cmd_pane,
+        "expected a pane titled 'cmd', got {:?}",
+        guard.pane_titles
+    );
+}
+
+#[test]
+fn test_project_namespace_controller_reflow_waits_for_delayed_workspace_visibility() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-reflow-delay",
+        Some(Clock::new(|| "2026-04-03T08:30:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    controller
+        .ensure(None, None, false, None, Some(0.5), None)
+        .unwrap();
+    backend.set_window_visibility_lag(2);
+
+    let namespace = controller
+        .reflow_workspace(None, Some("pane_recovery:agent1"), Some(0.5))
+        .unwrap();
+
+    assert_eq!(namespace.workspace_epoch, 2);
+    assert!(!backend.state().lock().unwrap().server_killed);
+    assert_eq!(
+        backend
+            .state()
+            .lock()
+            .unwrap()
+            .active_windows
+            .get(&layout.ccbd_tmux_session_name()),
+        Some(&layout.ccbd_tmux_workspace_window_name().to_string())
+    );
+}
+
+#[test]
+fn test_project_namespace_controller_reflow_workspace_fresh_namespace_falls_back_to_ensure() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-reflow-fallback",
+        Some(Clock::new(|| "2026-04-03T08:00:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    let namespace = controller
+        .reflow_workspace(None, Some("reload"), Some(0.5))
+        .unwrap();
+
+    let state_store = ProjectNamespaceStateStore::new(&layout);
+    let event_store = ProjectNamespaceEventStore::new(&layout);
+    let state = state_store.load().unwrap().unwrap();
+    let latest_event = event_store.load_latest().unwrap().unwrap();
+
+    assert!(namespace.created_this_call);
+    assert!(!namespace.workspace_recreated_this_call);
+    assert_eq!(namespace.namespace_epoch, 1);
+    assert_eq!(state.workspace_epoch, 1);
+    assert_eq!(latest_event.event_kind, "namespace_created");
+    assert_eq!(
+        latest_event.details.get("reason"),
+        Some(&serde_json::json!("reload"))
+    );
+}
+
+#[test]
+fn test_project_namespace_controller_reflow_workspace_replaces_window_without_killing_server() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-reflow-replace",
+        Some(Clock::new(|| "2026-04-03T08:15:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    let first = controller
+        .ensure(None, None, false, None, Some(0.5), None)
+        .unwrap();
+    let namespace = controller
+        .reflow_workspace(None, Some("pane_recovery:agent1"), Some(0.5))
+        .unwrap();
+
+    let state_store = ProjectNamespaceStateStore::new(&layout);
+    let event_store = ProjectNamespaceEventStore::new(&layout);
+    let state = state_store.load().unwrap().unwrap();
+    let latest_event = event_store.load_latest().unwrap().unwrap();
+
+    assert_eq!(first.namespace_epoch, 1);
+    assert_eq!(namespace.namespace_epoch, 1);
+    assert!(!namespace.created_this_call);
+    assert!(namespace.workspace_recreated_this_call);
+    assert_eq!(namespace.workspace_epoch, 2);
+    assert_eq!(state.workspace_epoch, 2);
+    assert_eq!(state.control_window_id, Some("@1".to_string()));
+    assert_eq!(state.workspace_window_id, Some("@3".to_string()));
+    assert!(!backend.state().lock().unwrap().server_killed);
+    assert_eq!(
+        backend
+            .state()
+            .lock()
+            .unwrap()
+            .active_windows
+            .get(&layout.ccbd_tmux_session_name()),
+        Some(&layout.ccbd_tmux_workspace_window_name().to_string())
+    );
+    assert_eq!(
+        backend.state().lock().unwrap().pane_titles.get("%3"),
+        Some(&"cmd".to_string())
+    );
+    assert_eq!(latest_event.event_kind, "workspace_reflowed");
+    assert_eq!(
+        latest_event.details.get("reason"),
+        Some(&serde_json::json!("pane_recovery:agent1"))
+    );
+
+    // Targeted post-reflow commands should use window ids, never the transient name.
+    let targeted: Vec<_> = backend
+        .state()
+        .lock()
+        .unwrap()
+        .tmux_calls
+        .iter()
+        .filter(|(args, _)| {
+            matches!(
+                args.first().map(|s| s.as_str()),
+                Some("select-window") | Some("rename-window") | Some("kill-window")
+            )
+        })
+        .map(|(args, _)| args.clone())
+        .collect();
+    assert!(!targeted.is_empty());
+    for args in &targeted {
+        let target = args.get(2).expect("target argument");
+        assert!(!target.contains(".__reflow__."));
+        assert!(target.starts_with(&format!("{}:@", layout.ccbd_tmux_session_name())));
+    }
+}
+
+#[test]
+fn test_prepare_server_failure_includes_diagnostics() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    backend.fail_start_server(
+        "error connecting to /private/tmp/tmux-501/default (No such file or directory)",
+    );
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-prepare-fail",
+        Some(Clock::new(|| "2026-04-03T09:00:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    let result = controller.ensure(None, None, false, None, Some(0.2), None);
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    let text = err.to_string();
+    assert!(
+        text.contains("failed to prepare tmux server"),
+        "expected failure context, got: {text}"
+    );
+    assert!(
+        text.contains(&layout.ccbd_tmux_socket_path().to_string()),
+        "expected socket path, got: {text}"
+    );
+    assert!(
+        text.contains("tmux_command="),
+        "expected command context, got: {text}"
+    );
+    assert!(
+        text.contains("No such file or directory"),
+        "expected stderr detail, got: {text}"
+    );
 }

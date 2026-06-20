@@ -93,12 +93,29 @@ pub struct FakeTmuxState {
     pub split_calls: Vec<(String, String, i32)>,
     pub resize_calls: Vec<(String, i32)>,
     pub has_session_error: Option<String>,
+    pub window_visibility_lag: usize,
+    pub pane_visibility_lag: usize,
+    pub start_server_failure: Option<String>,
+    pub server_killed: bool,
     pane_counter: usize,
     window_counter: usize,
-    pub server_killed: bool,
+    window_list_counter: usize,
+    pane_list_counter: usize,
+    window_created_at: HashMap<String, usize>,
+    pane_created_at: HashMap<String, usize>,
 }
 
 impl FakeTmuxState {
+    fn is_window_visible(&self, window_id: &str) -> bool {
+        let created_at = self.window_created_at.get(window_id).copied().unwrap_or(0);
+        self.window_list_counter.saturating_sub(created_at) > self.window_visibility_lag
+    }
+
+    fn is_pane_visible(&self, pane_id: &str) -> bool {
+        let created_at = self.pane_created_at.get(pane_id).copied().unwrap_or(0);
+        self.pane_list_counter.saturating_sub(created_at) > self.pane_visibility_lag
+    }
+
     fn alloc_pane(&mut self) -> String {
         self.pane_counter += 1;
         let id = format!("%{}", self.pane_counter);
@@ -111,6 +128,8 @@ impl FakeTmuxState {
             },
         );
         self.pane_widths.insert(id.clone(), 160);
+        self.pane_created_at
+            .insert(id.clone(), self.pane_list_counter);
         id
     }
 
@@ -135,6 +154,8 @@ impl FakeTmuxState {
             pane.session = session.to_string();
             pane.window = name.to_string();
         }
+        self.window_created_at
+            .insert(window.id.clone(), self.window_list_counter);
         self.session_windows(session).push(window.clone());
         self.active_windows
             .entry(session.to_string())
@@ -245,6 +266,9 @@ impl FakeTmuxState {
         }
 
         if args[0] == "start-server" {
+            if let Some(ref err) = self.start_server_failure {
+                return failure(err.clone());
+            }
             return success("");
         }
 
@@ -347,9 +371,13 @@ impl FakeTmuxState {
             } else {
                 ""
             };
+            self.window_list_counter += 1;
             let windows = self.sessions.get(session).cloned().unwrap_or_default();
             let mut rows = Vec::new();
             for window in windows {
+                if !self.is_window_visible(&window.id) {
+                    continue;
+                }
                 let active = self.active_windows.get(session) == Some(&window.name);
                 if fmt == "#{window_name}" {
                     rows.push(window.name.clone());
@@ -371,11 +399,14 @@ impl FakeTmuxState {
             } else {
                 "#{pane_id}".to_string()
             };
+            self.pane_list_counter += 1;
             let mut rows = Vec::new();
             for (session, windows) in &self.sessions {
                 for window in windows {
                     for pane_id in &window.panes {
-                        rows.push(self.render_format(session, window, pane_id, &fmt));
+                        if self.is_pane_visible(pane_id) {
+                            rows.push(self.render_format(session, window, pane_id, &fmt));
+                        }
                     }
                 }
             }
@@ -390,10 +421,12 @@ impl FakeTmuxState {
             } else {
                 "#{pane_id}".to_string()
             };
+            self.pane_list_counter += 1;
             let rows: Vec<String> = if let Some((session, window)) = self.find_window(target) {
                 window
                     .panes
                     .iter()
+                    .filter(|pane_id| self.is_pane_visible(pane_id))
                     .map(|pane_id| self.render_format(&session, &window, pane_id, &fmt))
                     .collect()
             } else {
@@ -497,11 +530,11 @@ impl FakeTmuxState {
                 }
                 let parent_width = *self.pane_widths.get(&parent).unwrap_or(&160);
                 if direction == "right" || direction == "left" {
-                    let new_width =
-                        (parent_width as f64 * (percent as f64 / 100.0)).round() as i32;
+                    let new_width = (parent_width as f64 * (percent as f64 / 100.0)).round() as i32;
                     let new_width = new_width.clamp(1, parent_width - 1);
                     self.pane_widths.insert(pane_id.clone(), new_width);
-                    self.pane_widths.insert(parent.clone(), parent_width - new_width);
+                    self.pane_widths
+                        .insert(parent.clone(), parent_width - new_width);
                 } else {
                     self.pane_widths.insert(pane_id.clone(), parent_width);
                 }
@@ -555,8 +588,7 @@ impl FakeTmuxState {
             return success("");
         }
 
-        if args.starts_with(&["set-window-option".to_string(), "-t".to_string()])
-            && args.len() >= 5
+        if args.starts_with(&["set-window-option".to_string(), "-t".to_string()]) && args.len() >= 5
         {
             let target = &args[2];
             let option = &args[3];
@@ -663,8 +695,26 @@ impl FakeTmuxState {
             return success("");
         }
 
-        if args.starts_with(&["display-message".to_string(), "-p".to_string()]) && args.len() >= 5
-        {
+        if args.starts_with(&["rename-window".to_string(), "-t".to_string()]) && args.len() >= 4 {
+            let target = &args[2];
+            let new_name = args.last().cloned().unwrap_or_default();
+            if let Some((_session, window)) = self.find_window(target) {
+                if let Some(windows) = self.sessions.get_mut(&_session) {
+                    for w in windows.iter_mut() {
+                        if w.id == window.id {
+                            w.name = new_name.clone();
+                            break;
+                        }
+                    }
+                }
+                if self.active_windows.get(&_session) == Some(&window.name) {
+                    self.active_windows.insert(_session, new_name);
+                }
+            }
+            return success("");
+        }
+
+        if args.starts_with(&["display-message".to_string(), "-p".to_string()]) && args.len() >= 5 {
             let fmt = &args[args.len() - 1];
             let target = args
                 .iter()
@@ -771,6 +821,18 @@ impl FakeTmuxBackend {
         f(&mut guard)
     }
 
+    pub fn set_window_visibility_lag(&self, lag: usize) {
+        self.state.lock().unwrap().window_visibility_lag = lag;
+    }
+
+    pub fn set_pane_visibility_lag(&self, lag: usize) {
+        self.state.lock().unwrap().pane_visibility_lag = lag;
+    }
+
+    pub fn fail_start_server(&self, message: impl Into<String>) {
+        self.state.lock().unwrap().start_server_failure = Some(message.into());
+    }
+
     pub fn backend_factory(&self) -> BackendFactory {
         let state = self.state.clone();
         BackendFactory::new(move |socket_path| {
@@ -789,5 +851,86 @@ impl FakeTmuxBackend {
 impl Default for FakeTmuxBackend {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn list_windows(state: &mut FakeTmuxState, session: &str) -> String {
+        state
+            .handle(
+                vec![
+                    "list-windows".to_string(),
+                    "-t".to_string(),
+                    session.to_string(),
+                ],
+                false,
+                true,
+            )
+            .stdout
+    }
+
+    fn list_panes(state: &mut FakeTmuxState, target: &str) -> String {
+        state
+            .handle(
+                vec![
+                    "list-panes".to_string(),
+                    "-t".to_string(),
+                    target.to_string(),
+                ],
+                false,
+                true,
+            )
+            .stdout
+    }
+
+    #[test]
+    fn test_window_visibility_lag_zero_by_default() {
+        let mut state = FakeTmuxState::default();
+        state.create_window("session", "win");
+        let output = list_windows(&mut state, "session");
+        assert!(output.contains("win"));
+    }
+
+    #[test]
+    fn test_window_visibility_lag_hides_new_windows() {
+        let mut state = FakeTmuxState::default();
+        state.window_visibility_lag = 2;
+        state.create_window("session", "win");
+
+        assert!(list_windows(&mut state, "session").is_empty());
+        assert!(list_windows(&mut state, "session").is_empty());
+        assert!(list_windows(&mut state, "session").contains("win"));
+    }
+
+    #[test]
+    fn test_pane_visibility_lag_zero_by_default() {
+        let mut state = FakeTmuxState::default();
+        let window = state.create_window("session", "win");
+        let output = list_panes(&mut state, "session:win");
+        assert!(output.contains(&window.panes[0]));
+    }
+
+    #[test]
+    fn test_pane_visibility_lag_hides_new_panes() {
+        let mut state = FakeTmuxState::default();
+        state.pane_visibility_lag = 1;
+        let window = state.create_window("session", "win");
+
+        assert!(list_panes(&mut state, "session:win").is_empty());
+        assert!(list_panes(&mut state, "session:win").contains(&window.panes[0]));
+    }
+
+    #[test]
+    fn test_backend_visibility_lag_setters() {
+        let backend = FakeTmuxBackend::new();
+        backend.set_window_visibility_lag(3);
+        backend.set_pane_visibility_lag(4);
+        let state = backend.state();
+        let guard = state.lock().unwrap();
+        assert_eq!(guard.window_visibility_lag, 3);
+        assert_eq!(guard.pane_visibility_lag, 4);
     }
 }
