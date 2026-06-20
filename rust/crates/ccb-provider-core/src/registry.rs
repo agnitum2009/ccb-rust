@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::contracts::ProviderBackend;
+use crate::contracts::{
+    LaunchMode, ProviderBackend, ProviderRuntimeLauncher, ProviderSessionBinding,
+};
 use crate::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};
 
 /// Provider names that are always included.
@@ -159,22 +161,79 @@ pub fn build_default_execution_adapters(
 
 /// Build a map of provider names to session bindings.
 pub fn build_default_session_binding_map(
-    _include_optional: bool,
-) -> HashMap<String, crate::contracts::ProviderSessionBinding> {
-    // Session bindings require provider-specific backend logic that is not
-    // available in provider-core. The API is preserved for callers that will
-    // populate the map themselves.
-    HashMap::new()
+    include_optional: bool,
+) -> HashMap<String, ProviderSessionBinding> {
+    let mut map = HashMap::new();
+    for &provider in CORE_PROVIDER_NAMES {
+        if let Some(binding) = session_binding_for_provider(provider) {
+            map.insert(provider.to_string(), binding);
+        }
+    }
+    if include_optional {
+        for &provider in OPTIONAL_PROVIDER_NAMES {
+            if let Some(binding) = session_binding_for_provider(provider) {
+                map.insert(provider.to_string(), binding);
+            }
+        }
+    }
+    map
 }
 
 /// Build a map of provider names to runtime launchers.
 pub fn build_default_runtime_launcher_map(
-    _include_optional: bool,
-) -> HashMap<String, crate::contracts::ProviderRuntimeLauncher> {
-    // Runtime launchers require provider-specific backend logic that is not
-    // available in provider-core. The API is preserved for callers that will
-    // populate the map themselves.
-    HashMap::new()
+    include_optional: bool,
+) -> HashMap<String, ProviderRuntimeLauncher> {
+    let mut map = HashMap::new();
+    for &provider in CORE_PROVIDER_NAMES {
+        if let Some(launcher) = runtime_launcher_for_provider(provider) {
+            map.insert(provider.to_string(), launcher);
+        }
+    }
+    if include_optional {
+        for &provider in OPTIONAL_PROVIDER_NAMES {
+            if let Some(launcher) = runtime_launcher_for_provider(provider) {
+                map.insert(provider.to_string(), launcher);
+            }
+        }
+    }
+    map
+}
+
+fn session_binding_for_provider(provider: &str) -> Option<ProviderSessionBinding> {
+    let provider = provider.trim().to_lowercase();
+    if provider.is_empty() {
+        return None;
+    }
+    let (session_id_attr, session_path_attr) = match provider.as_str() {
+        "opencode" => (
+            "opencode_session_id".to_string(),
+            "session_file".to_string(),
+        ),
+        "codex" | "claude" | "gemini" | "droid" | "agy" | "kimi" | "deepseek" => (
+            format!("{}_session_id", provider),
+            format!("{}_session_path", provider),
+        ),
+        _ => return None,
+    };
+    let mut binding = ProviderSessionBinding::new(&provider);
+    binding.session_id_attr = session_id_attr;
+    binding.session_path_attr = session_path_attr;
+    Some(binding)
+}
+
+fn runtime_launcher_for_provider(provider: &str) -> Option<ProviderRuntimeLauncher> {
+    let provider = provider.trim().to_lowercase();
+    if provider.is_empty() {
+        return None;
+    }
+    let launch_mode = match provider.as_str() {
+        "codex" => LaunchMode::CodexTmux,
+        "claude" | "gemini" | "opencode" | "droid" | "agy" | "kimi" | "deepseek" => {
+            LaunchMode::SimpleTmux
+        }
+        _ => return None,
+    };
+    Some(ProviderRuntimeLauncher::new(provider, launch_mode))
 }
 
 fn build_builtin_backends(include_optional: bool) -> Vec<ProviderBackend> {

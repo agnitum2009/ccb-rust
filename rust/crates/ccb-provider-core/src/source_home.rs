@@ -19,11 +19,37 @@ pub fn current_provider_source_home() -> PathBuf {
         }
     }
 
+    if let Some(path) = passwd_home() {
+        return path;
+    }
+
     if let Some(path) = env_path("USERPROFILE") {
         return path;
     }
 
     env_path("HOME").unwrap_or_else(|| PathBuf::from("/"))
+}
+
+#[cfg(unix)]
+fn passwd_home() -> Option<PathBuf> {
+    unsafe {
+        let uid = libc::getuid();
+        let pw = libc::getpwuid(uid);
+        if pw.is_null() {
+            return None;
+        }
+        let dir = std::ffi::CStr::from_ptr((*pw).pw_dir);
+        let path = dir.to_str().ok()?.to_string();
+        if path.trim().is_empty() {
+            return None;
+        }
+        Some(PathBuf::from(path))
+    }
+}
+
+#[cfg(not(unix))]
+fn passwd_home() -> Option<PathBuf> {
+    None
 }
 
 fn env_path(name: &str) -> Option<PathBuf> {
