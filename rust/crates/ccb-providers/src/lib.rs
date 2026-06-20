@@ -124,6 +124,8 @@ pub mod finalization;
 pub mod follow_policy;
 pub mod git;
 pub mod global_logs;
+pub mod helper_cleanup;
+pub mod helper_manifest;
 pub mod helpers;
 pub mod history;
 pub mod history_transfer;
