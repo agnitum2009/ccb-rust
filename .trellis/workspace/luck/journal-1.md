@@ -90,3 +90,36 @@ Verified Kimi's 96 uncommitted files (provider launchers + ask/kill service + or
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: fix ccb-cli env-var test flakiness
+
+**Date**: 2026-06-22
+**Task**: fix ccb-cli env-var test flakiness
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Added per-mod static Mutex (ENV_TEST_LOCK) to 5 ccb-cli test mods whose std::env::set_var calls raced under the parallel runner: source_guard, ask_sender, tools_runtime, tmux_project_cleanup_runtime cleanup+backend. ccb-cli --lib now 0 failed across 3 parallel runs; clippy 0 error, fmt clean. Subagent (executor) applied 4 of 5; main session did source_guard + verification.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c455a8df` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
