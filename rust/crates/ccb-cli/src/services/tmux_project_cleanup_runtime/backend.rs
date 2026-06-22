@@ -60,6 +60,11 @@ pub fn tmux_available() -> bool {
 mod tests {
     use super::*;
 
+    /// Serialize tests that mutate process-global env vars. `std::env::set_var`
+    /// is not thread-safe; without this the default parallel runner races and
+    /// produces flaky pass/fail.
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_resolve_socket_ref_empty() {
         assert_eq!(resolve_socket_ref(None), (None, None));
@@ -80,6 +85,7 @@ mod tests {
 
     #[test]
     fn test_resolve_socket_ref_expands_tilde() {
+        let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         std::env::set_var("HOME", "/home/tester");
         let (name, path) = resolve_socket_ref(Some("~/tmux.sock"));
         assert_eq!(name, None);

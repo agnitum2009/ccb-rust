@@ -143,6 +143,11 @@ mod tests {
     use crate::context::{CliContext, CliContextBuilder};
     use crate::models::ParsedCommand;
 
+    /// Serialize tests that mutate process-global env vars. `std::env::set_var`
+    /// is not thread-safe; without this the default parallel runner races and
+    /// produces flaky pass/fail.
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn make_context(tmp: &tempfile::TempDir) -> CliContext {
         let root = tmp.path();
         std::fs::create_dir_all(root.join(".ccb")).unwrap();
@@ -169,6 +174,7 @@ mod tests {
 
     #[test]
     fn no_sender_defaults_to_user() {
+        let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         let tmp = tempfile::TempDir::new().unwrap();
         let ctx = make_context(&tmp);
         for name in [
@@ -184,6 +190,7 @@ mod tests {
 
     #[test]
     fn runtime_dir_actor_is_preferred() {
+        let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         let tmp = tempfile::TempDir::new().unwrap();
         let ctx = make_context(&tmp);
         for name in [

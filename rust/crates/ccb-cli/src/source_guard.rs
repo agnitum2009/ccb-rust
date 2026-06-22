@@ -212,6 +212,11 @@ fn project_arg_paths(argv: &[String], cwd: &Path) -> Vec<PathBuf> {
 mod tests {
     use super::*;
 
+    /// Serialize tests that mutate process-global env vars. `std::env::set_var`
+    /// is not thread-safe; without this the default parallel runner races and
+    /// produces flaky pass/fail across the with_env/with_source_root tests.
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn tmpdir_with_git() -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("ccb-source");
@@ -338,6 +343,7 @@ mod tests {
     }
 
     fn with_env<T>(vars: &[(&str, &str)], f: impl FnOnce() -> T) -> T {
+        let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         let mut guards = Vec::new();
         for (name, value) in vars {
             let prev = std::env::var(name).ok();

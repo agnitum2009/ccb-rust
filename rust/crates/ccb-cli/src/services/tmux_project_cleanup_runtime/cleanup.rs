@@ -129,6 +129,11 @@ mod tests {
     use super::*;
     use ccb_terminal::backend::{TmuxBackend, TmuxOutput};
 
+    /// Serialize tests that mutate process-global env vars. `std::env::set_var`
+    /// is not thread-safe; without this the default parallel runner races and
+    /// produces flaky pass/fail.
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn success_output(stdout: &str) -> TmuxOutput {
         TmuxOutput {
             stdout: stdout.into(),
@@ -163,6 +168,7 @@ mod tests {
 
     impl EnvGuard {
         fn set() -> Self {
+            let _env_lock = ENV_TEST_LOCK.lock().unwrap();
             let previous = std::env::var("CCB_TEST_TMUX_AVAILABLE").ok();
             std::env::set_var("CCB_TEST_TMUX_AVAILABLE", "1");
             Self {

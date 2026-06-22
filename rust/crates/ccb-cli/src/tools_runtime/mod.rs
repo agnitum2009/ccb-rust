@@ -229,8 +229,14 @@ fn which(program: &str) -> Option<PathBuf> {
 mod tests {
     use super::*;
 
+    /// Serialize tests that mutate process-global env vars. `std::env::set_var`
+    /// is not thread-safe; without this the default parallel runner races and
+    /// produces flaky pass/fail.
+    static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_paths_under_xdg_data_home() {
+        let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         std::env::set_var("XDG_DATA_HOME", "/tmp/ccb-test-data");
         let p = paths();
         assert!(p.root.starts_with("/tmp/ccb-test-data/ccb/tools/neovim"));
@@ -292,6 +298,7 @@ mod tests {
 
     #[test]
     fn test_status_reports_missing_without_wrapper() {
+        let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("XDG_DATA_HOME", dir.path());
         let status = neovim_status();
