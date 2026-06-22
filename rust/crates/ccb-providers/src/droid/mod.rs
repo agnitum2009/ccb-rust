@@ -11,7 +11,6 @@ pub mod comm;
 pub mod comm_runtime;
 pub mod execution;
 pub mod execution_runtime;
-pub mod home;
 pub mod launcher;
 pub mod manifest;
 pub mod protocol_runtime;

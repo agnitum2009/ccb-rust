@@ -866,7 +866,10 @@ mod tests {
             30.0,
         )
         .unwrap();
-        assert_eq!(mismatched.provider_session_id, Some("codex-session-1".into()));
+        assert_eq!(
+            mismatched.provider_session_id,
+            Some("codex-session-1".into())
+        );
     }
 
     #[test]
@@ -894,36 +897,32 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
-            read_activity_evidence(
-                &runtime,
-                "project-1",
-                "agent2",
-                "codex",
-                Some("ccb-agent2-new"),
-                None,
-                Some("%1"),
-                None,
-                Some("2026-05-27T00:00:01Z"),
-                30.0,
-            )
-            .is_none()
-        );
-        assert!(
-            read_activity_evidence(
-                &runtime,
-                "project-1",
-                "agent2",
-                "claude",
-                Some("ccb-agent2-old"),
-                None,
-                Some("%1"),
-                None,
-                Some("2026-05-27T00:00:01Z"),
-                30.0,
-            )
-            .is_none()
-        );
+        assert!(read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "codex",
+            Some("ccb-agent2-new"),
+            None,
+            Some("%1"),
+            None,
+            Some("2026-05-27T00:00:01Z"),
+            30.0,
+        )
+        .is_none());
+        assert!(read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "claude",
+            Some("ccb-agent2-old"),
+            None,
+            Some("%1"),
+            None,
+            Some("2026-05-27T00:00:01Z"),
+            30.0,
+        )
+        .is_none());
     }
 
     #[test]
@@ -935,12 +934,19 @@ mod tests {
         fs::create_dir_all(activity_file.parent().unwrap()).unwrap();
         fs::write(&activity_file, "{not-json").unwrap();
 
-        assert!(
-            read_activity_evidence(
-                &runtime, "project-1", "agent2", "codex", None, None, None, None, None, 30.0,
-            )
-            .is_none()
-        );
+        assert!(read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "codex",
+            None,
+            None,
+            None,
+            None,
+            None,
+            30.0,
+        )
+        .is_none());
 
         write_activity(
             "codex",
@@ -961,21 +967,19 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
-            read_activity_evidence(
-                &runtime,
-                "project-1",
-                "agent2",
-                "codex",
-                None,
-                None,
-                None,
-                None,
-                Some("2026-05-27T00:00:00Z"),
-                30.0,
-            )
-            .is_none()
-        );
+        assert!(read_activity_evidence(
+            &runtime,
+            "project-1",
+            "agent2",
+            "codex",
+            None,
+            None,
+            None,
+            None,
+            Some("2026-05-27T00:00:00Z"),
+            30.0,
+        )
+        .is_none());
     }
 
     #[test]

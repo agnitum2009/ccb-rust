@@ -10,7 +10,10 @@ pub fn cmd_bootstrap_command() -> String {
     let flags = cmd_shell_login_flags(&shell);
     let mut argv = vec!["exec".to_string(), shell];
     argv.extend(flags);
-    argv.into_iter().map(shell_quote).collect::<Vec<_>>().join(" ")
+    argv.into_iter()
+        .map(shell_quote)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn resolved_cmd_shell() -> String {
@@ -94,7 +97,11 @@ fn cmd_shell_login_flags(shell: &str) -> Vec<String> {
 }
 
 fn shell_quote(part: String) -> String {
-    if part.is_empty() || part.chars().any(|c| c.is_whitespace() || c == '\'' || c == '"' || c == '\\') {
+    if part.is_empty()
+        || part
+            .chars()
+            .any(|c| c.is_whitespace() || c == '\'' || c == '"' || c == '\\')
+    {
         let escaped = part.replace('\'', "'\"'\"'");
         format!("'{}'", escaped)
     } else {

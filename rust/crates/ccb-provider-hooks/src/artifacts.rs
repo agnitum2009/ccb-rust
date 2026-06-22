@@ -707,7 +707,10 @@ mod tests {
             json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_old111\n\nOld task."}}),
             json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "old done"}]}}),
         ]);
-        assert_eq!(current_turn_req_id_from_transcript_text(&content, None), None);
+        assert_eq!(
+            current_turn_req_id_from_transcript_text(&content, None),
+            None
+        );
     }
 
     #[test]

@@ -74,7 +74,9 @@ impl TmuxNamespaceBackend for FakeBackend {
         self.socket_matches
     }
     fn inspect_project_namespace_pane(&self, _pane_id: &str) -> Option<Box<dyn PaneRecord>> {
-        self.record.clone().map(|r| Box::new(r) as Box<dyn PaneRecord>)
+        self.record
+            .clone()
+            .map(|r| Box::new(r) as Box<dyn PaneRecord>)
     }
 }
 
@@ -198,7 +200,10 @@ fn test_pane_outside_namespace_accepts_declared_secondary_window() {
         ..runtime()
     };
     assert!(!pane_outside_project_namespace(
-        &runtime, &store, Some(&backend), "%3"
+        &runtime,
+        &store,
+        Some(&backend),
+        "%3"
     ));
 }
 
@@ -233,6 +238,9 @@ fn test_pane_outside_namespace_rejects_mismatched_declared_window() {
         ..runtime()
     };
     assert!(pane_outside_project_namespace(
-        &runtime, &store, Some(&backend), "%3"
+        &runtime,
+        &store,
+        Some(&backend),
+        "%3"
     ));
 }

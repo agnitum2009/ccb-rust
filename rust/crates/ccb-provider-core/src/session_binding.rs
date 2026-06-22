@@ -363,6 +363,45 @@ fn backend_pane_alive(backend: &dyn SessionBackend, pane_id: &str) -> bool {
     backend.is_alive(pane_id)
 }
 
+/// Decide whether an existing binding must be replaced (and its pane killed).
+///
+/// Mirrors the stale-binding policy in Python `runtime_launch._ensure_agent_runtime`.
+/// A binding is replaced when its pane is dead or its provider identity no longer
+/// matches. Foreign panes are never killed here; they are left to the caller.
+pub fn binding_requires_replacement(binding: &AgentBinding) -> bool {
+    match binding.pane_state.as_deref() {
+        Some("dead") => true,
+        Some("foreign") => false,
+        _ => binding.provider_identity_state.as_deref() == Some("mismatch"),
+    }
+}
+
+/// Check whether a resolved agent binding's runtime is alive.
+///
+/// Mirrors Python `runtime_launch._binding_runtime_alive`. Rejects title-based
+/// runtime references (`tmux:title:...`) and prefers the active pane id over
+/// the bound pane id when probing liveness.
+pub fn binding_runtime_alive(binding: &AgentBinding, backend: &dyn SessionBackend) -> bool {
+    if binding
+        .runtime_ref
+        .as_deref()
+        .unwrap_or("")
+        .starts_with("tmux:title:")
+    {
+        return false;
+    }
+    let pane_id = binding
+        .active_pane_id
+        .as_deref()
+        .or(binding.pane_id.as_deref())
+        .unwrap_or("")
+        .trim();
+    if pane_id.is_empty() {
+        return false;
+    }
+    backend.is_tmux_pane_alive(pane_id) || backend.is_alive(pane_id)
+}
+
 /// Inspect the pane state described by a session.
 pub fn inspect_session_pane(session: &Session) -> PaneDetails {
     let terminal = session_terminal(session).unwrap_or_else(|| "tmux".to_string());
@@ -662,7 +701,44 @@ mod tests {
     fn test_binding_status() {
         assert_eq!(binding_status(Some("r"), Some("s"), Some("w")), "bound");
         assert_eq!(binding_status(Some("r"), None, None), "partial");
+        assert_eq!(binding_status(None, Some("s"), None), "partial");
+        assert_eq!(binding_status(None, None, Some("w")), "partial");
+        assert_eq!(binding_status(Some("r"), Some("s"), None), "partial");
         assert_eq!(binding_status(None, None, None), "unbound");
+    }
+
+    #[test]
+    fn test_session_ref_falls_back_from_id_to_path_to_file() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let session_file = tmp.path().join("session.jsonl");
+        std::fs::write(&session_file, "{}").unwrap();
+
+        let mut session = Session {
+            session_file: Some(session_file.clone()),
+            ..Default::default()
+        };
+        assert_eq!(
+            session_ref(&session, "session_id", "session_path"),
+            Some(session_file.to_string_lossy().to_string())
+        );
+
+        session.data.insert(
+            "session_path".to_string(),
+            Value::String("/tmp/explicit.jsonl".to_string()),
+        );
+        assert_eq!(
+            session_ref(&session, "session_id", "session_path"),
+            Some("/tmp/explicit.jsonl".to_string())
+        );
+
+        session.data.insert(
+            "session_id".to_string(),
+            Value::String("sess-abc".to_string()),
+        );
+        assert_eq!(
+            session_ref(&session, "session_id", "session_path"),
+            Some("sess-abc".to_string())
+        );
     }
 
     #[test]
@@ -908,5 +984,144 @@ mod tests {
     #[test]
     fn test_default_binding_adapter_returns_none() {
         assert!(default_binding_adapter("claude").is_none());
+    }
+
+    #[derive(Debug)]
+    struct RecordingBackend {
+        alive_panes: Vec<String>,
+        tmux_alive_panes: Vec<String>,
+        calls: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    }
+
+    impl SessionBackend for RecordingBackend {
+        fn socket_name(&self) -> Option<String> {
+            None
+        }
+        fn socket_path(&self) -> Option<String> {
+            None
+        }
+        fn is_alive(&self, pane_id: &str) -> bool {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("is_alive:{pane_id}"));
+            self.alive_panes.contains(&pane_id.to_string())
+        }
+        fn is_tmux_pane_alive(&self, pane_id: &str) -> bool {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("is_tmux_pane_alive:{pane_id}"));
+            self.tmux_alive_panes.contains(&pane_id.to_string())
+        }
+        fn pane_exists(&self, _pane_id: &str) -> bool {
+            true
+        }
+        fn describe_pane(
+            &self,
+            _pane_id: &str,
+            _user_options: &[String],
+        ) -> Option<HashMap<String, String>> {
+            None
+        }
+        fn list_panes_by_user_options(
+            &self,
+            _options: &HashMap<String, String>,
+        ) -> Option<Vec<String>> {
+            None
+        }
+        fn set_pane_title(&self, _pane_id: &str, _title: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn set_pane_user_option(
+            &self,
+            _pane_id: &str,
+            _name: &str,
+            _value: &str,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_binding_runtime_alive_prefers_active_pane() {
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let backend = RecordingBackend {
+            alive_panes: vec![],
+            tmux_alive_panes: vec!["%77".to_string()],
+            calls: calls.clone(),
+        };
+        let binding = AgentBinding {
+            runtime_ref: Some("tmux:%41".to_string()),
+            active_pane_id: Some("%77".to_string()),
+            pane_id: Some("%41".to_string()),
+            ..Default::default()
+        };
+        assert!(binding_runtime_alive(&binding, &backend));
+        let calls = calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0], "is_tmux_pane_alive:%77");
+    }
+
+    #[test]
+    fn test_binding_runtime_alive_rejects_title_based_runtime_ref() {
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let backend = RecordingBackend {
+            alive_panes: vec![],
+            tmux_alive_panes: vec!["%41".to_string()],
+            calls: calls.clone(),
+        };
+        let binding = AgentBinding {
+            runtime_ref: Some("tmux:title:CCB-agent1-demo".to_string()),
+            pane_title_marker: Some("CCB-agent1-demo".to_string()),
+            pane_id: Some("%41".to_string()),
+            ..Default::default()
+        };
+        assert!(!binding_runtime_alive(&binding, &backend));
+        assert!(calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_binding_runtime_alive_false_when_pane_dead() {
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let backend = RecordingBackend {
+            alive_panes: vec![],
+            tmux_alive_panes: vec![],
+            calls: calls.clone(),
+        };
+        let binding = AgentBinding {
+            runtime_ref: Some("tmux:%41".to_string()),
+            pane_id: Some("%41".to_string()),
+            ..Default::default()
+        };
+        assert!(!binding_runtime_alive(&binding, &backend));
+        assert_eq!(calls.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_binding_requires_replacement_policy() {
+        assert!(binding_requires_replacement(&AgentBinding {
+            pane_state: Some("dead".to_string()),
+            ..Default::default()
+        }));
+        assert!(!binding_requires_replacement(&AgentBinding {
+            pane_state: Some("foreign".to_string()),
+            provider_identity_state: Some("mismatch".to_string()),
+            ..Default::default()
+        }));
+        assert!(binding_requires_replacement(&AgentBinding {
+            pane_state: Some("alive".to_string()),
+            provider_identity_state: Some("mismatch".to_string()),
+            ..Default::default()
+        }));
+        assert!(!binding_requires_replacement(&AgentBinding {
+            pane_state: Some("alive".to_string()),
+            provider_identity_state: Some("match".to_string()),
+            ..Default::default()
+        }));
+        assert!(binding_requires_replacement(&AgentBinding {
+            provider_identity_state: Some("mismatch".to_string()),
+            ..Default::default()
+        }));
     }
 }

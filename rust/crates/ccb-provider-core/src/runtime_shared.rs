@@ -169,6 +169,35 @@ mod tests {
     #[test]
     fn test_provider_executable() {
         assert_eq!(provider_executable("claude"), "claude");
+        assert_eq!(provider_executable("deepseek"), "deepcode");
+        assert_eq!(provider_executable("mimo"), "mimo");
+    }
+
+    #[test]
+    fn test_provider_start_parts_env_override() {
+        let key = "CODEX_START_CMD";
+        let original = env::var(key).ok();
+        env::set_var(key, "custom-codex --flag value");
+        assert_eq!(
+            provider_start_parts("codex"),
+            vec!["custom-codex", "--flag", "value"]
+        );
+        match original {
+            Some(v) => env::set_var(key, v),
+            None => env::remove_var(key),
+        }
+    }
+
+    #[test]
+    fn test_provider_start_parts_ignores_empty_env() {
+        let key = "CLAUDE_START_CMD";
+        let original = env::var(key).ok();
+        env::set_var(key, "   ");
+        assert_eq!(provider_start_parts("claude"), vec!["claude"]);
+        match original {
+            Some(v) => env::set_var(key, v),
+            None => env::remove_var(key),
+        }
     }
 
     #[test]

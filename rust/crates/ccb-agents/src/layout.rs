@@ -60,7 +60,10 @@ impl LayoutNode {
     }
 
     pub fn iter_names(&self) -> Vec<&str> {
-        self.iter_leaves().into_iter().map(|leaf| leaf.name.as_str()).collect()
+        self.iter_leaves()
+            .into_iter()
+            .map(|leaf| leaf.name.as_str())
+            .collect()
     }
 
     pub fn render(&self) -> String {

@@ -6,4 +6,8 @@ pub mod killing;
 pub mod listing;
 pub mod models;
 
+pub use cleanup::{
+    cleanup_project_tmux_orphans, cleanup_project_tmux_orphans_by_socket, kill_project_tmux_panes,
+    list_project_tmux_panes_owned,
+};
 pub use models::ProjectTmuxCleanupSummary;

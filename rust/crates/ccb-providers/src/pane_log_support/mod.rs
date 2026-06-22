@@ -1,6 +1,5 @@
 //! Mirrors Python `lib/provider_backends/pane_log_support/`.
 
-
 pub mod communicator;
 pub mod communicator_state;
 pub mod lifecycle;

@@ -17,6 +17,30 @@ name = "provider_codex_tests"
 path = "tests/provider_codex_tests.rs"
 
 [[test]]
+name = "codex_launcher_tests"
+path = "tests/codex_launcher_tests.rs"
+
+[[test]]
+name = "claude_launcher_env_tests"
+path = "tests/claude_launcher_env_tests.rs"
+
+[[test]]
+name = "claude_launcher_tests"
+path = "tests/claude_launcher_tests.rs"
+
+[[test]]
+name = "droid_launcher_tests"
+path = "tests/droid_launcher_tests.rs"
+
+[[test]]
+name = "gemini_launcher_tests"
+path = "tests/gemini_launcher_tests.rs"
+
+[[test]]
+name = "agy_launcher_tests"
+path = "tests/agy_launcher_tests.rs"
+
+[[test]]
 name = "provider_droid_tests"
 path = "tests/provider_droid_tests.rs"
 
@@ -83,6 +107,10 @@ path = "tests/provider_helper_cleanup_tests.rs"
 [[test]]
 name = "provider_instance_resolution_tests"
 path = "tests/provider_instance_resolution_tests.rs"
+
+[[test]]
+name = "workspace_preparation_tests"
+path = "tests/workspace_preparation_tests.rs"
 
 [dependencies]
 serde = { workspace = true }

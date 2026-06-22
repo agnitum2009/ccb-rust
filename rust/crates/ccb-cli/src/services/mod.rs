@@ -164,6 +164,7 @@ pub mod doctor_storage;
 pub mod fault;
 pub mod inbox;
 pub mod kill;
+pub mod kill_runtime;
 pub mod logs;
 pub mod maintenance;
 pub mod pend;

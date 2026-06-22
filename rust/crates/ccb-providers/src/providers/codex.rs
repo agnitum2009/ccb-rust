@@ -108,7 +108,8 @@ pub fn load_session<F>(
 where
     F: FnOnce(&Path, Option<&str>) -> Option<CodexProjectSession>,
 {
-    let instance = ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "codex");
+    let instance =
+        ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "codex");
     load_project_session_fn(work_dir, instance.as_deref())
 }
 
@@ -1586,6 +1587,9 @@ fn codex_session_root_path(data: &HashMap<String, Value>) -> Option<PathBuf> {
     {
         return Some(PathBuf::from(expand_tilde(raw)).join("sessions"));
     }
+    if let Some(root) = codex_session_root_from_start_cmd(data) {
+        return Some(root);
+    }
     if let Some(raw) = data
         .get("codex_session_path")
         .and_then(|v| v.as_str())
@@ -1608,6 +1612,39 @@ fn codex_session_root_path(data: &HashMap<String, Value>) -> Option<PathBuf> {
         )
     }));
     Some(default)
+}
+
+fn codex_session_root_from_start_cmd(data: &HashMap<String, Value>) -> Option<PathBuf> {
+    for key in ["codex_start_cmd", "start_cmd"] {
+        let Some(cmd) = data.get(key).and_then(Value::as_str) else {
+            continue;
+        };
+        if let Some(value) = extract_env_assignment(cmd, "CODEX_SESSION_ROOT") {
+            return Some(PathBuf::from(expand_tilde(&value)));
+        }
+        if let Some(value) = extract_env_assignment(cmd, "CODEX_HOME") {
+            return Some(PathBuf::from(expand_tilde(&value)).join("sessions"));
+        }
+    }
+    None
+}
+
+fn extract_env_assignment(command: &str, name: &str) -> Option<String> {
+    // Mirror Python _ENV_ASSIGNMENT_RE:
+    // (?:^|[\s;])(?:export\s+)?NAME=('[^']*'|"[^"]*"|[^\s;]+)
+    let pattern = format!(
+        r#"(?:^|[\s;])(?:export\s+)?{}=('[^']*'|"[^"]*"|[^\s;]+)"#,
+        regex::escape(name)
+    );
+    let re = regex::Regex::new(&pattern).ok()?;
+    let caps = re.captures(command)?;
+    let value = caps.get(1)?.as_str();
+    if value.len() >= 2 && value.starts_with('\'') && value.ends_with('\'')
+        || value.starts_with('"') && value.ends_with('"')
+    {
+        return Some(value[1..value.len() - 1].to_string());
+    }
+    Some(value.to_string())
 }
 
 fn normalized_path_string(value: &Value) -> String {
@@ -2113,5 +2150,110 @@ mod tests {
     fn test_abort_status_detects_cancel() {
         assert_eq!(abort_status("user cancelled"), "cancelled");
         assert_eq!(abort_status("something broke"), "failed");
+    }
+
+    #[test]
+    fn test_codex_session_root_path_prefers_explicit_fields() {
+        let mut data = HashMap::new();
+        data.insert(
+            "codex_session_root".to_string(),
+            Value::String("/tmp/codex-root".to_string()),
+        );
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/tmp/codex-root"))
+        );
+
+        let mut data = HashMap::new();
+        data.insert(
+            "codex_home".to_string(),
+            Value::String("/home/user/.codex".to_string()),
+        );
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/home/user/.codex/sessions"))
+        );
+    }
+
+    #[test]
+    fn test_codex_session_root_path_derives_from_session_path() {
+        let mut data = HashMap::new();
+        data.insert(
+            "codex_session_path".to_string(),
+            Value::String("/home/user/.codex/sessions/proj/session.jsonl".to_string()),
+        );
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/home/user/.codex/sessions"))
+        );
+    }
+
+    #[test]
+    fn test_codex_session_root_path_defaults_to_env_or_home() {
+        let home = std::env::var("HOME").ok();
+        let root_env = std::env::var("CODEX_SESSION_ROOT").ok();
+
+        std::env::remove_var("CODEX_SESSION_ROOT");
+        std::env::set_var("HOME", "/tmp/fakehome");
+        let data = HashMap::new();
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/tmp/fakehome/.codex/sessions"))
+        );
+
+        std::env::set_var("CODEX_SESSION_ROOT", "/custom/sessions");
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/custom/sessions"))
+        );
+
+        match home {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
+        match root_env {
+            Some(v) => std::env::set_var("CODEX_SESSION_ROOT", v),
+            None => std::env::remove_var("CODEX_SESSION_ROOT"),
+        }
+    }
+
+    #[test]
+    fn test_codex_session_root_path_extracts_from_start_cmd() {
+        let mut data = HashMap::new();
+        data.insert(
+            "codex_start_cmd".to_string(),
+            Value::String("export CODEX_SESSION_ROOT='/legacy/sessions'; codex".to_string()),
+        );
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/legacy/sessions"))
+        );
+
+        let mut data = HashMap::new();
+        data.insert(
+            "start_cmd".to_string(),
+            Value::String("CODEX_HOME=/legacy/home codex".to_string()),
+        );
+        assert_eq!(
+            codex_session_root_path(&data),
+            Some(PathBuf::from("/legacy/home/sessions"))
+        );
+    }
+
+    #[test]
+    fn test_extract_env_assignment_parses_quoted_and_unquoted() {
+        assert_eq!(
+            extract_env_assignment("export FOO='/a b/c'", "FOO"),
+            Some("/a b/c".to_string())
+        );
+        assert_eq!(
+            extract_env_assignment("FOO=\"/a b/c\"", "FOO"),
+            Some("/a b/c".to_string())
+        );
+        assert_eq!(
+            extract_env_assignment("FOO=/a/b", "FOO"),
+            Some("/a/b".to_string())
+        );
+        assert_eq!(extract_env_assignment("BAR=/a/b", "FOO"), None);
     }
 }

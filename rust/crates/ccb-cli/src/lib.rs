@@ -45,6 +45,7 @@ pub mod job;
 pub mod job_views;
 pub mod keeper;
 pub mod kill;
+pub mod kill_runtime;
 pub mod killing;
 pub mod lease;
 pub mod lifecycle;

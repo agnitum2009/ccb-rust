@@ -1,9 +1,7 @@
 //! Mirrors Python `test/test_doctor_runtime_identity.py`.
 
 use ccb_cli::ops_views_doctor::render_doctor;
-use ccb_cli::services::doctor_runtime::system::{
-    runtime_identity_summary_with, user_name,
-};
+use ccb_cli::services::doctor_runtime::system::{runtime_identity_summary_with, user_name};
 use serde_json::Value;
 use std::path::Path;
 

@@ -42,7 +42,13 @@ pub fn build_provider_runtime_facts(
     let pane_id = pane_id_override
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .or_else(|| session.pane_id.as_deref().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()));
+        .or_else(|| {
+            session
+                .pane_id
+                .as_deref()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        });
     ProviderRuntimeFacts {
         runtime_ref: session_runtime_ref(session, pane_id_override),
         session_ref: session_ref(

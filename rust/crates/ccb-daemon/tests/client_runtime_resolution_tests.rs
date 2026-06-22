@@ -66,14 +66,9 @@ fn test_resolve_work_dir_with_registry_finds_project_session_file() {
     std::fs::create_dir_all(&workspace).unwrap();
     let session_file = write_file(project_root.join(".ccb").join(".codex-session"), "{}");
 
-    let (work_dir, resolved) = resolve_work_dir_with_registry(
-        &CODEX_CLIENT_SPEC,
-        "codex",
-        None,
-        None,
-        Some(&workspace),
-    )
-    .unwrap();
+    let (work_dir, resolved) =
+        resolve_work_dir_with_registry(&CODEX_CLIENT_SPEC, "codex", None, None, Some(&workspace))
+            .unwrap();
 
     assert_eq!(work_dir, workspace);
     assert_eq!(resolved.unwrap(), session_file);
@@ -83,13 +78,8 @@ fn test_resolve_work_dir_with_registry_finds_project_session_file() {
 fn test_resolve_work_dir_with_registry_rejects_registry_only_mode_without_binding() {
     let tmp = tempfile::tempdir().unwrap();
     std::env::set_var("CCB_REGISTRY_ONLY", "1");
-    let result = resolve_work_dir_with_registry(
-        &CODEX_CLIENT_SPEC,
-        "codex",
-        None,
-        None,
-        Some(tmp.path()),
-    );
+    let result =
+        resolve_work_dir_with_registry(&CODEX_CLIENT_SPEC, "codex", None, None, Some(tmp.path()));
     std::env::remove_var("CCB_REGISTRY_ONLY");
 
     let err = result.unwrap_err();

@@ -29,10 +29,7 @@ fn test_parse_layout_spec_accepts_role_id_leaf_token() {
     let leaves = layout.iter_leaves();
     assert_eq!(leaves[1].name, "agentroles.archi");
     assert_eq!(leaves[1].provider.as_deref(), Some("codex"));
-    assert_eq!(
-        layout.render(),
-        "agent1:codex, agentroles.archi:codex"
-    );
+    assert_eq!(layout.render(), "agent1:codex, agentroles.archi:codex");
 }
 
 #[test]
@@ -44,7 +41,10 @@ fn test_parse_layout_spec_percent_token() {
         ("debugger:agy", None),
     ] {
         let layout = parse_layout_spec(spec).unwrap();
-        assert!(matches!(layout, ccb_agents::layout::LayoutNode::Leaf { .. }));
+        assert!(matches!(
+            layout,
+            ccb_agents::layout::LayoutNode::Leaf { .. }
+        ));
         let leaf = &layout.iter_leaves()[0];
         assert_eq!(leaf.percent, expected_percent);
         assert_eq!(layout.render(), spec);

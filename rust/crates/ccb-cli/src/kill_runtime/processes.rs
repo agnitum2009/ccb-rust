@@ -16,11 +16,7 @@ pub fn kill_pid(pid: i64, force: bool) -> bool {
     if cfg!(windows) {
         return kill_pid_windows(pid, force);
     }
-    let signum = if force {
-        libc::SIGKILL
-    } else {
-        libc::SIGTERM
-    };
+    let signum = if force { libc::SIGKILL } else { libc::SIGTERM };
     // Safety: `kill(2)` is async-signal-safe; we pass a validated i64 as pid
     // and a well-known signal constant. The only side effect is signal delivery.
     let rc = unsafe { libc::kill(pid as libc::pid_t, signum) };
@@ -68,10 +64,10 @@ pub fn is_pid_alive(pid: i64) -> bool {
     if rc == 0 {
         return proc_pid_state(pid).as_deref() != Some("Z");
     }
-    match std::io::Error::last_os_error().raw_os_error() {
-        Some(libc::EPERM) => true,
-        _ => false,
-    }
+    matches!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::EPERM)
+    )
 }
 
 #[cfg(windows)]

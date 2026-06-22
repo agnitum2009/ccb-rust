@@ -3,7 +3,8 @@
 use regex::{Regex, RegexBuilder};
 
 fn ansi_escape_re() -> Regex {
-    Regex::new(r"\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\].*?(?:\x07|\x1b\\)|[\x40-\x5f])").unwrap()
+    Regex::new(r"\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\].*?(?:\x07|\x1b\\)|[\x40-\x5f])")
+        .unwrap()
 }
 
 fn ccb_req_id_re() -> Regex {
@@ -60,33 +61,22 @@ pub fn extract_conversation_pairs(text: &str) -> Vec<(String, String)> {
 
 fn conversation_segments(text: &str) -> Vec<(String, String)> {
     let done_re = ccb_done_re();
-    let done_positions: Vec<usize> = done_re
-        .find_iter(text)
-        .map(|m| m.start())
-        .collect();
+    let done_positions: Vec<usize> = done_re.find_iter(text).map(|m| m.start()).collect();
     let req_re = ccb_req_id_re();
     let mut pairs = Vec::new();
     let mut prev_end = 0;
     for req_match in req_re.find_iter(text) {
         let user_text = text[prev_end..req_match.start()].trim().to_string();
-        let (assistant_text, next_end) =
-            assistant_segment(text, req_match.end(), &done_positions);
+        let (assistant_text, next_end) = assistant_segment(text, req_match.end(), &done_positions);
         prev_end = next_end;
         pairs.push((user_text, assistant_text));
     }
     pairs
 }
 
-fn assistant_segment(
-    text: &str,
-    req_end: usize,
-    done_positions: &[usize],
-) -> (String, usize) {
+fn assistant_segment(text: &str, req_end: usize, done_positions: &[usize]) -> (String, usize) {
     match next_done_position(done_positions, req_end) {
-        Some(next_done) => (
-            text[req_end..next_done].trim().to_string(),
-            next_done,
-        ),
+        Some(next_done) => (text[req_end..next_done].trim().to_string(), next_done),
         None => (text[req_end..].trim().to_string(), text.len()),
     }
 }

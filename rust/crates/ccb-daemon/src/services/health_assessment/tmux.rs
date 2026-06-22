@@ -52,10 +52,7 @@ impl TmuxNamespaceBackend for SessionBackendAdapter {
                 .unwrap_or(false)
     }
 
-    fn inspect_project_namespace_pane(
-        &self,
-        pane_id: &str,
-    ) -> Option<Box<dyn PaneRecord>> {
+    fn inspect_project_namespace_pane(&self, pane_id: &str) -> Option<Box<dyn PaneRecord>> {
         let options = self.0.describe_pane(
             pane_id,
             &[
@@ -98,9 +95,8 @@ impl PaneRecord for SessionPaneRecord {
     ) -> bool {
         self.options.get("@ccb_project_id").map(|s| s.as_str()) == Some(project_id)
             && self.options.get("@ccb_role").map(|s| s.as_str()) == Some(role)
-            && slot_key.is_none_or(|key| {
-                self.options.get("@ccb_slot").map(|s| s.as_str()) == Some(key)
-            })
+            && slot_key
+                .is_none_or(|key| self.options.get("@ccb_slot").map(|s| s.as_str()) == Some(key))
             && window_name.is_none_or(|name| {
                 self.options.get("@ccb_window").map(|s| s.as_str()) == Some(name)
             })

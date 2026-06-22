@@ -13,14 +13,10 @@ use crate::claude::home_layout::{claude_layout_for_home, ClaudeHomeLayout};
 /// Mirrors Python `resolve_claude_home_layout`.
 pub fn resolve_claude_home_layout(
     runtime_dir: &Utf8Path,
-    profile: Option<&ResolvedProviderProfile>,
+    _profile: Option<&ResolvedProviderProfile>,
 ) -> ClaudeHomeLayout {
-    if let Some(home) = profile_runtime_home(profile) {
-        return claude_layout_for_home(home);
-    }
-
-    // Claude provider-state lives alongside provider-runtime. Mirror Python's
-    // `state_dir_for_runtime_dir` by mapping the runtime path to the state path.
+    // Mirror Python: profile runtime_home is intentionally not used for Claude
+    // layout resolution.
     let runtime_dir = provider_state_dir_for_runtime_dir(runtime_dir);
     let managed_home = managed_isolated_home(&runtime_dir);
     if let Some(existing) = existing_layout(&runtime_dir, &managed_home) {
@@ -42,15 +38,6 @@ fn provider_state_dir_for_runtime_dir(runtime_dir: &Utf8Path) -> Utf8PathBuf {
         return Utf8PathBuf::from(format!("{}/provider-state", prefix));
     }
     runtime_dir.to_path_buf()
-}
-
-fn profile_runtime_home(profile: Option<&ResolvedProviderProfile>) -> Option<Utf8PathBuf> {
-    let home = profile?.runtime_home.as_deref()?;
-    let home = home.trim();
-    if home.is_empty() {
-        return None;
-    }
-    Some(Utf8PathBuf::from(home))
 }
 
 fn managed_isolated_home(runtime_dir: &Utf8Path) -> Utf8PathBuf {
@@ -153,6 +140,62 @@ pub fn materialize_claude_home_config(
     .with_context(|| "failed to record claude memory projection event")?;
 
     Ok(layout)
+}
+
+/// Prepare the `HOME` / `CLAUDE_PROJECTS_ROOT` / `CLAUDE_PROJECT_ROOT`
+/// overrides for a Claude runtime.
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_claude_home_overrides(
+    runtime_dir: &Utf8Path,
+    profile: Option<&ResolvedProviderProfile>,
+    refresh_home: bool,
+    auto_permission: bool,
+    project_root: Option<&Utf8Path>,
+    agent_name: Option<&str>,
+    workspace_path: Option<&Utf8Path>,
+    memory_projection_event_path: Option<&Utf8Path>,
+    memory_projection_marker_path: Option<&Utf8Path>,
+) -> anyhow::Result<std::collections::HashMap<String, String>> {
+    let layout = resolve_claude_home_layout(runtime_dir, profile);
+    if refresh_home {
+        materialize_claude_home_config(
+            &layout.home_root,
+            profile,
+            None,
+            project_root,
+            agent_name,
+            workspace_path,
+            auto_permission,
+            memory_projection_event_path,
+            memory_projection_marker_path,
+        )?;
+    }
+
+    let mut overrides = std::collections::HashMap::new();
+    overrides.insert("HOME".to_string(), layout.home_root.to_string());
+    overrides.insert(
+        "CLAUDE_PROJECTS_ROOT".to_string(),
+        layout.projects_root.to_string(),
+    );
+    overrides.insert(
+        "CLAUDE_PROJECT_ROOT".to_string(),
+        layout.projects_root.to_string(),
+    );
+
+    if std::env::var("WSL_DISTRO_NAME").is_ok() {
+        overrides.insert("USERPROFILE".to_string(), layout.home_root.to_string());
+        let wslenv_additions = "HOME/p:USERPROFILE/p:CLAUDE_PROJECTS_ROOT/p:CLAUDE_PROJECT_ROOT/p:\
+                                ANTHROPIC_AUTH_TOKEN:ANTHROPIC_API_KEY:ANTHROPIC_BASE_URL";
+        let existing = std::env::var("WSLENV").unwrap_or_default();
+        let value = if existing.is_empty() {
+            wslenv_additions.to_string()
+        } else {
+            format!("{}:{}", wslenv_additions, existing)
+        };
+        overrides.insert("WSLENV".to_string(), value);
+    }
+
+    Ok(overrides)
 }
 
 fn materialize_claude_settings(
@@ -468,4 +511,32 @@ fn expand_user_path(path: &Utf8Path) -> Utf8PathBuf {
         }
     }
     path.to_path_buf()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_claude_home_layout_ignores_profile_runtime_home() {
+        let runtime_dir = Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-runtime/claude");
+        let mut profile = ResolvedProviderProfile::new("claude", "agent1");
+        profile.runtime_home = Some("/custom/runtime/home".to_string());
+
+        let layout = resolve_claude_home_layout(&runtime_dir, Some(&profile));
+        assert_eq!(
+            layout.home_root,
+            Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-state/claude/home")
+        );
+    }
+
+    #[test]
+    fn test_resolve_claude_home_layout_maps_provider_runtime_to_state_dir() {
+        let runtime_dir = Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-runtime/claude");
+        let layout = resolve_claude_home_layout(&runtime_dir, None);
+        assert_eq!(
+            layout.home_root,
+            Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-state/claude/home")
+        );
+    }
 }

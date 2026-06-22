@@ -8,7 +8,13 @@ fn hook_bin() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_ccb-provider-finish-hook"))
 }
 
-fn run_hook(completion_dir: &std::path::Path, provider: &str, agent_name: &str, workspace: &std::path::Path, payload: Value) -> std::process::Output {
+fn run_hook(
+    completion_dir: &std::path::Path,
+    provider: &str,
+    agent_name: &str,
+    workspace: &std::path::Path,
+    payload: Value,
+) -> std::process::Output {
     let mut child = Command::new(hook_bin())
         .arg("--provider")
         .arg(provider)
@@ -55,9 +61,15 @@ fn test_provider_finish_hook_writes_claude_completion_event() {
     });
 
     let output = run_hook(&completion_dir, "claude", "agent3", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    let event_path = completion_dir.join("events").join("20260331-130805-796-1333224-9.json");
+    let event_path = completion_dir
+        .join("events")
+        .join("20260331-130805-796-1333224-9.json");
     let event: Value = serde_json::from_slice(&std::fs::read(&event_path).unwrap()).unwrap();
     assert_eq!(event["provider"], "claude");
     assert_eq!(event["agent_name"], "agent3");
@@ -108,7 +120,11 @@ fn test_provider_finish_hook_marks_empty_claude_reply_incomplete() {
     });
 
     let output = run_hook(&completion_dir, "claude", "agent3", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let event: Value = serde_json::from_slice(
         &std::fs::read(completion_dir.join("events").join(format!("{req_id}.json"))).unwrap(),
@@ -155,10 +171,18 @@ fn test_provider_finish_hook_uses_outer_claude_req_id_when_body_mentions_old_req
     });
 
     let output = run_hook(&completion_dir, "claude", "agent3", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    let event_path = completion_dir.join("events").join(format!("{current_req_id}.json"));
-    let old_event_path = completion_dir.join("events").join(format!("{embedded_old_req_id}.json"));
+    let event_path = completion_dir
+        .join("events")
+        .join(format!("{current_req_id}.json"));
+    let old_event_path = completion_dir
+        .join("events")
+        .join(format!("{embedded_old_req_id}.json"));
     assert!(event_path.exists());
     assert!(!old_event_path.exists());
     let event: Value = serde_json::from_slice(&std::fs::read(&event_path).unwrap()).unwrap();
@@ -204,10 +228,18 @@ fn test_provider_finish_hook_ignores_later_claude_tool_result_req_id() {
     });
 
     let output = run_hook(&completion_dir, "claude", "agent3", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    let event_path = completion_dir.join("events").join(format!("{current_req_id}.json"));
-    let tool_result_event_path = completion_dir.join("events").join(format!("{tool_result_req_id}.json"));
+    let event_path = completion_dir
+        .join("events")
+        .join(format!("{current_req_id}.json"));
+    let tool_result_event_path = completion_dir
+        .join("events")
+        .join(format!("{tool_result_req_id}.json"));
     assert!(event_path.exists());
     assert!(!tool_result_event_path.exists());
     let event: Value = serde_json::from_slice(&std::fs::read(&event_path).unwrap()).unwrap();
@@ -252,7 +284,11 @@ fn test_provider_finish_hook_ignores_claude_scheduled_task_after_stale_ccb_promp
     });
 
     let output = run_hook(&completion_dir, "claude", "agent3", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(!completion_dir
         .join("events")
         .join(format!("{stale_req_id}.json"))
@@ -275,7 +311,11 @@ fn test_provider_finish_hook_writes_gemini_failed_event_for_login_required_respo
     });
 
     let output = run_hook(&completion_dir, "gemini", "agent3", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let event: Value = serde_json::from_slice(
         &std::fs::read(completion_dir.join("events").join(format!("{req_id}.json"))).unwrap(),
@@ -284,7 +324,10 @@ fn test_provider_finish_hook_writes_gemini_failed_event_for_login_required_respo
     assert_eq!(event["provider"], "gemini");
     assert_eq!(event["agent_name"], "agent3");
     assert_eq!(event["status"], "failed");
-    assert!(event["reply"].as_str().unwrap().starts_with("Code Assist login required."));
+    assert!(event["reply"]
+        .as_str()
+        .unwrap()
+        .starts_with("Code Assist login required."));
     assert_eq!(event["diagnostics"]["hook_event_name"], "AfterAgent");
     assert_eq!(event["diagnostics"]["finish_reason"], "STOP");
     assert_eq!(event["diagnostics"]["error_type"], "provider_api_error");
@@ -312,7 +355,11 @@ fn test_provider_finish_hook_accepts_job_id_anchor_from_prompt() {
     });
 
     let output = run_hook(&completion_dir, "gemini", "agent2", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let event: Value = serde_json::from_slice(
         &std::fs::read(completion_dir.join("events").join(format!("{req_id}.json"))).unwrap(),
@@ -338,7 +385,11 @@ fn test_provider_finish_hook_marks_empty_gemini_reply_incomplete() {
     });
 
     let output = run_hook(&completion_dir, "gemini", "agent2", &workspace, payload);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let event: Value = serde_json::from_slice(
         &std::fs::read(completion_dir.join("events").join(format!("{req_id}.json"))).unwrap(),
@@ -347,6 +398,9 @@ fn test_provider_finish_hook_marks_empty_gemini_reply_incomplete() {
     assert_eq!(event["req_id"], req_id);
     assert_eq!(event["reply"], "");
     assert_eq!(event["status"], "incomplete");
-    assert_eq!(event["diagnostics"]["reason"], "hook_after_agent_incomplete");
+    assert_eq!(
+        event["diagnostics"]["reason"],
+        "hook_after_agent_incomplete"
+    );
     assert_eq!(event["diagnostics"]["empty_reply"], true);
 }

@@ -73,7 +73,10 @@ where
         None => return false,
     };
     if !backend.backend_socket_matches(namespace_state.tmux_socket_path.as_deref()) {
-        return runtime_socket_matches_namespace(runtime, namespace_state.tmux_socket_path.as_deref());
+        return runtime_socket_matches_namespace(
+            runtime,
+            namespace_state.tmux_socket_path.as_deref(),
+        );
     }
     let record = backend.inspect_project_namespace_pane(&pane_text);
     record_outside_namespace(runtime, &namespace_state, record.as_deref())
@@ -140,7 +143,11 @@ fn record_outside_namespace(
 }
 
 fn record_matches_runtime_window(runtime: &RuntimeInfo, record: &dyn PaneRecord) -> bool {
-    let window_name = match runtime.tmux_window_name.as_deref().filter(|s| !s.is_empty()) {
+    let window_name = match runtime
+        .tmux_window_name
+        .as_deref()
+        .filter(|s| !s.is_empty())
+    {
         Some(w) => w,
         None => return false,
     };

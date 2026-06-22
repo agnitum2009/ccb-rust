@@ -34,7 +34,10 @@ pub fn terminate_provider_daemon<F, S, R, K>(
     if let Some(state) = read_state_fn(&state_file) {
         if let Some(pid) = state.get("pid").and_then(|v| v.as_i64()) {
             if kill_pid_fn(pid, true) {
-                println!("✅ {} runtime force killed (pid={})", CCBD_RUNTIME_NAME, pid);
+                println!(
+                    "✅ {} runtime force killed (pid={})",
+                    CCBD_RUNTIME_NAME, pid
+                );
             } else {
                 println!(
                     "⚠️ {} runtime could not be killed (pid={})",

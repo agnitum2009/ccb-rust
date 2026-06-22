@@ -1,6 +1,8 @@
 //! Mirrors Python `test/test_ccbd_tmux_state.py`.
 
-use ccb_daemon::services::health_assessment::tmux_runtime::backend::{OwnershipResult, TmuxBackend};
+use ccb_daemon::services::health_assessment::tmux_runtime::backend::{
+    OwnershipResult, TmuxBackend,
+};
 use ccb_daemon::services::health_assessment::tmux_runtime::state::tmux_pane_state;
 
 struct MissingBackend;

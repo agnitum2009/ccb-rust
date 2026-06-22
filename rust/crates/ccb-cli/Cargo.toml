@@ -43,6 +43,8 @@ ccb-provider-hooks = { workspace = true }
 ccb-provider-profiles = { workspace = true }
 ccb-providers = { workspace = true }
 ccb-memory = { workspace = true }
+ccb-runtime-pid-cleanup = { workspace = true }
+ccb-daemon = { workspace = true }
 tempfile = { workspace = true }
 libc = "0.2"
 

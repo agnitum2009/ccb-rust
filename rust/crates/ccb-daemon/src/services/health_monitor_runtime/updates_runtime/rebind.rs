@@ -1,16 +1,12 @@
 //! Mirrors Python `lib/ccbd/services/health_monitor_runtime/updates_runtime/rebind.py`.
 
 use ccb_agents::models::{AgentRuntime, AgentState};
-use ccb_provider_core::session_binding::{
-    session_ref, Session,
-};
+use ccb_provider_core::session_binding::{session_ref, Session};
 
 use crate::services::health_assessment::models::SessionBinding;
 use crate::services::provider_runtime_facts::ProviderRuntimeFacts;
 
-use super::common::{
-    drop_explicit_runtime_fields, runtime_fields_from_facts,
-};
+use super::common::{drop_explicit_runtime_fields, runtime_fields_from_facts};
 
 /// Service that can mutate the authoritative portion of a runtime record.
 pub trait RuntimeMutationService: std::fmt::Debug {
@@ -86,11 +82,7 @@ pub fn rebind_runtime(
             "alive".to_string(),
             &updated_fields,
         );
-        return service.patch_runtime_state(
-            &rebound,
-            next_state(runtime),
-            monitor.clock(),
-        );
+        return service.patch_runtime_state(&rebound, next_state(runtime), monitor.clock());
     }
 
     let mut updated = runtime.clone();
@@ -138,7 +130,11 @@ fn bound_session_ref(
     if let Some(facts) = facts {
         return facts.session_ref.clone();
     }
-    session_ref(session, binding.session_id_attr(), binding.session_path_attr())
+    session_ref(
+        session,
+        binding.session_id_attr(),
+        binding.session_path_attr(),
+    )
 }
 
 fn next_session_ref(
@@ -168,9 +164,7 @@ fn next_health(runtime: &AgentRuntime) -> String {
 }
 
 fn next_pid(runtime: &AgentRuntime, facts: Option<&ProviderRuntimeFacts>) -> Option<i64> {
-    facts
-        .and_then(|f| f.runtime_pid)
-        .or(runtime.pid)
+    facts.and_then(|f| f.runtime_pid).or(runtime.pid)
 }
 
 fn updated_runtime_fields(
@@ -239,7 +233,11 @@ mod tests {
         fn session_path_attr(&self) -> &str {
             &self.session_path_attr
         }
-        fn load_session(&self, _root: &std::path::Path, _instance: Option<&str>) -> Option<Session> {
+        fn load_session(
+            &self,
+            _root: &std::path::Path,
+            _instance: Option<&str>,
+        ) -> Option<Session> {
             None
         }
         fn clone_box(&self) -> Box<dyn SessionBinding> {
@@ -400,17 +398,13 @@ mod tests {
             ..Default::default()
         };
 
-        let updated = rebind_runtime(
-            &monitor,
-            &runtime,
-            &session,
-            &binding,
-            Some("%8"),
-            true,
-        );
+        let updated = rebind_runtime(&monitor, &runtime, &session, &binding, Some("%8"), true);
 
         let authority = service.capture.borrow().authority.clone().unwrap();
-        assert_eq!(updated.state, service.capture.borrow().runtime.clone().unwrap().state);
+        assert_eq!(
+            updated.state,
+            service.capture.borrow().runtime.clone().unwrap().state
+        );
         assert_eq!(authority.state, AgentState::Degraded);
         assert_eq!(authority.runtime_ref, Some("tmux:%9".to_string()));
         assert_eq!(authority.session_ref, Some("fact-session".to_string()));
@@ -443,9 +437,10 @@ mod tests {
             session_path_attr: "session_path".to_string(),
         };
         let mut session = Session::default();
-        session
-            .data
-            .insert("session_id".to_string(), serde_json::Value::String("bound-session".to_string()));
+        session.data.insert(
+            "session_id".to_string(),
+            serde_json::Value::String("bound-session".to_string()),
+        );
 
         let updated = rebind_runtime(&monitor, &runtime, &session, &binding, Some("%7"), false);
 

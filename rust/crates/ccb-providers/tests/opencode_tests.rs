@@ -1,7 +1,8 @@
+use ccb_provider_profiles::models::ResolvedProviderProfile;
 use ccb_providers::opencode::{
     conversations_from_messages, extract_req_id_from_text, extract_text, is_aborted_error,
-    is_cancel_log_line, latest_opencode_log_file, parse_opencode_log_epoch_s,
-    path_is_same_or_parent, path_matches, req_id_re,
+    is_cancel_log_line, latest_opencode_log_file, materialize_opencode_memory_config,
+    parse_opencode_log_epoch_s, path_is_same_or_parent, path_matches, req_id_re,
 };
 use serde_json::Value;
 use tempfile::TempDir;
@@ -130,6 +131,66 @@ fn test_opencode_storage_accessor_db_candidates() {
     let accessor = ccb_providers::opencode::OpenCodeStorageAccessor::new(dir.path());
     let candidates = accessor.opencode_db_candidates();
     assert!(!candidates.is_empty());
+}
+
+#[test]
+fn test_materialize_opencode_memory_config_writes_config_and_env() {
+    let tmp = TempDir::new().unwrap();
+    let project_root = tmp.path().join("project");
+    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
+    std::fs::write(
+        project_root.join(".ccb").join("ccb_memory.md"),
+        "shared memory",
+    )
+    .unwrap();
+
+    let config_path = tmp.path().join("opencode.json");
+    let profile = ResolvedProviderProfile::new("opencode", "agent1");
+    let result = materialize_opencode_memory_config(
+        &project_root,
+        "agent1",
+        Some(tmp.path()),
+        Some(&config_path),
+        Some(&profile),
+        None,
+        None,
+    );
+
+    assert!(config_path.is_file());
+    assert_eq!(
+        result.env.get("OPENCODE_CONFIG"),
+        Some(&config_path.to_string_lossy().to_string())
+    );
+    let config: Value = serde_json::from_slice(&std::fs::read(&config_path).unwrap()).unwrap();
+    assert!(config["memory"]["instruction"]
+        .as_str()
+        .unwrap()
+        .contains("shared memory"));
+}
+
+#[test]
+fn test_materialize_opencode_memory_config_removes_config_when_inherit_memory_disabled() {
+    let tmp = TempDir::new().unwrap();
+    let project_root = tmp.path().join("project");
+    std::fs::create_dir_all(&project_root).unwrap();
+
+    let config_path = tmp.path().join("opencode.json");
+    std::fs::write(&config_path, "{\"stale\":true}").unwrap();
+
+    let mut profile = ResolvedProviderProfile::new("opencode", "agent1");
+    profile.inherit_memory = false;
+    let result = materialize_opencode_memory_config(
+        &project_root,
+        "agent1",
+        Some(tmp.path()),
+        Some(&config_path),
+        Some(&profile),
+        None,
+        None,
+    );
+
+    assert!(!config_path.exists());
+    assert!(result.env.is_empty());
 }
 
 mod provider_backend_tests {

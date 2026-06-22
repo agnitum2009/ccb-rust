@@ -58,7 +58,8 @@ pub fn extract_reply_for_req(text: &str, req_id: &str) -> (String, bool) {
         body.to_string()
     } else {
         let echo_line_end = line_end(after_anchor, done_matches[done_matches.len() - 2].start());
-        let model_line_start = line_start(after_anchor, done_matches[done_matches.len() - 1].start());
+        let model_line_start =
+            line_start(after_anchor, done_matches[done_matches.len() - 1].start());
         let reply_start = if echo_line_end < after_anchor.len() {
             echo_line_end + 1
         } else {
@@ -77,7 +78,7 @@ pub fn extract_reply_for_req(text: &str, req_id: &str) -> (String, bool) {
 
 fn req_anchor_re(req_id: &str) -> Regex {
     Regex::new(&format!(
-        r"{}\s*{}" ,
+        r"{}\s*{}",
         regex::escape(REQ_ID_PREFIX),
         regex::escape(req_id)
     ))
@@ -86,7 +87,7 @@ fn req_anchor_re(req_id: &str) -> Regex {
 
 fn done_anywhere_re(req_id: &str) -> Regex {
     Regex::new(&format!(
-        r"{}\s*{}" ,
+        r"{}\s*{}",
         regex::escape(DONE_PREFIX),
         regex::escape(req_id)
     ))

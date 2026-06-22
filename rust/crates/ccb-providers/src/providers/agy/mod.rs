@@ -22,7 +22,10 @@ use crate::execution::{
     ProviderSubmission,
 };
 
+pub mod launcher;
 pub mod native_log;
+
+pub use launcher::{build_start_cmd as build_agy_start_cmd, AgyStartCommand};
 
 pub const PROVIDER_NAME: &str = "agy";
 

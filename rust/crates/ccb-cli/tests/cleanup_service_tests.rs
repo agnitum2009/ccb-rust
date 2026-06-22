@@ -54,11 +54,23 @@ fn make_context(project_root: &std::path::Path) -> CliContext {
 }
 
 fn claude_home(context: &CliContext, agent: &str) -> PathBuf {
-    PathBuf::from(context.paths.agent_provider_state_dir(agent, "claude").as_str()).join("home")
+    PathBuf::from(
+        context
+            .paths
+            .agent_provider_state_dir(agent, "claude")
+            .as_str(),
+    )
+    .join("home")
 }
 
 fn gemini_home(context: &CliContext, agent: &str) -> PathBuf {
-    PathBuf::from(context.paths.agent_provider_state_dir(agent, "gemini").as_str()).join("home")
+    PathBuf::from(
+        context
+            .paths
+            .agent_provider_state_dir(agent, "gemini")
+            .as_str(),
+    )
+    .join("home")
 }
 
 fn action_paths(summary: &CleanupSummary) -> HashSet<&str> {
@@ -91,7 +103,8 @@ fn test_cleanup_prunes_old_claude_versions_and_gemini_caches() {
     fs::create_dir_all(gem_home.join(".gemini/tmp")).unwrap();
     fs::write(gem_home.join(".gemini/tmp/session.json"), "{}").unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.status, "ok");
     assert_eq!(summary.deleted_count, 3, "actions: {:?}", summary.actions);
     let paths = action_paths(&summary);
@@ -113,8 +126,8 @@ fn test_cleanup_refuses_when_pending_jobs_exist() {
     let mut file = fs::File::create(&jobs_path).unwrap();
     writeln!(file, r#"{{"job_id":"job_1","status":"accepted"}}"#).unwrap();
 
-    let err = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped())
-        .unwrap_err();
+    let err =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap_err();
     assert!(err.to_string().contains("pending ask jobs exist"));
 }
 
@@ -127,8 +140,8 @@ fn test_cleanup_refuses_when_jobs_jsonl_is_malformed() {
     fs::create_dir_all(jobs_path.parent().unwrap()).unwrap();
     fs::write(&jobs_path, "{this is not json").unwrap();
 
-    let err = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped())
-        .unwrap_err();
+    let err =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap_err();
     assert!(err.to_string().contains("pending ask jobs exist"));
 }
 
@@ -137,7 +150,8 @@ fn test_cleanup_refuses_when_ccbd_is_active() {
     let tmp = tempfile::TempDir::new().unwrap();
     let context = make_context(tmp.path());
 
-    let err = cleanup_project_storage_with(&context, &serde_json::Value::Null, &active()).unwrap_err();
+    let err =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &active()).unwrap_err();
     assert!(err.to_string().contains("requires stopped ccbd"));
 }
 
@@ -154,7 +168,8 @@ fn test_cleanup_reports_symlinked_claude_versions_dir() {
     fs::create_dir_all(versions.parent().unwrap()).unwrap();
     std::os::unix::fs::symlink(&real, &versions).unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 0);
     assert_eq!(summary.skipped_count, 1);
     assert_eq!(summary.skipped[0].reason, "versions_dir_is_symlink");
@@ -188,7 +203,8 @@ fn test_cleanup_prunes_shared_claude_versions_referenced_by_symlinked_agent_home
     fs::create_dir_all(&bin_dir).unwrap();
     std::os::unix::fs::symlink(shared_versions.join("0.9.2"), bin_dir.join("claude")).unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.status, "ok");
     assert_eq!(summary.deleted_count, 1, "actions: {:?}", summary.actions);
     assert!(action_paths(&summary).contains(shared_versions.join("0.9.0").to_str().unwrap()));
@@ -228,7 +244,8 @@ fn test_cleanup_prunes_external_claude_versions_referenced_by_agent_home() {
     fs::create_dir_all(&bin_dir).unwrap();
     std::os::unix::fs::symlink(external_versions.join("0.9.2"), bin_dir.join("claude")).unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 1, "actions: {:?}", summary.actions);
     assert!(action_paths(&summary).contains(external_versions.join("0.9.0").to_str().unwrap()));
     assert!(summary
@@ -274,7 +291,8 @@ fn test_cleanup_removes_legacy_shared_claude_versions_after_external_migration()
     fs::create_dir_all(&bin_dir).unwrap();
     std::os::unix::fs::symlink(external_versions.join("0.9.2"), bin_dir.join("claude")).unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 1, "actions: {:?}", summary.actions);
     assert!(action_paths(&summary).contains(legacy_shared.join("0.9.2").to_str().unwrap()));
     assert!(summary
@@ -303,7 +321,8 @@ fn test_cleanup_removes_claude_rebuildable_caches() {
     fs::create_dir_all(home.join(".claude/projects")).unwrap();
     fs::write(home.join(".claude/projects/session.jsonl"), "{}\n").unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 6, "actions: {:?}", summary.actions);
     assert!(home.join(".claude/projects/session.jsonl").exists());
 }
@@ -320,9 +339,13 @@ fn test_cleanup_skips_gemini_cache_behind_out_of_bounds_symlink() {
     fs::create_dir_all(real_npm.join("_cacache")).unwrap();
     std::os::unix::fs::symlink(&real_npm, home.join(".npm")).unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 0);
-    assert!(summary.skipped.iter().any(|s| s.reason == "path_out_of_bounds"));
+    assert!(summary
+        .skipped
+        .iter()
+        .any(|s| s.reason == "path_out_of_bounds"));
 }
 
 #[test]
@@ -344,7 +367,8 @@ fn test_cleanup_removes_gemini_shared_and_external_rebuildable_caches() {
     fs::create_dir_all(external.join("npm/_cacache")).unwrap();
     fs::create_dir_all(external.join("xdg/node-gyp")).unwrap();
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 4, "actions: {:?}", summary.actions);
 }
 
@@ -353,13 +377,23 @@ fn test_cleanup_trims_pane_crash_logs_by_runtime_count() {
     let tmp = tempfile::TempDir::new().unwrap();
     let context = make_context(tmp.path());
 
-    let runtime_dir = PathBuf::from(context.paths.agent_provider_runtime_dir("demo", "claude").as_str());
+    let runtime_dir = PathBuf::from(
+        context
+            .paths
+            .agent_provider_runtime_dir("demo", "claude")
+            .as_str(),
+    );
     fs::create_dir_all(&runtime_dir).unwrap();
     for i in 0..55 {
-        fs::write(runtime_dir.join(format!("pane-crash-{:03}.log", i)), "crash\n").unwrap();
+        fs::write(
+            runtime_dir.join(format!("pane-crash-{:03}.log", i)),
+            "crash\n",
+        )
+        .unwrap();
     }
 
-    let summary = cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
+    let summary =
+        cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.deleted_count, 5, "actions: {:?}", summary.actions);
     assert!(runtime_dir.join("pane-crash-054.log").exists());
     assert!(!runtime_dir.join("pane-crash-000.log").exists());

@@ -19,7 +19,10 @@ use crate::execution::{
     build_item, ExecutionAdapter, ProviderPollResult, ProviderRuntimeContext, ProviderSubmission,
 };
 
+pub mod launcher;
 pub mod log_reader;
+
+pub use launcher::{build_start_cmd as build_gemini_start_cmd, GeminiStartCommand};
 
 pub const PROVIDER_NAME: &str = "gemini";
 pub const GEMINI_SESSION_ID_ATTR: &str = "gemini_session_id";
@@ -570,7 +573,8 @@ pub fn load_session<F>(
 where
     F: FnOnce(&Path, Option<&str>) -> Option<HashMap<String, Value>>,
 {
-    let instance = ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "gemini");
+    let instance =
+        ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "gemini");
     load_project_session_fn(work_dir, instance.as_deref())
 }
 

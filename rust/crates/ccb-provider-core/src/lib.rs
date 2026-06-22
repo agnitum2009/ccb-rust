@@ -85,8 +85,8 @@ pub use registry::{
 pub use runtime_lock::ProviderLock;
 
 pub use session_binding::{
-    binding_status, default_binding_adapter, inspect_session_pane, resolve_agent_binding,
-    AgentBinding, BindingAdapter, PaneDetails,
+    binding_requires_replacement, binding_runtime_alive, binding_status, default_binding_adapter,
+    inspect_session_pane, resolve_agent_binding, AgentBinding, BindingAdapter, PaneDetails,
 };
 
 pub use memory_projection::materialize_provider_memory_file;

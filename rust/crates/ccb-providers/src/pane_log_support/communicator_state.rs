@@ -157,9 +157,18 @@ mod tests {
         let tmp = std::env::temp_dir();
         let session_file = tmp.join(".ccb").join(".pane-session");
         let session_info: HashMap<String, Value> = [
-            ("ccb_session_id".to_string(), Value::String("ccb-pane-1".to_string())),
-            ("_session_file".to_string(), Value::String(session_file.to_string_lossy().to_string())),
-            ("pane_title_marker".to_string(), Value::String("agent5".to_string())),
+            (
+                "ccb_session_id".to_string(),
+                Value::String("ccb-pane-1".to_string()),
+            ),
+            (
+                "_session_file".to_string(),
+                Value::String(session_file.to_string_lossy().to_string()),
+            ),
+            (
+                "pane_title_marker".to_string(),
+                Value::String("agent5".to_string()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -181,7 +190,10 @@ mod tests {
         assert_eq!(state.pane_id, "%11");
         assert_eq!(state.backend, Some("backend:tmux".to_string()));
         assert_eq!(state.timeout, 33);
-        assert_eq!(state.project_session_file, Some(session_file.to_string_lossy().to_string()));
+        assert_eq!(
+            state.project_session_file,
+            Some(session_file.to_string_lossy().to_string())
+        );
         assert!(state.log_reader.is_none());
         assert!(!state.log_reader_primed);
     }
@@ -196,7 +208,11 @@ mod tests {
         );
         session_info.insert(
             "pane_log_path".to_string(),
-            Value::String((tmp.join("logs").join("pane.log")).to_string_lossy().to_string()),
+            Value::String(
+                (tmp.join("logs").join("pane.log"))
+                    .to_string_lossy()
+                    .to_string(),
+            ),
         );
         session_info.insert(
             "runtime_dir".to_string(),
@@ -217,7 +233,10 @@ mod tests {
             .downcast_ref::<TestReader>()
             .unwrap();
         assert_eq!(reader.work_dir, Some(tmp.join("workspace")));
-        assert_eq!(reader.pane_log_path, Some(tmp.join("logs").join("pane.log")));
+        assert_eq!(
+            reader.pane_log_path,
+            Some(tmp.join("logs").join("pane.log"))
+        );
         assert!(state.log_reader_primed);
     }
 }

@@ -301,13 +301,8 @@ fn settings_install_claude_completion_hooks_preserves_existing_entries() {
     )
     .unwrap();
 
-    settings::install_workspace_completion_hooks(
-        "claude",
-        &workspace,
-        Some(&home_root),
-        command,
-    )
-    .unwrap();
+    settings::install_workspace_completion_hooks("claude", &workspace, Some(&home_root), command)
+        .unwrap();
 
     let data: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&settings_path).unwrap()).unwrap();

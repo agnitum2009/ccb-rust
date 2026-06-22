@@ -109,7 +109,8 @@ pub fn load_session<F>(
 where
     F: FnOnce(&Path, Option<&str>) -> Option<ClaudeProjectSession>,
 {
-    let instance = ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "claude");
+    let instance =
+        ccb_provider_core::instance_resolution::named_agent_instance(agent_name, "claude");
     load_project_session_fn(work_dir, instance.as_deref())
 }
 

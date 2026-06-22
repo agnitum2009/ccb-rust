@@ -85,6 +85,24 @@ impl ProjectBindingFilterFn for DummyFilter {
     }
 }
 
+struct RejectingFilter;
+
+impl ProjectBindingFilterFn for RejectingFilter {
+    fn filter(
+        &self,
+        _raw_binding: Option<&AgentBinding>,
+        _cmd_enabled: bool,
+        _tmux_socket_path: Option<&str>,
+        _tmux_session_name: Option<&str>,
+        _workspace_window_id: Option<&str>,
+        _agent_name: &str,
+        _project_id: &str,
+        _window_name: Option<&str>,
+    ) -> Option<AgentBinding> {
+        None
+    }
+}
+
 struct DummyRestoreBuilder;
 
 impl RestoreStateBuilder for DummyRestoreBuilder {
@@ -153,4 +171,96 @@ fn test_prepare_start_agents_persists_spec_restore_and_provider_home() {
     assert!(layout.agent_provider_runtime_dir("a1", "droid").is_dir());
     let state_home = layout.agent_provider_state_dir("a1", "droid").join("home");
     assert!(state_home.is_dir());
+}
+
+#[test]
+fn test_prepare_start_agents_detects_stale_binding() {
+    let (_tmp, project_root) = tmp_dir();
+    let source_home = project_root.join("source-home");
+    std::fs::create_dir_all(&source_home).unwrap();
+
+    std::env::set_var("HOME", source_home.as_str());
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = PathLayout::new(&project_root);
+
+    let mut config = ProjectConfig::default();
+    config.agents.insert("a1".into(), spec("a1", "droid"));
+
+    let context = StartContext {
+        restore_mode: None,
+        auto_permission: false,
+        project_id: "test-project".into(),
+        project_root: project_root.as_std_path().to_path_buf(),
+    };
+
+    let prepared = prepare_start_agents(
+        &["a1".into()],
+        &config,
+        &layout,
+        &context,
+        &context.project_root,
+        &context.project_id,
+        Some("/tmp/tmux.sock"),
+        None,
+        None,
+        &DummyResolve,
+        &RejectingFilter,
+        &DummyRestoreBuilder,
+    )
+    .unwrap();
+
+    assert_eq!(prepared.len(), 1);
+    let agent = &prepared[0];
+    assert!(agent.raw_binding.is_some());
+    assert!(agent.binding.is_none());
+    assert!(agent.stale_binding);
+}
+
+#[test]
+fn test_prepare_start_agents_resolves_window_name() {
+    use ccb_agents::models::WindowSpec;
+
+    let (_tmp, project_root) = tmp_dir();
+    let source_home = project_root.join("source-home");
+    std::fs::create_dir_all(&source_home).unwrap();
+
+    std::env::set_var("HOME", source_home.as_str());
+    std::env::remove_var("CCB_SOURCE_HOME");
+
+    let layout = PathLayout::new(&project_root);
+
+    let mut config = ProjectConfig::default();
+    config.agents.insert("a1".into(), spec("a1", "droid"));
+    config.windows = Some(vec![WindowSpec {
+        name: "review".into(),
+        order: 0,
+        layout_spec: "a1".into(),
+        agent_names: vec!["a1".into()],
+    }]);
+
+    let context = StartContext {
+        restore_mode: None,
+        auto_permission: false,
+        project_id: "test-project".into(),
+        project_root: project_root.as_std_path().to_path_buf(),
+    };
+
+    let prepared = prepare_start_agents(
+        &["a1".into()],
+        &config,
+        &layout,
+        &context,
+        &context.project_root,
+        &context.project_id,
+        None,
+        None,
+        None,
+        &DummyResolve,
+        &DummyFilter,
+        &DummyRestoreBuilder,
+    )
+    .unwrap();
+
+    assert_eq!(prepared[0].window_name, Some("review".to_string()));
 }

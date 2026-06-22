@@ -10,7 +10,11 @@ pub trait SessionBinding: std::fmt::Debug {
     fn provider(&self) -> &str;
     fn session_id_attr(&self) -> &str;
     fn session_path_attr(&self) -> &str;
-    fn load_session(&self, root: &Path, instance: Option<&str>) -> Option<ccb_provider_core::session_binding::Session>;
+    fn load_session(
+        &self,
+        root: &Path,
+        instance: Option<&str>,
+    ) -> Option<ccb_provider_core::session_binding::Session>;
     fn clone_box(&self) -> Box<dyn SessionBinding>;
 }
 

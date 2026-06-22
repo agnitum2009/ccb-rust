@@ -417,6 +417,28 @@ mod tests {
     }
 
     #[test]
+    fn test_default_session_path_opencode() {
+        let root = Path::new("/tmp/proj");
+        let ws = Path::new("/tmp/ws");
+        let path = default_session_path("opencode", "opencode", root, ws).unwrap();
+        assert_eq!(
+            path,
+            PathBuf::from("/tmp/proj/.ccb/runtime/opencode/opencode-session.jsonl")
+        );
+    }
+
+    #[test]
+    fn test_default_session_path_deepseek() {
+        let root = Path::new("/tmp/proj");
+        let ws = Path::new("/tmp/ws");
+        let path = default_session_path("deepseek", "deepseek", root, ws).unwrap();
+        assert_eq!(
+            path,
+            PathBuf::from("/tmp/proj/.ccb/runtime/deepseek/deepseek-session.jsonl")
+        );
+    }
+
+    #[test]
     fn test_default_session_path_unknown_provider() {
         let ws = Path::new("/tmp/ws");
         assert!(default_session_path("unknown", "agent", ws, ws).is_none());
@@ -440,6 +462,12 @@ mod tests {
     fn test_shlex_join_quotes_whitespace() {
         let parts = vec!["echo".to_string(), "hello world".to_string()];
         assert_eq!(shlex_join(&parts), "echo 'hello world'");
+    }
+
+    #[test]
+    fn test_shlex_join_quotes_single_quote() {
+        let parts = vec!["echo".to_string(), "it's".to_string()];
+        assert_eq!(shlex_join(&parts), "echo 'it'\"'\"'s'");
     }
 
     #[test]

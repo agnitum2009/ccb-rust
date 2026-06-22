@@ -18,7 +18,10 @@ fn test_named_agent_load_session_does_not_fallback_to_primary() {
         if instance.is_none() {
             Some(ClaudeProjectSession {
                 session_file: work_dir.to_path_buf(),
-                data: HashMap::from([("session".to_string(), Value::String("primary".to_string()))]),
+                data: HashMap::from([(
+                    "session".to_string(),
+                    Value::String("primary".to_string()),
+                )]),
             })
         } else {
             None
@@ -35,7 +38,10 @@ fn test_named_agent_load_session_does_not_fallback_to_primary() {
         if instance.is_none() {
             Some(codex::CodexProjectSession {
                 session_file: work_dir.to_path_buf(),
-                data: HashMap::from([("session".to_string(), Value::String("primary".to_string()))]),
+                data: HashMap::from([(
+                    "session".to_string(),
+                    Value::String("primary".to_string()),
+                )]),
             })
         } else {
             None
@@ -48,7 +54,10 @@ fn test_named_agent_load_session_does_not_fallback_to_primary() {
     let mut gemini_loader = |_work_dir: &Path, instance: Option<&str>| {
         calls.push(instance.map(String::from));
         if instance.is_none() {
-            Some(HashMap::from([("session".to_string(), Value::String("primary".to_string()))]))
+            Some(HashMap::from([(
+                "session".to_string(),
+                Value::String("primary".to_string()),
+            )]))
         } else {
             None
         }
@@ -62,19 +71,19 @@ fn test_named_agent_load_session_does_not_fallback_to_primary() {
         if instance.is_none() {
             Some(OpenCodeProjectSession {
                 session_file: work_dir.to_path_buf(),
-                data: HashMap::from([("session".to_string(), Value::String("primary".to_string()))]),
+                data: HashMap::from([(
+                    "session".to_string(),
+                    Value::String("primary".to_string()),
+                )]),
             })
         } else {
             None
         }
     };
     assert!(
-        load_opencode_session(
-            &work_dir,
-            "builder",
-            "opencode",
-            |w, i| opencode_loader(w, i),
-        )
+        load_opencode_session(&work_dir, "builder", "opencode", |w, i| opencode_loader(
+            w, i
+        ),)
         .is_none()
     );
     assert_eq!(calls, vec![Some("builder".to_string())]);
@@ -85,15 +94,16 @@ fn test_named_agent_load_session_does_not_fallback_to_primary() {
         if instance.is_none() {
             Some(DroidProjectSession {
                 session_file: work_dir.to_path_buf(),
-                data: HashMap::from([("session".to_string(), Value::String("primary".to_string()))]),
+                data: HashMap::from([(
+                    "session".to_string(),
+                    Value::String("primary".to_string()),
+                )]),
             })
         } else {
             None
         }
     };
-    assert!(
-        load_droid_session(|w, i| droid_loader(w, i), &work_dir, "worker", "droid").is_none()
-    );
+    assert!(load_droid_session(|w, i| droid_loader(w, i), &work_dir, "worker", "droid").is_none());
     assert_eq!(calls, vec![Some("worker".to_string())]);
 }
 
@@ -106,7 +116,10 @@ fn test_primary_agent_load_session_keeps_primary_fallback() {
         if instance.is_none() {
             Some(ClaudeProjectSession {
                 session_file: work_dir.to_path_buf(),
-                data: HashMap::from([("session".to_string(), Value::String("primary".to_string()))]),
+                data: HashMap::from([(
+                    "session".to_string(),
+                    Value::String("primary".to_string()),
+                )]),
             })
         } else {
             None

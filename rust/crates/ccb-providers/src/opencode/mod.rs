@@ -7,8 +7,9 @@ pub mod session;
 pub mod storage;
 
 pub use launcher::{
-    build_runtime_launcher, build_session_payload, build_start_cmd, prepare_launch_context,
-    OpenCodeLaunchContext, OPENCODE_CONFIG_FILENAME,
+    build_runtime_launcher, build_session_payload, build_start_cmd,
+    materialize_opencode_memory_config, prepare_launch_context, OpenCodeLaunchContext,
+    OpenCodeMemoryConfigResult, OPENCODE_CONFIG_FILENAME,
 };
 pub use logs::{is_cancel_log_line, latest_opencode_log_file, parse_opencode_log_epoch_s};
 pub use paths::{

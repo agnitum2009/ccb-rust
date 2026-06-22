@@ -90,9 +90,7 @@ pub fn poll_submission<B: PaneQuietBackend>(
         let ready_wait_secs = seconds_between(&started_at, now);
         state.insert("ready_wait_secs".to_string(), Value::from(ready_wait_secs));
 
-        if requires_ready_before_send(&provider)
-            && !pane_ready_for_input(&content, &provider)
-        {
+        if requires_ready_before_send(&provider) && !pane_ready_for_input(&content, &provider) {
             if ready_wait_secs >= READY_WAIT_SECS {
                 let mut diagnostics = Map::new();
                 diagnostics.insert("input_not_ready".to_string(), Value::Bool(true));
@@ -140,7 +138,10 @@ pub fn poll_submission<B: PaneQuietBackend>(
         backend.send_text_to_pane(&pane_id, &pending_prompt);
         state.insert("prompt_sent".to_string(), Value::Bool(true));
         state.insert("prompt_sent_at".to_string(), Value::String(now.to_string()));
-        state.insert("prompt_deferred_until_ready".to_string(), Value::Bool(false));
+        state.insert(
+            "prompt_deferred_until_ready".to_string(),
+            Value::Bool(false),
+        );
         state.insert("started_at".to_string(), Value::String(now.to_string()));
         state.insert("last_change_at".to_string(), Value::String(now.to_string()));
         state.insert(
@@ -160,11 +161,17 @@ pub fn poll_submission<B: PaneQuietBackend>(
     }
 
     let current_hash = if content.is_empty() {
-        state.get("last_hash").and_then(Value::as_str).map(|s| s.to_string())
+        state
+            .get("last_hash")
+            .and_then(Value::as_str)
+            .map(|s| s.to_string())
     } else {
         Some(hash_text(&content))
     };
-    let last_hash = state.get("last_hash").and_then(Value::as_str).map(|s| s.to_string());
+    let last_hash = state
+        .get("last_hash")
+        .and_then(Value::as_str)
+        .map(|s| s.to_string());
     let started_at = state_str(&state, "started_at");
     let started_at = if started_at.is_empty() {
         submission.accepted_at.clone()
@@ -305,19 +312,39 @@ fn terminal(
     diagnostics.insert("mode".to_string(), Value::String("pane_quiet".to_string()));
     diagnostics.insert(
         "quiet_secs".to_string(),
-        Value::from(state.get("quiet_secs").and_then(Value::as_f64).unwrap_or(0.0)),
+        Value::from(
+            state
+                .get("quiet_secs")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
+        ),
     );
     diagnostics.insert(
         "total_secs".to_string(),
-        Value::from(state.get("total_secs").and_then(Value::as_f64).unwrap_or(0.0)),
+        Value::from(
+            state
+                .get("total_secs")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0),
+        ),
     );
     diagnostics.insert(
         "done_seen".to_string(),
-        Value::Bool(state.get("done_seen").and_then(Value::as_bool).unwrap_or(false)),
+        Value::Bool(
+            state
+                .get("done_seen")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        ),
     );
     diagnostics.insert(
         "anchor_present".to_string(),
-        Value::Bool(state.get("anchor_present").and_then(Value::as_bool).unwrap_or(false)),
+        Value::Bool(
+            state
+                .get("anchor_present")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        ),
     );
     diagnostics.insert(
         "snapshot_errors".to_string(),
@@ -352,7 +379,10 @@ fn terminal(
         anchor_seen,
         reply_started: !cleaned.is_empty(),
         reply_stable: !cleaned.is_empty(),
-        provider_turn_ref: state.get("req_id").and_then(Value::as_str).map(|s| s.to_string()),
+        provider_turn_ref: state
+            .get("req_id")
+            .and_then(Value::as_str)
+            .map(|s| s.to_string()),
         source_cursor: Some(cursor),
         finished_at: Some(now.to_string()),
         diagnostics,
@@ -367,7 +397,10 @@ fn empty_reply_diagnostics(provider: &str) -> Map<String, Value> {
     );
     let mut map = Map::new();
     map.insert("empty_reply".to_string(), Value::Bool(true));
-    map.insert("error_type".to_string(), Value::String("empty_provider_reply".to_string()));
+    map.insert(
+        "error_type".to_string(),
+        Value::String("empty_provider_reply".to_string()),
+    );
     map.insert("message".to_string(), Value::String(diagnosis.clone()));
     map.insert("diagnosis".to_string(), Value::String(diagnosis));
     map
@@ -429,10 +462,7 @@ fn state_i64(state: &HashMap<String, Value>, key: &str, default: i64) -> i64 {
 }
 
 fn state_bool(state: &HashMap<String, Value>, key: &str, default: bool) -> bool {
-    state
-        .get(key)
-        .and_then(Value::as_bool)
-        .unwrap_or(default)
+    state.get(key).and_then(Value::as_bool).unwrap_or(default)
 }
 
 #[cfg(test)]
@@ -504,9 +534,16 @@ mod tests {
             text: RefCell::new(text.to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission(text, "kimi", true), &backend, "2026-06-13T00:00:03Z");
+        let result = poll_submission(
+            &submission(text, "kimi", true),
+            &backend,
+            "2026-06-13T00:00:03Z",
+        );
         assert!(result.is_some());
-        let decision = result.unwrap().decision.expect("decision should be present");
+        let decision = result
+            .unwrap()
+            .decision
+            .expect("decision should be present");
         assert_eq!(decision.status, CompletionStatus::Completed);
         assert_eq!(decision.reason, Some("pane_done_marker".to_string()));
         assert_eq!(decision.reply, "final answer");
@@ -518,13 +555,21 @@ mod tests {
             text: RefCell::new("Kimi is booting\n".to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission("Kimi is booting\n", "kimi", false), &backend, "2026-06-13T00:00:03Z");
+        let result = poll_submission(
+            &submission("Kimi is booting\n", "kimi", false),
+            &backend,
+            "2026-06-13T00:00:03Z",
+        );
         assert!(result.is_some());
         let result = result.unwrap();
         assert!(result.decision.is_none());
         assert!(backend.sent_texts.borrow().is_empty());
         assert_eq!(
-            result.submission.runtime_state.get("prompt_sent").and_then(Value::as_bool),
+            result
+                .submission
+                .runtime_state
+                .get("prompt_sent")
+                .and_then(Value::as_bool),
             Some(false)
         );
     }
@@ -536,13 +581,21 @@ mod tests {
             text: RefCell::new(text.to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission(text, "kimi", false), &backend, "2026-06-13T00:00:03Z");
+        let result = poll_submission(
+            &submission(text, "kimi", false),
+            &backend,
+            "2026-06-13T00:00:03Z",
+        );
         assert!(result.is_some());
         let result = result.unwrap();
         assert!(result.decision.is_none());
         assert_eq!(backend.sent_texts.borrow().as_slice(), &["pending prompt"]);
         assert_eq!(
-            result.submission.runtime_state.get("prompt_sent").and_then(Value::as_bool),
+            result
+                .submission
+                .runtime_state
+                .get("prompt_sent")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
@@ -562,13 +615,21 @@ mod tests {
             text: RefCell::new(text.to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission(text, "kimi", false), &backend, "2026-06-13T00:00:03Z");
+        let result = poll_submission(
+            &submission(text, "kimi", false),
+            &backend,
+            "2026-06-13T00:00:03Z",
+        );
         assert!(result.is_some());
         let result = result.unwrap();
         assert!(result.decision.is_none());
         assert_eq!(backend.sent_texts.borrow().as_slice(), &["pending prompt"]);
         assert_eq!(
-            result.submission.runtime_state.get("prompt_sent").and_then(Value::as_bool),
+            result
+                .submission
+                .runtime_state
+                .get("prompt_sent")
+                .and_then(Value::as_bool),
             Some(true)
         );
     }
@@ -579,13 +640,23 @@ mod tests {
             text: RefCell::new("Kimi is booting\n".to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission("Kimi is booting\n", "kimi", false), &backend, "2026-06-13T00:02:00Z");
+        let result = poll_submission(
+            &submission("Kimi is booting\n", "kimi", false),
+            &backend,
+            "2026-06-13T00:02:00Z",
+        );
         assert!(result.is_some());
-        let decision = result.unwrap().decision.expect("decision should be present");
+        let decision = result
+            .unwrap()
+            .decision
+            .expect("decision should be present");
         assert_eq!(decision.status, CompletionStatus::Incomplete);
         assert_eq!(decision.reason, Some("kimi_input_not_ready".to_string()));
         assert_eq!(
-            decision.diagnostics.get("input_not_ready").and_then(Value::as_bool),
+            decision
+                .diagnostics
+                .get("input_not_ready")
+                .and_then(Value::as_bool),
             Some(true)
         );
     }
@@ -597,17 +668,30 @@ mod tests {
             text: RefCell::new(text.to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission(text, "deepseek", true), &backend, "2026-06-13T00:00:03Z");
+        let result = poll_submission(
+            &submission(text, "deepseek", true),
+            &backend,
+            "2026-06-13T00:00:03Z",
+        );
         assert!(result.is_some());
-        let decision = result.unwrap().decision.expect("decision should be present");
+        let decision = result
+            .unwrap()
+            .decision
+            .expect("decision should be present");
         assert_eq!(decision.status, CompletionStatus::Incomplete);
         assert_eq!(decision.reason, Some("pane_done_empty_reply".to_string()));
         assert_eq!(
-            decision.diagnostics.get("empty_reply").and_then(Value::as_bool),
+            decision
+                .diagnostics
+                .get("empty_reply")
+                .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
-            decision.diagnostics.get("error_type").and_then(Value::as_str),
+            decision
+                .diagnostics
+                .get("error_type")
+                .and_then(Value::as_str),
             Some("empty_provider_reply")
         );
         assert!(decision
@@ -624,9 +708,16 @@ mod tests {
             text: RefCell::new("provider prompt\n".to_string()),
             sent_texts: RefCell::new(Vec::new()),
         };
-        let result = poll_submission(&submission("provider prompt\n", "kimi", true), &backend, "2026-06-13T00:03:00Z");
+        let result = poll_submission(
+            &submission("provider prompt\n", "kimi", true),
+            &backend,
+            "2026-06-13T00:03:00Z",
+        );
         assert!(result.is_some());
-        let decision = result.unwrap().decision.expect("decision should be present");
+        let decision = result
+            .unwrap()
+            .decision
+            .expect("decision should be present");
         assert_eq!(decision.status, CompletionStatus::Incomplete);
         assert_eq!(decision.reason, Some("kimi_input_unresponsive".to_string()));
     }

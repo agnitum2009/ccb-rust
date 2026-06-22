@@ -67,7 +67,11 @@ fn test_provider_activity_hook_writes_codex_active_snapshot() {
     });
 
     let output = run_hook(&runtime_dir, "codex", "agent2", payload, env);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let activity_path = runtime_dir.join("activity.json");
     let activity: Value = serde_json::from_slice(&std::fs::read(&activity_path).unwrap()).unwrap();
@@ -100,7 +104,11 @@ fn test_provider_activity_hook_maps_claude_waiting_notification() {
     });
 
     let output = run_hook(&runtime_dir, "claude", "agent3", payload, env);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let activity: Value =
         serde_json::from_slice(&std::fs::read(runtime_dir.join("activity.json")).unwrap()).unwrap();
@@ -144,7 +152,11 @@ fn test_provider_activity_hook_exits_zero_without_writing_on_malformed_payload()
     });
 
     let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(!runtime_dir.join("activity.json").exists());
 }
 
@@ -171,12 +183,19 @@ fn test_provider_activity_hook_maps_error_payload_to_failed_without_secret() {
     });
 
     let output = run_hook(&runtime_dir, "codex", "agent2", payload, env);
-    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let activity: Value =
         serde_json::from_slice(&std::fs::read(runtime_dir.join("activity.json")).unwrap()).unwrap();
     assert_eq!(activity["state"], "failed");
     assert_eq!(activity["diagnostics"]["error_type"], "provider_api_error");
     assert_eq!(activity["diagnostics"]["error_code"], "model_not_found");
-    assert!(!activity["diagnostics"].as_object().unwrap().contains_key("api_key"));
+    assert!(!activity["diagnostics"]
+        .as_object()
+        .unwrap()
+        .contains_key("api_key"));
 }

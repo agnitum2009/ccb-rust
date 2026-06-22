@@ -14,14 +14,7 @@ use crate::context::CliContext;
 const _TAIL_SUFFIXES: &[&str] = &[".log", ".jsonl", ".txt", ".yaml", ".yml"];
 const _COPY_SUFFIXES: &[&str] = &[".json", ".pid"];
 const _PROVIDER_STATE_SUFFIXES: &[&str] = &[
-    ".log",
-    ".jsonl",
-    ".txt",
-    ".yaml",
-    ".yml",
-    ".json",
-    ".pid",
-    ".toml",
+    ".log", ".jsonl", ".txt", ".yaml", ".yml", ".json", ".pid", ".toml",
 ];
 
 const _PROVIDER_STATE_SECRET_FILENAMES: &[&str] = &[
@@ -34,11 +27,8 @@ const _PROVIDER_STATE_SECRET_FILENAMES: &[&str] = &[
 
 const _PROVIDER_STATE_SECRET_DIRNAMES: &[&str] = &[".codeisland"];
 
-const _EXCLUDED_PROVIDER_STORAGE_CLASSES: &[&str] = &[
-    "secret",
-    "rebuildable_cache",
-    "startup_authority_bundle",
-];
+const _EXCLUDED_PROVIDER_STORAGE_CLASSES: &[&str] =
+    &["secret", "rebuildable_cache", "startup_authority_bundle"];
 
 const _PROVIDER_STATE_HARD_EXCLUDED_SEGMENTS: &[&[&str]] = &[
     &[".tmp", "plugins"],
@@ -56,12 +46,18 @@ pub fn project_root_sources(
     let storage_records = storage_records_by_path(storage_payload);
 
     let mut items: Vec<(String, PathBuf)> = vec![
-        ("project-config".into(), as_path(&context.paths.config_path())),
+        (
+            "project-config".into(),
+            as_path(&context.paths.config_path()),
+        ),
         (
             "ccbd-authority".into(),
             as_path(&context.paths.ccbd_lifecycle_path()),
         ),
-        ("ccbd-authority".into(), as_path(&context.paths.ccbd_lease_path())),
+        (
+            "ccbd-authority".into(),
+            as_path(&context.paths.ccbd_lease_path()),
+        ),
         (
             "ccbd-authority".into(),
             as_path(&context.paths.ccbd_keeper_path()),
@@ -70,7 +66,10 @@ pub fn project_root_sources(
             "ccbd-authority".into(),
             as_path(&context.paths.ccbd_shutdown_intent_path()),
         ),
-        ("ccbd-authority".into(), as_path(&context.paths.ccbd_state_path())),
+        (
+            "ccbd-authority".into(),
+            as_path(&context.paths.ccbd_state_path()),
+        ),
         (
             "ccbd-authority".into(),
             as_path(&context.paths.ccbd_start_policy_path()),
@@ -204,7 +203,11 @@ pub fn project_root_sources(
 }
 
 /// Recursively collect files under `root` matching `suffixes`.
-pub fn iter_dir_files(category: &str, root: &Utf8PathBuf, suffixes: &[&str]) -> Vec<(String, PathBuf)> {
+pub fn iter_dir_files(
+    category: &str,
+    root: &Utf8PathBuf,
+    suffixes: &[&str],
+) -> Vec<(String, PathBuf)> {
     let root = as_path(root);
     if !root.exists() || !root.is_dir() {
         return vec![];
@@ -344,7 +347,9 @@ fn provider_state_path_hard_excluded(path: &Path, root: &Path) -> bool {
             .filter_map(|c| c.as_os_str().to_str().map(|s| s.to_lowercase()))
             .collect(),
     };
-    if parts.len() >= 2 && parts[parts.len() - 2..] == [".tmp".to_string(), "plugins.sha".to_string()] {
+    if parts.len() >= 2
+        && parts[parts.len() - 2..] == [".tmp".to_string(), "plugins.sha".to_string()]
+    {
         return true;
     }
     _PROVIDER_STATE_HARD_EXCLUDED_SEGMENTS
@@ -406,7 +411,10 @@ pub fn archive_path_for_source(context: &CliContext, source: &Path) -> String {
     let source_path = resolve_source(source);
     let project_root = as_path(&context.paths.project_root);
     if let Ok(rel) = source_path.strip_prefix(&project_root) {
-        return PathBuf::from("project").join(rel).to_string_lossy().to_string();
+        return PathBuf::from("project")
+            .join(rel)
+            .to_string_lossy()
+            .to_string();
     }
     let runtime_root = as_path(context.paths.runtime_state_root());
     if let Ok(rel) = source_path.strip_prefix(&runtime_root) {
@@ -421,9 +429,7 @@ pub fn archive_path_for_source(context: &CliContext, source: &Path) -> String {
         .filter(|c| !matches!(c, Component::RootDir | Component::Prefix(_)))
         .collect();
     let suffix: PathBuf = if safe_parts.len() >= 4 {
-        safe_parts[safe_parts.len() - 4..]
-            .iter()
-            .collect()
+        safe_parts[safe_parts.len() - 4..].iter().collect()
     } else if let Some(name) = source.file_name() {
         PathBuf::from(name)
     } else {
@@ -460,8 +466,7 @@ fn agent_source_items(
 }
 
 fn resolve_source(path: &Path) -> PathBuf {
-    path.canonicalize()
-        .unwrap_or_else(|_| path.to_path_buf())
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
 fn agent_sources(
@@ -542,7 +547,10 @@ fn storage_records_by_path(storage_payload: Option<&Value>) -> HashMap<String, V
             continue;
         }
         let path = resolve_source(&PathBuf::from(raw_path));
-        records.insert(path.to_string_lossy().to_string(), Value::Object(entry.clone()));
+        records.insert(
+            path.to_string_lossy().to_string(),
+            Value::Object(entry.clone()),
+        );
     }
     records
 }

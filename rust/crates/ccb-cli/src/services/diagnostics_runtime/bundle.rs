@@ -8,7 +8,9 @@ use serde_json::Value;
 use ccb_storage::paths::PathLayout;
 
 use crate::context::CliContext;
-use crate::services::diagnostics_runtime::models::{DiagnosticBundleEntry, DiagnosticBundleSummary};
+use crate::services::diagnostics_runtime::models::{
+    DiagnosticBundleEntry, DiagnosticBundleSummary,
+};
 use crate::services::diagnostics_runtime::sources::project_root_sources;
 use crate::services::diagnostics_runtime::staging::{create_tarball, stage_file, write_json};
 
@@ -121,7 +123,11 @@ pub fn bundle_identifier(project_id: &str, generated_at: &str) -> String {
         .replace([':', '-', '.'], "")
         .replace('T', "t")
         .replace('Z', "z");
-    format!("ccb-support-{}-{}", safe_time, &project_id[..project_id.len().min(12)])
+    format!(
+        "ccb-support-{}-{}",
+        safe_time,
+        &project_id[..project_id.len().min(12)]
+    )
 }
 
 /// Resolve the bundle output path from the command or the default support location.
@@ -159,7 +165,10 @@ fn write_generated_payloads(
     storage_payload: &Value,
     storage_error: Option<&str>,
 ) -> anyhow::Result<()> {
-    write_json(&stage_root.join("generated").join("doctor.json"), doctor_payload)?;
+    write_json(
+        &stage_root.join("generated").join("doctor.json"),
+        doctor_payload,
+    )?;
     write_json(
         &stage_root.join("generated").join("storage-summary.json"),
         storage_payload,

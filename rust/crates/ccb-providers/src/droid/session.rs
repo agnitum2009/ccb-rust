@@ -78,10 +78,8 @@ pub fn load_session<F>(
 where
     F: FnOnce(&Path, Option<&str>) -> Option<DroidProjectSession>,
 {
-    let instance = ccb_provider_core::instance_resolution::named_agent_instance(
-        agent_name,
-        primary_agent,
-    );
+    let instance =
+        ccb_provider_core::instance_resolution::named_agent_instance(agent_name, primary_agent);
     load_project_session_fn(work_dir, instance.as_deref())
 }
 

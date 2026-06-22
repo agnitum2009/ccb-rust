@@ -252,7 +252,9 @@ fn _cleanup_claude_version_caches(
 ) -> Result<()> {
     let agents_dir = layout.agents_dir();
     let legacy_shared_versions = layout.shared_cache_dir().join("claude").join("versions");
-    let external_versions = layout.provider_external_cache_dir("claude")?.join("versions");
+    let external_versions = layout
+        .provider_external_cache_dir("claude")?
+        .join("versions");
 
     let mut legacy_shared_active: HashSet<String> = HashSet::new();
     let mut external_active: HashSet<String> = HashSet::new();
@@ -285,20 +287,12 @@ fn _cleanup_claude_version_caches(
         actions,
         skipped,
     )?;
-    _cleanup_shared_claude_versions_dir(
-        &external_versions,
-        &external_active,
-        actions,
-        skipped,
-    )?;
+    _cleanup_shared_claude_versions_dir(&external_versions, &external_active, actions, skipped)?;
 
     Ok(())
 }
 
-fn _sorted_provider_homes(
-    agents_dir: &Utf8Path,
-    provider: &str,
-) -> Result<Vec<Utf8PathBuf>> {
+fn _sorted_provider_homes(agents_dir: &Utf8Path, provider: &str) -> Result<Vec<Utf8PathBuf>> {
     let mut homes = Vec::new();
     if !agents_dir.exists() {
         return Ok(homes);
@@ -308,7 +302,10 @@ fn _sorted_provider_homes(
         let Ok(agent_path) = Utf8PathBuf::from_path_buf(agent_path) else {
             continue;
         };
-        let home = agent_path.join("provider-state").join(provider).join("home");
+        let home = agent_path
+            .join("provider-state")
+            .join(provider)
+            .join("home");
         if home.exists() {
             homes.push(home);
         }
@@ -444,7 +441,11 @@ fn _claude_version_keep_paths(
         return keep;
     }
 
-    let not_keep: Vec<_> = version_paths.iter().filter(|p| !keep.contains(*p)).cloned().collect();
+    let not_keep: Vec<_> = version_paths
+        .iter()
+        .filter(|p| !keep.contains(*p))
+        .cloned()
+        .collect();
     if let Some(rollback) = _newest_version_path(&not_keep) {
         keep.insert(rollback);
     }
@@ -530,15 +531,18 @@ fn _looks_like_claude_version_name(value: &str) -> bool {
 }
 
 fn _newest_version_path(paths: &[Utf8PathBuf]) -> Option<Utf8PathBuf> {
-    paths.iter().max_by(|a, b| {
-        let a_key = _version_key(a.file_name().unwrap_or(""));
-        let b_key = _version_key(b.file_name().unwrap_or(""));
-        let a_mtime = _safe_mtime(a);
-        let b_mtime = _safe_mtime(b);
-        let a_name = a.as_str();
-        let b_name = b.as_str();
-        (a_key, a_mtime, a_name).cmp(&(b_key, b_mtime, b_name))
-    }).cloned()
+    paths
+        .iter()
+        .max_by(|a, b| {
+            let a_key = _version_key(a.file_name().unwrap_or(""));
+            let b_key = _version_key(b.file_name().unwrap_or(""));
+            let a_mtime = _safe_mtime(a);
+            let b_mtime = _safe_mtime(b);
+            let a_name = a.as_str();
+            let b_name = b.as_str();
+            (a_key, a_mtime, a_name).cmp(&(b_key, b_mtime, b_name))
+        })
+        .cloned()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -564,7 +568,10 @@ fn _version_key(value: &str) -> Vec<VersionPart> {
 fn _safe_mtime(path: &Utf8Path) -> u64 {
     match fs::metadata(path) {
         Ok(meta) => match meta.modified() {
-            Ok(t) => t.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
+            Ok(t) => t
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
             Err(_) => 0,
         },
         Err(_) => 0,
@@ -739,10 +746,7 @@ fn _cleanup_pane_crash_logs(
             if !runtime_dir.is_dir() || runtime_dir.is_symlink() {
                 continue;
             }
-            let provider = runtime_dir
-                .file_name()
-                .unwrap_or("unknown")
-                .to_string();
+            let provider = runtime_dir.file_name().unwrap_or("unknown").to_string();
 
             let mut logs: Vec<Utf8PathBuf> = Vec::new();
             for log_entry in fs::read_dir(&runtime_dir)?.flatten() {

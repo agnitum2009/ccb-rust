@@ -7,6 +7,9 @@ use serde_json::{json, Value};
 use crate::context::CliContext;
 use crate::services::{socket_path_for_project, DaemonClient, UnixDaemonClient};
 
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
 /// Errors that can occur when talking to the local daemon.
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum CcbdServiceError {
@@ -46,12 +49,38 @@ pub struct DaemonHandle {
 
 /// Connect to the daemon for the current project.
 ///
-/// Mirrors Python `cli.services.daemon.connect_mounted_daemon`.
-pub fn connect_mounted_daemon(context: &CliContext, _allow_restart_stale: bool) -> DaemonHandle {
-    DaemonHandle {
-        client: build_trace_client(context),
+/// Mirrors Python `cli.services.daemon.connect_mounted_daemon`. Returns an
+/// error if the daemon socket is not reachable so callers can fall back to
+/// local shutdown.
+pub fn connect_mounted_daemon(
+    context: &CliContext,
+    _allow_restart_stale: bool,
+) -> anyhow::Result<DaemonHandle> {
+    let socket_path = socket_path_for_project(context.paths.project_root.as_std_path());
+    #[cfg(unix)]
+    {
+        UnixStream::connect(&socket_path)
+            .map_err(|e| anyhow::anyhow!("daemon socket not reachable at {socket_path}: {e}"))?;
     }
+    #[cfg(not(unix))]
+    {
+        if !std::path::Path::new(&socket_path).exists() {
+            return Err(anyhow::anyhow!(
+                "daemon socket not reachable at {socket_path}"
+            ));
+        }
+    }
+    Ok(DaemonHandle {
+        client: UnixDaemonClient::new(socket_path),
+    })
 }
+
+/// Record shutdown intent for the current project.
+///
+/// Mirrors Python `cli.services.daemon.record_shutdown_intent`. This stub
+/// captures the intent so higher-level orchestration can proceed; a full
+/// lifecycle-store integration is deferred to the daemon runtime.
+pub fn record_shutdown_intent(_context: &CliContext, _reason: &str) {}
 
 /// `TraceClient` implementation for the Unix socket daemon client.
 impl crate::services::wait_runtime::service::TraceClient for UnixDaemonClient {

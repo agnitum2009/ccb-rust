@@ -49,11 +49,7 @@ fn list_panes_by_user_options(backend: &Backend, expected: &HashMap<&str, &str>)
 #[allow(dead_code)]
 fn pane_option(backend: &Backend, pane_id: &str, option_name: &str) -> Option<String> {
     let fmt = format!("#{{{option_name}}}");
-    let output = backend._tmux_run(
-        &["display-message", "-p", "-t", pane_id, &fmt],
-        false,
-        true,
-    );
+    let output = backend._tmux_run(&["display-message", "-p", "-t", pane_id, &fmt], false, true);
     match output {
         Ok(out) if out.success() => {
             let value = out.stdout.lines().next().unwrap_or("").trim();
@@ -142,10 +138,7 @@ fn preservation_changes(
     let before_keys: std::collections::HashSet<String> = before.keys().cloned().collect();
     let after_keys: std::collections::HashSet<String> = after.keys().cloned().collect();
 
-    let mut missing_before: Vec<String> = expected
-        .difference(&before_keys)
-        .cloned()
-        .collect();
+    let mut missing_before: Vec<String> = expected.difference(&before_keys).cloned().collect();
     missing_before.sort();
     let mut missing_after: Vec<String> = if expected.is_empty() {
         before_keys.difference(&after_keys).cloned().collect()
@@ -234,7 +227,10 @@ mod tests {
     #[test]
     fn test_snapshot_preserved_agent_panes_filters_by_expected_agents() {
         let fake = FakeTmuxBackend::new();
-        let backend = fake.backend_factory().build("/tmp/ccb-test/.ccb/tmux.sock").unwrap();
+        let backend = fake
+            .backend_factory()
+            .build("/tmp/ccb-test/.ccb/tmux.sock")
+            .unwrap();
         backend
             ._tmux_run(
                 &[

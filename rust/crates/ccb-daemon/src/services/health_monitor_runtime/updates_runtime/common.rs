@@ -11,12 +11,19 @@ use ccb_provider_core::session_binding::{
 /// current runtime for missing values.
 ///
 /// Mirrors Python `runtime_fields_from_facts`.
-pub fn runtime_fields_from_facts(runtime: &AgentRuntime, facts: &ProviderRuntimeFacts) -> Vec<(String, String)> {
+pub fn runtime_fields_from_facts(
+    runtime: &AgentRuntime,
+    facts: &ProviderRuntimeFacts,
+) -> Vec<(String, String)> {
     let mut fields = Vec::new();
     if let Some(v) = facts.runtime_ref.as_ref().or(runtime.runtime_ref.as_ref()) {
         fields.push(("runtime_ref".to_string(), v.clone()));
     }
-    if let Some(v) = facts.runtime_root.as_ref().or(runtime.runtime_root.as_ref()) {
+    if let Some(v) = facts
+        .runtime_root
+        .as_ref()
+        .or(runtime.runtime_root.as_ref())
+    {
         fields.push(("runtime_root".to_string(), v.clone()));
     }
     if facts.runtime_pid.is_some() || runtime.runtime_pid.is_some() {
@@ -54,7 +61,11 @@ pub fn runtime_fields_from_facts(runtime: &AgentRuntime, facts: &ProviderRuntime
     {
         fields.push(("tmux_socket_path".to_string(), v.clone()));
     }
-    if let Some(v) = facts.session_file.as_ref().or(runtime.session_file.as_ref()) {
+    if let Some(v) = facts
+        .session_file
+        .as_ref()
+        .or(runtime.session_file.as_ref())
+    {
         fields.push(("session_file".to_string(), v.clone()));
     }
     if let Some(v) = facts.session_id.as_ref().or(runtime.session_id.as_ref()) {

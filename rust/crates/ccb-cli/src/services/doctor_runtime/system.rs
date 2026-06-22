@@ -4,7 +4,8 @@ use serde_json::Value;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
-const ROOT_RUNTIME_WARNING: &str = "Running CCB as root in a non-root-owned project can create root-owned .ccb files.";
+const ROOT_RUNTIME_WARNING: &str =
+    "Running CCB as root in a non-root-owned project can create root-owned .ccb files.";
 
 /// Build a runtime identity summary for the doctor command.
 ///
@@ -16,7 +17,14 @@ pub fn runtime_identity_summary(
 ) -> Value {
     let uid = effective_uid();
     let user_name = user_name(uid);
-    runtime_identity_summary_with(project_root, ccb_dir, installation, uid, &user_name, path_owner)
+    runtime_identity_summary_with(
+        project_root,
+        ccb_dir,
+        installation,
+        uid,
+        &user_name,
+        path_owner,
+    )
 }
 
 /// Type alias for a function that resolves path ownership.

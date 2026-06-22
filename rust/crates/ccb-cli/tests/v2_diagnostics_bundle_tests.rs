@@ -123,9 +123,16 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     )
     .unwrap();
 
-    let log_lines: String = (0..400).map(|i| format!("line {i}")).collect::<Vec<_>>().join("\n");
+    let log_lines: String = (0..400)
+        .map(|i| format!("line {i}"))
+        .collect::<Vec<_>>()
+        .join("\n");
     fs::write(
-        context.paths.ccbd_dir().join("ccbd.stdout.log").as_std_path(),
+        context
+            .paths
+            .ccbd_dir()
+            .join("ccbd.stdout.log")
+            .as_std_path(),
         log_lines,
     )
     .unwrap();
@@ -173,16 +180,36 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     assert!(bundle_path.exists());
     assert!(summary.file_count >= 4);
     assert!(summary.truncated_count >= 1);
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/state.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/start-policy.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/lifecycle.jsonl"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/heartbeats/job_progress/job_1.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/status.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/activations.jsonl"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/artifacts/text/ask-request/large.txt"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/startup-report.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/ccbd.stdout.log"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/agents/demo/runtime.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/state.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/start-policy.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/lifecycle.jsonl"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/heartbeats/job_progress/job_1.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/status.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/activations.jsonl"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/artifacts/text/ask-request/large.txt"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/startup-report.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/ccbd.stdout.log"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/agents/demo/runtime.json"));
 }
 
 #[test]
@@ -210,7 +237,15 @@ fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
         .paths
         .ensure_runtime_state_root(Some("2026-05-07T00:00:00Z"))
         .unwrap();
-    fs::create_dir_all(context.paths.ccbd_state_path().parent().unwrap().as_std_path()).unwrap();
+    fs::create_dir_all(
+        context
+            .paths
+            .ccbd_state_path()
+            .parent()
+            .unwrap()
+            .as_std_path(),
+    )
+    .unwrap();
     fs::write(
         context.paths.ccbd_state_path().as_std_path(),
         "{\"record_type\":\"ccbd_project_namespace_state\"}\n",
@@ -236,10 +271,18 @@ fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
     let manifest = read_tar_json(&bundle_path, format!("{}/manifest.json", summary.bundle_id));
     let entries = manifest["entries"].as_array().unwrap();
 
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/runtime-root-ref.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/runtime-root.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/state.json"));
-    assert!(entries.iter().any(|e| e["archive_path"] == "project/.ccb/ccbd/start-policy.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/runtime-root-ref.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/runtime-root.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/state.json"));
+    assert!(entries
+        .iter()
+        .any(|e| e["archive_path"] == "project/.ccb/ccbd/start-policy.json"));
     let marker_source = context.paths.runtime_root_marker_path().to_string();
     assert!(entries.iter().any(|e| e["source_path"] == marker_source));
 }
@@ -254,15 +297,29 @@ fn test_export_diagnostic_bundle_survives_corrupt_runtime_and_report_files() {
 
     let context = build_context(project_root.clone());
 
-    fs::create_dir_all(context.paths.ccbd_startup_report_path().parent().unwrap().as_std_path())
-        .unwrap();
+    fs::create_dir_all(
+        context
+            .paths
+            .ccbd_startup_report_path()
+            .parent()
+            .unwrap()
+            .as_std_path(),
+    )
+    .unwrap();
     fs::write(
         context.paths.ccbd_startup_report_path().as_std_path(),
         "{this is not json}\n",
     )
     .unwrap();
-    fs::create_dir_all(context.paths.agent_runtime_path("demo").parent().unwrap().as_std_path())
-        .unwrap();
+    fs::create_dir_all(
+        context
+            .paths
+            .agent_runtime_path("demo")
+            .parent()
+            .unwrap()
+            .as_std_path(),
+    )
+    .unwrap();
     fs::write(
         context.paths.agent_runtime_path("demo").as_std_path(),
         "{this is also not json}\n",
@@ -315,7 +372,11 @@ fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
 
     let isolated_home = provider_state_dir.join("home");
     fs::create_dir_all(isolated_home.as_std_path()).unwrap();
-    fs::write(isolated_home.join("config.toml").as_std_path(), "[model]\nname=\"gpt-5\"\n").unwrap();
+    fs::write(
+        isolated_home.join("config.toml").as_std_path(),
+        "[model]\nname=\"gpt-5\"\n",
+    )
+    .unwrap();
     fs::write(
         isolated_home.join("auth.json").as_std_path(),
         "{\"OPENAI_API_KEY\":\"secret\"}\n",
@@ -363,19 +424,23 @@ fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
         e["archive_path"] == "project/.ccb/agents/demo/provider-state/codex/home/config.toml"
             && e["status"] == "included"
     }));
-    assert!(entries
-        .iter()
-        .all(|e| e["archive_path"] != "project/.ccb/agents/demo/provider-state/codex/home/auth.json"));
+    assert!(entries.iter().all(
+        |e| e["archive_path"] != "project/.ccb/agents/demo/provider-state/codex/home/auth.json"
+    ));
     assert!(entries.iter().all(|e| e["archive_path"]
         != "project/.ccb/agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json"));
 
     let storage_entries = storage_summary["entries"].as_array().unwrap();
     assert!(storage_entries.iter().any(|e| {
-        e["relative_path"] == "agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json"
+        e["relative_path"]
+            == "agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json"
             && e["storage_class"] == "startup_authority_bundle"
     }));
 
-    assert!(members.contains(&format!("{}/generated/storage-summary.json", summary.bundle_id)));
+    assert!(members.contains(&format!(
+        "{}/generated/storage-summary.json",
+        summary.bundle_id
+    )));
     assert!(!members.contains(&format!(
         "{}/project/.ccb/agents/demo/provider-state/codex/home/auth.json",
         summary.bundle_id
@@ -392,11 +457,18 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
     let project_root = tmp.path().join("repo-bundle-provider-state-storage-error");
     let ccb_dir = project_root.join(".ccb");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "codexer:codex\nclauder:claude\ngem:gemini\n").unwrap();
+    fs::write(
+        ccb_dir.join("ccb.config"),
+        "codexer:codex\nclauder:claude\ngem:gemini\n",
+    )
+    .unwrap();
 
     let context = build_context(project_root.clone());
 
-    let codex_home = context.paths.agent_provider_state_dir("codexer", "codex").join("home");
+    let codex_home = context
+        .paths
+        .agent_provider_state_dir("codexer", "codex")
+        .join("home");
     fs::create_dir_all(codex_home.as_std_path()).unwrap();
     fs::write(
         codex_home.join("config.toml").as_std_path(),
@@ -422,7 +494,10 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
     fs::write(outside.join("leaked.json"), "{\"secret\":\"outside\"}\n").unwrap();
     let _ = std::os::unix::fs::symlink(&outside, codex_home.join("linked-outside"));
 
-    let claude_home = context.paths.agent_provider_state_dir("clauder", "claude").join("home");
+    let claude_home = context
+        .paths
+        .agent_provider_state_dir("clauder", "claude")
+        .join("home");
     let claude_version_manifest = claude_home
         .join(".local")
         .join("share")
@@ -431,13 +506,23 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
         .join("2.1.137")
         .join("metadata.json");
     fs::create_dir_all(claude_version_manifest.parent().unwrap().as_std_path()).unwrap();
-    fs::write(claude_version_manifest.as_std_path(), "{\"version\":\"2.1.137\"}\n").unwrap();
+    fs::write(
+        claude_version_manifest.as_std_path(),
+        "{\"version\":\"2.1.137\"}\n",
+    )
+    .unwrap();
 
-    let gemini_home = context.paths.agent_provider_state_dir("gem", "gemini").join("home");
+    let gemini_home = context
+        .paths
+        .agent_provider_state_dir("gem", "gemini")
+        .join("home");
     let gemini_cache = gemini_home.join(".npm").join("_cacache").join("index.json");
     fs::create_dir_all(gemini_cache.parent().unwrap().as_std_path()).unwrap();
     fs::write(gemini_cache.as_std_path(), "{\"cache\":true}\n").unwrap();
-    let gemini_node_gyp = gemini_home.join(".cache").join("node-gyp").join("config.json");
+    let gemini_node_gyp = gemini_home
+        .join(".cache")
+        .join("node-gyp")
+        .join("config.json");
     fs::create_dir_all(gemini_node_gyp.parent().unwrap().as_std_path()).unwrap();
     fs::write(gemini_node_gyp.as_std_path(), "{\"cache\":true}\n").unwrap();
 
@@ -450,9 +535,10 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
         kind: "doctor".into(),
     })
     .unwrap();
-    let summary =
-        export_diagnostic_bundle_with_storage(&context, &command, |_paths| Err("storage failed".into()))
-            .unwrap();
+    let summary = export_diagnostic_bundle_with_storage(&context, &command, |_paths| {
+        Err("storage failed".into())
+    })
+    .unwrap();
     let bundle_path = PathBuf::from(&summary.bundle_path);
     let manifest = read_tar_json(&bundle_path, format!("{}/manifest.json", summary.bundle_id));
     let storage_summary = read_tar_json(
@@ -467,19 +553,30 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
         e["archive_path"] == "project/.ccb/agents/codexer/provider-state/codex/home/config.toml"
             && e["status"] == "included"
     }));
-    assert!(entries.iter().all(|e| !e["archive_path"].as_str().unwrap().contains("/.tmp/plugins/")));
-    assert!(entries
-        .iter()
-        .all(|e| !e["archive_path"].as_str().unwrap().contains("/.local/share/claude/versions/")));
-    assert!(entries.iter().all(|e| !e["archive_path"].as_str().unwrap().contains("/.npm/_cacache/")));
-    assert!(entries
-        .iter()
-        .all(|e| !e["archive_path"].as_str().unwrap().contains("/.cache/node-gyp/")));
-    assert!(entries
-        .iter()
-        .all(|e| !e["archive_path"].as_str().unwrap().contains("linked-outside")));
+    assert!(entries.iter().all(|e| !e["archive_path"]
+        .as_str()
+        .unwrap()
+        .contains("/.tmp/plugins/")));
+    assert!(entries.iter().all(|e| !e["archive_path"]
+        .as_str()
+        .unwrap()
+        .contains("/.local/share/claude/versions/")));
+    assert!(entries.iter().all(|e| !e["archive_path"]
+        .as_str()
+        .unwrap()
+        .contains("/.npm/_cacache/")));
+    assert!(entries.iter().all(|e| !e["archive_path"]
+        .as_str()
+        .unwrap()
+        .contains("/.cache/node-gyp/")));
+    assert!(entries.iter().all(|e| !e["archive_path"]
+        .as_str()
+        .unwrap()
+        .contains("linked-outside")));
     assert!(members.iter().all(|m| !m.contains("/.tmp/plugins/")));
-    assert!(members.iter().all(|m| !m.contains("/.local/share/claude/versions/")));
+    assert!(members
+        .iter()
+        .all(|m| !m.contains("/.local/share/claude/versions/")));
     assert!(members.iter().all(|m| !m.contains("/.npm/_cacache/")));
     assert!(members.iter().all(|m| !m.contains("/.cache/node-gyp/")));
     assert!(members.iter().all(|m| !m.contains("linked-outside")));
@@ -503,7 +600,11 @@ fn test_export_diagnostic_bundle_excludes_gemini_auth_artifacts() {
         "{\"security\":{\"auth\":{\"selectedType\":\"oauth-personal\"}}}\n",
     )
     .unwrap();
-    fs::write(managed_home.join(".env").as_std_path(), "GEMINI_API_KEY=secret\n").unwrap();
+    fs::write(
+        managed_home.join(".env").as_std_path(),
+        "GEMINI_API_KEY=secret\n",
+    )
+    .unwrap();
     fs::write(
         managed_home.join("google_accounts.json").as_std_path(),
         "{\"active\":\"user@example.test\"}\n",
@@ -531,13 +632,16 @@ fn test_export_diagnostic_bundle_excludes_gemini_auth_artifacts() {
     let entries = manifest["entries"].as_array().unwrap();
 
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/settings.json"
+        e["archive_path"]
+            == "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/settings.json"
             && e["status"] == "included"
     }));
     assert!(entries.iter().all(|e| e["archive_path"]
         != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/oauth_creds.json"));
-    assert!(entries.iter().all(|e| e["archive_path"]
-        != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/.env"));
+    assert!(entries
+        .iter()
+        .all(|e| e["archive_path"]
+            != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/.env"));
     assert!(entries.iter().all(|e| e["archive_path"]
         != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/google_accounts.json"));
     assert!(!members.contains(&format!(
@@ -594,7 +698,8 @@ fn test_export_diagnostic_bundle_excludes_claude_credentials() {
     let entries = manifest["entries"].as_array().unwrap();
 
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/demo/provider-state/claude/home/.claude/settings.json"
+        e["archive_path"]
+            == "project/.ccb/agents/demo/provider-state/claude/home/.claude/settings.json"
             && e["status"] == "included"
     }));
     assert!(entries.iter().all(|e| e["archive_path"]
@@ -619,18 +724,27 @@ fn test_export_diagnostic_bundle_excludes_claude_home_hook_assets() {
     let managed_home = provider_state_dir.join("home");
     fs::create_dir_all(managed_home.join(".claude").as_std_path()).unwrap();
     fs::write(
-        managed_home.join(".claude").join("settings.json").as_std_path(),
+        managed_home
+            .join(".claude")
+            .join("settings.json")
+            .as_std_path(),
         "{\"theme\":\"dark\"}\n",
     )
     .unwrap();
     fs::create_dir_all(managed_home.join(".codeisland").as_std_path()).unwrap();
     fs::write(
-        managed_home.join(".codeisland").join("state.json").as_std_path(),
+        managed_home
+            .join(".codeisland")
+            .join("state.json")
+            .as_std_path(),
         "{\"secret\":\"token\"}\n",
     )
     .unwrap();
     fs::write(
-        managed_home.join(".codeisland").join("codeisland-hook.sh").as_std_path(),
+        managed_home
+            .join(".codeisland")
+            .join("codeisland-hook.sh")
+            .as_std_path(),
         "#!/bin/sh\nexit 0\n",
     )
     .unwrap();
@@ -651,11 +765,13 @@ fn test_export_diagnostic_bundle_excludes_claude_home_hook_assets() {
     let entries = manifest["entries"].as_array().unwrap();
 
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/demo/provider-state/claude/home/.claude/settings.json"
+        e["archive_path"]
+            == "project/.ccb/agents/demo/provider-state/claude/home/.claude/settings.json"
             && e["status"] == "included"
     }));
-    assert!(entries
-        .iter()
-        .all(|e| !e["archive_path"].as_str().unwrap().contains("/.codeisland/")));
+    assert!(entries.iter().all(|e| !e["archive_path"]
+        .as_str()
+        .unwrap()
+        .contains("/.codeisland/")));
     assert!(members.iter().all(|m| !m.contains("/.codeisland/")));
 }

@@ -1,3 +1,6 @@
 //! Mirrors Python `lib/cli/services/maintenance.py`.
-//! 1:1 file alignment stub.
-// TODO: align with Python
+
+use crate::context::CliContext;
+
+/// Stop the maintenance heartbeat runner. Currently a no-op stub.
+pub fn stop_maintenance_heartbeat_runner(_context: &CliContext, _reason: &str) {}
