@@ -57,3 +57,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: daemon-lifecycle parity: verify, fix fmt, commit, archive
+
+**Date**: 2026-06-22
+**Task**: daemon-lifecycle parity: verify, fix fmt, commit, archive
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Verified Kimi's 96 uncommitted files (provider launchers + ask/kill service + orchestration) for Trellis task 06-20-py2rust-daemon-lifecycle. cargo fmt applied (5 files). Serial tests green (ccb-providers + ccb-daemon, --test-threads=1); build OK, clippy 0 error. ccb-cli --lib has 2 pre-existing environment-flaky tests (source_guard test_ccb2 path convention, doctor_runtime root-ownership) outside task scope — deferred to follow-up. Committed as c2eb8bb9, then archived task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c2eb8bb9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
