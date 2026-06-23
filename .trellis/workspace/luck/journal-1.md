@@ -123,3 +123,61 @@ Added per-mod static Mutex (ENV_TEST_LOCK) to 5 ccb-cli test mods whose std::env
 ### Next Steps
 
 - None - task complete
+
+
+## 2026-06-22 py2rust-cli-services-impl
+
+### Summary
+
+Implemented Wave 1 CLI services architecture unlock: wired `phase2_runtime` and `render_runtime` modules into `ccb-cli`, fixed pre-existing compile errors, completed `DaemonPhase2Services` (29 `Phase2Services` methods) backed by `CcbdClient`, and added end-to-end `ccb ps`/`ping` integration tests.
+
+### Main Changes
+
+- `rust/crates/ccb-cli/src/lib.rs`: exposed `phase2_runtime` and `render_runtime` modules.
+- `rust/crates/ccb-cli/src/ccbd.rs`: already-complete daemon socket client (uses `op`/`request` RPC shape via `ccb_daemon::socket_client_runtime`).
+- `rust/crates/ccb-cli/src/phase2_services.rs`: `DaemonPhase2Services` implementing all 29 trait methods; daemon-backed ops forward to matching daemon RPC, `ps_summary` uses local `services::ps`, stubs for unimplemented doctor/diagnostic/config_validate.
+- `rust/crates/ccb-cli/src/render_runtime/ops_views_basic.rs`, `ops_views_doctor.rs`, `ops_views.rs`, `phase2_runtime/context.rs`, `handlers_start.rs`, `common.rs`: compile fixes (type mismatches, format strings, ownership, terminal-size helper, unused imports/mut).
+- `rust/crates/ccb-cli/src/context.rs`: derived `Clone` for `CliContextBuilder`.
+- `rust/crates/ccb-cli/tests/phase2_ps_ping_tests.rs`: new integration tests driving `phase2_runtime::dispatch::dispatch` for `ps` and `ping`.
+
+### Testing
+
+- `cargo test -p ccb-cli -- --test-threads=1` → 209 passed; 0 failed
+- `cargo test -p ccb-cli --lib -- --test-threads=1` → 123 passed; 0 failed
+- `cargo clippy -p ccb-cli --all-targets -- -D warnings` → clean
+- `codegraph sync` → up to date
+
+### Status
+
+[OK] **Completed** — ready for commit.
+
+
+## Session 4: W1: CLI services impl + socket client parity
+
+**Date**: 2026-06-24
+**Task**: W1: CLI services impl + socket client parity
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Implemented DaemonPhase2Services (29 methods) over CcbdClient, wired phase2_runtime/render_runtime, fixed compile errors, added phase2 ps/ping end-to-end tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
