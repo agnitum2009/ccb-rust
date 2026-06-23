@@ -181,3 +181,34 @@ Implemented DaemonPhase2Services (29 methods) over CcbdClient, wired phase2_runt
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: W2 runtime launch orchestration parity
+
+**Date**: 2026-06-24
+**Task**: W2 runtime launch orchestration parity
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Extended provider_launcher with codex/claude/gemini/agy/droid branches, implemented EnsureAgentRuntimeImpl orchestrator, integrated with start_agent_runtime, added tests, updated parity matrix.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
