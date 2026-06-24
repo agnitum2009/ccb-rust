@@ -280,3 +280,56 @@ Batch-deleted 697 empty TODO: align with Python stub mirrors from ccb-providers 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Wave 3 品牌：ccb→ccbr 全面重命名
+
+**Date**: 2026-06-24
+**Task**: Wave 3 品牌：ccb→ccbr 全面重命名（二进制/配置目录/配置文件/tmux身份/env/crate名）
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+完成 Rust workspace 从 ccb 到 ccbr 的全面品牌重命名，避免与本地已安装的 Python ccb 在调试/运行时混淆。涵盖配置路径、crate 名、tmux/env、daemon 二进制、文档/脚本、剩余字符串/注释/测试，并保留 rolepacks.rs 中旧版 provider 兼容标识与 CCB.md  legacy 路径。
+
+### Main Changes
+
+- `.ccb` → `.ccbr`, `ccb.config` → `ccbr.config`
+- `ccb-*` crates/tools → `ccbr-*`, `ccb_`/`ccb-` identifiers → `ccbr_`/`ccbr-`
+- `@ccb_` → `@ccbr_`, `CCB_` env → `CCBR_`
+- daemon binary `ccbd` → `ccbrd`
+- 文档、注释、测试、用户提示字符串 `ccb`/`CCB` → `ccbr`/`CCBR`
+- 保留 `rolepacks.rs` 中的 `adapters/ccb`、`hosts=ccb`、legacy role-store 等旧版标识
+- 保留 `CCB.md` 作为 legacy memory 路径，并修复 legacy v4 模板测试
+- 更新 `ccbr-project` project-id 参考测试 hash 为 `/mnt/C/code/ccbr`
+- 产品仓 `agnitum2009/ccb-rust:master` 已 force-push 为最新 Rust workspace
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f7321eaf` | refactor(brand): ccb->ccbr phase 1 - config paths |
+| `8b09344b` | refactor(brand): ccb->ccbr phase 2 - crate names |
+| `a199eeb7` | refactor(brand): ccb->ccbr phase 3 - tmux identity and env variables |
+| `ff5a1022` | refactor(brand): ccb->ccbr phase 4 - daemon binary ccbd->ccbrd |
+| `0cae8a00` | refactor(brand): ccb->ccbr phase 5 - docs/scripts brand |
+| `ea608b4f` | chore(brand): remove stale Cargo.toml.bak from rename |
+| `16f76776` | refactor(brand): ccb->ccbr phase 5b - remaining brand strings, comments, tests |
+| `c415046f` | refactor(brand): ccb->ccbr phase 5c - rolepacks user-facing command strings |
+
+### Testing
+
+- [OK] `cargo check --workspace`
+- [OK] `cargo clippy --workspace --all-targets -- -D warnings`
+- [OK] `cargo fmt --check`
+- [OK] `cargo test --workspace -- --test-threads=1`
+- [OK] `/tmp/ccb-rust-build cargo check --workspace`
+- [OK] `agnitum2009/ccb-rust:master` force-pushed
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
