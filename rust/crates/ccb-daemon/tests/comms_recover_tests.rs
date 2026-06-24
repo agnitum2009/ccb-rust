@@ -488,3 +488,37 @@ fn comms_recover_releases_only_targeted_mailbox_head() {
         "unrelated job should not be terminated by recovery"
     );
 }
+
+/// Mirrors `test_project_view_marks_recoverable_and_clears_after_recovery`.
+#[test]
+fn comms_recoverability_view_marks_recoverable_and_clears_after_recovery() {
+    let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
+    let source = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.complete(&source, JobStatus::Incomplete, "manual_fail");
+
+    let before = dispatcher
+        .comms_recoverability_view()
+        .into_iter()
+        .find(|c| c["agent_name"].as_str() == Some("agent1"))
+        .expect("agent1 comms entry");
+    assert_eq!(before["recoverable"].as_bool(), Some(true));
+    assert_eq!(
+        before["recover_target"]["job_id"].as_str(),
+        Some(source.as_str())
+    );
+    assert_eq!(before["block_reason"].as_str(), Some("job_incomplete"));
+
+    dispatcher.comms_recover(&json!({ "job_id": &source }));
+
+    let after = dispatcher
+        .comms_recoverability_view()
+        .into_iter()
+        .find(|c| c["agent_name"].as_str() == Some("agent1"))
+        .expect("agent1 comms entry");
+    assert_ne!(after["id"].as_str(), Some(source.as_str()));
+    assert_eq!(after["recoverable"].as_bool(), Some(false));
+    assert!(after["recover_target"].is_null());
+}

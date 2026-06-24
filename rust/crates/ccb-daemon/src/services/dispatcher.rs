@@ -741,6 +741,31 @@ impl JobDispatcher {
     /// Mirrors Python `comms_recoverability_for_job` (Slice 1 subset: RUNNING
     /// stale detection only). Failed-terminal + reply-delivery retry cases
     /// (which need lineage / `_can_retry_job`) arrive in Slice 2+.
+    /// Surface per-agent comms recoverability for the project view (mirrors
+    /// Python `ProjectViewService` comms `recoverable`/`recover_target`/
+    /// `block_reason` fields). One entry per agent's latest job.
+    pub fn comms_recoverability_view(&self) -> Vec<serde_json::Value> {
+        self.agent_names
+            .iter()
+            .filter_map(|agent| {
+                let job = self.latest_for_agent(agent)?;
+                let rec = self.comms_recoverability_for_job(job, None);
+                let recover_target = if rec.recoverable {
+                    serde_json::json!({ "job_id": job.job_id })
+                } else {
+                    serde_json::Value::Null
+                };
+                Some(serde_json::json!({
+                    "id": job.job_id,
+                    "agent_name": job.agent_name,
+                    "recoverable": rec.recoverable,
+                    "recover_target": recover_target,
+                    "block_reason": rec.block_reason,
+                }))
+            })
+            .collect()
+    }
+
     fn comms_recoverability_for_job(
         &self,
         job: &JobRecord,
