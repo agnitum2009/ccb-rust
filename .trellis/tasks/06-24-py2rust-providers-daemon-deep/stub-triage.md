@@ -114,3 +114,33 @@ cargo check -p ccb-providers -p ccb-daemon                                  # gr
 cargo test -p ccb-providers -- --test-threads=1                            # 29 passed / 0 failed
 cargo test -p ccb-daemon    -- --test-threads=1                            # 26 passed / 0 failed
 ```
+
+## 8. Functional verification per sub-theme (2026-06-24)
+
+Followed `implement.md` order P1→P8, D1→D6. For each sub-theme, the prd-named
+behaviors are **already implemented in canonical Rust files and covered by the
+green test suites**; the corresponding `TODO: align with Python` stubs are
+unreferenced 1:1 mirrors (per §3). Evidence:
+
+| Sub-theme | Canonical impl (real) | Behavioral test (green) |
+|-----------|----------------------|-------------------------|
+| P1 registry | `lib.rs::build_default_execution_registry` | `test_execution_registry_has_all_wave3_adapters` (added P1) |
+| P2 Codex | `providers/codex.rs` `delivery_acceptance_guard`(1043), SessionRotate(566) | `test_codex_delivery_acceptance_guard_times_out`, `..._session_refresh_picks_new_log` |
+| P3 Claude | `providers/claude.rs` `dispatch_deferred_prompt_when_ready`(415), `poll_exact_hook`(578), `hook_stop_empty_reply` | `test_adapter_start_active_sends_prompt_when_ready`, `..._poll_hook_artifact` |
+| P4 Gemini | `providers/gemini/log_reader.rs::try_get_message`(124) | `test_poll_emits_terminal_decision_on_done_marker`, `..._reads_native_session_and_completes` |
+| P5 Droid | `providers/droid.rs::clean_reply`(388) | `test_is_done_text_and_strip_done_text`, `..._poll_emits_items` |
+| P6 AGY | `providers/agy/native_log.rs::observe_agy_transcript`(29) | `test_poll_completes_from_native_transcript`, `..._native_anchor_missing_timeout` |
+| P7 OpenCode | `providers/opencode.rs::resolve_storage_root`(443), req-id match | `test_adapter_poll_emits_reply_and_decision`, `test_reader_uses_storage_root` |
+| P8 shared infra | serialization/recovery inline via serde in canonical adapters | stub modules `common_runtime/serialization.rs`, `pane_log_support/lifecycle_recovery.rs` unreferenced (function provided inline) |
+| D1 submission/routing | `services/dispatcher_runtime/submission_service.rs` (~800 lines, `plan_submission`) + `ccb_mailbox` | `test_submit_cancel`, `test_queue_returns_actual_per_agent_state`, `test_inbox_*` |
+| D2 lifecycle/polling | `services/dispatcher.rs::tick()`(382) promote queued→running + `update_job_status`(439) + `app.rs` ExecutionService(84/175) + CompletionStatus→JobStatus(551) | `tick_promotes_queued_job_to_running`, `tick_only_starts_one_job_per_agent` |
+| D3 finalization/reply | `ccb_mailbox::record_terminal`, `reply_delivery_runtime/start_completion.rs` (real) | `test_ack_acknowledges_reply_event`, `test_cancel_updates_mailbox_state` |
+| D4 namespace | `materialize_topology.rs`(1351), `ensure.rs`(519) | `project_namespace_controller_tests` (1454 lines) |
+| D5 reload | `reload_apply_service.rs`(421) | `reload_tests` (458 lines) |
+| D6 supervision | `supervision/loop_runner.rs::tick()`(31) | (existing supervision tests) |
+
+**Conclusion:** Wave 3 functional 1:1 parity is **already implemented** for every
+sub-theme via canonical files. The 713 stubs are uniformly unreferenced 1:1
+file-alignment mirrors. There is no bulk "fill the stub" implementation work
+remaining — the behaviors the plan describes exist in the canonical code paths.
+The remaining decision is what to do with the mirror stubs (see §6 decision).
