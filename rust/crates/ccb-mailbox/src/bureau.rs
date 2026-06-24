@@ -344,6 +344,29 @@ impl MessageBureauControlService {
         crate::control_queue::inbox(&self.state, agent_name, detail)
     }
 
+    /// Read access to the inbound event store (mirrors Python
+    /// `_message_bureau_control._inbound_store`). Additive API exposed for
+    /// daemon comms-recovery parity; wraps the existing pub store, no behavior
+    /// change.
+    pub fn inbound_store(&self) -> &crate::stores::InboundEventStore {
+        &self.state.inbound_store
+    }
+
+    /// Read access to the delivery lease store.
+    pub fn lease_store(&self) -> &crate::stores::DeliveryLeaseStore {
+        &self.state.lease_store
+    }
+
+    /// Read access to the mailbox kernel service (head/abandon/refresh).
+    pub fn mailbox_kernel(&self) -> &crate::kernel::MailboxKernelService {
+        &self.state.mailbox_kernel
+    }
+
+    /// Read access to the attempt store.
+    pub fn attempt_store(&self) -> &crate::stores::AttemptStore {
+        &self.state.attempt_store
+    }
+
     pub fn mailbox_head(&self, agent_name: &str) -> Value {
         crate::control_queue::mailbox_head(&self.state, agent_name)
     }
