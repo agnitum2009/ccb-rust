@@ -66,6 +66,7 @@ pub fn build_default_backend_registry() -> ccb_provider_core::registry::Provider
 
 pub mod active;
 pub mod active_jobs;
+pub mod active_runtime;
 pub mod api_errors;
 pub mod asking;
 pub mod assistant;
