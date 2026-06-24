@@ -2324,10 +2324,7 @@ impl JobDispatcher {
             .unwrap_or_default();
         // Idempotency: a recovery delivery already exists for this source.
         if deliveries.len() > 1 {
-            let newest = deliveries
-                .iter()
-                .rfind(|id| *id != delivery_id)
-                .cloned();
+            let newest = deliveries.iter().rfind(|id| *id != delivery_id).cloned();
             return serde_json::json!({
                 "job_id": source.job_id,
                 "agent_name": source.agent_name,
