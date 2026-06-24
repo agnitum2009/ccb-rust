@@ -161,6 +161,11 @@ fn write_seed_metadata(
     memory_hash: &str,
     now: Option<&str>,
 ) -> (bool, String) {
+    if let Some(parent) = seed_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            return (false, format!("failed_to_create_seed_dir: {e}"));
+        }
+    }
     let timestamp = now
         .map(|s| s.to_string())
         .unwrap_or_else(|| Utc::now().to_rfc3339());
@@ -216,7 +221,12 @@ fn should_upgrade_project_memory(
     seed_version < TEMPLATE_VERSION
 }
 
-fn legacy_generated_template_version(_current_hash: &str) -> Option<i64> {
-    // No legacy templates are tracked in the Rust migration yet.
+const LEGACY_V4_TEMPLATE_HASH: &str =
+    "60b058f792c7e927ff816109c9b9717f176bf7f694306b325118e5fd843486cb";
+
+fn legacy_generated_template_version(current_hash: &str) -> Option<i64> {
+    if current_hash == LEGACY_V4_TEMPLATE_HASH {
+        return Some(4);
+    }
     None
 }

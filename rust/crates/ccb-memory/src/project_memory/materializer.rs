@@ -34,8 +34,24 @@ pub fn materialize_runtime_memory_bundle(
             MemoryError::InvalidArgument(format!("non-UTF-8 project root: {}", p.display()))
         })?,
     );
-    let normalized_agent =
-        normalize_agent_name(agent_name).unwrap_or_else(|_| agent_name.to_lowercase());
+    let normalized_agent = match normalize_agent_name(agent_name) {
+        Ok(n) => n,
+        Err(e) => {
+            warnings.push(format!("invalid_agent_name: {e}"));
+            return Ok(ProjectMemoryMaterialization {
+                path: project_root
+                    .join(".ccb")
+                    .join("runtime")
+                    .join("memory")
+                    .join(format!("{}.md", agent_name.replace('/', "_"))),
+                written: false,
+                unchanged: false,
+                sha256: String::new(),
+                sources: Vec::new(),
+                warnings,
+            });
+        }
+    };
 
     let ensure_result = ensure_project_memory(&layout, now)?;
     if !ensure_result.warning.is_empty() {

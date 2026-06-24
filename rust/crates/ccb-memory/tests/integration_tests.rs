@@ -1,8 +1,10 @@
 use ccb_memory::{
-    agent_private_memory_path, auto_source_candidates, materialize_runtime_memory_bundle,
-    ContextFormatter, ContextTransfer, ConversationDeduper, ConversationEntry, ProjectMemorySource,
-    TransferContext,
+    agent_private_memory_path, auto_source_candidates, ensure_project_memory, load_memory_sources,
+    materialize_runtime_memory_bundle, project_memory_path, runtime_memory_bundle_path,
+    seed_metadata_path, ContextFormatter, ContextTransfer, ConversationDeduper, ConversationEntry,
+    ProjectMemorySource, TransferContext,
 };
+use ccb_storage::paths::PathLayout;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -431,4 +433,529 @@ fn test_auto_source_candidates_prefers_bound_agent_session() {
 
     let ordered = auto_source_candidates(&workspace, &["codex", "gemini"], &source_session_files);
     assert_eq!(ordered[..2], ["gemini", "codex"]);
+}
+
+// ---------------------------------------------------------------------------
+// Project memory filter tests (parity with test_project_memory_filters.py)
+// ---------------------------------------------------------------------------
+
+fn filter_source(text: &str, kind: &str) -> ProjectMemorySource {
+    let source = ProjectMemorySource::new(
+        kind,
+        "Provider User Memory",
+        PathBuf::from("/tmp/AGENTS.md"),
+        text,
+        true,
+    );
+    ccb_memory::filter_memory_source(&source, &["ccb_install_blocks".to_string()])
+}
+
+#[test]
+fn filter_strips_complete_ccb_config_block() {
+    let result = filter_source(
+        "before\n<!-- CCB_CONFIG_START -->\nconfig\n<!-- CCB_CONFIG_END -->\nafter\n",
+        "provider_user_memory",
+    );
+    assert_eq!(result.content, "before\nafter\n");
+    assert!(result.filtered);
+    assert_eq!(result.filter_names, vec!["ccb_install_blocks"]);
+}
+
+#[test]
+fn filter_strips_complete_roles_and_rubrics_blocks() {
+    let result = filter_source(
+        "keep\n<!-- CCB_ROLES_START -->roles<!-- CCB_ROLES_END -->\n<!-- REVIEW_RUBRICS_START -->rubric<!-- REVIEW_RUBRICS_END -->\ntail\n",
+        "provider_user_memory",
+    );
+    assert_eq!(result.content, "keep\ntail\n");
+}
+
+#[test]
+fn filter_strips_review_and_gemini_inspiration_blocks() {
+    let result = filter_source(
+        "keep\n<!-- CODEX_REVIEW_START -->review<!-- CODEX_REVIEW_END -->\n<!-- GEMINI_INSPIRATION_START -->idea<!-- GEMINI_INSPIRATION_END -->\ntail\n",
+        "provider_user_memory",
+    );
+    assert_eq!(result.content, "keep\ntail\n");
+}
+
+#[test]
+fn filter_strips_legacy_collaboration_sections() {
+    let result = filter_source(
+        "intro\n## Codex Collaboration Rules\nold codex\n## Gemini Collaboration Rules\nold gemini\n## OpenCode Collaboration Rules\nold opencode\n",
+        "provider_user_memory",
+    );
+    assert!(!result.content.contains("Collaboration Rules"));
+    assert_eq!(result.content, "intro\n");
+}
+
+#[test]
+fn filter_strips_legacy_chinese_collaboration_sections() {
+    let result = filter_source(
+        "intro\n## Codex 协作规则\nold codex\n## Gemini 协作规则\nold gemini\n## OpenCode 协作规则\nold opencode\n",
+        "provider_user_memory",
+    );
+    assert!(!result.content.contains("协作规则"));
+    assert_eq!(result.content, "intro\n");
+}
+
+#[test]
+fn filter_preserves_user_paragraph_spacing_after_block_removal() {
+    let result = filter_source(
+        "first paragraph\n\nsecond paragraph\n<!-- CCB_CONFIG_START -->\nold config\n<!-- CCB_CONFIG_END -->\nthird paragraph\n",
+        "provider_user_memory",
+    );
+    assert_eq!(
+        result.content,
+        "first paragraph\n\nsecond paragraph\nthird paragraph\n"
+    );
+}
+
+#[test]
+fn filter_preserves_isolated_marker() {
+    let text = "before\n<!-- CCB_CONFIG_START -->\nuser note without end marker\n";
+    let result = filter_source(text, "provider_user_memory");
+    assert_eq!(result.content, text);
+    assert!(!result.filtered);
+}
+
+#[test]
+fn filter_preserves_unrelated_user_text() {
+    let text = "Use ask carefully, but this is user-authored and has no CCB marker pair.\n";
+    let result = filter_source(text, "provider_user_memory");
+    assert_eq!(result.content, text);
+    assert!(!result.filtered);
+}
+
+#[test]
+fn filter_only_applies_to_provider_user_memory() {
+    let text = "before\n<!-- CCB_CONFIG_START -->\nconfig\n<!-- CCB_CONFIG_END -->\nafter\n";
+    let result = filter_source(text, "ccb_shared");
+    assert_eq!(result.content, text);
+    assert!(!result.filtered);
+}
+
+#[test]
+fn memory_provider_policy_excludes_native_project_for_duplicate_loading_providers() {
+    assert!(!ccb_memory::should_include_source(
+        "claude",
+        "provider_native_project"
+    ));
+    assert!(!ccb_memory::should_include_source(
+        "codex",
+        "provider_native_project"
+    ));
+    assert!(!ccb_memory::should_include_source(
+        "opencode",
+        "provider_native_project"
+    ));
+    assert!(ccb_memory::should_include_source(
+        "gemini",
+        "provider_native_project"
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// Project memory ensure/load/materialize tests (parity with test_project_memory.py)
+// ---------------------------------------------------------------------------
+
+fn legacy_v4_project_memory_template() -> &'static str {
+    r#"# CCB Project Memory
+
+This project uses CCB for visible multi-agent collaboration.
+
+## Collaboration
+
+- You are one agent in a CCB-managed project team.
+- Use CCB `ask` for project-level collaboration with configured agents.
+- Delegate with the goal, scope/files, assumptions, expected output, and verification needs.
+- Reply concisely with findings, changes, verification, blockers, and risks when relevant.
+
+## Ask Communication
+
+Preferred form:
+
+```text
+/ask <agent> <message>
+```
+
+Shell fallback:
+
+```bash
+command ask "$TARGET" <<'EOF'
+$MESSAGE
+EOF
+```
+
+- Submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
+- During an active CCB ask task, use `ask --callback` when a child result is needed; use `ask --silence` only for independent no-result-needed work.
+- Plain nested `ask` from an active task is rejected by CCB.
+"#
+}
+
+#[test]
+fn ensure_project_memory_creates_template_and_seed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+
+    let result = ensure_project_memory(&layout, Some("2026-05-11T00:00:00+00:00")).unwrap();
+
+    assert!(result.created);
+    assert!(result.seed_written);
+    assert!(result.warning.is_empty());
+    let memory_path = project_memory_path(&layout);
+    assert!(memory_path.is_file());
+    let text = std::fs::read_to_string(&memory_path).unwrap();
+    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    assert!(text.contains("Use CCB `ask` for project-level collaboration with configured agents."));
+    assert!(!text.contains("Plain nested `ask` from an active task is"));
+    assert!(!text.contains("command ask \"$TARGET\""));
+    assert!(!text.contains("Do not wait, poll, or run `pend`/`watch`/`ping`"));
+    assert!(!text.contains("ccb -h"));
+
+    let seed = std::fs::read_to_string(seed_metadata_path(&layout)).unwrap();
+    let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
+    assert_eq!(seed["record_type"], "ccb_project_memory_seed");
+    assert_eq!(seed["template_version"], 5);
+    assert_eq!(
+        seed["memory_path"],
+        memory_path.to_string_lossy().to_string()
+    );
+    assert_eq!(seed["sha256"], result.sha256);
+}
+
+#[test]
+fn ensure_project_memory_does_not_overwrite_existing_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, "# Team Memory\n\nKeep this custom text.\n").unwrap();
+
+    let result = ensure_project_memory(&layout, None).unwrap();
+
+    assert!(!result.created);
+    assert!(!result.seed_written);
+    assert_eq!(
+        std::fs::read_to_string(&memory_path).unwrap(),
+        "# Team Memory\n\nKeep this custom text.\n"
+    );
+    assert!(!seed_metadata_path(&layout).exists());
+}
+
+#[test]
+fn ensure_project_memory_ignores_legacy_root_memory() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let legacy_path = project_root.join("CCB.md");
+    std::fs::write(&legacy_path, "legacy shared memory\n").unwrap();
+
+    let result = ensure_project_memory(&layout, None).unwrap();
+    let memory_path = project_memory_path(&layout);
+
+    assert!(result.created);
+    assert!(result.seed_written);
+    let text = std::fs::read_to_string(&memory_path).unwrap();
+    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    assert!(!text.contains("legacy shared memory"));
+    assert_eq!(
+        std::fs::read_to_string(&legacy_path).unwrap(),
+        "legacy shared memory\n"
+    );
+}
+
+#[test]
+fn ensure_project_memory_backfills_missing_seed_for_unedited_template() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+
+    let first = ensure_project_memory(&layout, Some("2026-05-11T00:00:00+00:00")).unwrap();
+    std::fs::remove_file(seed_metadata_path(&layout)).unwrap();
+
+    let second = ensure_project_memory(&layout, Some("2026-05-11T00:01:00+00:00")).unwrap();
+
+    assert!(first.created);
+    assert!(!second.created);
+    assert!(second.seed_written);
+    let seed = std::fs::read_to_string(seed_metadata_path(&layout)).unwrap();
+    let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
+    assert_eq!(seed["sha256"], second.sha256);
+}
+
+#[test]
+fn ensure_project_memory_upgrades_unedited_seeded_old_template() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    let old_template = legacy_v4_project_memory_template();
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, old_template).unwrap();
+    let seed_path = seed_metadata_path(&layout);
+    std::fs::create_dir_all(seed_path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &seed_path,
+        serde_json::json!({
+            "schema_version": 1,
+            "record_type": "ccb_project_memory_seed",
+            "template_version": 4,
+            "memory_path": memory_path.to_string_lossy().to_string(),
+            "sha256": ccb_memory::sha256_text(old_template),
+            "created_at": "2026-06-01T00:00:00+00:00",
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let result = ensure_project_memory(&layout, Some("2026-06-07T00:00:00+00:00")).unwrap();
+
+    assert!(!result.created);
+    assert!(result.seed_written);
+    assert!(result.warning.is_empty());
+    let text = std::fs::read_to_string(&memory_path).unwrap();
+    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    assert!(!text.contains("command ask \"$TARGET\""));
+    let seed = std::fs::read_to_string(&seed_path).unwrap();
+    let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
+    assert_eq!(seed["template_version"], 5);
+    assert_eq!(seed["sha256"], result.sha256);
+}
+
+#[test]
+fn ensure_project_memory_upgrades_unedited_legacy_template_without_seed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    let old_template = legacy_v4_project_memory_template();
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, old_template).unwrap();
+
+    let result = ensure_project_memory(&layout, Some("2026-06-07T00:00:00+00:00")).unwrap();
+
+    assert!(!result.created);
+    assert!(result.seed_written);
+    let text = std::fs::read_to_string(&memory_path).unwrap();
+    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    let seed = std::fs::read_to_string(seed_metadata_path(&layout)).unwrap();
+    let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
+    assert_eq!(seed["template_version"], 5);
+    assert_eq!(seed["sha256"], result.sha256);
+}
+
+#[test]
+fn ensure_project_memory_does_not_upgrade_edited_old_seed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    let seeded_text = "# CCB Project Memory\n\n## Ask Communication\nseeded\n";
+    let edited_text = format!("{}\nUser edit.\n", seeded_text);
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, &edited_text).unwrap();
+    let seed_path = seed_metadata_path(&layout);
+    std::fs::create_dir_all(seed_path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &seed_path,
+        serde_json::json!({
+            "schema_version": 1,
+            "record_type": "ccb_project_memory_seed",
+            "template_version": 4,
+            "memory_path": memory_path.to_string_lossy().to_string(),
+            "sha256": ccb_memory::sha256_text(seeded_text),
+            "created_at": "2026-06-01T00:00:00+00:00",
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let result = ensure_project_memory(&layout, None).unwrap();
+
+    assert!(!result.created);
+    assert!(!result.seed_written);
+    assert_eq!(std::fs::read_to_string(&memory_path).unwrap(), edited_text);
+}
+
+#[test]
+fn load_memory_sources_reads_from_project_root_not_workspace() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    let workspace = tmp.path().join("worktree");
+    std::fs::create_dir(&project_root).unwrap();
+    std::fs::create_dir(&workspace).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, "shared memory\n").unwrap();
+    std::fs::write(project_root.join("GEMINI.md"), "project gemini memory\n").unwrap();
+    std::fs::write(workspace.join("GEMINI.md"), "workspace-only memory\n").unwrap();
+    let agent_private = agent_private_memory_path(&layout, "Agent3");
+    std::fs::create_dir_all(agent_private.parent().unwrap()).unwrap();
+    std::fs::write(&agent_private, "private memory\n").unwrap();
+
+    let sources = load_memory_sources(&layout, "Agent3", "gemini", &[], true, None);
+
+    let content_by_kind: HashMap<String, String> = sources
+        .iter()
+        .map(|s| (s.kind.clone(), s.content.clone()))
+        .collect();
+    assert_eq!(content_by_kind["ccb_shared"], "shared memory\n");
+    assert_eq!(
+        content_by_kind["provider_native_project"],
+        "project gemini memory\n"
+    );
+    assert_eq!(content_by_kind["agent_private"], "private memory\n");
+    assert!(!content_by_kind
+        .values()
+        .any(|c| c.contains("workspace-only memory")));
+}
+
+#[test]
+fn load_memory_sources_can_skip_provider_native_project_memory() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, "shared memory\n").unwrap();
+    std::fs::write(project_root.join("GEMINI.md"), "project gemini memory\n").unwrap();
+    let agent_private = agent_private_memory_path(&layout, "Agent1");
+    std::fs::create_dir_all(agent_private.parent().unwrap()).unwrap();
+    std::fs::write(&agent_private, "private memory\n").unwrap();
+
+    let default_sources = load_memory_sources(&layout, "Agent1", "gemini", &[], true, None);
+    let skipped_sources = load_memory_sources(&layout, "Agent1", "gemini", &[], true, Some(false));
+
+    assert_eq!(
+        default_sources
+            .iter()
+            .map(|s| s.kind.as_str())
+            .collect::<Vec<_>>(),
+        vec!["ccb_shared", "provider_native_project", "agent_private"]
+    );
+    assert_eq!(
+        skipped_sources
+            .iter()
+            .map(|s| s.kind.as_str())
+            .collect::<Vec<_>>(),
+        vec!["ccb_shared", "agent_private"]
+    );
+    assert!(!skipped_sources
+        .iter()
+        .any(|s| s.content.contains("project gemini memory")));
+}
+
+#[test]
+fn materialize_runtime_memory_bundle_writes_generated_bundle_with_workspace() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    let workspace = tmp.path().join("worktree");
+    std::fs::create_dir(&project_root).unwrap();
+    std::fs::create_dir(&workspace).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, "shared ask rules\n").unwrap();
+    std::fs::write(project_root.join("CLAUDE.md"), "claude project rules\n").unwrap();
+    let agent_private = agent_private_memory_path(&layout, "agent1");
+    std::fs::create_dir_all(agent_private.parent().unwrap()).unwrap();
+    std::fs::write(&agent_private, "agent private rules\n").unwrap();
+
+    let result = materialize_runtime_memory_bundle(
+        &project_root,
+        "agent1",
+        "claude",
+        Some(&workspace),
+        None,
+    )
+    .unwrap();
+
+    assert!(result.written);
+    assert!(result.warnings.is_empty());
+    let bundle_path = runtime_memory_bundle_path(&layout, "agent1");
+    assert_eq!(result.path, bundle_path);
+    let text = std::fs::read_to_string(&bundle_path).unwrap();
+    assert!(text.contains("# CCB Managed Agent Memory"));
+    assert!(text.contains("<!-- ccb-memory-bundle schema_version=1"));
+    assert!(text.contains("provider: claude"));
+    assert!(text.contains(&format!(
+        "workspace_path: {}",
+        workspace.canonicalize().unwrap().display()
+    )));
+    assert!(text.contains("## CCB Runtime Coordination Rules"));
+    assert!(text.contains("CCB `ask` is submit-only"));
+    assert!(text.contains("Do not wait, poll, or run `pend`/`watch`/`ping`"));
+    assert!(text.contains("## CCB Shared Project Memory"));
+    assert!(text.contains("shared ask rules"));
+    let coord_pos = text.find("## CCB Runtime Coordination Rules").unwrap();
+    let shared_pos = text.find("## CCB Shared Project Memory").unwrap();
+    assert!(coord_pos < shared_pos);
+    assert!(!text.contains("## Provider-Native Project Memory"));
+    assert!(!text.contains("claude project rules"));
+    assert!(text.contains("## Agent Private Memory"));
+    assert!(text.contains("agent private rules"));
+    let kinds: std::collections::HashSet<String> =
+        result.sources.iter().map(|s| s.kind.clone()).collect();
+    assert_eq!(
+        kinds,
+        std::collections::HashSet::from(["ccb_shared".to_string(), "agent_private".to_string()])
+    );
+}
+
+#[test]
+fn materialize_runtime_memory_bundle_skips_unchanged_write() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+    let layout = PathLayout::new(project_root.to_string_lossy().to_string());
+    let memory_path = project_memory_path(&layout);
+    std::fs::create_dir_all(memory_path.parent().unwrap()).unwrap();
+    std::fs::write(&memory_path, "shared ask rules\n").unwrap();
+
+    let first =
+        materialize_runtime_memory_bundle(&project_root, "agent1", "opencode", None, None).unwrap();
+    let mtime = std::fs::metadata(runtime_memory_bundle_path(&layout, "agent1"))
+        .unwrap()
+        .modified()
+        .unwrap();
+    let second =
+        materialize_runtime_memory_bundle(&project_root, "agent1", "opencode", None, None).unwrap();
+
+    assert!(first.written);
+    assert!(!first.unchanged);
+    assert!(!second.written);
+    assert!(second.unchanged);
+    assert_eq!(
+        std::fs::metadata(runtime_memory_bundle_path(&layout, "agent1"))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        mtime
+    );
+}
+
+#[test]
+fn materialize_runtime_memory_bundle_handles_invalid_agent_name() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("repo");
+    std::fs::create_dir(&project_root).unwrap();
+
+    let result =
+        materialize_runtime_memory_bundle(&project_root, "bad/name", "claude", None, None).unwrap();
+
+    assert!(!result.written);
+    assert!(result.sources.is_empty());
+    assert!(!result.warnings.is_empty());
 }

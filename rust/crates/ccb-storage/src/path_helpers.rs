@@ -92,7 +92,13 @@ pub fn normalized_segment(value: &str, label: &str) -> crate::Result<String> {
     Ok(trimmed.to_string())
 }
 
+const RESERVED_AGENT_NAMES: &[&str] = &[
+    "all", "from", "user", "system", "ask", "cancel", "clear", "pend", "ping", "watch", "kill",
+    "ps", "logs", "doctor", "config", "cmd", "version", "update", "help",
+];
+
 /// Normalize an agent name for use in path segments.
+/// Mirrors Python `agents.models_runtime.names.normalize_agent_name`.
 pub fn normalize_agent_name(name: &str) -> crate::Result<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
@@ -100,7 +106,31 @@ pub fn normalize_agent_name(name: &str) -> crate::Result<String> {
             "agent name cannot be empty".into(),
         ));
     }
-    Ok(trimmed.to_lowercase())
+    if trimmed.len() > 32 {
+        return Err(crate::StorageError::Corrupt(
+            "agent name must be 32 characters or fewer".into(),
+        ));
+    }
+    let mut chars = trimmed.chars();
+    let first = chars.next().unwrap();
+    if !first.is_ascii_alphabetic() {
+        return Err(crate::StorageError::Corrupt(
+            "agent name must start with a letter".into(),
+        ));
+    }
+    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        return Err(crate::StorageError::Corrupt(
+            "agent name must contain only letters, digits, underscores, or hyphens".into(),
+        ));
+    }
+    let normalized = trimmed.to_lowercase();
+    if RESERVED_AGENT_NAMES.contains(&normalized.as_str()) {
+        return Err(crate::StorageError::Corrupt(format!(
+            "agent name {:?} is reserved",
+            normalized
+        )));
+    }
+    Ok(normalized)
 }
 
 /// Normalize a mailbox owner name for use in path segments.

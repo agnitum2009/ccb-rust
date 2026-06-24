@@ -1,0 +1,33 @@
+{
+  "id": "py2rust-memory-project-parity",
+  "name": "py2rust-memory-project-parity",
+  "title": "py2rust memory project memory parity",
+  "description": "Align Rust ccb-memory project-memory filters/ensure/load/materialize behavior with Python reference tests.",
+  "status": "done",
+  "dev_type": null,
+  "scope": null,
+  "package": "ccb-memory",
+  "priority": "P2",
+  "creator": "luck",
+  "assignee": "luck",
+  "createdAt": "2026-06-24",
+  "completedAt": "2026-06-24",
+  "branch": null,
+  "base_branch": "python-rust/rolepacks-versioning-translation",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "rust/crates/ccb-memory/src/project_memory/filters.rs",
+    "rust/crates/ccb-memory/src/project_memory/seed.rs",
+    "rust/crates/ccb-memory/src/project_memory/materializer.rs",
+    "rust/crates/ccb-memory/tests/integration_tests.rs",
+    "rust/crates/ccb-storage/src/path_helpers.rs",
+    "plans/rust-python-test-parity-matrix.md"
+  ],
+  "notes": "Covers test_project_memory_filters.py and test_project_memory.py parity; agent-name normalization aligned with Python agents.models_runtime.names.",
+  "meta": {}
+}

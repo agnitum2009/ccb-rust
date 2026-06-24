@@ -98,12 +98,12 @@ fn strip_legacy_sections(content: &str) -> (String, usize) {
     for line in content.lines() {
         if in_legacy_section.is_some() {
             if line.trim_start().starts_with("## ") {
-                // End of legacy section; keep the boundary header.
-                result_lines.push(line.to_string());
+                // End of legacy section; process this boundary header normally.
                 in_legacy_section = None;
+            } else {
+                // Still inside legacy section; drop the line.
+                continue;
             }
-            // Otherwise still inside legacy section; drop the line.
-            continue;
         }
 
         if let Some(start) = LEGACY_SECTION_STARTS
