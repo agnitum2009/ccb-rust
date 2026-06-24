@@ -1,0 +1,6 @@
+/target
+*.rs.bk
+.omc/
+.agents/
+.codegraph/
+.DS_Store

@@ -1,0 +1,147 @@
+[package]
+name = "ccbr-providers"
+version.workspace = true
+edition.workspace = true
+autotests = false
+
+[[test]]
+name = "execution_tests"
+path = "tests/execution_tests.rs"
+
+[[test]]
+name = "opencode_tests"
+path = "tests/opencode_tests.rs"
+
+[[test]]
+name = "provider_codex_tests"
+path = "tests/provider_codex_tests.rs"
+
+[[test]]
+name = "codex_launcher_tests"
+path = "tests/codex_launcher_tests.rs"
+
+[[test]]
+name = "claude_launcher_env_tests"
+path = "tests/claude_launcher_env_tests.rs"
+
+[[test]]
+name = "claude_launcher_tests"
+path = "tests/claude_launcher_tests.rs"
+
+[[test]]
+name = "droid_launcher_tests"
+path = "tests/droid_launcher_tests.rs"
+
+[[test]]
+name = "gemini_launcher_tests"
+path = "tests/gemini_launcher_tests.rs"
+
+[[test]]
+name = "agy_launcher_tests"
+path = "tests/agy_launcher_tests.rs"
+
+[[test]]
+name = "provider_droid_tests"
+path = "tests/provider_droid_tests.rs"
+
+[[test]]
+name = "provider_gemini_tests"
+path = "tests/provider_gemini_tests.rs"
+
+[[test]]
+name = "provider_agy_tests"
+path = "tests/provider_agy_tests.rs"
+
+[[test]]
+name = "runtime_tests"
+path = "tests/runtime_tests.rs"
+
+[[test]]
+name = "provider_opencode_tests"
+path = "tests/provider_opencode_tests.rs"
+
+[[test]]
+name = "provider_codebuddy_tests"
+path = "tests/provider_codebuddy_tests.rs"
+
+[[test]]
+name = "provider_copilot_tests"
+path = "tests/provider_copilot_tests.rs"
+
+[[test]]
+name = "provider_qwen_tests"
+path = "tests/provider_qwen_tests.rs"
+
+[[test]]
+name = "native_cli_tests"
+path = "tests/native_cli_tests.rs"
+
+[[test]]
+name = "provider_claude_tests"
+path = "tests/provider_claude_tests.rs"
+
+[[test]]
+name = "provider_kimi_tests"
+path = "tests/provider_kimi_tests.rs"
+
+[[test]]
+name = "provider_deepseek_tests"
+path = "tests/provider_deepseek_tests.rs"
+
+[[test]]
+name = "provider_mimo_tests"
+path = "tests/provider_mimo_tests.rs"
+
+[[test]]
+name = "provider_fake_tests"
+path = "tests/provider_fake_tests.rs"
+
+[[test]]
+name = "provider_session_paths_tests"
+path = "tests/provider_session_paths_tests.rs"
+
+[[test]]
+name = "provider_helper_cleanup_tests"
+path = "tests/provider_helper_cleanup_tests.rs"
+
+[[test]]
+name = "provider_instance_resolution_tests"
+path = "tests/provider_instance_resolution_tests.rs"
+
+[[test]]
+name = "workspace_preparation_tests"
+path = "tests/workspace_preparation_tests.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+camino = { workspace = true }
+tempfile = { workspace = true }
+libc = "0.2"
+md5 = { workspace = true }
+sha2 = { workspace = true }
+walkdir = { workspace = true }
+ccbr-storage = { workspace = true }
+ccbr-types = { workspace = true }
+ccbr-provider-core = { workspace = true }
+ccbr-provider-profiles = { workspace = true }
+ccbr-provider-hooks = { workspace = true }
+ccbr-completion = { workspace = true }
+ccbr-mailbox = { workspace = true }
+ccbr-agents = { workspace = true }
+ccbr-terminal = { workspace = true }
+ccbr-memory = { workspace = true }
+ccbr-provider-sessions = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+sha2 = { workspace = true }
+filetime = "0.2"

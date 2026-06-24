@@ -1,0 +1,23 @@
+[package]
+name = "ccbr-terminal"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+ccbr-storage = { workspace = true }
+ccbr-types = { workspace = true }
+ccbr-stdio-runtime = { workspace = true }
+regex = { workspace = true }
+sha2 = { workspace = true }
+shell-words = { workspace = true }
+libc = "0.2"
+rand = "0.8"
+
+[dev-dependencies]
+tempfile = { workspace = true }

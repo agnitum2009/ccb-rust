@@ -1,0 +1,11 @@
+[package]
+name = "ccbr-stdio-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+encoding_rs = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

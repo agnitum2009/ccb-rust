@@ -1,0 +1,15 @@
+[package]
+name = "ccbr-types"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+ccbr-runtime-env = { workspace = true }
+ccbr-ui-text = { workspace = true }
+
+[dev-dependencies]
+serial_test = { workspace = true }

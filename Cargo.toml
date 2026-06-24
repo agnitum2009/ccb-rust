@@ -1,0 +1,97 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ccbr-storage",
+    "crates/ccbr-types",
+    "crates/ccbr-provider-core",
+    "crates/ccbr-terminal",
+    "crates/ccbr-mailbox",
+    "crates/ccbr-agents",
+    "crates/ccbr-cli",
+    "crates/ccbr-daemon",
+    "crates/ccbr-providers",
+    "crates/ccbr-completion",
+    "crates/ccbr-memory",
+    "crates/ccbr-heartbeat",
+    "crates/ccbr-provider-hooks",
+    "crates/ccbr-provider-profiles",
+    "crates/ccbr-provider-sessions",
+    "crates/ccbr-jobs",
+    "crates/ccbr-message-bureau",
+    "crates/ccbr-pane-registry",
+    "crates/ccbr-project",
+    "crates/ccbr-runtime-env",
+    "crates/ccbr-runtime-pid-cleanup",
+    "crates/ccbr-stdio-runtime",
+    "crates/ccbr-storage-classification",
+    "crates/ccbr-ui-text",
+    "crates/ccbr-workspace",
+    "tools/ccbr-release-checker",
+    "tools/ccbr-mcp-server",
+    "tools/ccbr-release-builder",
+    "tools/ccbr-provider-finish-hook",
+    "tools/ccbr-provider-activity-hook",
+    "tools/ccbr-cleanup",
+]
+
+[workspace.package]
+version = "7.5.2"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+regex = "1"
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+camino = { version = "1", features = ["serde1"] }
+fs2 = "0.4"
+tempfile = "3"
+serial_test = "3"
+sha2 = "0.10"
+md5 = "0.7"
+hex = "0.4"
+tar = "0.4"
+flate2 = "1"
+walkdir = "2"
+encoding_rs = "0.8"
+shell-words = "1"
+
+# Internal crates
+ccbr-storage = { path = "crates/ccbr-storage" }
+ccbr-types = { path = "crates/ccbr-types" }
+ccbr-provider-core = { path = "crates/ccbr-provider-core" }
+ccbr-terminal = { path = "crates/ccbr-terminal" }
+ccbr-mailbox = { path = "crates/ccbr-mailbox" }
+ccbr-agents = { path = "crates/ccbr-agents" }
+ccbr-cli = { path = "crates/ccbr-cli" }
+ccbr-daemon = { path = "crates/ccbr-daemon" }
+ccbr-providers = { path = "crates/ccbr-providers" }
+ccbr-completion = { path = "crates/ccbr-completion" }
+ccbr-memory = { path = "crates/ccbr-memory" }
+ccbr-heartbeat = { path = "crates/ccbr-heartbeat" }
+ccbr-provider-hooks = { path = "crates/ccbr-provider-hooks" }
+ccbr-provider-profiles = { path = "crates/ccbr-provider-profiles" }
+ccbr-provider-sessions = { path = "crates/ccbr-provider-sessions" }
+ccbr-jobs = { path = "crates/ccbr-jobs" }
+ccbr-message-bureau = { path = "crates/ccbr-message-bureau" }
+ccbr-pane-registry = { path = "crates/ccbr-pane-registry" }
+ccbr-project = { path = "crates/ccbr-project" }
+ccbr-runtime-env = { path = "crates/ccbr-runtime-env" }
+ccbr-runtime-pid-cleanup = { path = "crates/ccbr-runtime-pid-cleanup" }
+ccbr-stdio-runtime = { path = "crates/ccbr-stdio-runtime" }
+ccbr-storage-classification = { path = "crates/ccbr-storage-classification" }
+ccbr-ui-text = { path = "crates/ccbr-ui-text" }
+ccbr-workspace = { path = "crates/ccbr-workspace" }
+
+[profile.release]
+strip = true
+lto = true

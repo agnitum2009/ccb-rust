@@ -1,0 +1,8 @@
+[package]
+name = "ccbr-cleanup"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ccbr-cleanup"
+path = "src/main.rs"
