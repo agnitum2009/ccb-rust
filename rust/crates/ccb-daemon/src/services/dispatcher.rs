@@ -4,7 +4,7 @@ use ccb_mailbox::models::{AttemptRecord, AttemptState};
 use ccb_mailbox::stores::AttemptStore;
 
 use crate::adapters::mailbox::to_mailbox_job_record;
-use crate::models::api_models::common::{JobStatus, TargetKind};
+use crate::models::api_models::common::{DeliveryScope, JobStatus, TargetKind};
 use crate::models::api_models::messages::MessageEnvelope;
 use crate::models::api_models::receipts::{AcceptedJobReceipt, CancelReceipt, SubmitReceipt};
 use crate::models::api_models::records::JobRecord;
@@ -170,6 +170,9 @@ pub struct JobDispatcher {
     /// When wired, `submit`/`retry` record attempts so `comms_recover` can detect
     /// retry lineage / `already_retried`.
     attempt_store: Option<AttemptStore>,
+    /// Reply-delivery lineage: source job id → delivery job ids (mirrors the
+    /// reply-delivery job chain Python creates via `prepare_reply_deliveries`).
+    reply_deliveries: HashMap<String, Vec<String>>,
 }
 
 impl JobDispatcher {
@@ -182,6 +185,7 @@ impl JobDispatcher {
             mailbox_job_store: None,
             runtime_states: HashMap::new(),
             attempt_store: None,
+            reply_deliveries: HashMap::new(),
         }
     }
 
@@ -549,6 +553,15 @@ impl JobDispatcher {
                 });
             }
         };
+        if Self::is_reply_delivery_job(&source) {
+            return serde_json::json!({
+                "status": "noop",
+                "noop_reason": "comms recovery requires source business job",
+            });
+        }
+        if let Some(delivery_id) = target.reply_delivery_job_id.clone() {
+            return self.recover_reply_delivery(&source, &delivery_id);
+        }
         let recoverability =
             self.comms_recoverability_for_job(&source, target.block_reason.as_deref());
         let block_reason = recoverability.block_reason.clone();
@@ -809,6 +822,213 @@ impl JobDispatcher {
             Some(l) if l.attempt_id != attempt.attempt_id => Some(l.job_id),
             _ => None,
         }
+    }
+
+    /// Mark a job terminal with a reply. Mirrors Python `dispatcher.complete`.
+    /// When a source (non-reply-delivery) job COMPLETED with a reply, a
+    /// reply_delivery job is auto-created for the requester (mirrors
+    /// `prepare_reply_deliveries`).
+    pub fn complete(&mut self, job_id: &str, status: JobStatus, reply: &str) {
+        let now = chrono::Utc::now().to_rfc3339();
+        let mut delivery_request = None;
+        if let Some(job) = self.job_store.iter_mut().find(|j| j.job_id == job_id) {
+            if !job.status.is_terminal() {
+                job.status = status;
+                job.updated_at = now.clone();
+            }
+            job.terminal_decision = Some(serde_json::json!({
+                "reply": reply,
+                "status": format!("{:?}", status).to_lowercase(),
+            }));
+            if job.request.message_type != "reply_delivery"
+                && status == JobStatus::Completed
+                && !reply.is_empty()
+            {
+                delivery_request = Some((
+                    job.agent_name.clone(),
+                    job.request.from_actor.clone(),
+                    job.request.project_id.clone(),
+                    job.provider.clone(),
+                ));
+            }
+        }
+        self.state.rebuild(&self.job_store);
+        if let Some((agent, requester, project_id, provider)) = delivery_request {
+            // Don't self-deliver (requester == agent).
+            if requester != agent {
+                let delivery_id = self.create_reply_delivery_job(
+                    job_id,
+                    &agent,
+                    &requester,
+                    &project_id,
+                    &provider,
+                    reply,
+                    &now,
+                );
+                self.reply_deliveries
+                    .entry(job_id.to_string())
+                    .or_default()
+                    .push(delivery_id);
+            }
+        }
+    }
+
+    /// Create a reply_delivery job carrying `reply` from `agent` to `requester`,
+    /// linked to `source_job_id`. Returns the new job id.
+    fn create_reply_delivery_job(
+        &mut self,
+        source_job_id: &str,
+        agent: &str,
+        requester: &str,
+        project_id: &str,
+        provider: &str,
+        reply: &str,
+        now: &str,
+    ) -> String {
+        let envelope = MessageEnvelope {
+            project_id: project_id.to_string(),
+            to_agent: requester.to_string(),
+            from_actor: agent.to_string(),
+            body: reply.to_string(),
+            task_id: None,
+            reply_to: Some(source_job_id.to_string()),
+            message_type: "reply_delivery".to_string(),
+            delivery_scope: DeliveryScope::Single,
+            silence_on_success: false,
+            route_options: serde_json::json!({}),
+            body_artifact: None,
+        };
+        let status = self.initial_status(requester);
+        let job_id = format!(
+            "job_{}",
+            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+        );
+        let job = JobRecord {
+            job_id: job_id.clone(),
+            submission_id: Some(source_job_id.to_string()),
+            agent_name: requester.to_string(),
+            provider: provider.to_string(),
+            request: envelope,
+            status,
+            terminal_decision: None,
+            cancel_requested_at: None,
+            created_at: now.to_string(),
+            updated_at: now.to_string(),
+            workspace_path: None,
+            target_kind: TargetKind::Agent,
+            target_name: requester.to_string(),
+        };
+        self.job_store.push(job.clone());
+        self.persist_job_to_mailbox(&job);
+        let message_id = format!(
+            "msg_{}",
+            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+        );
+        self.record_attempt(&job, &message_id, 0, AttemptState::Running);
+        self.state.rebuild(&self.job_store);
+        job_id
+    }
+
+    /// Mirrors `is_reply_delivery_job`.
+    fn is_reply_delivery_job(job: &JobRecord) -> bool {
+        job.request.message_type == "reply_delivery"
+    }
+
+    /// Recover a failed reply_delivery: create a new delivery job for the
+    /// source's reply (mirrors Python `_recover_reply_delivery`). Idempotent via
+    /// the reply-delivery lineage.
+    fn recover_reply_delivery(
+        &mut self,
+        source: &JobRecord,
+        delivery_id: &str,
+    ) -> serde_json::Value {
+        let delivery_status = self.get(delivery_id).map(|j| j.status);
+        let failed = matches!(
+            delivery_status,
+            Some(JobStatus::Failed) | Some(JobStatus::Incomplete) | Some(JobStatus::Cancelled)
+        );
+        if !failed {
+            return serde_json::json!({
+                "job_id": source.job_id,
+                "agent_name": source.agent_name,
+                "status": "noop",
+                "block_reason": null,
+                "recoverable": false,
+                "cancelled_old": null,
+                "released_event": null,
+                "retried_job": null,
+                "next_started": [],
+                "noop_reason": "not_recoverable",
+            });
+        }
+        let deliveries = self
+            .reply_deliveries
+            .get(&source.job_id)
+            .cloned()
+            .unwrap_or_default();
+        // Idempotency: a recovery delivery already exists for this source.
+        if deliveries.len() > 1 {
+            let newest = deliveries
+                .iter()
+                .filter(|id| *id != delivery_id)
+                .last()
+                .cloned();
+            return serde_json::json!({
+                "job_id": source.job_id,
+                "agent_name": source.agent_name,
+                "status": "noop",
+                "block_reason": "reply_delivery_failed",
+                "recoverable": true,
+                "cancelled_old": null,
+                "released_event": null,
+                "retried_job": null,
+                "next_started": [],
+                "noop_reason": "already_retried",
+                "latest_job_id": newest,
+            });
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let reply = source
+            .terminal_decision
+            .as_ref()
+            .and_then(|d| d.get("reply"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let new_id = self.create_reply_delivery_job(
+            &source.job_id,
+            &source.agent_name,
+            &source.request.from_actor,
+            &source.request.project_id,
+            &source.provider,
+            &reply,
+            &now,
+        );
+        self.reply_deliveries
+            .entry(source.job_id.clone())
+            .or_default()
+            .push(new_id.clone());
+        let started: Vec<&JobRecord> = self.tick();
+        let next_started: Vec<serde_json::Value> = started
+            .into_iter()
+            .map(|j| serde_json::json!({ "job_id": j.job_id }))
+            .collect();
+        serde_json::json!({
+            "job_id": source.job_id,
+            "agent_name": source.agent_name,
+            "status": "recovered",
+            "block_reason": "reply_delivery_failed",
+            "recoverable": true,
+            "cancelled_old": null,
+            "released_event": null,
+            "retried_job": {
+                "job_id": new_id,
+                "request": { "message_type": "reply_delivery" },
+            },
+            "next_started": next_started,
+            "noop_reason": null,
+            "recoverability_after": { "recoverable": false },
+        })
     }
 
     /// Promote one queued job per agent to running when no active job exists.

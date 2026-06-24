@@ -302,3 +302,132 @@ fn comms_recover_accepts_provider_prompt_input_stuck_hint() {
     );
     assert_eq!(dispatcher.get(&stuck).unwrap().status, JobStatus::Cancelled);
 }
+
+fn envelope_ask(from_actor: &str, to_agent: &str) -> MessageEnvelope {
+    MessageEnvelope {
+        project_id: "proj-test".to_string(),
+        to_agent: to_agent.to_string(),
+        from_actor: from_actor.to_string(),
+        body: "work".to_string(),
+        task_id: None,
+        reply_to: None,
+        message_type: "ask".to_string(),
+        delivery_scope: DeliveryScope::Single,
+        silence_on_success: false,
+        route_options: json!({}),
+        body_artifact: None,
+    }
+}
+
+fn reply_delivery_job_id(d: &JobDispatcher) -> String {
+    d.job_store
+        .iter()
+        .find(|j| j.request.message_type == "reply_delivery")
+        .expect("reply_delivery job exists")
+        .job_id
+        .clone()
+}
+
+/// Mirrors `test_comms_recover_reply_delivery_race_is_noop_after_delivery_completes`.
+#[test]
+fn comms_recover_reply_delivery_race_is_noop_after_delivery_completes() {
+    let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
+    let source = dispatcher
+        .submit(&envelope_ask("agent2", "agent1"), "codex", None)
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.complete(&source, JobStatus::Completed, "OK");
+    dispatcher.tick();
+    let delivery = reply_delivery_job_id(&dispatcher);
+    dispatcher.complete(&delivery, JobStatus::Completed, "delivered");
+
+    let payload = dispatcher.comms_recover(&json!({
+        "job_id": &source,
+        "reply_delivery_job_id": &delivery
+    }));
+    assert_eq!(payload["status"].as_str(), Some("noop"));
+    assert_eq!(payload["noop_reason"].as_str(), Some("not_recoverable"));
+    let delivery_count = dispatcher
+        .job_store
+        .iter()
+        .filter(|j| j.request.message_type == "reply_delivery")
+        .count();
+    assert_eq!(delivery_count, 1);
+}
+
+/// Mirrors `test_comms_recover_failed_reply_delivery_resets_reply_head_and_schedules_delivery`.
+#[test]
+fn comms_recover_failed_reply_delivery_schedules_new_delivery() {
+    let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
+    let source = dispatcher
+        .submit(&envelope_ask("agent2", "agent1"), "codex", None)
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.complete(&source, JobStatus::Completed, "OK");
+    dispatcher.tick();
+    let delivery = reply_delivery_job_id(&dispatcher);
+    dispatcher.complete(&delivery, JobStatus::Failed, "pane_dead");
+
+    let payload = dispatcher.comms_recover(&json!({
+        "job_id": &source,
+        "reply_delivery_job_id": &delivery
+    }));
+    assert_eq!(payload["status"].as_str(), Some("recovered"));
+    assert_ne!(
+        payload["retried_job"]["job_id"].as_str(),
+        Some(delivery.as_str())
+    );
+    assert_eq!(
+        payload["retried_job"]["request"]["message_type"].as_str(),
+        Some("reply_delivery")
+    );
+    assert_eq!(
+        payload["next_started"][0]["job_id"].as_str(),
+        payload["retried_job"]["job_id"].as_str()
+    );
+    assert_eq!(
+        payload["recoverability_after"]["recoverable"].as_bool(),
+        Some(false)
+    );
+}
+
+/// Mirrors `test_comms_recover_failed_reply_delivery_is_idempotent_after_new_delivery_starts`.
+#[test]
+fn comms_recover_failed_reply_delivery_is_idempotent() {
+    let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
+    let source = dispatcher
+        .submit(&envelope_ask("agent2", "agent1"), "codex", None)
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.complete(&source, JobStatus::Completed, "OK");
+    dispatcher.tick();
+    let delivery = reply_delivery_job_id(&dispatcher);
+    dispatcher.complete(&delivery, JobStatus::Failed, "pane_dead");
+
+    let first = dispatcher.comms_recover(&json!({
+        "job_id": &source,
+        "reply_delivery_job_id": &delivery
+    }));
+    let second = dispatcher.comms_recover(&json!({
+        "job_id": &source,
+        "reply_delivery_job_id": &delivery
+    }));
+    assert_eq!(
+        first["retried_job"]["job_id"].as_str(),
+        second["latest_job_id"].as_str(),
+    );
+    assert_eq!(second["status"].as_str(), Some("noop"));
+    assert_eq!(second["noop_reason"].as_str(), Some("already_retried"));
+    let delivery_count = dispatcher
+        .job_store
+        .iter()
+        .filter(|j| j.request.message_type == "reply_delivery")
+        .count();
+    assert_eq!(delivery_count, 2);
+}
