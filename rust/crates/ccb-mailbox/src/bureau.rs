@@ -212,6 +212,16 @@ impl MessageBureauFacade {
         crate::facade_state::pending_callback_edges(&self.state.callback_edge_store)
     }
 
+    /// Update an existing callback edge by appending a new record with the
+    /// requested changes. Mirrors Python `MessageBureauFacade.update_callback_edge`.
+    pub fn update_callback_edge(
+        &self,
+        edge: &CallbackEdgeRecord,
+        changes: crate::stores::CallbackEdgeChanges,
+    ) -> CallbackEdgeRecord {
+        self.state.callback_edge_store.update(edge, changes)
+    }
+
     pub fn all_messages(&self) -> Vec<MessageRecord> {
         self.state.message_store.list_all()
     }
@@ -365,6 +375,16 @@ impl MessageBureauControlService {
     /// Read access to the attempt store.
     pub fn attempt_store(&self) -> &crate::stores::AttemptStore {
         &self.state.attempt_store
+    }
+
+    /// Read access to the reply store.
+    pub fn reply_store(&self) -> &crate::stores::ReplyStore {
+        &self.state.reply_store
+    }
+
+    /// Read access to the message store.
+    pub fn message_store(&self) -> &crate::stores::MessageStore {
+        &self.state.message_store
     }
 
     pub fn mailbox_head(&self, agent_name: &str) -> Value {

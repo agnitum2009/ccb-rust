@@ -466,7 +466,7 @@ impl CallbackEdgeStore {
             updated.continuation_message_id = Some(continuation_message_id);
         }
         if let Some(timeout_at) = changes.timeout_at {
-            updated.timeout_at = Some(timeout_at);
+            updated.timeout_at = timeout_at;
         }
         if let Some(diagnostics) = changes.diagnostics {
             updated.diagnostics = diagnostics;
@@ -486,7 +486,9 @@ pub struct CallbackEdgeChanges {
     pub child_status: Option<String>,
     pub continuation_job_id: Option<String>,
     pub continuation_message_id: Option<String>,
-    pub timeout_at: Option<String>,
+    /// `None` means "do not change"; `Some(None)` clears the timeout;
+    /// `Some(Some(ts))` sets it to `ts`.
+    pub timeout_at: Option<Option<String>>,
     pub diagnostics: Option<Value>,
     pub updated_at: Option<String>,
 }

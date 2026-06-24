@@ -22,7 +22,8 @@
     "06-24-py2rust-cli-services-impl",
     "06-24-py2rust-core-parity",
     "06-24-py2rust-providers-daemon-deep",
-    "06-24-py2rust-e2e-terminal-edge"
+    "06-24-py2rust-e2e-terminal-edge",
+    "06-24-py2rust-consistency-closure"
   ],
   "parent": null,
   "relatedFiles": [],
