@@ -131,12 +131,12 @@ impl CcbdApp {
         let layout = ccb_storage::paths::PathLayout::new(
             Utf8Path::from_path(&project_root).unwrap_or(Utf8Path::new("/")),
         );
-        let config_result = if layout.ccb_dir().join("ccb.config").exists() {
+        let config_result = if layout.ccb_dir().join("ccbr.config").exists() {
             ccb_agents::config::load_project_config(&layout).ok()
         } else {
             None
         };
-        if config_result.is_none() && layout.ccb_dir().join("ccb.config").exists() {
+        if config_result.is_none() && layout.ccb_dir().join("ccbr.config").exists() {
             tracing::warn!("failed to load project config");
         }
         let config = config_result.map(|r| r.config);
@@ -631,10 +631,10 @@ mod tests {
     #[test]
     fn test_loads_project_config_into_registry() {
         let dir = TempDir::new().unwrap();
-        let ccb_dir = dir.path().join(".ccb");
+        let ccb_dir = dir.path().join(".ccbr");
         std::fs::create_dir_all(&ccb_dir).unwrap();
         std::fs::write(
-            ccb_dir.join("ccb.config"),
+            ccb_dir.join("ccbr.config"),
             r#"version = 2
 default_agents = ["agent1"]
 

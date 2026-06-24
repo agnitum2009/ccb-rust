@@ -69,7 +69,7 @@ impl NativeCliExecutionRequest {
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
             .map(expand_home)
-            .unwrap_or_else(|| self.work_dir.join(".ccb").join(&self.provider));
+            .unwrap_or_else(|| self.work_dir.join(".ccbr").join(&self.provider));
         state_dir.join(fallback)
     }
 }

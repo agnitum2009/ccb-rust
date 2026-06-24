@@ -101,15 +101,15 @@ pub fn default_session_path(
 ) -> Option<PathBuf> {
     match provider.trim().to_lowercase().as_str() {
         "opencode" => {
-            let runtime_dir = project_root.join(".ccb").join("runtime").join(agent_name);
+            let runtime_dir = project_root.join(".ccbr").join("runtime").join(agent_name);
             Some(runtime_dir.join(format!("{}-session.jsonl", agent_name)))
         }
         "deepseek" => {
-            let runtime_dir = project_root.join(".ccb").join("runtime").join(agent_name);
+            let runtime_dir = project_root.join(".ccbr").join("runtime").join(agent_name);
             Some(runtime_dir.join(format!("{}-session.jsonl", agent_name)))
         }
         "codex" | "claude" | "gemini" | "agy" | "droid" => {
-            let ccb_dir = project_root.join(".ccb");
+            let ccb_dir = project_root.join(".ccbr");
             session_filename_for_agent(provider, agent_name)
                 .ok()
                 .map(|filename| ccb_dir.join(filename))
@@ -163,7 +163,7 @@ fn build_deepseek_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     use ccb_providers::deepseek::{build_session_payload, build_start_cmd, prepare_launch_context};
 
     let runtime_dir = Path::new(ctx.project_root)
-        .join(".ccb")
+        .join(".ccbr")
         .join("runtime")
         .join(ctx.agent_name);
     std::fs::create_dir_all(&runtime_dir)
@@ -214,7 +214,7 @@ fn build_kimi_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     };
 
     let runtime_dir = Path::new(ctx.project_root)
-        .join(".ccb")
+        .join(".ccbr")
         .join("runtime")
         .join(ctx.agent_name);
     std::fs::create_dir_all(&runtime_dir)
@@ -280,7 +280,7 @@ fn build_mimo_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     use ccb_providers::mimo::{build_session_payload, build_start_cmd, prepare_launch_context};
 
     let runtime_dir = Path::new(ctx.project_root)
-        .join(".ccb")
+        .join(".ccbr")
         .join("runtime")
         .join(ctx.agent_name);
     std::fs::create_dir_all(&runtime_dir)
@@ -340,7 +340,7 @@ fn build_opencode_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     use ccb_providers::opencode::{build_session_payload, build_start_cmd, prepare_launch_context};
 
     let runtime_dir = Path::new(ctx.project_root)
-        .join(".ccb")
+        .join(".ccbr")
         .join("runtime")
         .join(ctx.agent_name);
     std::fs::create_dir_all(&runtime_dir)
@@ -622,13 +622,13 @@ fn build_simple_provider_launch<'a>(
 
 fn runtime_dir_for_agent(project_root: &str, agent_name: &str) -> PathBuf {
     Path::new(project_root)
-        .join(".ccb")
+        .join(".ccbr")
         .join("runtime")
         .join(agent_name)
 }
 
 fn ccb_dir(project_root: &str) -> PathBuf {
-    Path::new(project_root).join(".ccb")
+    Path::new(project_root).join(".ccbr")
 }
 
 fn simple_prepared_state(
@@ -795,7 +795,7 @@ mod tests {
         let root = Path::new("/tmp/proj");
         let ws = Path::new("/tmp/ws");
         let path = default_session_path("codex", "codex", root, ws).unwrap();
-        assert_eq!(path, PathBuf::from("/tmp/proj/.ccb/.codex-codex-session"));
+        assert_eq!(path, PathBuf::from("/tmp/proj/.ccbr/.codex-codex-session"));
     }
 
     #[test]
@@ -805,7 +805,7 @@ mod tests {
         let path = default_session_path("opencode", "opencode", root, ws).unwrap();
         assert_eq!(
             path,
-            PathBuf::from("/tmp/proj/.ccb/runtime/opencode/opencode-session.jsonl")
+            PathBuf::from("/tmp/proj/.ccbr/runtime/opencode/opencode-session.jsonl")
         );
     }
 
@@ -816,7 +816,7 @@ mod tests {
         let path = default_session_path("deepseek", "deepseek", root, ws).unwrap();
         assert_eq!(
             path,
-            PathBuf::from("/tmp/proj/.ccb/runtime/deepseek/deepseek-session.jsonl")
+            PathBuf::from("/tmp/proj/.ccbr/runtime/deepseek/deepseek-session.jsonl")
         );
     }
 
@@ -847,7 +847,7 @@ mod tests {
         let path = default_session_path("claude", "reviewer", root, ws).unwrap();
         assert_eq!(
             path,
-            PathBuf::from("/tmp/proj/.ccb/.claude-reviewer-session")
+            PathBuf::from("/tmp/proj/.ccbr/.claude-reviewer-session")
         );
     }
 
@@ -856,7 +856,10 @@ mod tests {
         let root = Path::new("/tmp/proj");
         let ws = Path::new("/tmp/ws");
         let path = default_session_path("gemini", "gemini", root, ws).unwrap();
-        assert_eq!(path, PathBuf::from("/tmp/proj/.ccb/.gemini-gemini-session"));
+        assert_eq!(
+            path,
+            PathBuf::from("/tmp/proj/.ccbr/.gemini-gemini-session")
+        );
     }
 
     #[test]
@@ -864,7 +867,7 @@ mod tests {
         let root = Path::new("/tmp/proj");
         let ws = Path::new("/tmp/ws");
         let path = default_session_path("agy", "agy", root, ws).unwrap();
-        assert_eq!(path, PathBuf::from("/tmp/proj/.ccb/.agy-agy-session"));
+        assert_eq!(path, PathBuf::from("/tmp/proj/.ccbr/.agy-agy-session"));
     }
 
     #[test]
@@ -872,7 +875,7 @@ mod tests {
         let root = Path::new("/tmp/proj");
         let ws = Path::new("/tmp/ws");
         let path = default_session_path("droid", "droid", root, ws).unwrap();
-        assert_eq!(path, PathBuf::from("/tmp/proj/.ccb/.droid-droid-session"));
+        assert_eq!(path, PathBuf::from("/tmp/proj/.ccbr/.droid-droid-session"));
     }
 
     #[test]

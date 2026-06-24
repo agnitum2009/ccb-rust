@@ -26,7 +26,7 @@ impl ProjectContext {
         Self {
             cwd: root.clone(),
             project_root: root.clone(),
-            config_dir: root.join(".ccb"),
+            config_dir: root.join(".ccbr"),
             project_id: project_id.into(),
             source: "workspace".into(),
         }
@@ -618,7 +618,7 @@ impl WorkspaceMaterializer {
             .map(|p| {
                 vec![p
                     .file_name()
-                    .unwrap_or(std::ffi::OsStr::new(".ccb-workspace.json"))
+                    .unwrap_or(std::ffi::OsStr::new(".ccbr-workspace.json"))
                     .to_string_lossy()
                     .into_owned()]
             })
@@ -662,7 +662,7 @@ fn copy_dir_contents(src: &Path, dst: &Path) -> crate::Result<()> {
         let dst_path = dst.join(entry.file_name());
         let name = entry.file_name().to_string_lossy().into_owned();
         if file_type.is_dir() {
-            if name == ".git" || name == ".ccb" || name == "__pycache__" || name == ".pytest_cache"
+            if name == ".git" || name == ".ccbr" || name == "__pycache__" || name == ".pytest_cache"
             {
                 continue;
             }

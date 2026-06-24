@@ -3,8 +3,8 @@ use serde::Deserialize;
 
 use crate::path_utils::{expand_user_path, resolve_utf8_path};
 
-pub const CCB_DIRNAME: &str = ".ccb";
-pub const WORKSPACE_BINDING_FILENAME: &str = ".ccb-workspace.json";
+pub const CCB_DIRNAME: &str = ".ccbr";
+pub const WORKSPACE_BINDING_FILENAME: &str = ".ccbr-workspace.json";
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectDiscoveryError {
@@ -24,11 +24,11 @@ pub enum ProjectDiscoveryError {
     MissingTargetProject(String),
     #[error("invalid project anchor: {0}")]
     InvalidAnchor(String),
-    #[error("cannot auto-create .ccb in {0}")]
+    #[error("cannot auto-create .ccbr in {0}")]
     NestedAnchor(String),
-    #[error("cannot resolve project for {0}; no .ccb anchor or workspace binding found")]
+    #[error("cannot resolve project for {0}; no .ccbr anchor or workspace binding found")]
     Unresolved(String),
-    #[error("refusing to auto-create .ccb in {0}; set CCB_INIT_PROJECT_DANGEROUS=1 to override")]
+    #[error("refusing to auto-create .ccbr in {0}; set CCB_INIT_PROJECT_DANGEROUS=1 to override")]
     DangerousRoot(String),
     #[error("{0}")]
     AnchorNotFound(String),
@@ -43,18 +43,18 @@ pub struct WorkspaceBinding {
     pub target_project: String,
 }
 
-/// Return the project-local `.ccb` directory.
+/// Return the project-local `.ccbr` directory.
 pub fn project_ccb_dir(project_root: impl AsRef<Utf8Path>) -> Utf8PathBuf {
     resolve_utf8_path(project_root.as_ref()).join(CCB_DIRNAME)
 }
 
-/// Return the global `~/.ccb` directory.
+/// Return the global `~/.ccbr` directory.
 pub fn global_ccb_dir() -> Utf8PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
     Utf8PathBuf::from(expand_user_path(&home)).join(CCB_DIRNAME)
 }
 
-/// Return `start_dir` if it directly contains a `.ccb` anchor.
+/// Return `start_dir` if it directly contains a `.ccbr` anchor.
 pub fn find_current_project_anchor(start_dir: impl AsRef<Utf8Path>) -> Option<Utf8PathBuf> {
     let current = resolved_dir(start_dir.as_ref());
     if project_anchor_dir(&current).is_some() {
@@ -64,7 +64,7 @@ pub fn find_current_project_anchor(start_dir: impl AsRef<Utf8Path>) -> Option<Ut
     }
 }
 
-/// Find the nearest `.ccb` anchor starting at `start_dir` and walking upward.
+/// Find the nearest `.ccbr` anchor starting at `start_dir` and walking upward.
 pub fn find_nearest_project_anchor(start_dir: impl AsRef<Utf8Path>) -> Option<Utf8PathBuf> {
     let current = resolved_dir(start_dir.as_ref());
     for root in search_roots(&current) {
@@ -80,7 +80,7 @@ pub fn find_nearest_project_anchor(start_dir: impl AsRef<Utf8Path>) -> Option<Ut
     None
 }
 
-/// Find a parent project's `.ccb` directory, skipping dangerous roots.
+/// Find a parent project's `.ccbr` directory, skipping dangerous roots.
 pub fn find_parent_project_anchor_dir(start_dir: impl AsRef<Utf8Path>) -> Option<Utf8PathBuf> {
     let current = resolved_dir(start_dir.as_ref());
     for root in current.ancestors().skip(1) {
@@ -97,7 +97,7 @@ pub fn find_parent_project_anchor_dir(start_dir: impl AsRef<Utf8Path>) -> Option
     None
 }
 
-/// Return whether `start_dir` is a root where auto-creating `.ccb` would be
+/// Return whether `start_dir` is a root where auto-creating `.ccbr` would be
 /// dangerous (home, temp root, filesystem root).
 pub fn is_dangerous_project_root(start_dir: impl AsRef<Utf8Path>) -> (bool, String) {
     let current = resolved_dir(start_dir.as_ref());
@@ -128,7 +128,7 @@ fn project_anchor_dir(root: &Utf8Path) -> Option<Utf8PathBuf> {
     }
 }
 
-/// Find the nearest `.ccb-workspace.json` binding file.
+/// Find the nearest `.ccbr-workspace.json` binding file.
 pub fn find_workspace_binding(start_dir: impl AsRef<Utf8Path>) -> Option<Utf8PathBuf> {
     let current = resolved_dir(start_dir.as_ref());
     for root in search_roots(&current) {
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_project_ccb_dir_appends_ccb() {
         let dir = project_ccb_dir(Utf8Path::new("/home/user/project"));
-        assert!(dir.as_str().ends_with("/.ccb"));
+        assert!(dir.as_str().ends_with("/.ccbr"));
     }
 
     #[test]

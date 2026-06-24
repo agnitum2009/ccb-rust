@@ -49,7 +49,7 @@ fn test_current_provider_source_home_falls_back_from_managed_home_to_passwd_home
     let managed_home = tmp
         .path()
         .join("repo")
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-state")
@@ -78,7 +78,7 @@ fn test_current_provider_source_home_honors_explicit_override() {
     let managed_home = tmp
         .path()
         .join("repo")
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-state")

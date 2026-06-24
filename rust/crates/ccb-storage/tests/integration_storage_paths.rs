@@ -14,7 +14,7 @@ fn test_path_layout_uses_project_scoped_locations() {
     let tmp = tempfile::TempDir::new().unwrap();
     let layout = PathLayout::new(tmp_path(&tmp, "repo"));
 
-    assert_eq!(layout.ccb_dir(), tmp_path(&tmp, "repo/.ccb"));
+    assert_eq!(layout.ccb_dir(), tmp_path(&tmp, "repo/.ccbr"));
     assert_eq!(layout.project_anchor_dir(), layout.ccb_dir());
     assert_eq!(layout.runtime_state_root(), layout.ccb_dir());
     assert_eq!(
@@ -22,14 +22,17 @@ fn test_path_layout_uses_project_scoped_locations() {
         "project"
     );
     assert_eq!(layout.runtime_marker_status(), "not_required");
-    assert_eq!(layout.config_path(), tmp_path(&tmp, "repo/.ccb/ccb.config"));
+    assert_eq!(
+        layout.config_path(),
+        tmp_path(&tmp, "repo/.ccbr/ccbr.config")
+    );
     assert_eq!(
         layout.ccbd_lifecycle_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/lifecycle.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/lifecycle.json")
     );
     assert_eq!(
         layout.ccbd_lease_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/lease.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/lease.json")
     );
     let socket_path = layout.ccbd_socket_path();
     let socket_name = socket_path.file_name().unwrap();
@@ -37,19 +40,19 @@ fn test_path_layout_uses_project_scoped_locations() {
     assert!(layout.ccbd_socket_path().as_str().len() <= 100);
     assert_eq!(
         layout.ccbd_state_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/state.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/state.json")
     );
     assert_eq!(
         layout.ccbd_start_policy_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/start-policy.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/start-policy.json")
     );
     assert_eq!(
         layout.ccbd_startup_report_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/startup-report.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/startup-report.json")
     );
     assert_eq!(
         layout.ccbd_shutdown_report_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/shutdown-report.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/shutdown-report.json")
     );
     let tmux_socket_path = layout.ccbd_tmux_socket_path();
     let tmux_socket_name = tmux_socket_path.file_name().unwrap();
@@ -61,75 +64,75 @@ fn test_path_layout_uses_project_scoped_locations() {
     );
     assert_eq!(
         layout.ccbd_lifecycle_log_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/lifecycle.jsonl")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/lifecycle.jsonl")
     );
     assert_eq!(
         layout.ccbd_support_dir(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/support")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/support")
     );
     assert_eq!(
         layout.ccbd_keeper_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/keeper.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/keeper.json")
     );
     assert_eq!(
         layout.ccbd_shutdown_intent_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/shutdown-intent.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/shutdown-intent.json")
     );
     assert_eq!(
         layout.agent_mailbox_path("Agent1"),
-        tmp_path(&tmp, "repo/.ccb/ccbd/mailboxes/agent1/mailbox.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/mailboxes/agent1/mailbox.json")
     );
     assert_eq!(
         layout.agent_inbox_path("Agent1"),
-        tmp_path(&tmp, "repo/.ccb/ccbd/mailboxes/agent1/inbox.jsonl")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/mailboxes/agent1/inbox.jsonl")
     );
     assert_eq!(
         layout.ccbd_messages_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/messages/messages.jsonl")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/messages/messages.jsonl")
     );
     assert_eq!(
         layout.ccbd_attempts_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/attempts/attempts.jsonl")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/attempts/attempts.jsonl")
     );
     assert_eq!(
         layout.ccbd_replies_path(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/replies/replies.jsonl")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/replies/replies.jsonl")
     );
     assert_eq!(
         layout.mailbox_lease_path("Agent1"),
-        tmp_path(&tmp, "repo/.ccb/ccbd/leases/agent1.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/leases/agent1.json")
     );
     assert_eq!(
         layout.provider_health_path("job-1"),
-        tmp_path(&tmp, "repo/.ccb/ccbd/provider-health/job-1.jsonl")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/provider-health/job-1.jsonl")
     );
     assert_eq!(
         layout.agent_runtime_path("Agent1"),
-        tmp_path(&tmp, "repo/.ccb/agents/agent1/runtime.json")
+        tmp_path(&tmp, "repo/.ccbr/agents/agent1/runtime.json")
     );
     assert_eq!(
         layout.agent_provider_state_dir("Agent1", "CoDeX"),
-        tmp_path(&tmp, "repo/.ccb/agents/agent1/provider-state/codex")
+        tmp_path(&tmp, "repo/.ccbr/agents/agent1/provider-state/codex")
     );
     assert_eq!(
         layout.snapshot_path("job-1"),
-        tmp_path(&tmp, "repo/.ccb/ccbd/snapshots/job-1.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/snapshots/job-1.json")
     );
     assert_eq!(
         layout.cursor_path("job-1"),
-        tmp_path(&tmp, "repo/.ccb/ccbd/cursors/job-1.json")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/cursors/job-1.json")
     );
     assert_eq!(
         layout.support_bundle_path("bundle-1").unwrap(),
-        tmp_path(&tmp, "repo/.ccb/ccbd/support/bundle-1.tar.gz")
+        tmp_path(&tmp, "repo/.ccbr/ccbd/support/bundle-1.tar.gz")
     );
     assert_eq!(
         layout.workspace_path("Agent1", None),
-        tmp_path(&tmp, "repo/.ccb/workspaces/agent1")
+        tmp_path(&tmp, "repo/.ccbr/workspaces/agent1")
     );
     assert_eq!(
         layout.provider_profiles_dir(),
-        tmp_path(&tmp, "repo/.ccb/provider-profiles")
+        tmp_path(&tmp, "repo/.ccbr/provider-profiles")
     );
 }
 
@@ -149,7 +152,7 @@ fn test_path_layout_supports_external_workspace_root() {
         layout
             .workspace_binding_path("agent1", Some(external.to_str().unwrap()))
             .file_name(),
-        Some(".ccb-workspace.json")
+        Some(".ccbr-workspace.json")
     );
 }
 
@@ -173,11 +176,11 @@ fn test_path_layout_shortens_socket_paths_when_project_path_is_too_long() {
         tmux_socket_path.file_name().unwrap().starts_with("tmux-"),
         "tmux socket should be shortened"
     );
-    assert!(!layout.ccbd_socket_path().as_str().contains(".ccb/ccbd"));
+    assert!(!layout.ccbd_socket_path().as_str().contains(".ccbr/ccbd"));
     assert!(!layout
         .ccbd_tmux_socket_path()
         .as_str()
-        .contains(".ccb/ccbd"));
+        .contains(".ccbr/ccbd"));
     assert!(layout.ccbd_socket_path().as_str().len() <= 100);
     assert!(layout.ccbd_tmux_socket_path().as_str().len() <= 100);
 }
@@ -228,7 +231,7 @@ fn test_path_layout_uses_anchor_ref_for_relocated_runtime() {
 #[test]
 fn test_runtime_state_root_from_anchor_ref_rejects_invalid_payloads() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let anchor = tmp_path(&tmp, "repo/.ccb");
+    let anchor = tmp_path(&tmp, "repo/.ccbr");
     fs::create_dir_all(&anchor).unwrap();
     let ref_path = anchor.join("runtime-root-ref.json");
 
@@ -257,7 +260,7 @@ fn test_runtime_project_anchor_from_path_rejects_invalid_marker_payloads() {
     fs::write(
         &marker_path,
         format!(
-            "{{\"schema_version\":1,\"record_type\":\"wrong\",\"project_id\":\"proj-1\",\"project_root\":\"/tmp/repo\",\"anchor_path\":\"/tmp/repo/.ccb\",\"runtime_root_path\":\"{}\"}}",
+            "{{\"schema_version\":1,\"record_type\":\"wrong\",\"project_id\":\"proj-1\",\"project_root\":\"/tmp/repo\",\"anchor_path\":\"/tmp/repo/.ccbr\",\"runtime_root_path\":\"{}\"}}",
             relocated_root
         ),
     )
@@ -267,7 +270,7 @@ fn test_runtime_project_anchor_from_path_rejects_invalid_marker_payloads() {
     fs::write(
         &marker_path,
         format!(
-            "{{\"schema_version\":1,\"record_type\":\"ccb_runtime_root\",\"project_id\":\"\",\"project_root\":\"/tmp/repo\",\"anchor_path\":\"/tmp/repo/.ccb\",\"runtime_root_path\":\"{}\"}}",
+            "{{\"schema_version\":1,\"record_type\":\"ccb_runtime_root\",\"project_id\":\"\",\"project_root\":\"/tmp/repo\",\"anchor_path\":\"/tmp/repo/.ccbr\",\"runtime_root_path\":\"{}\"}}",
             relocated_root
         ),
     )
@@ -277,7 +280,7 @@ fn test_runtime_project_anchor_from_path_rejects_invalid_marker_payloads() {
     fs::write(
         &marker_path,
         format!(
-            "{{\"schema_version\":1,\"record_type\":\"ccb_runtime_root\",\"project_id\":\"proj-1\",\"project_root\":\"/tmp/repo\",\"anchor_path\":\"/tmp/repo/.ccb\",\"runtime_root_path\":\"{}\"}}",
+            "{{\"schema_version\":1,\"record_type\":\"ccb_runtime_root\",\"project_id\":\"proj-1\",\"project_root\":\"/tmp/repo\",\"anchor_path\":\"/tmp/repo/.ccbr\",\"runtime_root_path\":\"{}\"}}",
             tmp_path(&tmp, "other-root")
         ),
     )

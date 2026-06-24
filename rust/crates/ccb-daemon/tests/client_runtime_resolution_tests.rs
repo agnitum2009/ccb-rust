@@ -13,7 +13,7 @@ fn write_file(path: PathBuf, text: &str) -> PathBuf {
 #[test]
 fn test_resolve_work_dir_uses_project_root_for_ccb_session_file() {
     let tmp = tempfile::tempdir().unwrap();
-    let session_file = write_file(tmp.path().join(".ccb").join(".claude-session"), "{}");
+    let session_file = write_file(tmp.path().join(".ccbr").join(".claude-session"), "{}");
     let (work_dir, resolved) = resolve_work_dir(
         &CLAUDE_CLIENT_SPEC,
         Some(session_file.to_str().unwrap()),
@@ -62,9 +62,9 @@ fn test_resolve_work_dir_rejects_wrong_filename() {
 fn test_resolve_work_dir_with_registry_finds_project_session_file() {
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo");
-    let workspace = project_root.join(".ccb").join("workspaces").join("agent1");
+    let workspace = project_root.join(".ccbr").join("workspaces").join("agent1");
     std::fs::create_dir_all(&workspace).unwrap();
-    let session_file = write_file(project_root.join(".ccb").join(".codex-session"), "{}");
+    let session_file = write_file(project_root.join(".ccbr").join(".codex-session"), "{}");
 
     let (work_dir, resolved) =
         resolve_work_dir_with_registry(&CODEX_CLIENT_SPEC, "codex", None, None, Some(&workspace))

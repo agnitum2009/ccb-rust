@@ -263,9 +263,9 @@ mod tests {
     fn test_layout() -> LayoutConfig {
         LayoutConfig {
             project_root: "/tmp/ccb-test".to_string(),
-            ccbd_dir: PathBuf::from("/tmp/ccb-test/.ccb"),
-            ccbd_socket_path: "/tmp/ccb-test/.ccb/ccbd.sock".to_string(),
-            ccbd_tmux_socket_path: "/tmp/ccb-test/.ccb/tmux.sock".to_string(),
+            ccbd_dir: PathBuf::from("/tmp/ccb-test/.ccbr"),
+            ccbd_socket_path: "/tmp/ccb-test/.ccbr/ccbd.sock".to_string(),
+            ccbd_tmux_socket_path: "/tmp/ccb-test/.ccbr/tmux.sock".to_string(),
             ccbd_tmux_session_name: "ccb-test".to_string(),
             ccbd_tmux_control_window_name: "control".to_string(),
             ccbd_tmux_workspace_window_name: "workspace".to_string(),
@@ -292,7 +292,7 @@ mod tests {
         let controller = test_controller();
         let (socket, session, sig, control, workspace) =
             desired_namespace_state(&controller, Some("sig-a"), None);
-        assert_eq!(socket, "/tmp/ccb-test/.ccb/tmux.sock");
+        assert_eq!(socket, "/tmp/ccb-test/.ccbr/tmux.sock");
         assert_eq!(session, "ccb-test");
         assert_eq!(sig, Some("sig-a".to_string()));
         assert_eq!(control, "control");
@@ -337,7 +337,7 @@ mod tests {
         controller.state_store.namespace = Some(NamespaceState {
             project_id: "p1".to_string(),
             namespace_epoch: 2,
-            tmux_socket_path: "/tmp/ccb-test/.ccb/tmux.sock".to_string(),
+            tmux_socket_path: "/tmp/ccb-test/.ccbr/tmux.sock".to_string(),
             tmux_session_name: "ccb-test".to_string(),
             layout_version: 1,
             layout_signature: Some("old".to_string()),

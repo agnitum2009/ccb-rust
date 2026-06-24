@@ -1073,9 +1073,9 @@ mod tests {
     fn test_layout() -> crate::services::project_namespace_runtime::ensure_context::LayoutConfig {
         crate::services::project_namespace_runtime::ensure_context::LayoutConfig {
             project_root: "/tmp/ccb-topo-test".to_string(),
-            ccbd_dir: PathBuf::from("/tmp/ccb-topo-test/.ccb"),
-            ccbd_socket_path: "/tmp/ccb-topo-test/.ccb/ccbd.sock".to_string(),
-            ccbd_tmux_socket_path: "/tmp/ccb-topo-test/.ccb/tmux.sock".to_string(),
+            ccbd_dir: PathBuf::from("/tmp/ccb-topo-test/.ccbr"),
+            ccbd_socket_path: "/tmp/ccb-topo-test/.ccbr/ccbd.sock".to_string(),
+            ccbd_tmux_socket_path: "/tmp/ccb-topo-test/.ccbr/tmux.sock".to_string(),
             ccbd_tmux_session_name: "ccb-topo-test".to_string(),
             ccbd_tmux_control_window_name: "control".to_string(),
             ccbd_tmux_workspace_window_name: "workspace".to_string(),
@@ -1212,11 +1212,11 @@ mod tests {
             current: None,
             backend: crate::services::project_namespace_runtime::backend::build_backend(
                 &controller.backend_factory,
-                "/tmp/ccb-topo-test/.ccb/tmux.sock",
+                "/tmp/ccb-topo-test/.ccbr/tmux.sock",
             )
             .unwrap(),
             session_is_alive: false,
-            desired_socket_path: "/tmp/ccb-topo-test/.ccb/tmux.sock".to_string(),
+            desired_socket_path: "/tmp/ccb-topo-test/.ccbr/tmux.sock".to_string(),
             desired_session_name: "ccb-topo-test".to_string(),
             desired_layout_signature: None,
             desired_control_window_name: "control".to_string(),
@@ -1248,7 +1248,7 @@ mod tests {
         let state = crate::services::project_namespace_runtime::models::ProjectNamespaceState {
             project_id: "p1".to_string(),
             namespace_epoch: 1,
-            tmux_socket_path: "/tmp/ccb-topo-test/.ccb/tmux.sock".to_string(),
+            tmux_socket_path: "/tmp/ccb-topo-test/.ccbr/tmux.sock".to_string(),
             tmux_session_name: "ccb-topo-test".to_string(),
             layout_version: 1,
             layout_signature: None,
@@ -1266,11 +1266,11 @@ mod tests {
             current: Some(state),
             backend: crate::services::project_namespace_runtime::backend::build_backend(
                 &controller.backend_factory,
-                "/tmp/ccb-topo-test/.ccb/tmux.sock",
+                "/tmp/ccb-topo-test/.ccbr/tmux.sock",
             )
             .unwrap(),
             session_is_alive: true,
-            desired_socket_path: "/tmp/ccb-topo-test/.ccb/tmux.sock".to_string(),
+            desired_socket_path: "/tmp/ccb-topo-test/.ccbr/tmux.sock".to_string(),
             desired_session_name: "ccb-topo-test".to_string(),
             desired_layout_signature: None,
             desired_control_window_name: "control".to_string(),
@@ -1297,11 +1297,11 @@ mod tests {
             current: None,
             backend: crate::services::project_namespace_runtime::backend::build_backend(
                 &controller.backend_factory,
-                "/tmp/ccb-topo-test/.ccb/tmux.sock",
+                "/tmp/ccb-topo-test/.ccbr/tmux.sock",
             )
             .unwrap(),
             session_is_alive: false,
-            desired_socket_path: "/tmp/ccb-topo-test/.ccb/tmux.sock".to_string(),
+            desired_socket_path: "/tmp/ccb-topo-test/.ccbr/tmux.sock".to_string(),
             desired_session_name: "ccb-topo-test".to_string(),
             desired_layout_signature: None,
             desired_control_window_name: "control".to_string(),
@@ -1327,11 +1327,11 @@ mod tests {
             current: None,
             backend: crate::services::project_namespace_runtime::backend::build_backend(
                 &controller.backend_factory,
-                "/tmp/ccb-topo-test/.ccb/tmux.sock",
+                "/tmp/ccb-topo-test/.ccbr/tmux.sock",
             )
             .unwrap(),
             session_is_alive: false,
-            desired_socket_path: "/tmp/ccb-topo-test/.ccb/tmux.sock".to_string(),
+            desired_socket_path: "/tmp/ccb-topo-test/.ccbr/tmux.sock".to_string(),
             desired_session_name: "ccb-topo-test".to_string(),
             desired_layout_signature: None,
             desired_control_window_name: "control".to_string(),

@@ -896,7 +896,7 @@ mod tests {
     #[test]
     fn test_render_config_validate() {
         let value = serde_json::json!({
-            "source_path": "/project/.ccb/ccb.config",
+            "source_path": "/project/.ccbr/ccbr.config",
             "source_kind": "project",
             "agent_count": 2,
             "default_agents": ["claude"]

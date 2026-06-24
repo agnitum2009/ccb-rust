@@ -20,7 +20,7 @@ fn stub_app(dir: &TempDir) -> CcbdApp {
 }
 
 fn stub_app_with_config(dir: &TempDir, agents: &[&str]) -> CcbdApp {
-    let ccb_dir = dir.path().join(".ccb");
+    let ccb_dir = dir.path().join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
     let default = format!("{:?}", agents);
     let agents_toml = agents
@@ -36,7 +36,7 @@ fn stub_app_with_config(dir: &TempDir, agents: &[&str]) -> CcbdApp {
         "version = 2\ndefault_agents = {}\n\n{}\n[windows]\n{}\n",
         default, agents_toml, windows
     );
-    std::fs::write(ccb_dir.join("ccb.config"), config).unwrap();
+    std::fs::write(ccb_dir.join("ccbr.config"), config).unwrap();
     CcbdApp::with_backend(
         dir.path(),
         StartFlowService::with_stub(),

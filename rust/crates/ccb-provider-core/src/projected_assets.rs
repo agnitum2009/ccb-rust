@@ -343,7 +343,7 @@ fn tree_has_required_entries(source: &Path, candidate: &Path) -> bool {
 }
 
 fn default_marker_path(target: &Path) -> PathBuf {
-    PathBuf::from(format!("{}.ccb-projection.json", target.display()))
+    PathBuf::from(format!("{}.ccbr-projection.json", target.display()))
 }
 
 fn marker_matches(marker: &Path, label: &str, source: Option<&Path>) -> bool {

@@ -256,7 +256,7 @@ fn window_name_for_agent(config: &ProjectConfig, agent_name: &str) -> Option<Str
 fn project_context(context: &StartContext) -> ccb_project::resolver::ProjectContext {
     let project_root = Utf8PathBuf::from_path_buf(context.project_root.clone())
         .unwrap_or_else(|_| Utf8PathBuf::from("/"));
-    let config_dir = project_root.join(".ccb");
+    let config_dir = project_root.join(".ccbr");
     ccb_project::resolver::ProjectContext {
         cwd: project_root.clone(),
         project_root,

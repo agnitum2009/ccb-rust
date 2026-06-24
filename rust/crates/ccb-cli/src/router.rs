@@ -133,7 +133,7 @@ pub fn print_start_help<W: Write>(out: &mut W) -> std::io::Result<()> {
 usage: ccb [-s] [-n]
 
 Primary workflow:
-  ccb                  Start project agents from `.ccb/ccb.config`.
+  ccb                  Start project agents from `.ccbr/ccbr.config`.
   ccb -s               Safe start. Disable CLI auto-permission override.
   ccb -n               Rebuild runtime state while preserving config and managed agent history.
   ccb clear [agent...]  Send provider-native /clear to managed agent panes.
@@ -195,8 +195,8 @@ Project runtime cleanup:
   ccb kill -f  Force cleanup project-owned runtime residue before `ccb -n`.
 
 Notes:
-  - `kill` is project-scoped. It does not bootstrap a missing `.ccb`.
-  - `kill` still works when `.ccb` exists but `ccb.config` is missing or stale.
+  - `kill` is project-scoped. It does not bootstrap a missing `.ccbr`.
+  - `kill` still works when `.ccbr` exists but `ccbr.config` is missing or stale.
   - Use `ccb -n` after `ccb kill` when you want to rebuild runtime state but keep config and managed agent history.\n")
 }
 
@@ -309,7 +309,7 @@ Runtime diagnostics subview:
 usage: ccb doctor storage [--json]
 
 Storage diagnostics subview:
-  ccb doctor storage        Show .ccb storage class totals and largest entries.
+  ccb doctor storage        Show .ccbr storage class totals and largest entries.
   ccb doctor storage --json Emit full storage classification payload.
 "),
     ("cleanup", "\
@@ -335,7 +335,7 @@ Agent context reset:
 
 Notes:
   - This sends the provider-native /clear command into each pane.
-  - It does not delete .ccb state, workspaces, auth, sessions, or logs.
+  - It does not delete .ccbr state, workspaces, auth, sessions, or logs.
   - Use `ccb kill` or the sidebar restart control when you need process restart.
 "),
     ("restart", "\
@@ -364,7 +364,7 @@ Safety:
   - tick does not run repairs or start providers.
   - runner is an internal project-scoped schedule consumer used by startup ensure.
   - enable and disable are config-authority in v1; edit [maintenance.heartbeat].enabled.
-  - Status reads `.ccb/ccbd/maintenance-heartbeat/`, not `.ccb/ccbd/heartbeats/`.
+  - Status reads `.ccbr/ccbd/maintenance-heartbeat/`, not `.ccbr/ccbd/heartbeats/`.
 "),
     ("doctor", "\
 usage: ccb doctor [ps|logs <agent>|storage] [--output [PATH]]
@@ -373,7 +373,7 @@ Deep diagnostics:
   ccb doctor               Print project diagnostic summary.
   ccb doctor ps            Show the runtime/session/workspace diagnostics subview.
   ccb doctor logs <agent>  Tail the runtime/session log diagnostics subview for one agent.
-  ccb doctor storage       Show .ccb storage class totals.
+  ccb doctor storage       Show .ccbr storage class totals.
   ccb doctor --output      Export a support bundle to the default path.
   ccb doctor --output PATH Export a support bundle to PATH.
   `ccb ps` and `ccb logs <agent>` remain compatibility entrypoints.
@@ -439,14 +439,14 @@ Advanced recovery:
 usage: ccb config validate
 
 Config validation:
-  ccb config validate   Validate `.ccb/ccb.config` for the current project.
+  ccb config validate   Validate `.ccbr/ccbr.config` for the current project.
 "),
     ("reload", "\
 usage: ccb reload [--dry-run]
 
 Reload:
   ccb reload             Apply safe explicit changes: view-only, append-only add_agent/add_window, or idle remove_agent.
-  ccb reload --dry-run   Ask the mounted daemon to validate `.ccb/ccb.config` and return a no-mutation reload plan.
+  ccb reload --dry-run   Ask the mounted daemon to validate `.ccbr/ccbr.config` and return a no-mutation reload plan.
 
 Explicit reload boundary:
   - Busy remove_agent, replace_agent, move_agent, and arbitrary layout changes are rejected.

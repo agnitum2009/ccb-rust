@@ -113,7 +113,7 @@ const NATIVE_CLI_SESSION_ROOTS: &[&str] = &[
     "sessions", "state",
 ];
 const CODEX_SESSION_NAMES: &[&str] = &[
-    ".ccb-session-namespace.json",
+    ".ccbr-session-namespace.json",
     "history.jsonl",
     "logs_2.sqlite",
     "logs_2.sqlite-shm",
@@ -239,7 +239,7 @@ fn classify_relative(
         ));
     }
 
-    if parts[0] == "ccb.config" {
+    if parts[0] == "ccbr.config" {
         return Ok(entry(
             path,
             relative_path,
@@ -750,7 +750,7 @@ pub fn classify_provider_home(
             Some("provider_secret".into()),
         );
     }
-    if name.ends_with(".ccb-projection.json") {
+    if name.ends_with(".ccbr-projection.json") {
         return entry(
             path,
             relative_path,
@@ -1829,7 +1829,7 @@ fn is_marked_projected_symlink(path: &Utf8Path) -> bool {
     if !metadata.file_type().is_symlink() {
         return false;
     }
-    let projection_path = format!("{}.ccb-projection.json", path);
+    let projection_path = format!("{}.ccbr-projection.json", path);
     let data = match fs::read_to_string(&projection_path) {
         Ok(d) => d,
         Err(_) => return false,
@@ -1904,7 +1904,7 @@ mod tests {
     #[test]
     fn test_classify_provider_home_secret() {
         let path =
-            Utf8Path::new("/repo/.ccb/agents/agent1/provider-state/unknownai/home/auth.json");
+            Utf8Path::new("/repo/.ccbr/agents/agent1/provider-state/unknownai/home/auth.json");
         let entry = classify_provider_home(
             path,
             "agents/agent1/provider-state/unknownai/home/auth.json",
@@ -1922,7 +1922,7 @@ mod tests {
     #[test]
     fn test_classify_provider_home_unknown() {
         let path =
-            Utf8Path::new("/repo/.ccb/agents/agent1/provider-state/unknownai/home/notes.txt");
+            Utf8Path::new("/repo/.ccbr/agents/agent1/provider-state/unknownai/home/notes.txt");
         let entry = classify_provider_home(
             path,
             "agents/agent1/provider-state/unknownai/home/notes.txt",
@@ -1939,7 +1939,7 @@ mod tests {
     #[test]
     fn test_classify_kimi_home_projected() {
         let path = Utf8Path::new(
-            "/repo/.ccb/agents/agent1/provider-state/kimi/home/inherited-skills/demo/SKILL.md",
+            "/repo/.ccbr/agents/agent1/provider-state/kimi/home/inherited-skills/demo/SKILL.md",
         );
         let entry = classify_provider_home(
             path,
@@ -1957,7 +1957,7 @@ mod tests {
     #[test]
     fn test_classify_mimo_home() {
         let path =
-            Utf8Path::new("/repo/.ccb/agents/agent1/provider-state/mimo/home/data/state.json");
+            Utf8Path::new("/repo/.ccbr/agents/agent1/provider-state/mimo/home/data/state.json");
         let entry = classify_provider_home(
             path,
             "agents/agent1/provider-state/mimo/home/data/state.json",
@@ -1971,7 +1971,7 @@ mod tests {
         assert_eq!(entry.provider.as_deref(), Some("mimo"));
 
         let config_path =
-            Utf8Path::new("/repo/.ccb/agents/agent1/provider-state/mimo/home/mimocode.json");
+            Utf8Path::new("/repo/.ccbr/agents/agent1/provider-state/mimo/home/mimocode.json");
         let config_entry = classify_provider_home(
             config_path,
             "agents/agent1/provider-state/mimo/home/mimocode.json",
@@ -1987,7 +1987,7 @@ mod tests {
     #[test]
     fn test_classify_native_cli_home() {
         let path = Utf8Path::new(
-            "/repo/.ccb/agents/agent1/provider-state/cursor/home/sessions/session.jsonl",
+            "/repo/.ccbr/agents/agent1/provider-state/cursor/home/sessions/session.jsonl",
         );
         let entry = classify_provider_home(
             path,
@@ -2002,7 +2002,7 @@ mod tests {
         assert_eq!(entry.reason.as_deref(), Some("native_cli_provider_state"));
 
         let cache_path =
-            Utf8Path::new("/repo/.ccb/agents/agent1/provider-state/cursor/home/.cache/blob");
+            Utf8Path::new("/repo/.ccbr/agents/agent1/provider-state/cursor/home/.cache/blob");
         let cache_entry = classify_provider_home(
             cache_path,
             "agents/agent1/provider-state/cursor/home/.cache/blob",

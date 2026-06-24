@@ -108,14 +108,15 @@ pub fn resolve_project_root(cwd: &Path, project_flag: Option<&str>) -> Result<Pa
 
     let mut current = cwd.to_path_buf();
     loop {
-        if current.join(".ccb").is_dir() {
+        if current.join(".ccbr").is_dir() {
             return Ok(current);
         }
         match current.parent() {
             Some(parent) => current = parent.to_path_buf(),
             None => {
                 return Err(
-                    "not inside a CCB project (no .ccb directory found); use --project".to_string(),
+                    "not inside a CCB project (no .ccbr directory found); use --project"
+                        .to_string(),
                 )
             }
         }

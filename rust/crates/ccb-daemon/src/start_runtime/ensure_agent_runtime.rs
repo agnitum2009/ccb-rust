@@ -602,7 +602,7 @@ mod tests {
 
         let binding = RuntimeBinding {
             runtime_ref: Some("tmux:%42".to_string()),
-            session_ref: Some("/tmp/proj/.ccb/.codex-agent1-session".to_string()),
+            session_ref: Some("/tmp/proj/.ccbr/.codex-agent1-session".to_string()),
             ..RuntimeBinding::default()
         };
 
@@ -684,7 +684,7 @@ mod tests {
 
         let binding = RuntimeBinding {
             runtime_ref: Some("tmux:%42".to_string()),
-            session_ref: Some("/tmp/proj/.ccb/.codex-agent1-session".to_string()),
+            session_ref: Some("/tmp/proj/.ccbr/.codex-agent1-session".to_string()),
             ..RuntimeBinding::default()
         };
 

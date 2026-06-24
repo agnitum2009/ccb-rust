@@ -132,7 +132,7 @@ mod tests {
         assert_eq!(context.project.source, "ccbd");
         assert_eq!(
             context.project.config_dir,
-            PathBuf::from("/tmp/ccb-test/.ccb")
+            PathBuf::from("/tmp/ccb-test/.ccbr")
         );
     }
 

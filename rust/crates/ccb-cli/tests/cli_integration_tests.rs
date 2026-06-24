@@ -113,7 +113,7 @@ fn test_cli_ask_submission() {
     assert_eq!(ask_code, 0, "ask should succeed");
 
     // Clean up the real tmux server created by the daemon.
-    let tmux_sock = dir.path().join(".ccb").join("ccbd").join("tmux.sock");
+    let tmux_sock = dir.path().join(".ccbr").join("ccbd").join("tmux.sock");
     if tmux_sock.exists() {
         let _ = std::process::Command::new("tmux")
             .args(["-S", tmux_sock.to_str().unwrap(), "kill-server"])
@@ -257,10 +257,10 @@ fn test_cli_watch_wait_maintenance() {
 #[test]
 fn test_cli_ask_drives_execution_service() {
     let dir = TempDir::new().unwrap();
-    let ccb_dir = dir.path().join(".ccb");
+    let ccb_dir = dir.path().join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
     std::fs::write(
-        ccb_dir.join("ccb.config"),
+        ccb_dir.join("ccbr.config"),
         r#"version = 2
 default_agents = ["codex"]
 
@@ -348,7 +348,7 @@ main = "codex:codex"
     );
 
     // Clean up the real tmux server created by the daemon.
-    let tmux_sock = dir.path().join(".ccb").join("ccbd").join("tmux.sock");
+    let tmux_sock = dir.path().join(".ccbr").join("ccbd").join("tmux.sock");
     if tmux_sock.exists() {
         let _ = std::process::Command::new("tmux")
             .args(["-S", tmux_sock.to_str().unwrap(), "kill-server"])

@@ -59,9 +59,9 @@ fn archive_members(bundle_path: &Path) -> Vec<String> {
 fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:codex\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:codex\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -182,43 +182,46 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     assert!(summary.truncated_count >= 1);
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/state.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/state.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/start-policy.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/start-policy.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/lifecycle.jsonl"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/lifecycle.jsonl"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/heartbeats/job_progress/job_1.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/heartbeats/job_progress/job_1.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/status.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/maintenance-heartbeat/status.json"));
+    assert!(
+        entries
+            .iter()
+            .any(|e| e["archive_path"]
+                == "project/.ccbr/ccbd/maintenance-heartbeat/activations.jsonl")
+    );
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/activations.jsonl"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/artifacts/text/ask-request/large.txt"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/artifacts/text/ask-request/large.txt"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/startup-report.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/startup-report.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/ccbd.stdout.log"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/ccbd.stdout.log"));
-    assert!(entries
-        .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/agents/demo/runtime.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/agents/demo/runtime.json"));
 }
 
 #[test]
 fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-relocated");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:codex\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:codex\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -273,16 +276,16 @@ fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
 
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/runtime-root-ref.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/runtime-root-ref.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/runtime-root.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/runtime-root.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/state.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/state.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/start-policy.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/start-policy.json"));
     let marker_source = context.paths.runtime_root_marker_path().to_string();
     assert!(entries.iter().any(|e| e["source_path"] == marker_source));
 }
@@ -291,9 +294,9 @@ fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
 fn test_export_diagnostic_bundle_survives_corrupt_runtime_and_report_files() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-corrupt");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:codex\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:codex\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -342,10 +345,10 @@ fn test_export_diagnostic_bundle_survives_corrupt_runtime_and_report_files() {
 
     assert!(bundle_path.exists());
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/ccbd/startup-report.json" && e["status"] == "included"
+        e["archive_path"] == "project/.ccbr/ccbd/startup-report.json" && e["status"] == "included"
     }));
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/demo/runtime.json" && e["status"] == "included"
+        e["archive_path"] == "project/.ccbr/agents/demo/runtime.json" && e["status"] == "included"
     }));
 }
 
@@ -353,9 +356,9 @@ fn test_export_diagnostic_bundle_survives_corrupt_runtime_and_report_files() {
 fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-provider-state");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:codex\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:codex\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -417,18 +420,19 @@ fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
     let entries = manifest["entries"].as_array().unwrap();
 
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/demo/provider-state/codex/home/sessions/2026/04/19/rollout-demo-session.jsonl"
+        e["archive_path"] == "project/.ccbr/agents/demo/provider-state/codex/home/sessions/2026/04/19/rollout-demo-session.jsonl"
             && e["status"] == "included"
     }));
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/demo/provider-state/codex/home/config.toml"
+        e["archive_path"] == "project/.ccbr/agents/demo/provider-state/codex/home/config.toml"
             && e["status"] == "included"
     }));
-    assert!(entries.iter().all(
-        |e| e["archive_path"] != "project/.ccb/agents/demo/provider-state/codex/home/auth.json"
-    ));
+    assert!(entries
+        .iter()
+        .all(|e| e["archive_path"]
+            != "project/.ccbr/agents/demo/provider-state/codex/home/auth.json"));
     assert!(entries.iter().all(|e| e["archive_path"]
-        != "project/.ccb/agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json"));
+        != "project/.ccbr/agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json"));
 
     let storage_entries = storage_summary["entries"].as_array().unwrap();
     assert!(storage_entries.iter().any(|e| {
@@ -442,11 +446,11 @@ fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
         summary.bundle_id
     )));
     assert!(!members.contains(&format!(
-        "{}/project/.ccb/agents/demo/provider-state/codex/home/auth.json",
+        "{}/project/.ccbr/agents/demo/provider-state/codex/home/auth.json",
         summary.bundle_id
     )));
     assert!(!members.contains(&format!(
-        "{}/project/.ccb/agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json",
+        "{}/project/.ccbr/agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json",
         summary.bundle_id
     )));
 }
@@ -455,10 +459,10 @@ fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
 fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summary_fails() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-provider-state-storage-error");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
     fs::write(
-        ccb_dir.join("ccb.config"),
+        ccb_dir.join("ccbr.config"),
         "codexer:codex\nclauder:claude\ngem:gemini\n",
     )
     .unwrap();
@@ -550,7 +554,7 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
 
     assert_eq!(storage_summary["error"], "storage failed");
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccb/agents/codexer/provider-state/codex/home/config.toml"
+        e["archive_path"] == "project/.ccbr/agents/codexer/provider-state/codex/home/config.toml"
             && e["status"] == "included"
     }));
     assert!(entries.iter().all(|e| !e["archive_path"]
@@ -586,9 +590,9 @@ fn test_export_diagnostic_bundle_hard_excludes_provider_cache_when_storage_summa
 fn test_export_diagnostic_bundle_excludes_gemini_auth_artifacts() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-gemini-provider-state");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:gemini\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:gemini\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -633,27 +637,25 @@ fn test_export_diagnostic_bundle_excludes_gemini_auth_artifacts() {
 
     assert!(entries.iter().any(|e| {
         e["archive_path"]
-            == "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/settings.json"
+            == "project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/settings.json"
             && e["status"] == "included"
     }));
     assert!(entries.iter().all(|e| e["archive_path"]
-        != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/oauth_creds.json"));
-    assert!(entries
-        .iter()
-        .all(|e| e["archive_path"]
-            != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/.env"));
+        != "project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/oauth_creds.json"));
     assert!(entries.iter().all(|e| e["archive_path"]
-        != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/google_accounts.json"));
+        != "project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/.env"));
+    assert!(entries.iter().all(|e| e["archive_path"]
+        != "project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/google_accounts.json"));
     assert!(!members.contains(&format!(
-        "{}/project/.ccb/agents/demo/provider-state/gemini/home/.gemini/oauth_creds.json",
+        "{}/project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/oauth_creds.json",
         summary.bundle_id
     )));
     assert!(!members.contains(&format!(
-        "{}/project/.ccb/agents/demo/provider-state/gemini/home/.gemini/.env",
+        "{}/project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/.env",
         summary.bundle_id
     )));
     assert!(!members.contains(&format!(
-        "{}/project/.ccb/agents/demo/provider-state/gemini/home/.gemini/google_accounts.json",
+        "{}/project/.ccbr/agents/demo/provider-state/gemini/home/.gemini/google_accounts.json",
         summary.bundle_id
     )));
 }
@@ -662,9 +664,9 @@ fn test_export_diagnostic_bundle_excludes_gemini_auth_artifacts() {
 fn test_export_diagnostic_bundle_excludes_claude_credentials() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-claude-provider-state");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:claude\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:claude\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -699,13 +701,13 @@ fn test_export_diagnostic_bundle_excludes_claude_credentials() {
 
     assert!(entries.iter().any(|e| {
         e["archive_path"]
-            == "project/.ccb/agents/demo/provider-state/claude/home/.claude/settings.json"
+            == "project/.ccbr/agents/demo/provider-state/claude/home/.claude/settings.json"
             && e["status"] == "included"
     }));
     assert!(entries.iter().all(|e| e["archive_path"]
-        != "project/.ccb/agents/demo/provider-state/claude/home/.claude/.credentials.json"));
+        != "project/.ccbr/agents/demo/provider-state/claude/home/.claude/.credentials.json"));
     assert!(!members.contains(&format!(
-        "{}/project/.ccb/agents/demo/provider-state/claude/home/.claude/.credentials.json",
+        "{}/project/.ccbr/agents/demo/provider-state/claude/home/.claude/.credentials.json",
         summary.bundle_id
     )));
 }
@@ -714,9 +716,9 @@ fn test_export_diagnostic_bundle_excludes_claude_credentials() {
 fn test_export_diagnostic_bundle_excludes_claude_home_hook_assets() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-claude-hook-assets");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:claude\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:claude\n").unwrap();
 
     let context = build_context(project_root.clone());
 
@@ -766,7 +768,7 @@ fn test_export_diagnostic_bundle_excludes_claude_home_hook_assets() {
 
     assert!(entries.iter().any(|e| {
         e["archive_path"]
-            == "project/.ccb/agents/demo/provider-state/claude/home/.claude/settings.json"
+            == "project/.ccbr/agents/demo/provider-state/claude/home/.claude/settings.json"
             && e["status"] == "included"
     }));
     assert!(entries.iter().all(|e| !e["archive_path"]
@@ -780,9 +782,9 @@ fn test_export_diagnostic_bundle_excludes_claude_home_hook_assets() {
 fn test_export_diagnostic_bundle_excludes_all_provider_credentials_and_caches() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-bundle-sensitive");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     fs::create_dir_all(&ccb_dir).unwrap();
-    fs::write(ccb_dir.join("ccb.config"), "demo:claude\n").unwrap();
+    fs::write(ccb_dir.join("ccbr.config"), "demo:claude\n").unwrap();
 
     let context = build_context(project_root.clone());
 

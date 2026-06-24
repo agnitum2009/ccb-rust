@@ -105,7 +105,7 @@ fn test_logs_returns_tail_lines() {
     app.start().unwrap();
     register_agent(&mut app, "codex", "codex", dir.path());
 
-    let session_path = dir.path().join(".ccb").join(".codex-codex-session");
+    let session_path = dir.path().join(".ccbr").join(".codex-codex-session");
     fs::create_dir_all(session_path.parent().unwrap()).unwrap();
     let content: String = (1..=20).map(|i| format!("line {}\n", i)).collect();
     fs::write(&session_path, content).unwrap();
@@ -196,7 +196,7 @@ fn test_cleanup_counts_stale_temp_files() {
     let mut app = stub_app(&dir);
     app.start().unwrap();
 
-    let tmp_dir = dir.path().join(".ccb").join("tmp");
+    let tmp_dir = dir.path().join(".ccbr").join("tmp");
     fs::create_dir_all(&tmp_dir).unwrap();
     let stale_file = tmp_dir.join("stale.log");
     fs::write(&stale_file, "old").unwrap();

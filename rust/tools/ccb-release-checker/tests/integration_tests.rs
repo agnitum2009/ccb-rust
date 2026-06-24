@@ -91,7 +91,7 @@ fn test_local_checks_on_temp_repo() {
     std::fs::write(
         root.join("README.md"),
         r#"![version](version-1.0.0-orange.svg)
-.ccb/ccb_memory.md
+.ccbr/ccb_memory.md
 <details>
 <summary><b>v1.0.0</b> - Release</summary>
 - Fixed bug
@@ -106,7 +106,7 @@ git clone https://github.com/SeemSeam/claude_codex_bridge.git
     std::fs::write(
         root.join("README_zh.md"),
         r#"![version](version-1.0.0-orange.svg)
-.ccb/ccb_memory.md
+.ccbr/ccb_memory.md
 <details>
 <summary><b>v1.0.0</b> - Release</summary>
 - Fixed bug

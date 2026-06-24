@@ -86,7 +86,7 @@ fn test_extract_reply_for_req() {
 
 #[test]
 fn test_managed_droid_home_for_runtime() {
-    let runtime = std::path::PathBuf::from("/tmp/agent/.ccb/provider-runtime/droid");
+    let runtime = std::path::PathBuf::from("/tmp/agent/.ccbr/provider-runtime/droid");
     let home = managed_droid_home_for_runtime(&runtime);
     assert!(home.to_string_lossy().contains("provider-state/droid/home"));
 }

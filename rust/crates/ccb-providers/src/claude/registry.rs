@@ -133,7 +133,7 @@ pub(crate) fn find_claude_session_file(work_dir: &Path) -> Option<PathBuf> {
         CLAUDE_SESSION_FILENAME,
         instance.as_deref(),
     );
-    let ccb_dir = target_project.join(".ccb");
+    let ccb_dir = target_project.join(".ccbr");
     let candidate = ccb_dir.join(&filename);
     candidate.exists().then_some(candidate)
 }
@@ -145,7 +145,7 @@ struct WorkspaceBinding {
 }
 
 fn workspace_binding_for_dir(work_dir: &Path) -> Option<WorkspaceBinding> {
-    let binding_path = work_dir.join(".ccb-workspace.json");
+    let binding_path = work_dir.join(".ccbr-workspace.json");
     if !binding_path.exists() {
         return None;
     }
@@ -266,7 +266,7 @@ mod tests {
         let workspace = tmp.path().join("workspace-agent3");
         std::fs::create_dir(&workspace).unwrap();
         std::fs::write(
-            workspace.join(".ccb-workspace.json"),
+            workspace.join(".ccbr-workspace.json"),
             serde_json::json!({
                 "schema_version": 2,
                 "record_type": "workspace_binding",
@@ -279,7 +279,7 @@ mod tests {
             .to_string(),
         )
         .unwrap();
-        let ccb_dir = project_root.join(".ccb");
+        let ccb_dir = project_root.join(".ccbr");
         std::fs::create_dir(&ccb_dir).unwrap();
         let session_file = ccb_dir.join(".claude-agent3-session");
         std::fs::write(

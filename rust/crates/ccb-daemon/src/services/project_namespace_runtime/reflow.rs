@@ -218,9 +218,9 @@ mod tests {
     fn test_layout(root: &std::path::Path) -> LayoutConfig {
         LayoutConfig {
             project_root: root.to_string_lossy().to_string(),
-            ccbd_dir: root.join(".ccb"),
-            ccbd_socket_path: root.join(".ccb/ccbd.sock").to_string_lossy().to_string(),
-            ccbd_tmux_socket_path: root.join(".ccb/tmux.sock").to_string_lossy().to_string(),
+            ccbd_dir: root.join(".ccbr"),
+            ccbd_socket_path: root.join(".ccbr/ccbd.sock").to_string_lossy().to_string(),
+            ccbd_tmux_socket_path: root.join(".ccbr/tmux.sock").to_string_lossy().to_string(),
             ccbd_tmux_session_name: "ccb-test".to_string(),
             ccbd_tmux_control_window_name: "control".to_string(),
             ccbd_tmux_workspace_window_name: "workspace".to_string(),

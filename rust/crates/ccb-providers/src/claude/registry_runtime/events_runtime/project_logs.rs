@@ -255,7 +255,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let work_dir = tmp.path().join("repo");
         std::fs::create_dir(&work_dir).unwrap();
-        let session_file = work_dir.join(".ccb").join(".claude-session");
+        let session_file = work_dir.join(".ccbr").join(".claude-session");
         std::fs::create_dir_all(session_file.parent().unwrap()).unwrap();
         let current_log = tmp.path().join("current.jsonl");
         let log_path = tmp.path().join("other.jsonl");

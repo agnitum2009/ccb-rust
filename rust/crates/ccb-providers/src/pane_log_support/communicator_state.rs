@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn test_initialize_state_populates_runtime_fields() {
         let tmp = std::env::temp_dir();
-        let session_file = tmp.join(".ccb").join(".pane-session");
+        let session_file = tmp.join(".ccbr").join(".pane-session");
         let session_info: HashMap<String, Value> = [
             (
                 "ccb_session_id".to_string(),

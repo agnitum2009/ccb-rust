@@ -89,7 +89,7 @@ fn test_cli_start_ask_kill_smoke() {
     assert_eq!(status_after, 0, "status after kill should succeed");
 
     // Clean up the tmux server created by the daemon.
-    let tmux_sock = dir.path().join(".ccb").join("ccbd").join("tmux.sock");
+    let tmux_sock = dir.path().join(".ccbr").join("ccbd").join("tmux.sock");
     if tmux_sock.exists() {
         let _ = std::process::Command::new("tmux")
             .args(["-S", tmux_sock.to_str().unwrap(), "kill-server"])

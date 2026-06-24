@@ -61,7 +61,7 @@ pub fn paths() -> NvimPaths {
             .join("tools")
             .join("neovim")
             .join("xdg-cache"),
-        marker: profile.join(".ccb-managed-lazyvim"),
+        marker: profile.join(".ccbr-managed-lazyvim"),
         manifest: root.join("manifest.json"),
         profile,
         bin_link,

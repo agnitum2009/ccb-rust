@@ -419,7 +419,7 @@ pub fn archive_path_for_source(context: &CliContext, source: &Path) -> String {
     let runtime_root = as_path(context.paths.runtime_state_root());
     if let Ok(rel) = source_path.strip_prefix(&runtime_root) {
         return PathBuf::from("project")
-            .join(".ccb")
+            .join(".ccbr")
             .join(rel)
             .to_string_lossy()
             .to_string();

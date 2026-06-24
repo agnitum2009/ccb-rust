@@ -45,7 +45,7 @@ impl PathLayout {
         };
 
         let project_id = compute_project_id(root.as_str());
-        let placement = choose_runtime_state_placement(&root, &project_id, &root.join(".ccb"));
+        let placement = choose_runtime_state_placement(&root, &project_id, &root.join(".ccbr"));
         let state_root = placement.effective_path.clone();
 
         Self {
@@ -456,7 +456,7 @@ mod tests {
         let layout = PathLayout::new("/project");
         assert_eq!(
             layout.provider_shared_cache_dir("claude").unwrap(),
-            Utf8PathBuf::from("/project/.ccb/shared-cache/claude")
+            Utf8PathBuf::from("/project/.ccbr/shared-cache/claude")
         );
     }
 

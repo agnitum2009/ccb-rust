@@ -136,12 +136,12 @@ impl PathLayout {
         workspace_root: Option<&str>,
     ) -> Utf8PathBuf {
         self.workspace_path(agent_name, workspace_root)
-            .join(".ccb-workspace.json")
+            .join(".ccbr-workspace.json")
     }
 
     pub fn workspace_group_binding_path(&self, group_name: &str) -> Utf8PathBuf {
         self.workspace_group_path(group_name)
-            .join(".ccb-workspace.json")
+            .join(".ccbr-workspace.json")
     }
 }
 
@@ -154,7 +154,7 @@ mod tests {
         let layout = PathLayout::new("/project");
         assert_eq!(
             layout.agent_mailbox_path("Agent1"),
-            Utf8PathBuf::from("/project/.ccb/ccbd/mailboxes/agent1/mailbox.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/mailboxes/agent1/mailbox.json")
         );
     }
 }

@@ -333,10 +333,10 @@ mod tests {
     fn collect_project_process_candidates_skips_current_pid() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path().join("project");
-        fs::create_dir_all(project_root.join(".ccb")).unwrap();
+        fs::create_dir_all(project_root.join(".ccbr")).unwrap();
 
         let current_pid = std::process::id();
-        let cmdline_map: HashMap<u32, String> = [(current_pid, "/project/.ccb marker".into())]
+        let cmdline_map: HashMap<u32, String> = [(current_pid, "/project/.ccbr marker".into())]
             .into_iter()
             .collect();
         let proc_root = tmp.path().join("proc");
@@ -355,8 +355,8 @@ mod tests {
     fn collect_project_authority_pid_candidates_reads_lease() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path().join("project");
-        fs::create_dir_all(project_root.join(".ccb/ccbd")).unwrap();
-        let lease_path = project_root.join(".ccb/ccbd/lease.json");
+        fs::create_dir_all(project_root.join(".ccbr/ccbd")).unwrap();
+        let lease_path = project_root.join(".ccbr/ccbd/lease.json");
         fs::write(
             &lease_path,
             serde_json::json!({"ccbd_pid": 1111, "keeper_pid": 2222}).to_string(),
@@ -372,7 +372,7 @@ mod tests {
     fn control_plane_marker_matches_project_arg() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path().join("project");
-        fs::create_dir_all(project_root.join(".ccb")).unwrap();
+        fs::create_dir_all(project_root.join(".ccbr")).unwrap();
         let layout = build_layout(&project_root).unwrap();
         let cmdline = format!(
             "python ccbd/main.py --project {} --daemon",
@@ -386,7 +386,7 @@ mod tests {
     fn control_plane_marker_rejects_wrong_project() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path().join("project");
-        fs::create_dir_all(project_root.join(".ccb")).unwrap();
+        fs::create_dir_all(project_root.join(".ccbr")).unwrap();
         let layout = build_layout(&project_root).unwrap();
         let cmdline = "python ccbd/main.py --project /other/project --daemon".to_string();
         let marker = control_plane_marker(&project_root, &cmdline, &layout);

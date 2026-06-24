@@ -75,8 +75,8 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("claude-root");
         let work_dir = tmp.path().join("repo");
-        std::fs::create_dir_all(work_dir.join(".ccb")).unwrap();
-        let session_file = work_dir.join(".ccb").join(".claude-session");
+        std::fs::create_dir_all(work_dir.join(".ccbr")).unwrap();
+        let session_file = work_dir.join(".ccbr").join(".claude-session");
         std::fs::write(&session_file, "{}").unwrap();
         let project_key = work_dir
             .to_string_lossy()

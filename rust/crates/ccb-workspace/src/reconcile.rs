@@ -471,7 +471,7 @@ fn project_context(project_root: &Path) -> ProjectContext {
             .unwrap_or_else(|_| Utf8PathBuf::from("/")),
         config_dir: Utf8PathBuf::from_path_buf(root.clone())
             .unwrap_or_else(|_| Utf8PathBuf::from("/"))
-            .join(".ccb"),
+            .join(".ccbr"),
         project_id: compute_project_id(root.to_string_lossy().as_ref()),
         source: "workspace-reconcile".to_string(),
     }
@@ -515,7 +515,7 @@ mod tests {
         let alert = WorktreeAlert {
             agent_name: "agent1".to_string(),
             branch_name: Some("ccb/agent1".to_string()),
-            workspace_path: "/tmp/project/.ccb/workspaces/agent1".to_string(),
+            workspace_path: "/tmp/project/.ccbr/workspaces/agent1".to_string(),
             dirty: Some(true),
             merged: Some(false),
             registered: true,

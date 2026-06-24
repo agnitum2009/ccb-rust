@@ -18,7 +18,7 @@ fn write_runtime_root_marker(
             "record_type": "ccb_runtime_root",
             "project_id": "proj-1",
             "project_root": project_root.to_str().unwrap(),
-            "anchor_path": project_root.join(".ccb").to_str().unwrap(),
+            "anchor_path": project_root.join(".ccbr").to_str().unwrap(),
             "runtime_root_path": runtime_root_path.to_str().unwrap(),
             "created_at": "2026-05-07T00:00:00Z",
         }))
@@ -31,7 +31,7 @@ fn write_runtime_root_marker(
 fn test_session_file_for_runtime_dir_follows_relocated_runtime_anchor() {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-relocated-session-path");
-    let anchor = project_root.join(".ccb");
+    let anchor = project_root.join(".ccbr");
     std::fs::create_dir_all(&anchor).unwrap();
     let relocated_root = tmp.path().join("state-root");
 
@@ -62,7 +62,7 @@ fn test_session_file_for_runtime_dir_follows_relocated_runtime_anchor() {
 fn test_session_file_for_runtime_dir_rejects_invalid_runtime_marker() {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-invalid-relocated-session-path");
-    let anchor = project_root.join(".ccb");
+    let anchor = project_root.join(".ccbr");
     std::fs::create_dir_all(&anchor).unwrap();
     let relocated_root = tmp.path().join("state-root-invalid");
     let different_root = tmp.path().join("different-root");
@@ -92,7 +92,7 @@ fn test_session_file_for_runtime_dir_rejects_invalid_runtime_marker() {
 fn test_session_file_for_runtime_dir_finds_local_ccb_first() {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path().join("repo");
-    let local_ccb = project_root.join(".ccb");
+    let local_ccb = project_root.join(".ccbr");
     std::fs::create_dir_all(&local_ccb).unwrap();
     let runtime_dir = local_ccb
         .join("agents")

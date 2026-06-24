@@ -25,7 +25,8 @@
     "06-24-py2rust-e2e-terminal-edge",
     "06-24-py2rust-consistency-closure",
     "06-24-py2rust-consistency-finishline",
-    "06-24-py2rust-remove-stub-mirrors"
+    "06-24-py2rust-remove-stub-mirrors",
+    "06-24-py2rust-ccb-to-ccbr-rename"
   ],
   "parent": null,
   "relatedFiles": [],

@@ -88,13 +88,13 @@ impl CliContextBuilder {
     }
 }
 
-/// Walk up from `start` looking for a `.ccb` directory marker.
+/// Walk up from `start` looking for a `.ccbr` directory marker.
 ///
 /// Mirrors Python `find_project_root`.
 pub fn find_project_root(start: &Path) -> Option<PathBuf> {
     let mut current = start.to_path_buf();
     loop {
-        if current.join(".ccb").is_dir() {
+        if current.join(".ccbr").is_dir() {
             return Some(current);
         }
         if !current.pop() {

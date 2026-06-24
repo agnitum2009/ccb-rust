@@ -12,9 +12,9 @@ use serde_json::{json, Value};
 
 fn make_context(tmp: &tempfile::TempDir) -> CliContext {
     let project_root = tmp.path();
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
     std::fs::write(
-        project_root.join(".ccb/ccb.config"),
+        project_root.join(".ccbr/ccbr.config"),
         "cmd; agent1:codex, agent2:claude\n",
     )
     .unwrap();

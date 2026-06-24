@@ -14,7 +14,7 @@ use crate::models::{
 };
 use ccb_storage::paths::PathLayout;
 
-pub const CONFIG_FILENAME: &str = "ccb.config";
+pub const CONFIG_FILENAME: &str = "ccbr.config";
 pub const CONFIG_SOURCE_PROJECT: &str = "project_config";
 pub const CONFIG_SOURCE_USER: &str = "user_config";
 pub const CONFIG_SOURCE_BUILTIN_DEFAULT: &str = "builtin_default";
@@ -91,7 +91,7 @@ pub struct ConfigLoadResult {
     pub used_default: bool,
 }
 
-/// Load project config from the .ccb directory.
+/// Load project config from the .ccbr directory.
 pub fn load_project_config(layout: &PathLayout) -> crate::Result<ConfigLoadResult> {
     let config_path = project_config_path(layout);
     if config_path.exists() {
@@ -135,7 +135,7 @@ pub fn project_config_path(layout: &PathLayout) -> Utf8PathBuf {
 
 pub fn user_default_config_path() -> Utf8PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    Utf8PathBuf::from(format!("{}/.ccb/ccb.config", home))
+    Utf8PathBuf::from(format!("{}/.ccbr/ccbr.config", home))
 }
 
 pub fn ensure_bootstrap_project_config(layout: &PathLayout) -> crate::Result<Utf8PathBuf> {
@@ -1301,7 +1301,7 @@ mod tests {
     fn test_config_path() {
         let layout = PathLayout::new("/project");
         let path = project_config_path(&layout);
-        assert!(path.as_str().ends_with(".ccb/ccb.config"));
+        assert!(path.as_str().ends_with(".ccbr/ccbr.config"));
     }
 
     #[test]

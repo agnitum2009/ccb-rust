@@ -49,7 +49,7 @@ fn prepared_state(runtime_dir: &std::path::Path, agent_name: &str) -> CodexLaunc
         project_root: project_root.to_string_lossy().to_string(),
         workspace_path: project_root.to_string_lossy().to_string(),
         agent_events_path: project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join(agent_name)
             .join("events.jsonl")
@@ -61,7 +61,7 @@ fn prepared_state(runtime_dir: &std::path::Path, agent_name: &str) -> CodexLaunc
 fn runtime_project_root(runtime_dir: &std::path::Path) -> PathBuf {
     let mut current = runtime_dir;
     while let Some(parent) = current.parent() {
-        if current.file_name() == Some(std::ffi::OsStr::new(".ccb")) {
+        if current.file_name() == Some(std::ffi::OsStr::new(".ccbr")) {
             return parent.to_path_buf();
         }
         current = parent;
@@ -75,7 +75,7 @@ fn test_codex_launcher_build_start_cmd_uses_agent_scoped_session_root_by_default
     let runtime_dir = tmp
         .path()
         .join("repo")
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -334,16 +334,16 @@ fn test_codex_launcher_build_start_cmd_uses_agent_scoped_resume_session() {
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo-codex-resume");
     let runtime_dir = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
         .join("codex");
     std::fs::create_dir_all(&runtime_dir).unwrap();
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
     std::fs::write(
-        project_root.join(".ccb").join("ccb_memory.md"),
+        project_root.join(".ccbr").join("ccb_memory.md"),
         "shared memory\n",
     )
     .unwrap();
@@ -413,16 +413,16 @@ fn test_codex_launcher_provider_command_template_wraps_original_resume_command()
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo-codex-template");
     let runtime_dir = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
         .join("codex");
     std::fs::create_dir_all(&runtime_dir).unwrap();
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
     std::fs::write(
-        project_root.join(".ccb").join("ccb_memory.md"),
+        project_root.join(".ccbr").join("ccb_memory.md"),
         "shared memory\n",
     )
     .unwrap();
@@ -493,13 +493,13 @@ fn test_codex_launcher_build_start_cmd_skips_resume_when_explicit_api_authority_
     let tmp = tempfile::tempdir().unwrap();
     let project_root = tmp.path().join("repo-codex-authority-change");
     let runtime_dir = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
         .join("codex");
     std::fs::create_dir_all(&runtime_dir).unwrap();
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
     unsafe { std::env::remove_var("CODEX_HOME") };
 
@@ -686,7 +686,7 @@ fn test_codex_launcher_resolves_home_from_legacy_start_cmd_env() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -694,7 +694,7 @@ fn test_codex_launcher_resolves_home_from_legacy_start_cmd_env() {
     std::fs::create_dir_all(&runtime_dir).unwrap();
 
     let legacy_home = tmp.path().join("legacy-home");
-    let session_file = project.join(".ccb").join(".codex-agent1-session");
+    let session_file = project.join(".ccbr").join(".codex-agent1-session");
     std::fs::create_dir_all(session_file.parent().unwrap()).unwrap();
     std::fs::write(
         &session_file,
@@ -738,7 +738,7 @@ fn test_codex_launcher_migrates_legacy_session_path_to_provider_state_layout() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -750,7 +750,7 @@ fn test_codex_launcher_migrates_legacy_session_path_to_provider_state_layout() {
     std::fs::create_dir_all(log_path.parent().unwrap()).unwrap();
     std::fs::write(&log_path, "{}\n").unwrap();
 
-    let session_file = project.join(".ccb").join(".codex-agent1-session");
+    let session_file = project.join(".ccbr").join(".codex-agent1-session");
     std::fs::create_dir_all(session_file.parent().unwrap()).unwrap();
     std::fs::write(
         &session_file,

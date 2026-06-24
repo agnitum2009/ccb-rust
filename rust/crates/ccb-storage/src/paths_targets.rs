@@ -86,27 +86,27 @@ mod tests {
         let layout = PathLayout::new("/project");
         assert_eq!(
             layout.target_dir("agent", "Agent1").unwrap(),
-            Utf8PathBuf::from("/project/.ccb/agents/agent1")
+            Utf8PathBuf::from("/project/.ccbr/agents/agent1")
         );
         assert_eq!(
             layout.target_dir("service", "svc-1").unwrap(),
-            Utf8PathBuf::from("/project/.ccb/ccbd/targets/svc-1")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/targets/svc-1")
         );
         assert_eq!(
             layout.snapshot_path("job-1"),
-            Utf8PathBuf::from("/project/.ccb/ccbd/snapshots/job-1.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/snapshots/job-1.json")
         );
         assert_eq!(
             layout.cursor_path("job-1"),
-            Utf8PathBuf::from("/project/.ccb/ccbd/cursors/job-1.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/cursors/job-1.json")
         );
         assert_eq!(
             layout.provider_health_path("job-1"),
-            Utf8PathBuf::from("/project/.ccb/ccbd/provider-health/job-1.jsonl")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/provider-health/job-1.jsonl")
         );
         assert_eq!(
             layout.support_bundle_path("bundle-1").unwrap(),
-            Utf8PathBuf::from("/project/.ccb/ccbd/support/bundle-1.tar.gz")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/support/bundle-1.tar.gz")
         );
     }
 
@@ -115,7 +115,7 @@ mod tests {
         let layout = PathLayout::new("/project");
         assert_eq!(
             layout.heartbeat_subject_path("provider", "sub-1").unwrap(),
-            Utf8PathBuf::from("/project/.ccb/ccbd/heartbeats/provider/sub-1.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbd/heartbeats/provider/sub-1.json")
         );
     }
 }

@@ -69,10 +69,10 @@ const REGISTRY_TTL_SECONDS: i64 = 7 * 24 * 60 * 60;
 /// Return the registry directory for a work directory.
 pub fn registry_dir(work_dir: Option<&Path>) -> PathBuf {
     match work_dir {
-        Some(dir) => dir.join(".ccb").join("registry"),
+        Some(dir) => dir.join(".ccbr").join("registry"),
         None => std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
-            .join(".ccb")
+            .join(".ccbr")
             .join("registry"),
     }
 }

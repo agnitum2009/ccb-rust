@@ -22,14 +22,14 @@ pub fn session_file_for_runtime_dir(runtime_dir: &Utf8Path) -> Option<Utf8PathBu
     Some(ccb_dir.join(filename))
 }
 
-/// Find the nearest `.ccb` directory ancestor of `runtime_dir`.
+/// Find the nearest `.ccbr` directory ancestor of `runtime_dir`.
 ///
-/// Falls back to the relocated runtime anchor marker if no `.ccb` directory
+/// Falls back to the relocated runtime anchor marker if no `.ccbr` directory
 /// is found in the ancestor chain.
 pub fn find_project_ccb_dir(runtime_dir: &Utf8Path) -> Option<Utf8PathBuf> {
     let mut current = Some(runtime_dir);
     while let Some(p) = current {
-        if p.file_name() == Some(".ccb") {
+        if p.file_name() == Some(".ccbr") {
             return Some(p.to_path_buf());
         }
         current = p.parent();
@@ -164,10 +164,10 @@ mod tests {
 
     #[test]
     fn test_session_file_for_runtime_dir() {
-        let runtime = Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-runtime/codex");
+        let runtime = Utf8PathBuf::from("/repo/.ccbr/agents/agent1/provider-runtime/codex");
         assert_eq!(
             session_file_for_runtime_dir(&runtime),
-            Some(Utf8PathBuf::from("/repo/.ccb/.codex-agent1-session"))
+            Some(Utf8PathBuf::from("/repo/.ccbr/.codex-agent1-session"))
         );
     }
 
@@ -195,7 +195,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let project_root_buf = tmp.path().join("repo");
         let project_root = Utf8Path::from_path(&project_root_buf).unwrap();
-        let anchor = project_root.join(".ccb");
+        let anchor = project_root.join(".ccbr");
         std::fs::create_dir_all(&anchor).unwrap();
         let runtime_root_buf = tmp.path().join("state-root");
         let runtime_root = Utf8Path::from_path(&runtime_root_buf).unwrap();
@@ -217,7 +217,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let project_root_buf = tmp.path().join("repo");
         let project_root = Utf8Path::from_path(&project_root_buf).unwrap();
-        let anchor = project_root.join(".ccb");
+        let anchor = project_root.join(".ccbr");
         std::fs::create_dir_all(&anchor).unwrap();
         let runtime_root_buf = tmp.path().join("state-root");
         let runtime_root = Utf8Path::from_path(&runtime_root_buf).unwrap();

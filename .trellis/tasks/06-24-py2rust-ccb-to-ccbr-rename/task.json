@@ -3,7 +3,7 @@
   "name": "py2rust-ccb-to-ccbr-rename",
   "title": "Wave 3 品牌：ccb→ccbr 全面重命名（二进制/配置目录/配置文件/tmux身份/env/crate名）",
   "description": "Full ccb->ccbr rebrand across the Rust workspace: binary ccbr, config dir .ccbr, config file ccbr.config, tmux @ccb_->@ccbr_, env CCB_->CCBR_, crate names ccb-*->ccbr-*. Avoid collision with locally-installed Python ccb.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

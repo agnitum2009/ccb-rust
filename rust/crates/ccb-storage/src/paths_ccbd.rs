@@ -11,11 +11,11 @@ impl PathLayout {
     }
 
     pub fn ccb_dir(&self) -> Utf8PathBuf {
-        self.project_root.join(".ccb")
+        self.project_root.join(".ccbr")
     }
 
     pub fn config_path(&self) -> Utf8PathBuf {
-        self.ccb_dir().join("ccb.config")
+        self.ccb_dir().join("ccbr.config")
     }
 
     // --- CCBD paths ---
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn test_ccb_dir_structure() {
         let layout = PathLayout::new("/project");
-        assert_eq!(layout.ccb_dir(), Utf8PathBuf::from("/project/.ccb"));
-        assert_eq!(layout.ccbd_dir(), Utf8PathBuf::from("/project/.ccb/ccbd"));
+        assert_eq!(layout.ccb_dir(), Utf8PathBuf::from("/project/.ccbr"));
+        assert_eq!(layout.ccbd_dir(), Utf8PathBuf::from("/project/.ccbr/ccbd"));
     }
 }

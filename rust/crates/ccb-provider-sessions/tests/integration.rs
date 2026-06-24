@@ -18,7 +18,7 @@ fn is_root() -> bool {
 #[test]
 fn test_project_config_dir() {
     let dir = TempDir::new().unwrap();
-    let expected = dir.path().canonicalize().unwrap().join(".ccb");
+    let expected = dir.path().canonicalize().unwrap().join(".ccbr");
     assert_eq!(project_config_dir(dir.path()), expected);
 }
 
@@ -125,7 +125,7 @@ fn test_safe_write_session_fails_on_symlink() {
 fn test_find_project_session_file_via_anchor() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
-    let ccb = project.join(".ccb");
+    let ccb = project.join(".ccbr");
     fs::create_dir_all(&ccb).unwrap();
     let session = ccb.join(".claude-session");
     fs::write(&session, "").unwrap();
@@ -138,14 +138,14 @@ fn test_find_project_session_file_via_anchor() {
 fn test_find_project_session_file_via_workspace_binding() {
     let dir = TempDir::new().unwrap();
     let target = dir.path().join("target");
-    let target_ccb = target.join(".ccb");
+    let target_ccb = target.join(".ccbr");
     fs::create_dir_all(&target_ccb).unwrap();
     let session = target_ccb.join(".codex-session");
     fs::write(&session, "").unwrap();
 
     let workspace = dir.path().join("workspace");
     fs::create_dir_all(&workspace).unwrap();
-    let binding = workspace.join(".ccb-workspace.json");
+    let binding = workspace.join(".ccbr-workspace.json");
     fs::write(
         &binding,
         serde_json::json!({"target_project": target.to_str().unwrap()}).to_string(),
@@ -160,7 +160,7 @@ fn test_find_project_session_file_via_workspace_binding() {
 fn test_resolve_work_dir_with_explicit_session_file() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
-    let ccb = project.join(".ccb");
+    let ccb = project.join(".ccbr");
     fs::create_dir_all(&ccb).unwrap();
     let session = ccb.join(".claude-session");
     fs::write(&session, "").unwrap();
@@ -191,7 +191,7 @@ fn test_resolve_work_dir_without_session_file() {
 fn test_resolve_work_dir_with_registry_finds_project_file() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
-    let ccb = project.join(".ccb");
+    let ccb = project.join(".ccbr");
     fs::create_dir_all(&ccb).unwrap();
     let session = ccb.join(".droid-session");
     fs::write(&session, "").unwrap();

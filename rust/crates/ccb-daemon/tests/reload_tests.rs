@@ -13,9 +13,9 @@ fn stub_app(dir: &TempDir) -> CcbdApp {
 }
 
 fn write_config(dir: &TempDir, content: &str) {
-    let ccb_dir = dir.path().join(".ccb");
+    let ccb_dir = dir.path().join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
-    std::fs::write(ccb_dir.join("ccb.config"), content).unwrap();
+    std::fs::write(ccb_dir.join("ccbr.config"), content).unwrap();
 }
 
 fn call(app: &mut CcbdApp, method: &str, params: serde_json::Value) -> serde_json::Value {

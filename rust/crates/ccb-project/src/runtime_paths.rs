@@ -3,7 +3,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use crate::discovery::project_ccb_dir;
 use crate::identity::try_resolve_project_root;
 
-/// Return the `.ccb` directory for the project containing `work_dir`.
+/// Return the `.ccbr` directory for the project containing `work_dir`.
 pub fn project_anchor_dir(work_dir: impl AsRef<Utf8Path>) -> Utf8PathBuf {
     project_ccb_dir(crate::identity::resolve_project_root(
         work_dir.as_ref().as_str(),
@@ -51,7 +51,7 @@ mod tests {
         let root = utf8(tmp.path());
         std::fs::create_dir(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
         let anchor = project_anchor_dir(&root);
-        assert!(anchor.as_str().ends_with("/.ccb"));
+        assert!(anchor.as_str().ends_with("/.ccbr"));
         assert!(project_anchor_exists(&root));
     }
 
@@ -60,13 +60,13 @@ mod tests {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
         std::fs::create_dir_all(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
-        assert!(project_ccbd_dir(&root).as_str().ends_with("/.ccb/ccbd"));
+        assert!(project_ccbd_dir(&root).as_str().ends_with("/.ccbr/ccbd"));
         assert!(project_registry_dir(&root)
             .as_str()
-            .ends_with("/.ccb/ccbd/registry"));
+            .ends_with("/.ccbr/ccbd/registry"));
         assert!(project_lock_dir(&root)
             .as_str()
-            .ends_with("/.ccb/ccbd/locks"));
+            .ends_with("/.ccbr/ccbd/locks"));
     }
 
     #[test]

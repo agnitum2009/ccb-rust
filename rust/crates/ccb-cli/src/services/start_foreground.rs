@@ -741,9 +741,9 @@ mod tests {
 
     fn make_context(tmp: &tempfile::TempDir) -> CliContext {
         let project_root = tmp.path().to_path_buf();
-        let ccb_dir = project_root.join(".ccb");
+        let ccb_dir = project_root.join(".ccbr");
         std::fs::create_dir_all(&ccb_dir).unwrap();
-        std::fs::write(ccb_dir.join("ccb.config"), "demo:codex\n").unwrap();
+        std::fs::write(ccb_dir.join("ccbr.config"), "demo:codex\n").unwrap();
         let command =
             crate::models::ParsedCommand::Start(crate::models_start::ParsedStartCommand {
                 project: None,

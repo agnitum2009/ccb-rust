@@ -68,7 +68,7 @@ fn test_gemini_launcher_build_start_cmd_includes_home_env_and_context() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -128,7 +128,7 @@ fn test_gemini_launcher_build_start_cmd_restores_when_history_exists() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -140,7 +140,7 @@ fn test_gemini_launcher_build_start_cmd_restores_when_history_exists() {
     let hash = format!("{:x}", hasher.finalize());
 
     let managed_home = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-state")

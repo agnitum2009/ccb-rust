@@ -65,7 +65,7 @@ mod tests {
     use std::fs;
 
     fn create_anchor(tmp: &tempfile::TempDir) {
-        fs::create_dir_all(tmp.path().join(".ccb")).unwrap();
+        fs::create_dir_all(tmp.path().join(".ccbr")).unwrap();
     }
 
     #[test]

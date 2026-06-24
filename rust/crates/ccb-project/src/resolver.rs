@@ -86,7 +86,7 @@ fn ensure_bootstrap_project_config(
 ) -> Result<Utf8PathBuf, ProjectDiscoveryError> {
     let config_dir = project_ccb_dir(project_root);
     std::fs::create_dir_all(&config_dir)?;
-    Ok(config_dir.join("ccb.config"))
+    Ok(config_dir.join("ccbr.config"))
 }
 
 fn env_truthy(name: &str) -> bool {
@@ -148,9 +148,9 @@ fn _require_anchor_dir(root: &Utf8Path, reason: &str) -> Result<(), ProjectDisco
 
 fn _nested_anchor_bootstrap_error(project_root: &Utf8Path, parent_root: &Utf8Path) -> String {
     format!(
-        "cannot auto-create .ccb in {project_root}: \
+        "cannot auto-create .ccbr in {project_root}: \
          parent project anchor already exists at {parent_anchor}; \
-         .ccb is the unique project anchor for a project tree. \
+         .ccbr is the unique project anchor for a project tree. \
          If you intentionally want {project_root} to be a separate project, \
          create {new_anchor} manually and rerun",
         parent_anchor = project_ccb_dir(parent_root),
@@ -224,7 +224,7 @@ mod tests {
         let err = resolver.resolve(root.as_path(), None, true).unwrap_err();
         assert!(err
             .to_string()
-            .contains("no .ccb anchor or workspace binding found"));
+            .contains("no .ccbr anchor or workspace binding found"));
     }
 
     #[test]

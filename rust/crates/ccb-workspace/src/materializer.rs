@@ -13,7 +13,7 @@ use crate::git_worktree::{
 use crate::models::{normalize_path, WorkspacePlan};
 use crate::Result;
 
-const COPY_IGNORE_NAMES: &[&str] = &[".git", ".ccb", "__pycache__", ".pytest_cache"];
+const COPY_IGNORE_NAMES: &[&str] = &[".git", ".ccbr", "__pycache__", ".pytest_cache"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MaterializationResult {
@@ -275,7 +275,7 @@ impl WorkspaceMaterializer {
             .map(|p| {
                 vec![p
                     .file_name()
-                    .unwrap_or(std::ffi::OsStr::new(".ccb-workspace.json"))
+                    .unwrap_or(std::ffi::OsStr::new(".ccbr-workspace.json"))
                     .to_string_lossy()
                     .to_string()]
             })
@@ -450,7 +450,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let ws = tmp.path().join("workspace");
         std::fs::create_dir(&ws).unwrap();
-        let binding = ws.join(".ccb-workspace.json");
+        let binding = ws.join(".ccbr-workspace.json");
         std::fs::write(&binding, "{}").unwrap();
         let plan = WorkspacePlan::new(
             "pid".to_string(),

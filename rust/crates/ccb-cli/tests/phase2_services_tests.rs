@@ -23,9 +23,9 @@ use tempfile::TempDir;
 fn make_project() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path().join("repo");
-    let ccb_dir = project_root.join(".ccb");
+    let ccb_dir = project_root.join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
-    std::fs::write(ccb_dir.join("ccb.config"), "agent1:codex\n").unwrap();
+    std::fs::write(ccb_dir.join("ccbr.config"), "agent1:codex\n").unwrap();
     (tmp, project_root)
 }
 

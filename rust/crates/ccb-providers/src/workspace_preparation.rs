@@ -385,7 +385,7 @@ fn _claude_versions_cache_signature(
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if name.starts_with('.') || name.ends_with(".ccb-projection.json") {
+        if name.starts_with('.') || name.ends_with(".ccbr-projection.json") {
             continue;
         }
         version_names.push(name.into_owned());

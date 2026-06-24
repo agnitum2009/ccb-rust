@@ -19,8 +19,8 @@ fn make_context(tmp: &tempfile::TempDir) -> CliContext {
 
 fn make_context_with_config(tmp: &tempfile::TempDir, config_text: &str) -> CliContext {
     let project_root = tmp.path();
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
-    std::fs::write(project_root.join(".ccb/ccb.config"), config_text).unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
+    std::fs::write(project_root.join(".ccbr/ccbr.config"), config_text).unwrap();
     CliContextBuilder::new(ParsedCommand::Ask(ParsedAskCommand::new(
         None,
         "agent1".into(),
@@ -366,7 +366,9 @@ fn test_resolve_ask_sender_prefers_runtime_dir_actor() {
     ] {
         std::env::remove_var(name);
     }
-    let runtime_dir = tmp.path().join(".ccb/agents/agent1/provider-runtime/codex");
+    let runtime_dir = tmp
+        .path()
+        .join(".ccbr/agents/agent1/provider-runtime/codex");
     std::fs::create_dir_all(&runtime_dir).unwrap();
     std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
     std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");
@@ -399,7 +401,10 @@ fn test_resolve_ask_sender_prefers_relocated_runtime_dir_actor() {
         "created_at": "2026-05-07T00:00:00Z",
     });
     std::fs::write(
-        before.paths.project_root.join(".ccb/runtime-root-ref.json"),
+        before
+            .paths
+            .project_root
+            .join(".ccbr/runtime-root-ref.json"),
         ref_value.to_string(),
     )
     .unwrap();

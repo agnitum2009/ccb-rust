@@ -453,7 +453,7 @@ fn test_render_memory_bundle() {
 #[test]
 fn test_materialize_runtime_memory_bundle() {
     let tmp = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(tmp.path().join(".ccb")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".ccbr")).unwrap();
     let result = materialize_runtime_memory_bundle(
         tmp.path(),
         "Agent1",
@@ -482,7 +482,7 @@ fn test_materialize_runtime_memory_bundle() {
 #[test]
 fn test_agent_private_memory_path() {
     let tmp = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(tmp.path().join(".ccb")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".ccbr")).unwrap();
     let layout = ccb_storage::paths::PathLayout::new(tmp.path().to_string_lossy().to_string());
     let path = agent_private_memory_path(&layout, "Agent1");
     assert!(path.to_string_lossy().contains("agent1"));
@@ -491,7 +491,7 @@ fn test_agent_private_memory_path() {
 
 fn write_workspace_binding(workspace: &std::path::Path, target_project: &std::path::Path) {
     std::fs::write(
-        workspace.join(".ccb-workspace.json"),
+        workspace.join(".ccbr-workspace.json"),
         serde_json::json!({
             "schema_version": 2,
             "record_type": "workspace_binding",
@@ -515,7 +515,7 @@ fn test_load_session_data_uses_workspace_binding_named_agent() {
     std::fs::create_dir(&workspace).unwrap();
     write_workspace_binding(&workspace, &project_root);
 
-    let session_file = project_root.join(".ccb").join(".codex-agent4-session");
+    let session_file = project_root.join(".ccbr").join(".codex-agent4-session");
     std::fs::create_dir_all(session_file.parent().unwrap()).unwrap();
     std::fs::write(&session_file, r#"{"codex_session_id":"sid-1"}"#).unwrap();
 
@@ -536,8 +536,8 @@ fn test_auto_source_candidates_prefers_bound_agent_session() {
     std::fs::create_dir(&workspace).unwrap();
     write_workspace_binding(&workspace, &project_root);
 
-    let codex_session = project_root.join(".ccb").join(".codex-agent4-session");
-    let gemini_session = project_root.join(".ccb").join(".gemini-agent4-session");
+    let codex_session = project_root.join(".ccbr").join(".codex-agent4-session");
+    let gemini_session = project_root.join(".ccbr").join(".gemini-agent4-session");
     std::fs::create_dir_all(codex_session.parent().unwrap()).unwrap();
     std::fs::write(&codex_session, "{}").unwrap();
     std::fs::write(&gemini_session, "{}").unwrap();
@@ -1219,7 +1219,7 @@ fn test_extract_from_codex_falls_back_to_latest_log_path() {
 #[test]
 fn test_extract_from_opencode_uses_captured_session_state() {
     let tmp = tempfile::tempdir().unwrap();
-    let ccb_dir = tmp.path().join(".ccb");
+    let ccb_dir = tmp.path().join(".ccbr");
     std::fs::create_dir(&ccb_dir).unwrap();
     let session_path = tmp.path().join("session.json");
     std::fs::write(
@@ -1310,7 +1310,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     std::fs::create_dir(&workspace_path).unwrap();
 
     write_test_file(
-        &project_root.join(".ccb").join("ccb_memory.md"),
+        &project_root.join(".ccbr").join("ccb_memory.md"),
         "# CCB Project Memory\n\nSHARED-MEMORY-SENTINEL\n",
     );
     write_test_file(&project_root.join("CLAUDE.md"), "PROJECT-CLAUDE-SENTINEL\n");
@@ -1325,7 +1325,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
 
     write_test_file(
         &project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("reviewer")
             .join("memory.md"),
@@ -1333,7 +1333,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     );
     write_test_file(
         &project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("builder")
             .join("memory.md"),
@@ -1341,7 +1341,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     );
     write_test_file(
         &project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("designer")
             .join("memory.md"),
@@ -1349,7 +1349,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     );
     write_test_file(
         &project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("analyst")
             .join("memory.md"),
@@ -1366,7 +1366,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     );
 
     let claude_home = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("reviewer")
         .join("provider-state")
@@ -1386,7 +1386,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     .unwrap();
 
     let codex_home = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("builder")
         .join("provider-state")
@@ -1407,7 +1407,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     .unwrap();
 
     let opencode_config_path = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("designer")
         .join("provider-state")
@@ -1423,7 +1423,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
         None,
         Some(
             &project_root
-                .join(".ccb")
+                .join(".ccbr")
                 .join("agents")
                 .join("designer")
                 .join("memory-projection.json"),
@@ -1443,7 +1443,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     let codex_text = std::fs::read_to_string(codex_home.join("AGENTS.md")).unwrap();
     let opencode_text = std::fs::read_to_string(
         project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("runtime")
             .join("memory")
             .join("designer.md"),
@@ -1477,7 +1477,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
         serde_json::from_str(&std::fs::read_to_string(&opencode_config_path).unwrap()).unwrap();
     assert_eq!(
         opencode_config["instructions"],
-        serde_json::json!(["AGENTS.md", ".ccb/runtime/memory/designer.md"])
+        serde_json::json!(["AGENTS.md", ".ccbr/runtime/memory/designer.md"])
     );
     assert!(opencode_text.contains("provider: opencode"));
     assert!(!opencode_text.contains("PROJECT-AGENTS-SENTINEL"));

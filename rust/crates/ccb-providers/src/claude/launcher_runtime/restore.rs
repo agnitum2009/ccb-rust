@@ -107,7 +107,7 @@ pub fn claude_history_state(
 fn infer_workspace_path(runtime_dir: &Utf8Path) -> Option<Utf8PathBuf> {
     let mut current = Some(runtime_dir);
     while let Some(p) = current {
-        if p.file_name() == Some(".ccb") {
+        if p.file_name() == Some(".ccbr") {
             return Some(p.parent().unwrap_or(p).to_path_buf());
         }
         current = p.parent();
@@ -159,7 +159,7 @@ mod tests {
 
     fn create_session_file(project_root: &std::path::Path, name: &str, payload: serde_json::Value) {
         let session_path = project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join(format!(".claude-{name}-session"));
         std::fs::create_dir_all(session_path.parent().unwrap()).unwrap();
         std::fs::write(&session_path, payload.to_string()).unwrap();
@@ -185,17 +185,17 @@ mod tests {
         let project_root_buf = tmp.path().join("repo");
         let project_root = Utf8Path::from_path(&project_root_buf).unwrap();
         let runtime_dir = project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("reviewer")
             .join("provider-runtime")
             .join("claude");
         let workspace_path = project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("workspaces")
             .join("reviewer");
         let managed_home = project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("reviewer")
             .join("provider-state")
@@ -229,13 +229,13 @@ mod tests {
         let project_root_buf = tmp.path().join("repo");
         let project_root = Utf8Path::from_path(&project_root_buf).unwrap();
         let runtime_dir = project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("agents")
             .join("reviewer")
             .join("provider-runtime")
             .join("claude");
         let workspace_path = project_root
-            .join(".ccb")
+            .join(".ccbr")
             .join("workspaces")
             .join("reviewer");
         let legacy_home_buf = tmp.path().join("legacy-home");

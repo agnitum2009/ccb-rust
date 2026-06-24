@@ -348,7 +348,7 @@ fn test_foreign_binding_is_not_reused() {
 
     let foreign_binding = RuntimeBinding {
         runtime_ref: Some("tmux:%42".into()),
-        session_ref: Some("/tmp/proj/.ccb/.codex-agent1-session".into()),
+        session_ref: Some("/tmp/proj/.ccbr/.codex-agent1-session".into()),
         tmux_socket_path: Some("/tmp/other-project.sock".into()),
         ccb_project_id: Some("other-project".into()),
         pane_state: Some("foreign".into()),

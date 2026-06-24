@@ -34,7 +34,7 @@ where
     };
     if !project_anchor_exists(Utf8Path::new(work_dir)) {
         debug(&format!(
-            "Registry update skipped: no .ccb anchor for {work_dir}"
+            "Registry update skipped: no .ccbr anchor for {work_dir}"
         ));
         return false;
     }
@@ -176,7 +176,7 @@ mod tests {
     }
 
     fn create_anchor(tmp: &tempfile::TempDir) -> std::path::PathBuf {
-        let anchor = tmp.path().join(".ccb");
+        let anchor = tmp.path().join(".ccbr");
         fs::create_dir_all(&anchor).unwrap();
         anchor
     }

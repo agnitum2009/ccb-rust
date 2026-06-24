@@ -12,8 +12,8 @@ use std::collections::HashMap;
 
 fn make_context(tmp: &tempfile::TempDir) -> CliContext {
     let project_root = tmp.path();
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
-    std::fs::write(project_root.join(".ccb/ccb.config"), "demo:codex\n").unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
+    std::fs::write(project_root.join(".ccbr/ccbr.config"), "demo:codex\n").unwrap();
     CliContextBuilder::new(ParsedCommand::Kill(ParsedKillCommand {
         project: None,
         force: false,
@@ -237,8 +237,8 @@ fn test_kill_project_uses_remote_summary_when_present() {
 fn test_record_kill_report_persists_report_json() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path();
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
-    std::fs::write(project_root.join(".ccb/ccb.config"), "demo:codex\n").unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
+    std::fs::write(project_root.join(".ccbr/ccbr.config"), "demo:codex\n").unwrap();
 
     let paths = ccb_storage::paths::PathLayout::new(
         camino::Utf8Path::from_path(project_root)

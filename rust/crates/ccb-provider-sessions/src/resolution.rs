@@ -90,7 +90,7 @@ pub fn resolve_work_dir_with_registry(
     if env_bool(registry_only_env, false) {
         return Err(format!(
             "{registry_only_env}=1 is no longer supported for provider={provider:?}; \
-             use --session-file or run inside a .ccb project"
+             use --session-file or run inside a .ccbr project"
         ));
     }
 
@@ -167,7 +167,7 @@ fn work_dir_from_session_path(session_path: &Path) -> PathBuf {
         .parent()
         .and_then(|p| p.file_name())
         .and_then(|n| n.to_str())
-        == Some(".ccb");
+        == Some(".ccbr");
     if is_ccb_dir {
         parent.parent().map(PathBuf::from).unwrap_or(parent)
     } else {

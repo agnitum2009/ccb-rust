@@ -174,7 +174,7 @@ mod tests {
         let session = tmp
             .path()
             .join("proj")
-            .join(".ccb")
+            .join(".ccbr")
             .join(".opencode-session");
         std::fs::create_dir_all(session.parent().unwrap()).unwrap();
         std::fs::write(&session, "{}").unwrap();

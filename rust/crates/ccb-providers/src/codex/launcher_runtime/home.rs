@@ -15,12 +15,12 @@ use ccb_provider_profiles::models::{ProviderProfileSpec, ResolvedProviderProfile
 
 pub use ccb_provider_profiles::codex_home_config::CodexHomeLayout;
 
-const SESSION_NAMESPACE_MARKER: &str = ".ccb-session-namespace.json";
+const SESSION_NAMESPACE_MARKER: &str = ".ccbr-session-namespace.json";
 
 /// Resolve the isolated Codex home layout for a runtime directory.
 ///
 /// Mirrors Python `resolve_codex_home_layout` but uses the provider-state
-/// mapping (`repo/.ccb/agents/<agent>/provider-state/codex`) instead of the
+/// mapping (`repo/.ccbr/agents/<agent>/provider-state/codex`) instead of the
 /// runtime directory itself, matching the Python `state_dir_for_runtime_dir`
 /// convention.
 pub fn resolve_codex_home_layout(
@@ -404,21 +404,23 @@ mod tests {
 
     #[test]
     fn test_state_dir_for_runtime_dir() {
-        let runtime = Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-runtime/codex");
+        let runtime = Utf8PathBuf::from("/repo/.ccbr/agents/agent1/provider-runtime/codex");
         assert_eq!(
             state_dir_for_runtime_dir(&runtime),
             Some(Utf8PathBuf::from(
-                "/repo/.ccb/agents/agent1/provider-state/codex"
+                "/repo/.ccbr/agents/agent1/provider-state/codex"
             ))
         );
     }
 
     #[test]
     fn test_state_dir_for_runtime_dir_root() {
-        let runtime = Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-runtime");
+        let runtime = Utf8PathBuf::from("/repo/.ccbr/agents/agent1/provider-runtime");
         assert_eq!(
             state_dir_for_runtime_dir(&runtime),
-            Some(Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-state"))
+            Some(Utf8PathBuf::from(
+                "/repo/.ccbr/agents/agent1/provider-state"
+            ))
         );
     }
 }

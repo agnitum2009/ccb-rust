@@ -92,7 +92,7 @@ fn proc_pid_state_at_reads_uninterruptible_state() {
 fn collect_project_process_candidates_finds_ccbd_project_arg() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-control-plane-scan");
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
 
     let proc_root = tmp.path().join("proc");
     std::fs::create_dir_all(proc_root.join("101")).unwrap();
@@ -126,14 +126,14 @@ fn collect_project_process_candidates_finds_ccbd_project_arg() {
 
     assert_eq!(candidates.len(), 1);
     assert!(candidates.contains_key(&101));
-    assert!(candidates[&101].contains(&project_root.join(".ccb").join("ccbd")));
+    assert!(candidates[&101].contains(&project_root.join(".ccbr").join("ccbd")));
 }
 
 #[test]
 fn collect_project_authority_pid_candidates_reads_lifecycle() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-authority-lifecycle");
-    let ccbd_dir = project_root.join(".ccb").join("ccbd");
+    let ccbd_dir = project_root.join(".ccbr").join("ccbd");
     std::fs::create_dir_all(&ccbd_dir).unwrap();
     let lifecycle_path = ccbd_dir.join("lifecycle.json");
     std::fs::write(

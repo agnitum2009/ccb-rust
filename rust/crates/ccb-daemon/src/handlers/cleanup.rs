@@ -52,8 +52,8 @@ pub fn handle_cleanup(app: &mut CcbdApp, payload: &Value) -> Result<Value, Strin
         orphaned_jobs_removed = terminal_job_ids.len();
     }
 
-    // Collect stale temp files under `.ccb/tmp`.
-    let tmp_dir = app.project_root.join(".ccb").join("tmp");
+    // Collect stale temp files under `.ccbr/tmp`.
+    let tmp_dir = app.project_root.join(".ccbr").join("tmp");
     let mut stale_files_removed = 0usize;
     if tmp_dir.exists() {
         let now = std::time::SystemTime::now();

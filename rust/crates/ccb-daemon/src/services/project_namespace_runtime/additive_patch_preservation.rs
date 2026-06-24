@@ -230,7 +230,7 @@ mod tests {
         let fake = FakeTmuxBackend::new();
         let backend = fake
             .backend_factory()
-            .build("/tmp/ccb-test/.ccb/tmux.sock")
+            .build("/tmp/ccb-test/.ccbr/tmux.sock")
             .unwrap();
         backend
             ._tmux_run(

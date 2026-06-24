@@ -758,7 +758,7 @@ pub fn system_role_sources() -> Vec<RoleSource> {
             candidates.push(("systemroles", PathBuf::from(trimmed).expand_home()));
         }
     }
-    candidates.push(("systemroles", home_dir().join(".ccb").join("roles")));
+    candidates.push(("systemroles", home_dir().join(".ccbr").join("roles")));
     candidates.push(("dotroles", home_dir().join(".roles")));
 
     let mut sources = Vec::new();
@@ -1178,7 +1178,7 @@ pub fn project_role_lock_path(project_root: &Path) -> PathBuf {
         .expand_home()
         .canonicalize()
         .unwrap_or_else(|_| project_root.expand_home())
-        .join(".ccb")
+        .join(".ccbr")
         .join("role-lock.json")
 }
 
@@ -2920,7 +2920,7 @@ pub fn add_role_to_project_config(
         .into());
     }
 
-    let config_path = project_root.join(".ccb").join("ccb.config");
+    let config_path = project_root.join(".ccbr").join("ccbr.config");
     if !config_path.exists() {
         return Err(RoleManifestError(format!(
             "project config not found: {}",
@@ -2940,7 +2940,7 @@ pub fn add_role_to_project_config(
         .unwrap_or(true)
     {
         return Err(RoleManifestError(
-            "roles add requires [windows] topology in .ccb/ccb.config".into(),
+            "roles add requires [windows] topology in .ccbr/ccbr.config".into(),
         )
         .into());
     }

@@ -38,7 +38,7 @@ fn test_agy_launcher_build_start_cmd_includes_home_override_and_context() {
     let runtime_dir = tmp
         .path()
         .join("project")
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")

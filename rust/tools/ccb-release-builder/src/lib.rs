@@ -14,8 +14,8 @@ pub const DEFAULT_OUTPUT_DIR: &str = "dist";
 
 pub const EXCLUDES: &[&str] = &[
     ".git",
-    ".ccb",
-    ".ccb-requests",
+    ".ccbr",
+    ".ccbr-requests",
     ".architec",
     ".claude",
     ".codex",

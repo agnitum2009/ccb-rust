@@ -104,7 +104,7 @@ fn _start_submission(
     let runtime_dir = _path_from_session(&session.data, "runtime_dir");
     let completion_dir = _path_from_session(&session.data, "completion_artifact_dir")
         .unwrap_or_else(|| {
-            (runtime_dir.unwrap_or_else(|| work_dir.join(".ccb").join("runtime").join(&provider)))
+            (runtime_dir.unwrap_or_else(|| work_dir.join(".ccbr").join("runtime").join(&provider)))
                 .join("completion")
         });
     if let Err(exc) = std::fs::create_dir_all(&completion_dir) {

@@ -11,8 +11,8 @@ use ccb_cli::services::UnixDaemonClient;
 
 fn make_context(tmp: &tempfile::TempDir) -> CliContext {
     let project_root = tmp.path();
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
-    std::fs::write(project_root.join(".ccb/ccb.config"), "demo:codex\n").unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
+    std::fs::write(project_root.join(".ccbr/ccbr.config"), "demo:codex\n").unwrap();
     CliContextBuilder::new(ParsedCommand::Kill(ParsedKillCommand {
         project: None,
         force: false,

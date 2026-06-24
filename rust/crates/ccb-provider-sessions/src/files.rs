@@ -132,10 +132,10 @@ impl ProviderClientSpec {
 // Project config / session file helpers (mirrors Python `provider_sessions`).
 // ---------------------------------------------------------------------------
 
-pub const CCB_PROJECT_CONFIG_DIRNAME: &str = ".ccb";
+pub const CCB_PROJECT_CONFIG_DIRNAME: &str = ".ccbr";
 
-const CCB_DIRNAME: &str = ".ccb";
-const WORKSPACE_BINDING_FILENAME: &str = ".ccb-workspace.json";
+const CCB_DIRNAME: &str = ".ccbr";
+const WORKSPACE_BINDING_FILENAME: &str = ".ccbr-workspace.json";
 
 pub fn project_config_dir(work_dir: impl AsRef<Path>) -> PathBuf {
     resolve_dir(work_dir.as_ref()).join(CCB_DIRNAME)

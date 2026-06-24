@@ -102,10 +102,10 @@ fn test_cli_cleanup() {
 }
 
 fn write_maintenance_config(dir: &TempDir) {
-    let ccb_dir = dir.path().join(".ccb");
+    let ccb_dir = dir.path().join(".ccbr");
     std::fs::create_dir_all(&ccb_dir).unwrap();
     std::fs::write(
-        ccb_dir.join("ccb.config"),
+        ccb_dir.join("ccbr.config"),
         "demo:codex\n\n[maintenance.heartbeat]\nenabled = true\nassessor = \"demo\"\ninterval_s = 900\nmin_interval_s = 90\nstartup_ensure = true\n",
     )
     .unwrap();

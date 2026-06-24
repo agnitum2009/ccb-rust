@@ -151,10 +151,10 @@ fn test_load_locked_installed_role_by_digest() {
 fn test_project_role_lock_read_write() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccb");
+        let ccb = project.path().join(".ccbr");
         std::fs::create_dir_all(&ccb).unwrap();
         std::fs::write(
-            ccb.join("ccb.config"),
+            ccb.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -192,10 +192,10 @@ role = "agentroles.test"
 fn test_resolve_project_agent_role() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccb");
+        let ccb = project.path().join(".ccbr");
         std::fs::create_dir_all(&ccb).unwrap();
         std::fs::write(
-            ccb.join("ccb.config"),
+            ccb.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -230,10 +230,10 @@ role = "agentroles.test"
 fn test_project_role_lock_warning_on_mismatch() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccb");
+        let ccb = project.path().join(".ccbr");
         std::fs::create_dir_all(&ccb).unwrap();
         std::fs::write(
-            ccb.join("ccb.config"),
+            ccb.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -272,10 +272,10 @@ role = "agentroles.test"
 fn test_project_role_memory_and_skill_sources() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccb");
+        let ccb = project.path().join(".ccbr");
         std::fs::create_dir_all(&ccb).unwrap();
         std::fs::write(
-            ccb.join("ccb.config"),
+            ccb.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -306,7 +306,7 @@ role = "agentroles.test"
 fn test_system_role_sources_and_discovery() {
     with_isolated_env(|| {
         let home = PathBuf::from(std::env::var("HOME").unwrap());
-        let system_roles = home.join(".ccb").join("roles").join("agentroles.test");
+        let system_roles = home.join(".ccbr").join("roles").join("agentroles.test");
         write_role(&system_roles, "agentroles.test", "1.0.0");
 
         let sources = system_role_sources();
@@ -369,7 +369,7 @@ fn test_discover_path_roles() {
 fn test_role_catalog_status() {
     with_isolated_env(|| {
         let home = PathBuf::from(std::env::var("HOME").unwrap());
-        let system_roles = home.join(".ccb").join("roles").join("agentroles.test");
+        let system_roles = home.join(".ccbr").join("roles").join("agentroles.test");
         write_role(&system_roles, "agentroles.test", "1.0.0");
 
         let installed = agent_roles_installed_root().join("agentroles.test");
@@ -449,10 +449,10 @@ fn write_locked_project(
     locked_version: &str,
     locked_digest: &str,
 ) {
-    let ccb = project.join(".ccb");
+    let ccb = project.join(".ccbr");
     std::fs::create_dir_all(&ccb).unwrap();
     std::fs::write(
-        ccb.join("ccb.config"),
+        ccb.join("ccbr.config"),
         format!(
             r#"version = 2
 entry_window = "main"
@@ -518,7 +518,7 @@ fn test_confirm_project_role_lock_refresh_updates_lock_when_accepted() {
         assert!(output.contains("role_lock_refreshed: test.locked version=2.0.0"));
 
         let lock_text =
-            std::fs::read_to_string(project.path().join(".ccb").join("role-lock.json")).unwrap();
+            std::fs::read_to_string(project.path().join(".ccbr").join("role-lock.json")).unwrap();
         let lock: serde_json::Value = serde_json::from_str(&lock_text).unwrap();
         let entry = lock.get("roles").unwrap().get("test.locked").unwrap();
         assert_eq!(entry.get("version").unwrap().as_str().unwrap(), "2.0.0");
@@ -548,7 +548,7 @@ fn test_confirm_project_role_lock_refresh_warns_without_mutating_noninteractive(
         assert!(output.contains("role_lock_refresh: skipped_noninteractive"));
 
         let lock_text =
-            std::fs::read_to_string(project.path().join(".ccb").join("role-lock.json")).unwrap();
+            std::fs::read_to_string(project.path().join(".ccbr").join("role-lock.json")).unwrap();
         let lock: serde_json::Value = serde_json::from_str(&lock_text).unwrap();
         let entry = lock.get("roles").unwrap().get("test.locked").unwrap();
         assert_eq!(entry.get("version").unwrap().as_str().unwrap(), "1.0.0");

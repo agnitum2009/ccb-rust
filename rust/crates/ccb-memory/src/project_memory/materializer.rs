@@ -40,7 +40,7 @@ pub fn materialize_runtime_memory_bundle(
             warnings.push(format!("invalid_agent_name: {e}"));
             return Ok(ProjectMemoryMaterialization {
                 path: project_root
-                    .join(".ccb")
+                    .join(".ccbr")
                     .join("runtime")
                     .join("memory")
                     .join(format!("{}.md", agent_name.replace('/', "_"))),

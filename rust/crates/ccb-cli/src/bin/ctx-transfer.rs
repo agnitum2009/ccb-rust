@@ -59,7 +59,7 @@ fn write_ctx_transfer_usage<W: Write>(out: &mut W) -> std::io::Result<()> {
     )?;
     writeln!(
         out,
-        "  -s, --save                Save transfer to ./.ccb/history/"
+        "  -s, --save                Save transfer to ./.ccbr/history/"
     )?;
     writeln!(
         out,

@@ -5,16 +5,16 @@ use ccb_provider_core::pathing::session_filename_for_agent;
 use ccb_storage::path_helpers::runtime_project_anchor_from_path;
 use serde_json::{Map, Value};
 
-/// Find the project `.ccb` directory for a runtime directory.
+/// Find the project `.ccbr` directory for a runtime directory.
 ///
-/// First walks up the filesystem looking for a directory named `.ccb`. If none
+/// First walks up the filesystem looking for a directory named `.ccbr`. If none
 /// is found, falls back to the relocated runtime anchor marker via
 /// `runtime_project_anchor_from_path`.
 pub fn find_project_ccb_dir(runtime_dir: impl AsRef<Path>) -> Option<PathBuf> {
     let runtime_dir = runtime_dir.as_ref();
     for parent in runtime_dir.ancestors() {
         match parent.file_name() {
-            Some(name) if name == ".ccb" => return Some(parent.to_path_buf()),
+            Some(name) if name == ".ccbr" => return Some(parent.to_path_buf()),
             Some(_) => continue,
             None => break,
         }
@@ -68,16 +68,16 @@ mod tests {
 
     #[test]
     fn test_state_dir_for_runtime_dir_basic() {
-        let runtime_dir = PathBuf::from("/repo/.ccb/agents/reviewer/provider-runtime/claude");
+        let runtime_dir = PathBuf::from("/repo/.ccbr/agents/reviewer/provider-runtime/claude");
         assert_eq!(
             state_dir_for_runtime_dir(&runtime_dir).unwrap(),
-            PathBuf::from("/repo/.ccb/agents/reviewer/provider-state/claude")
+            PathBuf::from("/repo/.ccbr/agents/reviewer/provider-state/claude")
         );
     }
 
     #[test]
     fn test_state_dir_for_runtime_dir_rejects_non_provider_runtime() {
-        let runtime_dir = PathBuf::from("/repo/.ccb/agents/reviewer/runtime/claude");
+        let runtime_dir = PathBuf::from("/repo/.ccbr/agents/reviewer/runtime/claude");
         assert!(state_dir_for_runtime_dir(&runtime_dir).is_none());
     }
 }

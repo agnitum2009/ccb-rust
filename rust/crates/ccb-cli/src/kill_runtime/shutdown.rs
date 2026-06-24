@@ -132,7 +132,7 @@ mod tests {
         let root = Utf8PathBuf::from_path_buf(tmp.path().to_path_buf()).unwrap();
         let paths = ccb_storage::paths::PathLayout::new(root);
         std::fs::create_dir_all(paths.ccb_dir()).unwrap();
-        std::fs::write(paths.ccb_dir().join("ccb.config"), "demo:codex\n").unwrap();
+        std::fs::write(paths.ccb_dir().join("ccbr.config"), "demo:codex\n").unwrap();
         paths
     }
 

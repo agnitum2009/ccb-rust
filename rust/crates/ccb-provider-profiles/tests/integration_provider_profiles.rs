@@ -270,7 +270,7 @@ fn test_materialize_codex_profile_routes_plugins_through_shared_bundle() {
     .unwrap();
 
     let runtime_home = profile.runtime_home_path().unwrap();
-    let bundle = project_root.join(".ccb/shared-cache/codex/plugin-bundles/profile-plugin-sha");
+    let bundle = project_root.join(".ccbr/shared-cache/codex/plugin-bundles/profile-plugin-sha");
     assert!(bundle.join(".agents/plugins/marketplace.json").is_file());
     assert!(runtime_home.join(".tmp/plugins").is_symlink());
     assert_eq!(

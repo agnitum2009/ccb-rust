@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 const DROID_SESSION_FILENAME: &str = ".droid-session";
-const WORKSPACE_BINDING_FILENAME: &str = ".ccb-workspace.json";
-const CCB_DIRNAME: &str = ".ccb";
+const WORKSPACE_BINDING_FILENAME: &str = ".ccbr-workspace.json";
+const CCB_DIRNAME: &str = ".ccbr";
 
 /// A loaded Droid project session.
 ///
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_load_project_session_inactive() {
         let dir = TempDir::new().unwrap();
-        let ccb = dir.path().join(".ccb");
+        let ccb = dir.path().join(".ccbr");
         std::fs::create_dir(&ccb).unwrap();
         let session_file = ccb.join(".droid-session");
         let mut file = std::fs::File::create(&session_file).unwrap();
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn test_load_project_session_active() {
         let dir = TempDir::new().unwrap();
-        let ccb = dir.path().join(".ccb");
+        let ccb = dir.path().join(".ccbr");
         std::fs::create_dir(&ccb).unwrap();
         let session_file = ccb.join(".droid-session");
         let mut file = std::fs::File::create(&session_file).unwrap();
@@ -230,17 +230,17 @@ mod tests {
     fn test_find_project_session_file_workspace_binding() {
         let dir = TempDir::new().unwrap();
         let target = TempDir::new().unwrap();
-        let ccb = target.path().join(".ccb");
+        let ccb = target.path().join(".ccbr");
         std::fs::create_dir(&ccb).unwrap();
         std::fs::File::create(ccb.join(".droid-session")).unwrap();
 
         std::fs::write(
-            dir.path().join(".ccb-workspace.json"),
+            dir.path().join(".ccbr-workspace.json"),
             serde_json::json!({"target_project": target.path()}).to_string(),
         )
         .unwrap();
 
         let found = find_project_session_file(dir.path(), None).unwrap();
-        assert!(found.ends_with(".ccb/.droid-session"));
+        assert!(found.ends_with(".ccbr/.droid-session"));
     }
 }

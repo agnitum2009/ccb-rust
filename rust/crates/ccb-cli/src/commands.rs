@@ -731,7 +731,7 @@ pub fn update() -> Result<String, String> {
 
 /// Uninstall stub.
 pub fn uninstall() -> Result<String, String> {
-    Ok("ccb uninstall: not implemented in this build; remove the CCB installation directory and ~/.ccb entries manually.\n".to_string())
+    Ok("ccb uninstall: not implemented in this build; remove the CCB installation directory and ~/.ccbr entries manually.\n".to_string())
 }
 
 /// Reinstall stub.

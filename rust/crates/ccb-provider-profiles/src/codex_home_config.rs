@@ -762,7 +762,7 @@ fn copy_inherited_tree(
         return Ok(());
     }
 
-    let marker = Utf8PathBuf::from(format!("{}.ccb-projection.json", target));
+    let marker = Utf8PathBuf::from(format!("{}.ccbr-projection.json", target));
     if (target.exists() || target.is_symlink()) && !marker.is_file() {
         if target.is_symlink() {
             repair_owned_codex_skill_entries(source, target)?;
@@ -1001,7 +1001,7 @@ fn codex_plugin_shared_bundle_path(
 ) -> Option<Utf8PathBuf> {
     let cache_root = shared_cache_root
         .map(|p| p.to_path_buf())
-        .or_else(|| project_root.map(|p| p.join(".ccb/shared-cache")))?;
+        .or_else(|| project_root.map(|p| p.join(".ccbr/shared-cache")))?;
     Some(cache_root.join("codex/plugin-bundles").join(bundle_sha))
 }
 
@@ -1436,7 +1436,7 @@ fn project_role_skills_to_home(
         _ => return Ok(()),
     };
     let rolepack_dir = project_root
-        .join(".ccb")
+        .join(".ccbr")
         .join("rolepacks")
         .join(agent_name)
         .join(provider)
@@ -1588,7 +1588,7 @@ mod tests {
         let source = Utf8Path::from_path(&source_path).unwrap();
         let target_path = dir.path().join("target");
         let target = Utf8Path::from_path(&target_path).unwrap();
-        let marker_path = dir.path().join("target.ccb-projection.json");
+        let marker_path = dir.path().join("target.ccbr-projection.json");
         fs::create_dir_all(source.join("demo")).unwrap();
         ccb_storage::atomic::atomic_write_text(&source.join("demo/SKILL.md"), "demo\n").unwrap();
 

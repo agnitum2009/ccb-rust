@@ -150,8 +150,8 @@ mod tests {
 
     fn make_context(tmp: &tempfile::TempDir) -> CliContext {
         let root = tmp.path();
-        std::fs::create_dir_all(root.join(".ccb")).unwrap();
-        std::fs::write(root.join(".ccb/ccb.config"), "agent1:codex\n").unwrap();
+        std::fs::create_dir_all(root.join(".ccbr")).unwrap();
+        std::fs::write(root.join(".ccbr/ccbr.config"), "agent1:codex\n").unwrap();
         CliContextBuilder::new(ParsedCommand::Ask(
             crate::models_mailbox::ParsedAskCommand::new(
                 None,
@@ -201,7 +201,9 @@ mod tests {
         ] {
             std::env::remove_var(name);
         }
-        let runtime_dir = tmp.path().join(".ccb/agents/agent1/provider-runtime/codex");
+        let runtime_dir = tmp
+            .path()
+            .join(".ccbr/agents/agent1/provider-runtime/codex");
         std::fs::create_dir_all(&runtime_dir).unwrap();
         std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
         std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");

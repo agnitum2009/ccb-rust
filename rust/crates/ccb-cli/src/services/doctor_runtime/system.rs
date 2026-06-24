@@ -5,7 +5,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 const ROOT_RUNTIME_WARNING: &str =
-    "Running CCB as root in a non-root-owned project can create root-owned .ccb files.";
+    "Running CCB as root in a non-root-owned project can create root-owned .ccbr files.";
 
 /// Build a runtime identity summary for the doctor command.
 ///
@@ -166,7 +166,7 @@ mod tests {
     fn test_runtime_identity_summary_root_warning_when_project_not_root_owned() {
         let tmp = tempfile::TempDir::new().unwrap();
         let project_root = tmp.path().join("project");
-        let ccb_dir = project_root.join(".ccb");
+        let ccb_dir = project_root.join(".ccbr");
         let install_dir = tmp.path().join("install");
         std::fs::create_dir_all(&ccb_dir).unwrap();
         std::fs::create_dir_all(&install_dir).unwrap();
@@ -218,7 +218,7 @@ mod tests {
     fn test_runtime_identity_summary_no_warning_for_non_root() {
         let tmp = tempfile::TempDir::new().unwrap();
         let project_root = tmp.path().join("project");
-        let ccb_dir = project_root.join(".ccb");
+        let ccb_dir = project_root.join(".ccbr");
         std::fs::create_dir_all(&ccb_dir).unwrap();
 
         let summary = runtime_identity_summary(&project_root, Some(&ccb_dir), None);

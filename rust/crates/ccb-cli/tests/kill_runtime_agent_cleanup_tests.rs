@@ -14,7 +14,7 @@ fn make_paths(tmp: &tempfile::TempDir) -> PathLayout {
     let root = Utf8PathBuf::from_path_buf(tmp.path().to_path_buf()).unwrap();
     let paths = PathLayout::new(root);
     std::fs::create_dir_all(paths.ccb_dir()).unwrap();
-    std::fs::write(paths.ccb_dir().join("ccb.config"), "demo:codex\n").unwrap();
+    std::fs::write(paths.ccb_dir().join("ccbr.config"), "demo:codex\n").unwrap();
     paths
 }
 
@@ -143,7 +143,7 @@ fn test_prepare_local_shutdown_lists_configured_and_extra_agents() {
     let tmp = tempfile::TempDir::new().unwrap();
     let paths = make_paths(&tmp);
     std::fs::write(
-        paths.ccb_dir().join("ccb.config"),
+        paths.ccb_dir().join("ccbr.config"),
         "alpha:codex,beta:claude\n",
     )
     .unwrap();
@@ -267,7 +267,7 @@ fn test_prepare_local_shutdown_handles_configured_agent_without_runtime_file() {
     let tmp = tempfile::TempDir::new().unwrap();
     let paths = make_paths(&tmp);
     std::fs::write(
-        paths.ccb_dir().join("ccb.config"),
+        paths.ccb_dir().join("ccbr.config"),
         "alpha:codex,beta:claude\n",
     )
     .unwrap();
@@ -290,7 +290,7 @@ fn test_prepare_local_shutdown_handles_configured_agent_without_runtime_file() {
 fn test_prepare_local_shutdown_falls_back_to_env_tmux_socket_when_no_runtime() {
     let tmp = tempfile::TempDir::new().unwrap();
     let paths = make_paths(&tmp);
-    std::fs::write(paths.ccb_dir().join("ccb.config"), "alpha:codex\n").unwrap();
+    std::fs::write(paths.ccb_dir().join("ccbr.config"), "alpha:codex\n").unwrap();
 
     with_env(
         &[

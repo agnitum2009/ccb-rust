@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn resolve_actor_finds_binding() {
         let tmp = tempfile::tempdir().unwrap();
-        let binding_path = tmp.path().join(".ccb-workspace.json");
+        let binding_path = tmp.path().join(".ccbr-workspace.json");
         let binding = crate::models::WorkspaceBinding::new(
             tmp.path().to_string_lossy().to_string(),
             "pid".to_string(),
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn resolve_actor_rejects_wrong_project_id() {
         let tmp = tempfile::tempdir().unwrap();
-        let binding_path = tmp.path().join(".ccb-workspace.json");
+        let binding_path = tmp.path().join(".ccbr-workspace.json");
         let binding = crate::models::WorkspaceBinding::new(
             tmp.path().to_string_lossy().to_string(),
             "pid".to_string(),
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn resolve_actor_rejects_outside_workspace() {
         let tmp = tempfile::tempdir().unwrap();
-        let binding_path = tmp.path().join(".ccb-workspace.json");
+        let binding_path = tmp.path().join(".ccbr-workspace.json");
         let workspace = tmp.path().join("ws");
         std::fs::create_dir(&workspace).unwrap();
         let binding = crate::models::WorkspaceBinding::new(

@@ -190,7 +190,7 @@ mod tests {
         ProjectContext {
             cwd: Utf8PathBuf::from(root),
             project_root: Utf8PathBuf::from(root),
-            config_dir: Utf8PathBuf::from(root).join(".ccb"),
+            config_dir: Utf8PathBuf::from(root).join(".ccbr"),
             project_id: pid.to_string(),
             source: "test".to_string(),
         }

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-const CCB_PROJECT_CONFIG_DIRNAME: &str = ".ccb";
+const CCB_PROJECT_CONFIG_DIRNAME: &str = ".ccbr";
 
 /// Normalize a project path the same way Python
 /// `registry_support.pathing_runtime.normalization.normalize_project_path` does.
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_infer_work_dir_from_session_file_skips_ccb_dir() {
-        let session = Path::new("/project/.ccb/.claude-session");
+        let session = Path::new("/project/.ccbr/.claude-session");
         assert_eq!(
             infer_work_dir_from_session_file(session),
             PathBuf::from("/project")
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn test_ensure_work_dir_fields_populates_missing_values() {
         let mut payload = Map::new();
-        let session_file = Path::new("/project/.ccb/.claude-session");
+        let session_file = Path::new("/project/.ccbr/.claude-session");
         let work_dir = ensure_claude_session_work_dir_fields(&mut payload, session_file).unwrap();
         assert_eq!(work_dir, PathBuf::from("/project"));
         assert!(payload.contains_key("work_dir"));

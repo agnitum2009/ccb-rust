@@ -563,10 +563,10 @@ pub fn read_runtime_root_marker_payload(
             .and_then(|v| v.as_str())
             .unwrap_or(""),
     )?;
-    if anchor_path.file_name() != Some(".ccb") {
+    if anchor_path.file_name() != Some(".ccbr") {
         return None;
     }
-    if anchor_path != project_root.join(".ccb") {
+    if anchor_path != project_root.join(".ccbr") {
         return None;
     }
     payload.insert("project_id".into(), project_id.into());
@@ -629,10 +629,10 @@ mod tests {
 
     #[test]
     fn test_runtime_state_root_from_anchor_falls_back() {
-        let anchor = Utf8Path::new("/tmp/repo/.ccb");
+        let anchor = Utf8Path::new("/tmp/repo/.ccbr");
         assert_eq!(
             runtime_state_root_from_anchor(anchor, Some("proj-1")),
-            Utf8PathBuf::from("/tmp/repo/.ccb")
+            Utf8PathBuf::from("/tmp/repo/.ccbr")
         );
     }
 }

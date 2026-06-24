@@ -73,9 +73,9 @@ pub fn check_readme_surface(
             Some("add concrete release bullets before calling the homepage updated"),
         );
     }
-    if !body.contains(".ccb/ccb_memory.md") {
+    if !body.contains(".ccbr/ccb_memory.md") {
         report.fail(
-            format!("{source} {readme_name} does not mention .ccb/ccb_memory.md"),
+            format!("{source} {readme_name} does not mention .ccbr/ccb_memory.md"),
             Some("keep the shared memory wording in the default-branch README"),
         );
     }
@@ -117,7 +117,7 @@ pub fn check_readme_surface(
     if body.contains("CCB.md") {
         report.fail(
             format!("{source} {readme_name} mentions current CCB.md support"),
-            Some("default-branch README should describe only .ccb/ccb_memory.md as current shared memory"),
+            Some("default-branch README should describe only .ccbr/ccb_memory.md as current shared memory"),
         );
     }
 }
@@ -504,7 +504,7 @@ mod tests {
 <summary><b>v1.0.0</b> - Release</summary>
 - Fixed bug
 </details>
-.ccb/ccb_memory.md
+.ccbr/ccb_memory.md
 ## How to Install
 ```bash
 git clone https://github.com/SeemSeam/claude_codex_bridge.git
@@ -524,7 +524,7 @@ git clone https://github.com/SeemSeam/claude_codex_bridge.git
 
     #[test]
     fn test_check_readme_surface_ccb_md_fail() {
-        let body = "version-1.0.0-orange.svg\n<summary><b>v1.0.0</b></summary>\n- x\n.ccb/ccb_memory.md\nCCB.md";
+        let body = "version-1.0.0-orange.svg\n<summary><b>v1.0.0</b></summary>\n- x\n.ccbr/ccb_memory.md\nCCB.md";
         let mut report = Report::default();
         check_readme_surface(
             body,

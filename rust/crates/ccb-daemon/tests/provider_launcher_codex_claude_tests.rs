@@ -45,7 +45,7 @@ fn test_codex_launch_command_and_session_path() {
     assert_eq!(
         session_path,
         PathBuf::from(&root)
-            .join(".ccb")
+            .join(".ccbr")
             .join(".codex-agent1-session")
     );
 }
@@ -66,7 +66,7 @@ fn test_claude_launch_command_and_session_path() {
     assert_eq!(
         session_path,
         PathBuf::from(&root)
-            .join(".ccb")
+            .join(".ccbr")
             .join(".claude-reviewer-session")
     );
 }
@@ -87,7 +87,7 @@ fn test_gemini_launch_command_and_session_path() {
     assert_eq!(
         session_path,
         PathBuf::from(&root)
-            .join(".ccb")
+            .join(".ccbr")
             .join(".gemini-gemini-session")
     );
 }
@@ -107,7 +107,7 @@ fn test_agy_launch_command_and_session_path() {
     let session_path = result.session_path.expect("agy session path");
     assert_eq!(
         session_path,
-        PathBuf::from(&root).join(".ccb").join(".agy-agy-session")
+        PathBuf::from(&root).join(".ccbr").join(".agy-agy-session")
     );
 }
 
@@ -127,7 +127,7 @@ fn test_droid_launch_command_and_session_path() {
     assert_eq!(
         session_path,
         PathBuf::from(&root)
-            .join(".ccb")
+            .join(".ccbr")
             .join(".droid-droid-session")
     );
 }

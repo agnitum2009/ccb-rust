@@ -1032,7 +1032,7 @@ fn materialize_gemini_memory(
     };
 
     let mut parts = Vec::new();
-    let ccb_memory = project_root.join(".ccb").join("ccb_memory.md");
+    let ccb_memory = project_root.join(".ccbr").join("ccb_memory.md");
     if ccb_memory.is_file() {
         if let Ok(text) = std::fs::read_to_string(&ccb_memory) {
             parts.push(text);

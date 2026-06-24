@@ -346,10 +346,10 @@ pub fn check_local_files(root: &Utf8Path, version: &str, repo: &str, report: &mu
                 Some("add concrete release bullets under the details block"),
             );
         }
-        if !body.contains(".ccb/ccb_memory.md") {
+        if !body.contains(".ccbr/ccb_memory.md") {
             report.fail(
-                format!("{readme_name} does not mention .ccb/ccb_memory.md"),
-                Some("state that .ccb/ccb_memory.md is the project-wide shared memory document"),
+                format!("{readme_name} does not mention .ccbr/ccb_memory.md"),
+                Some("state that .ccbr/ccb_memory.md is the project-wide shared memory document"),
             );
         }
 
@@ -411,8 +411,8 @@ pub fn check_local_files(root: &Utf8Path, version: &str, repo: &str, report: &mu
 
     if file_map["README.md"].contains("CCB.md") || file_map["README_zh.md"].contains("CCB.md") {
         report.fail(
-            "README mentions current CCB.md support; current design must only use .ccb/ccb_memory.md",
-            Some("remove current-feature references to CCB.md; keep only .ccb/ccb_memory.md"),
+            "README mentions current CCB.md support; current design must only use .ccbr/ccb_memory.md",
+            Some("remove current-feature references to CCB.md; keep only .ccbr/ccb_memory.md"),
         );
     }
 
@@ -431,7 +431,7 @@ pub fn check_active_skill_sync(root: &Utf8Path, report: &mut Report) {
     if !source_dir.is_dir() {
         return;
     }
-    let ccb_dir = root.join(".ccb");
+    let ccb_dir = root.join(".ccbr");
     if !ccb_dir.is_dir() {
         return;
     }

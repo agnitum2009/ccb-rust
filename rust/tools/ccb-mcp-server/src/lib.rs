@@ -93,7 +93,7 @@ impl<T: ccb_cli::services::DaemonClient> DaemonClient for T {
 /// Build a daemon client for the given optional work directory.
 ///
 /// If `work_dir` is `None`, the current working directory is used. The project
-/// root is discovered by walking up until a `.ccb` directory is found.
+/// root is discovered by walking up until a `.ccbr` directory is found.
 pub fn build_client(
     work_dir: Option<&str>,
 ) -> Result<(PathBuf, ccb_cli::services::UnixDaemonClient), String> {
@@ -136,7 +136,7 @@ pub fn tool_definitions() -> Vec<Value> {
                 "properties": {
                     "agent_name": {
                         "type": "string",
-                        "description": "Target agent name from .ccb/ccb.config.",
+                        "description": "Target agent name from .ccbr/ccbr.config.",
                     },
                     "message": {
                         "type": "string",
@@ -144,7 +144,7 @@ pub fn tool_definitions() -> Vec<Value> {
                     },
                     "work_dir": {
                         "type": "string",
-                        "description": "Project work directory that contains .ccb/ccb.config.",
+                        "description": "Project work directory that contains .ccbr/ccbr.config.",
                     },
                     "task_id": {
                         "type": "string",
@@ -170,7 +170,7 @@ pub fn tool_definitions() -> Vec<Value> {
                     },
                     "work_dir": {
                         "type": "string",
-                        "description": "Project work directory that contains .ccb/ccb.config.",
+                        "description": "Project work directory that contains .ccbr/ccbr.config.",
                     },
                 },
                 "required": ["target"],
@@ -189,7 +189,7 @@ pub fn tool_definitions() -> Vec<Value> {
                     },
                     "work_dir": {
                         "type": "string",
-                        "description": "Project work directory that contains .ccb/ccb.config.",
+                        "description": "Project work directory that contains .ccbr/ccbr.config.",
                     },
                 },
                 "required": [],

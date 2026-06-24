@@ -241,7 +241,7 @@ mod tests {
             "pid".to_string(),
             "AgentOne".to_string(),
             WorkspaceMode::Copy,
-            "/tmp/project/.ccb/workspaces/agentone".to_string(),
+            "/tmp/project/.ccbr/workspaces/agentone".to_string(),
             Some("feature".to_string()),
         )
         .unwrap();

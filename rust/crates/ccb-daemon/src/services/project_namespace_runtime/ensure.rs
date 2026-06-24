@@ -275,9 +275,9 @@ mod tests {
     fn test_layout() -> LayoutConfig {
         LayoutConfig {
             project_root: "/tmp/ccb-ensure-test".to_string(),
-            ccbd_dir: PathBuf::from("/tmp/ccb-ensure-test/.ccb"),
-            ccbd_socket_path: "/tmp/ccb-ensure-test/.ccb/ccbd.sock".to_string(),
-            ccbd_tmux_socket_path: "/tmp/ccb-ensure-test/.ccb/tmux.sock".to_string(),
+            ccbd_dir: PathBuf::from("/tmp/ccb-ensure-test/.ccbr"),
+            ccbd_socket_path: "/tmp/ccb-ensure-test/.ccbr/ccbd.sock".to_string(),
+            ccbd_tmux_socket_path: "/tmp/ccb-ensure-test/.ccbr/tmux.sock".to_string(),
             ccbd_tmux_session_name: "ccb-ensure-test".to_string(),
             ccbd_tmux_control_window_name: "control".to_string(),
             ccbd_tmux_workspace_window_name: "workspace".to_string(),
@@ -305,7 +305,7 @@ mod tests {
         NamespaceState {
             project_id: "p1".to_string(),
             namespace_epoch: 2,
-            tmux_socket_path: "/tmp/ccb-ensure-test/.ccb/tmux.sock".to_string(),
+            tmux_socket_path: "/tmp/ccb-ensure-test/.ccbr/tmux.sock".to_string(),
             tmux_session_name: "ccb-ensure-test".to_string(),
             layout_version,
             layout_signature: layout_signature.map(|s| s.to_string()),
@@ -370,7 +370,7 @@ mod tests {
             current: Some(state),
             backend: build_backend(
                 &BackendFactory::default(),
-                "/tmp/ccb-ensure-test/.ccb/tmux.sock",
+                "/tmp/ccb-ensure-test/.ccbr/tmux.sock",
             )
             .unwrap(),
             session_is_alive: true,

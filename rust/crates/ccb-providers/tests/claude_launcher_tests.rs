@@ -78,7 +78,7 @@ fn test_claude_launcher_build_start_cmd_includes_home_overrides_and_env_prefix()
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -114,7 +114,7 @@ fn test_claude_launcher_build_start_cmd_auto_permission_adds_bypass_and_skip_pro
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -152,7 +152,7 @@ fn test_claude_launcher_build_start_cmd_applies_provider_command_template() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -216,7 +216,7 @@ fn test_claude_launcher_build_start_cmd_adds_continue_when_history_found() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -253,7 +253,7 @@ fn test_claude_launcher_build_start_cmd_omits_continue_when_fresh() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -291,7 +291,7 @@ fn test_claude_history_locator_finds_uuid_session() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -320,7 +320,7 @@ fn test_claude_history_locator_falls_back_to_any_history() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -348,7 +348,7 @@ fn test_resolve_claude_restore_target_returns_history_and_cwd() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")
@@ -375,7 +375,7 @@ fn test_resolve_claude_restore_target_fresh_ignores_history() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project
-        .join(".ccb")
+        .join(".ccbr")
         .join("agents")
         .join("agent1")
         .join("provider-runtime")

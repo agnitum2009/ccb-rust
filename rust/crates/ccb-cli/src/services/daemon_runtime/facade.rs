@@ -17,7 +17,7 @@ pub const START_TIMEOUT_S: f64 = 0.0; // Placeholder, calls policy at runtime
 ///
 /// Mirrors Python `incompatible_daemon_error()`.
 pub fn incompatible_daemon_error() -> String {
-    "mounted ccbd config does not match current .ccb/ccb.config".to_string()
+    "mounted ccbd config does not match current .ccbr/ccbr.config".to_string()
 }
 
 /// Ensure keeper is started with default timeouts.

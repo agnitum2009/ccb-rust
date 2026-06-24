@@ -26,7 +26,8 @@ fn records_by_suffix(payload: &serde_json::Map<String, Value>) -> serde_json::Ma
 
 #[test]
 fn test_provider_home_classifier_preserves_secret_precedence_and_unknowns() {
-    let provider_home = Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-state/unknownai/home");
+    let provider_home =
+        Utf8PathBuf::from("/repo/.ccbr/agents/agent1/provider-state/unknownai/home");
     let secret_path = provider_home.join("auth.json");
     let unknown_path = provider_home.join("notes.txt");
 
@@ -60,13 +61,13 @@ fn test_provider_home_classifier_preserves_secret_precedence_and_unknowns() {
 fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp_path(&tmp, "repo");
-    let ccb = project_root.join(".ccb");
+    let ccb = project_root.join(".ccbr");
     let codex_home = ccb.join("agents/agent1/provider-state/codex/home");
     let claude_home = ccb.join("agents/agent2/provider-state/claude/home");
     let gemini_home = ccb.join("agents/agent3/provider-state/gemini/home");
     let opencode_state = ccb.join("agents/agent4/provider-state/opencode");
 
-    write(&ccb.join("ccb.config"), "agent1:codex\n");
+    write(&ccb.join("ccbr.config"), "agent1:codex\n");
     write(&ccb.join("ccb_memory.md"), "# shared memory\n");
     write(&ccb.join("history/handoff.md"), "# handoff\n");
     write(
@@ -82,7 +83,7 @@ fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
     write(&ccb.join("state/memory.seed.json"), "{}\n");
     write(&ccb.join("runtime/memory/agent1.md"), "# memory\n");
     write(&codex_home.join("sessions/2026/session.jsonl"), "x");
-    write(&codex_home.join(".ccb-session-namespace.json"), "{}\n");
+    write(&codex_home.join(".ccbr-session-namespace.json"), "{}\n");
     write(&codex_home.join("auth.json"), "{}\n");
     write(&codex_home.join("config.toml"), "# config\n");
     write(&codex_home.join(".tmp/plugins/plugins/demo/SKILL.md"), "x");
@@ -93,7 +94,7 @@ fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
     {
         std::os::unix::fs::symlink(&source_skills, codex_home.join("skills")).unwrap();
         write(
-            &codex_home.join("skills.ccb-projection.json"),
+            &codex_home.join("skills.ccbr-projection.json"),
             &serde_json::to_string(&serde_json::json!({
                 "record_type": "ccb_projected_asset",
                 "label": "codex-inherited-skills",
@@ -218,7 +219,7 @@ fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
         Some("session")
     );
     assert_eq!(
-        records["agents/agent1/provider-state/codex/home/.ccb-session-namespace.json"]
+        records["agents/agent1/provider-state/codex/home/.ccbr-session-namespace.json"]
             ["storage_class"]
             .as_str(),
         Some("session")
@@ -351,7 +352,7 @@ fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
 fn test_storage_classification_surfaces_profile_backed_runtime_home() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp_path(&tmp, "repo");
-    let profile_home = project_root.join(".ccb/provider-profiles/agent2/codex");
+    let profile_home = project_root.join(".ccbr/provider-profiles/agent2/codex");
     write(&profile_home.join("sessions/2026/session.jsonl"), "x");
     write(&profile_home.join("auth.json"), "{}\n");
     write(

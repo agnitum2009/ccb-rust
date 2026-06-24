@@ -134,7 +134,7 @@ fn start_mimo_run_submission(
         .get("runtime_dir")
         .and_then(|v| v.as_str())
         .map(PathBuf::from)
-        .unwrap_or_else(|| work_dir.join(".ccb").join("runtime").join(PROVIDER_NAME));
+        .unwrap_or_else(|| work_dir.join(".ccbr").join("runtime").join(PROVIDER_NAME));
     let completion_dir = session
         .data
         .get("completion_artifact_dir")

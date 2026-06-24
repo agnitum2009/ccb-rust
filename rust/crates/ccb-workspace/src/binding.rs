@@ -130,7 +130,7 @@ mod tests {
   "project_id": "pid",
   "agent_name": "agent1",
   "workspace_mode": "copy",
-  "workspace_path": "/tmp/project/.ccb/workspaces/agent1",
+  "workspace_path": "/tmp/project/.ccbr/workspaces/agent1",
   "branch_name": null
 }"#,
         )
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn binding_store_save_writes_file() {
         let tmp = tempfile::tempdir().unwrap();
-        let binding_path = tmp.path().join(".ccb-workspace.json");
+        let binding_path = tmp.path().join(".ccbr-workspace.json");
         let plan = WorkspacePlan::new(
             "pid".to_string(),
             tmp.path().to_path_buf(),

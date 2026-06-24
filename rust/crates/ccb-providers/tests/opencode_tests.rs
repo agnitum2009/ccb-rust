@@ -137,9 +137,9 @@ fn test_opencode_storage_accessor_db_candidates() {
 fn test_materialize_opencode_memory_config_writes_config_and_env() {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path().join("project");
-    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
+    std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
     std::fs::write(
-        project_root.join(".ccb").join("ccb_memory.md"),
+        project_root.join(".ccbr").join("ccb_memory.md"),
         "shared memory",
     )
     .unwrap();

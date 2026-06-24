@@ -206,7 +206,7 @@ mod tests {
             "slug".to_string(),
             "agent1".to_string(),
             WorkspaceMode::GitWorktree,
-            PathBuf::from("/tmp/project/.ccb/workspaces/agent1"),
+            PathBuf::from("/tmp/project/.ccbr/workspaces/agent1"),
             None,
             PathBuf::from("/tmp/project"),
             None,
