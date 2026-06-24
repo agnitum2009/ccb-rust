@@ -775,3 +775,89 @@ fn test_export_diagnostic_bundle_excludes_claude_home_hook_assets() {
         .contains("/.codeisland/")));
     assert!(members.iter().all(|m| !m.contains("/.codeisland/")));
 }
+
+#[test]
+fn test_export_diagnostic_bundle_excludes_all_provider_credentials_and_caches() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path().join("repo-bundle-sensitive");
+    let ccb_dir = project_root.join(".ccb");
+    fs::create_dir_all(&ccb_dir).unwrap();
+    fs::write(ccb_dir.join("ccb.config"), "demo:claude\n").unwrap();
+
+    let context = build_context(project_root.clone());
+
+    let provider_state_dir = context.paths.agent_provider_state_dir("demo", "claude");
+    let managed_home = provider_state_dir.join("home");
+    fs::create_dir_all(managed_home.join(".claude").as_std_path()).unwrap();
+
+    // Secret filenames
+    for name in &[
+        ".credentials.json",
+        ".env",
+        "auth.json",
+        "google_accounts.json",
+        "oauth_creds.json",
+    ] {
+        fs::write(
+            managed_home.join(".claude").join(name).as_std_path(),
+            "secret\n",
+        )
+        .unwrap();
+    }
+
+    // Hard-excluded directory segments
+    let excluded_dirs = [
+        managed_home.join(".tmp/plugins/agents/plugins/state.json"),
+        managed_home.join(".local/share/claude/versions/0.9.0/bin"),
+        managed_home.join(".npm/_cacache/content-v2"),
+        managed_home.join(".cache/node-gyp/headers"),
+        managed_home.join(".cache/vscode-ripgrep/binary"),
+    ];
+    for path in &excluded_dirs {
+        fs::create_dir_all(path.parent().unwrap().as_std_path()).unwrap();
+        fs::write(path.as_std_path(), "x\n").unwrap();
+    }
+
+    // A safe file that *should* be included
+    fs::create_dir_all(managed_home.join(".claude").as_std_path()).unwrap();
+    fs::write(
+        managed_home.join(".claude/settings.json").as_std_path(),
+        "{}\n",
+    )
+    .unwrap();
+
+    let command = serde_json::to_value(ParsedDoctorCommand {
+        project: None,
+        bundle: true,
+        output_path: None,
+        storage: false,
+        json_output: false,
+        kind: "doctor".into(),
+    })
+    .unwrap();
+    let summary = export_diagnostic_bundle(&context, &command).unwrap();
+    let bundle_path = PathBuf::from(&summary.bundle_path);
+    let members = archive_members(&bundle_path);
+
+    let forbidden: Vec<&str> = vec![
+        ".credentials.json",
+        "/.env",
+        "/auth.json",
+        "/google_accounts.json",
+        "/oauth_creds.json",
+        "/.tmp/plugins/",
+        "/.local/share/claude/versions/",
+        "/.npm/_cacache/",
+        "/.cache/node-gyp/",
+        "/.cache/vscode-ripgrep/",
+    ];
+    for f in &forbidden {
+        assert!(
+            members.iter().all(|m| !m.contains(f)),
+            "member contains forbidden path {}: {:?}",
+            f,
+            members
+        );
+    }
+    assert!(members.iter().any(|m| m.contains("/.claude/settings.json")));
+}

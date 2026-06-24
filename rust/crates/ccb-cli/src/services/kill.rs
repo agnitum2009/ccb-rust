@@ -6,9 +6,11 @@ use std::path::{Path, PathBuf};
 use ccb_storage::paths::PathLayout;
 
 use crate::context::CliContext;
-use crate::kill_runtime::processes::{is_pid_alive, terminate_pid_tree};
+use crate::kill_runtime::processes::{is_pid_alive, terminate_pid_tree, wait_for_pid_exit};
 use crate::models::ParsedKillCommand;
-use crate::services::daemon::{connect_mounted_daemon, record_shutdown_intent};
+use crate::services::daemon::{
+    connect_mounted_daemon, inspect_daemon_phase, record_shutdown_intent,
+};
 use crate::services::daemon_runtime::models::KillSummary;
 use crate::services::kill_runtime::agent_cleanup::{prepare_local_shutdown, KillPreparation};
 use crate::services::kill_runtime::finalize::finalize_kill;
@@ -19,7 +21,7 @@ use crate::services::kill_runtime::pid_cleanup::{
     read_proc_path, remove_pid_files, terminate_runtime_pids,
 };
 use crate::services::kill_runtime::remote::{
-    request_remote_stop, resolve_shutdown_summary, StopAllClient,
+    await_remote_shutdown, request_remote_stop, resolve_shutdown_summary, StopAllClient,
 };
 use crate::services::kill_runtime::reporting::{merge_cleanup_summaries, record_kill_report};
 use crate::services::maintenance::stop_maintenance_heartbeat_runner;
@@ -96,7 +98,9 @@ pub fn kill_project(
             )
         },
         destroy_project_namespace,
-        |ctx, remote, force, _preparation| default_resolve_shutdown_summary(ctx, remote, force),
+        |ctx, remote, force, preparation| {
+            default_resolve_shutdown_summary(ctx, remote, force, preparation)
+        },
         |paths, project_id, force, preparation, remote, summary| {
             default_finalize_kill(paths, project_id, force, preparation, remote, summary)
         },
@@ -214,21 +218,32 @@ fn default_resolve_shutdown_summary(
     context: &CliContext,
     remote_summary: Option<&KillSummary>,
     force: bool,
+    preparation: &KillPreparation,
 ) -> anyhow::Result<KillSummary> {
-    let unmounted = KillSummary {
-        project_id: context.project.project_id.clone(),
-        state: "unmounted".into(),
-        socket_path: context.paths.ccbd_socket_path().to_string(),
-        forced: force,
-        cleanup_summaries: Vec::new(),
-        worktree_warnings: Vec::new(),
-    };
     resolve_shutdown_summary(
         context,
         remote_summary,
         force,
-        |_ctx, _force| Ok(unmounted.clone()),
-        |_ctx, _force| Ok(unmounted.clone()),
+        crate::kill_runtime::shutdown::shutdown_daemon,
+        |ctx, force| default_await_remote_shutdown(ctx, force, preparation),
+    )
+}
+
+fn default_await_remote_shutdown(
+    context: &CliContext,
+    force: bool,
+    preparation: &KillPreparation,
+) -> anyhow::Result<KillSummary> {
+    await_remote_shutdown(
+        context,
+        force,
+        STOP_ALL_TIMEOUT_S,
+        &preparation.control_plane_pids,
+        |_ctx| inspect_daemon_phase(context),
+        is_pid_alive_u32,
+        |pid, timeout, is_alive| terminate_pid_tree_u32_wrapper(pid, timeout, &is_alive),
+        |pid, timeout| wait_for_pid_exit(pid as i64, timeout, &|p| is_pid_alive(p)),
+        |_timeout| true,
     )
 }
 

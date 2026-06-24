@@ -10,6 +10,9 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+/// Serialize tests that mutate process-global env vars.
+static ENV_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn make_context(tmp: &tempfile::TempDir) -> CliContext {
     make_context_with_config(tmp, "cmd; agent1:codex, agent2:claude\n")
 }
@@ -352,6 +355,7 @@ fn test_resolve_ask_sender_defaults_to_user_for_project_root() {
 
 #[test]
 fn test_resolve_ask_sender_prefers_runtime_dir_actor() {
+    let _guard = ENV_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let tmp = tempfile::TempDir::new().unwrap();
     let context = make_context(&tmp);
     for name in [
@@ -369,4 +373,112 @@ fn test_resolve_ask_sender_prefers_runtime_dir_actor() {
     assert_eq!(resolve_ask_sender(&context, None), "agent1");
     std::env::remove_var("CODEX_RUNTIME_DIR");
     std::env::remove_var("CCB_SESSION_ID");
+}
+
+#[test]
+fn test_resolve_ask_sender_prefers_relocated_runtime_dir_actor() {
+    let _guard = ENV_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let tmp = tempfile::TempDir::new().unwrap();
+    let before = make_context(&tmp);
+    for name in [
+        "CCB_CALLER_ACTOR",
+        "CCB_CALLER_RUNTIME_DIR",
+        "CODEX_RUNTIME_DIR",
+        "CCB_SESSION_ID",
+    ] {
+        std::env::remove_var(name);
+    }
+
+    let relocated_root = tmp.path().join("state-root");
+    std::fs::create_dir_all(&relocated_root).unwrap();
+    let ref_value = serde_json::json!({
+        "schema_version": 1,
+        "record_type": "ccb_runtime_root_ref",
+        "project_id": before.paths.project_id(),
+        "runtime_state_root": relocated_root.to_string_lossy().to_string(),
+        "created_at": "2026-05-07T00:00:00Z",
+    });
+    std::fs::write(
+        before.paths.project_root.join(".ccb/runtime-root-ref.json"),
+        ref_value.to_string(),
+    )
+    .unwrap();
+
+    let context = make_context(&tmp);
+    assert_eq!(
+        context.paths.runtime_state_root().as_str(),
+        relocated_root.to_string_lossy().as_ref()
+    );
+
+    let runtime_dir = context
+        .paths
+        .agent_provider_runtime_dir("agent1", "codex")
+        .into_std_path_buf();
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+    std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
+    std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");
+    assert_eq!(resolve_ask_sender(&context, None), "agent1");
+    std::env::remove_var("CODEX_RUNTIME_DIR");
+    std::env::remove_var("CCB_SESSION_ID");
+}
+
+#[test]
+fn test_submit_ask_resolves_legacy_role_id_alias() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let context = make_context_with_config(
+        &tmp,
+        "version = 2\ndefault_agents = [\"agent1\", \"archi\"]\n[agents]\nagent1 = { provider = \"codex\" }\narchi = { provider = \"codex\", role = \"agentroles.archi\" }\n",
+    );
+    let command = make_command("ccb.archi", "review");
+    let captured = Arc::new(Mutex::new(HashMap::new()));
+    let captured_clone = captured.clone();
+
+    let summary = submit_ask_with(
+        &context,
+        &command,
+        ccb_agents::config::load_project_config,
+        |_ctx, _sender| "agent1".into(),
+        |_ctx, _allow, request_fn| {
+            let client = FakeClient {
+                captured: captured_clone.clone(),
+                response: json!({
+                    "job_id": "job_1",
+                    "agent_name": "archi",
+                    "target_name": "archi",
+                    "status": "accepted",
+                }),
+            };
+            request_fn(&client)
+        },
+    )
+    .unwrap();
+
+    let cap = captured.lock().unwrap();
+    assert_eq!(cap.get("to_agent").unwrap().as_str().unwrap(), "archi");
+    assert_eq!(summary.jobs[0]["agent_name"], "archi");
+}
+
+#[test]
+fn test_write_ask_output_appends_newline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let path = tmp.path().join("reply.txt");
+    ccb_cli::services::ask::write_ask_output(&path, "done").unwrap();
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "done\n");
+}
+
+#[test]
+fn test_write_ask_output_preserves_existing_newline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let path = tmp.path().join("reply.txt");
+    ccb_cli::services::ask::write_ask_output(&path, "done\n").unwrap();
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "done\n");
+}
+
+#[test]
+fn test_exit_code_for_ask_status() {
+    use ccb_cli::services::ask::exit_code_for_ask_status;
+    assert_eq!(exit_code_for_ask_status(Some("completed"), "done"), 0);
+    assert_eq!(exit_code_for_ask_status(Some("incomplete"), "partial"), 2);
+    assert_eq!(exit_code_for_ask_status(Some("failed"), ""), 1);
+    assert_eq!(exit_code_for_ask_status(None, ""), 1);
 }

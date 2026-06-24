@@ -3,6 +3,7 @@
 pub mod daemons;
 pub mod processes;
 pub mod sessions;
+pub mod shutdown;
 pub mod zombies;
 
 pub use daemons::terminate_provider_daemon;

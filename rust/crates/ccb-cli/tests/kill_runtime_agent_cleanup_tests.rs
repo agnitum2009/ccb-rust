@@ -233,3 +233,78 @@ fn test_prepare_local_shutdown_uses_project_authority_closure_when_no_override()
         &vec![authority_source]
     );
 }
+
+#[test]
+fn test_prepare_local_shutdown_passes_force_to_agent_pid_collector() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let paths = make_paths(&tmp);
+    let runtime = stopped_runtime("demo", &paths);
+    AgentRuntimeStore::new(paths.clone())
+        .save(&runtime)
+        .unwrap();
+
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let seen_clone = seen.clone();
+
+    let preparation = prepare_local_shutdown(
+        &paths,
+        true,
+        move |_, _, force| {
+            *seen_clone.lock().unwrap() = Some(force);
+            HashMap::new()
+        },
+        Some(no_authority_pids),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(*seen.lock().unwrap(), Some(true));
+    assert_eq!(preparation.configured_agent_names, vec!["demo"]);
+}
+
+#[test]
+fn test_prepare_local_shutdown_handles_configured_agent_without_runtime_file() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let paths = make_paths(&tmp);
+    std::fs::write(
+        paths.ccb_dir().join("ccb.config"),
+        "alpha:codex,beta:claude\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(paths.agent_dir("alpha").as_std_path()).unwrap();
+
+    let preparation = prepare_local_shutdown(
+        &paths,
+        false,
+        |_, _, _| HashMap::new(),
+        Some(no_authority_pids),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(preparation.configured_agent_names, vec!["alpha", "beta"]);
+    assert_eq!(preparation.extra_agent_names, Vec::<String>::new());
+}
+
+#[test]
+fn test_prepare_local_shutdown_falls_back_to_env_tmux_socket_when_no_runtime() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let paths = make_paths(&tmp);
+    std::fs::write(paths.ccb_dir().join("ccb.config"), "alpha:codex\n").unwrap();
+
+    with_env(
+        &[
+            ("TMUX", None),
+            ("CCB_TMUX_SOCKET", None),
+            ("CCB_TMUX_SOCKET_PATH", Some("/env/ccb.sock")),
+        ],
+        || {
+            let preparation =
+                prepare_local_shutdown(&paths, false, no_agent_pids, Some(no_authority_pids), None)
+                    .unwrap();
+            assert!(preparation
+                .tmux_sockets
+                .contains(&Some("/env/ccb.sock".into())));
+        },
+    );
+}

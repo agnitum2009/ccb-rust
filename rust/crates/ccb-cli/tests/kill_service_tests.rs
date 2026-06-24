@@ -6,6 +6,8 @@ use ccb_cli::services::daemon_runtime::models::KillSummary;
 use ccb_cli::services::kill::kill_project_with;
 use ccb_cli::services::kill::WorktreeGuardSummary;
 use ccb_cli::services::kill_runtime::agent_cleanup::KillPreparation;
+use ccb_cli::services::kill_runtime::reporting::record_kill_report;
+use ccb_cli::services::tmux_project_cleanup_runtime::models::ProjectTmuxCleanupSummary;
 use std::collections::HashMap;
 
 fn make_context(tmp: &tempfile::TempDir) -> CliContext {
@@ -229,4 +231,46 @@ fn test_kill_project_uses_remote_summary_when_present() {
     .unwrap();
 
     assert_eq!(result.project_id, remote2.project_id);
+}
+
+#[test]
+fn test_record_kill_report_persists_report_json() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let project_root = tmp.path();
+    std::fs::create_dir_all(project_root.join(".ccb")).unwrap();
+    std::fs::write(project_root.join(".ccb/ccb.config"), "demo:codex\n").unwrap();
+
+    let paths = ccb_storage::paths::PathLayout::new(
+        camino::Utf8Path::from_path(project_root)
+            .unwrap()
+            .to_path_buf(),
+    );
+    let summary = ProjectTmuxCleanupSummary {
+        socket_name: Some("/tmp/ccb.sock".into()),
+        owned_panes: vec!["%1".into()],
+        active_panes: vec!["%2".into()],
+        orphaned_panes: vec![],
+        killed_panes: vec!["%3".into()],
+    };
+
+    record_kill_report(
+        &paths,
+        "kill",
+        true,
+        &[summary],
+        &["demo".into()],
+        &["extra".into()],
+    )
+    .unwrap();
+
+    let report_path = paths.ccbd_dir().join("kill-report.json");
+    assert!(report_path.exists());
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(report_path.as_std_path()).unwrap()).unwrap();
+    assert_eq!(report["record_type"], "kill_report");
+    assert_eq!(report["trigger"], "kill");
+    assert_eq!(report["forced"], true);
+    assert_eq!(report["stopped_agents"], serde_json::json![["demo"]]);
+    assert_eq!(report["extra_agents"], serde_json::json![["extra"]]);
+    assert_eq!(report["cleanup_summary"].as_array().unwrap().len(), 1);
 }

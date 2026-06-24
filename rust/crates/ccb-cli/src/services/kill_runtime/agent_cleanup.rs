@@ -46,7 +46,7 @@ pub fn prepare_local_shutdown<
     G: FnMut(&std::path::Path) -> HashMap<u32, Vec<PathBuf>>,
 >(
     paths: &PathLayout,
-    _force: bool,
+    force: bool,
     mut collect_agent_pid_candidates_fn: F,
     mut collect_project_authority_pid_candidates_fn: Option<G>,
     control_plane_pid_candidates: Option<HashMap<u32, Vec<PathBuf>>>,
@@ -83,9 +83,8 @@ pub fn prepare_local_shutdown<
             capture_runtime_tmux_socket(&mut tmux_sockets, runtime);
         }
         let agent_dir = paths.agent_dir(agent_name);
-        let fallback = false; // Python uses `force` here; tests pass force=False.
         let mut candidates =
-            collect_agent_pid_candidates_fn(agent_dir.as_std_path(), runtime.as_ref(), fallback);
+            collect_agent_pid_candidates_fn(agent_dir.as_std_path(), runtime.as_ref(), force);
         for (pid, sources) in candidates.drain() {
             pid_candidates.entry(pid).or_default().extend(sources);
         }

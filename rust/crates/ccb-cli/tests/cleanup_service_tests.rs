@@ -207,6 +207,11 @@ fn test_cleanup_prunes_shared_claude_versions_referenced_by_symlinked_agent_home
         cleanup_project_storage_with(&context, &serde_json::Value::Null, &stopped()).unwrap();
     assert_eq!(summary.status, "ok");
     assert_eq!(summary.deleted_count, 1, "actions: {:?}", summary.actions);
+    assert_eq!(summary.skipped_count, 1, "skipped: {:?}", summary.skipped);
+    assert!(summary
+        .skipped
+        .iter()
+        .any(|s| s.reason == "versions_dir_is_symlink"));
     assert!(action_paths(&summary).contains(shared_versions.join("0.9.0").to_str().unwrap()));
     assert!(shared_versions.join("0.9.1").exists());
     assert!(shared_versions.join("0.9.2").exists());

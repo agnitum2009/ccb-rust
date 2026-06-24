@@ -116,7 +116,7 @@ where
     !is_pid_alive_fn(pid)
 }
 
-fn wait_for_pid_exit<F>(pid: i64, timeout_s: f64, is_pid_alive_fn: &F) -> bool
+pub fn wait_for_pid_exit<F>(pid: i64, timeout_s: f64, is_pid_alive_fn: &F) -> bool
 where
     F: Fn(i64) -> bool,
 {

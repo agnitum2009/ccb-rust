@@ -63,15 +63,16 @@ where
 ///
 /// Mirrors Python `record_shutdown_intent(context, reason)`.
 /// Uses closure injection for store operations.
-pub fn record_shutdown_intent<L, S>(
-    lifecycle_load_fn: L,
-    lifecycle_save_fn: L,
+pub fn record_shutdown_intent<LL, LS, S>(
+    lifecycle_load_fn: LL,
+    lifecycle_save_fn: LS,
     shutdown_save_fn: S,
     project_id: &str,
     reason: &str,
     requested_by_pid: u32,
 ) where
-    L: Fn(&Value) -> Value,
+    LL: Fn(&Value) -> Value,
+    LS: Fn(&Value),
     S: Fn(&Value),
 {
     let current = lifecycle_load_fn(&Value::Null);

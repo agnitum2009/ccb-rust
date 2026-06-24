@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 
 use crate::context::CliContext;
 use crate::services::{socket_path_for_project, DaemonClient, UnixDaemonClient};
+use ccb_storage::json::JsonStore;
 
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
@@ -75,12 +76,47 @@ pub fn connect_mounted_daemon(
     })
 }
 
+/// Inspect the local daemon phase from the lifecycle store.
+///
+/// Mirrors the phase portion of Python `inspect_daemon`. Returns `"unmounted"`
+/// when no lifecycle record exists.
+pub fn inspect_daemon_phase(context: &CliContext) -> String {
+    let store = JsonStore::new();
+    let lifecycle_path = context.paths.ccbd_lifecycle_path();
+    match store.load::<Value>(&lifecycle_path) {
+        Ok(value) => value
+            .get("phase")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unmounted")
+            .to_string(),
+        Err(_) => "unmounted".to_string(),
+    }
+}
+
 /// Record shutdown intent for the current project.
 ///
-/// Mirrors Python `cli.services.daemon.record_shutdown_intent`. This stub
-/// captures the intent so higher-level orchestration can proceed; a full
-/// lifecycle-store integration is deferred to the daemon runtime.
-pub fn record_shutdown_intent(_context: &CliContext, _reason: &str) {}
+/// Mirrors Python `cli.services.daemon.record_shutdown_intent`. Persists the
+/// intent to the lifecycle store and the shutdown-intent store so the daemon
+/// runtime and later diagnostics can observe it.
+pub fn record_shutdown_intent(context: &CliContext, reason: &str) {
+    let store = JsonStore::new();
+    let lifecycle_path = context.paths.ccbd_lifecycle_path();
+    let shutdown_path = context.paths.ccbd_shutdown_intent_path();
+    let project_id = context.project.project_id.clone();
+
+    crate::services::daemon_runtime::keeper::record_shutdown_intent(
+        |_| store.load(&lifecycle_path).unwrap_or(Value::Null),
+        |value| {
+            let _ = store.save(&lifecycle_path, value);
+        },
+        |value| {
+            let _ = store.save(&shutdown_path, value);
+        },
+        &project_id,
+        reason,
+        std::process::id(),
+    );
+}
 
 /// `TraceClient` implementation for the Unix socket daemon client.
 impl crate::services::wait_runtime::service::TraceClient for UnixDaemonClient {
