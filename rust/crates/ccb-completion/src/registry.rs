@@ -28,7 +28,10 @@ impl CompletionRegistry {
         build_completion_profile(agent_spec, manifest)
     }
 
-    pub fn build_detector(&self, profile: &CompletionProfile) -> Box<dyn CompletionDetector> {
+    pub fn build_detector(
+        &self,
+        profile: &CompletionProfile,
+    ) -> Box<dyn CompletionDetector + Send> {
         match profile.completion_family {
             CompletionFamily::ProtocolTurn => Box::new(ProtocolTurnDetector::new()),
             CompletionFamily::StructuredResult => Box::new(StructuredResultDetector::new()),
@@ -40,7 +43,7 @@ impl CompletionRegistry {
         }
     }
 
-    pub fn build_selector(&self, profile: &CompletionProfile) -> Box<dyn ReplySelector> {
+    pub fn build_selector(&self, profile: &CompletionProfile) -> Box<dyn ReplySelector + Send> {
         match profile.selector_family {
             crate::models::SelectorFamily::FinalMessage => Box::new(FinalMessageSelector::new()),
             crate::models::SelectorFamily::StructuredResult => {

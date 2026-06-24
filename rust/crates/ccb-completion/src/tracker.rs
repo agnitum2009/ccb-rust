@@ -18,8 +18,8 @@ const DISABLED_REQUEST_BINDING_TIMEOUT_S: f64 = 31_536_000.0;
 
 struct ActiveTracker {
     agent_name: String,
-    detector: Box<dyn CompletionDetector>,
-    selector: Box<dyn ReplySelector>,
+    detector: Box<dyn CompletionDetector + Send>,
+    selector: Box<dyn ReplySelector + Send>,
     started_at: String,
     timeout_s: f64,
 }

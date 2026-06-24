@@ -295,3 +295,57 @@ fn test_record_reply_delivery_skips_non_mailbox_caller() {
 
     assert!(!layout.ccbd_mailboxes_dir().join("user").exists());
 }
+
+/// Mirrors Python `test_message_bureau_submission_fastpath.py::test_record_submission_does_not_refresh_mailbox`.
+#[test]
+fn test_record_submission_does_not_refresh_mailbox() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = camino::Utf8Path::from_path(dir.path()).unwrap();
+    let layout = PathLayout::new(path);
+    let config = config_with_agent("agent1");
+    let clock = fixed_clock();
+
+    let facade = MessageBureauFacade::new(layout.clone(), Some(config.clone()), Arc::clone(&clock));
+    let control =
+        MessageBureauControlService::new(layout.clone(), Some(config), Some(Arc::clone(&clock)));
+    let job = make_job("job_1", "agent1");
+    let jobs = vec![job.clone()];
+
+    let message_id = facade
+        .record_submission(&job.request, &jobs, None, &clock(), None)
+        .unwrap();
+
+    // One attempt and one inbound event were created.
+    let events = InboundEventStore::new(&layout).list_agent("agent1");
+    assert_eq!(events.len(), 1);
+    assert_eq!(
+        events[0].event_type,
+        ccb_mailbox::models::InboundEventType::TaskRequest
+    );
+
+    // Mailbox stays blocked; it is not refreshed/emptied by submission alone.
+    let mailbox = MailboxStore::new(&layout).load("agent1").unwrap().unwrap();
+    assert_eq!(mailbox.queue_depth, 1);
+    assert_eq!(mailbox.pending_reply_count, 0);
+    assert!(matches!(
+        mailbox.mailbox_state,
+        ccb_mailbox::models::MailboxState::Blocked
+    ));
+
+    let agent_queue = control.agent_queue("agent1");
+    assert_eq!(
+        agent_queue.get("queue_depth").and_then(|v| v.as_u64()),
+        Some(1)
+    );
+    assert_eq!(
+        agent_queue.get("mailbox_state").and_then(|v| v.as_str()),
+        Some("blocked")
+    );
+
+    // The message exists and is not yet completed.
+    let message = facade.get_message(&message_id).unwrap();
+    assert!(!matches!(
+        message.message_state,
+        ccb_mailbox::models::MessageState::Completed
+    ));
+}

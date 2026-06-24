@@ -7,7 +7,7 @@ use crate::models::{
 use crate::utils::{fingerprint_text, first_non_empty};
 
 /// Trait implemented by all completion detectors.
-pub trait CompletionDetector {
+pub trait CompletionDetector: Send {
     fn bind(&mut self, request_ctx: CompletionRequestContext, baseline: CompletionCursor);
     fn ingest(&mut self, item: &CompletionItem);
     fn decision(&self) -> CompletionDecision;

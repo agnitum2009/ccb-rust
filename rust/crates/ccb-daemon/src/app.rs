@@ -5,6 +5,7 @@ use std::sync::Arc;
 use camino::Utf8Path;
 use serde::{Deserialize, Serialize};
 
+use crate::adapters::completion::to_completion_job_record;
 use crate::adapters::mailbox::{to_mailbox_completion_decision, to_mailbox_job_record};
 use crate::handlers::{build_registry, HandlerRegistry};
 use crate::models::lifecycle::{
@@ -18,8 +19,10 @@ use crate::services::project_namespace::ProjectNamespaceController;
 use crate::services::registry::{AgentRegistry, AgentRuntimeEntry};
 use crate::services::runtime::RuntimeService;
 use ccb_completion::models::{CompletionDecision, CompletionStatus};
+use ccb_completion::{CompletionRegistry, CompletionTrackerService};
 use ccb_jobs::JobStore;
 use ccb_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
+use ccb_provider_core::catalog::{build_default_provider_catalog, ProviderCatalog};
 use ccb_providers::execution::ExecutionService;
 
 fn load_agent_registry(
@@ -87,6 +90,7 @@ pub struct CcbdApp {
     pub last_startup_report: Option<CcbdStartupReport>,
     pub last_shutdown_report: Option<CcbdShutdownReport>,
     pub current_config: Option<ccb_agents::models::ProjectConfig>,
+    pub completion_tracker: CompletionTrackerService<ProviderCatalog>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,6 +176,11 @@ impl CcbdApp {
                 ccb_providers::build_default_execution_registry(),
                 || chrono::Utc::now().to_rfc3339(),
                 None,
+            ),
+            completion_tracker: CompletionTrackerService::new(
+                config.clone().unwrap_or_default(),
+                build_default_provider_catalog(false, false),
+                CompletionRegistry,
             ),
             mailbox,
             mailbox_control,
@@ -308,28 +317,56 @@ impl CcbdApp {
                 .record_restart(&agent_name, "supervision_tick");
         }
 
-        // Dispatcher tick.
-        let _ = self.dispatcher.tick();
+        // Dispatcher tick: promote queued jobs to running and start completion
+        // trackers for newly-running jobs.
+        let started = self.dispatcher.tick();
+        let now = chrono::Utc::now().to_rfc3339();
+        for job in started {
+            let completion_job = to_completion_job_record(job);
+            let _ = self.completion_tracker.start(&completion_job, &now);
+        }
 
         // Feed live tmux pane text into active execution submissions so adapters
         // that detect completion from pane output can make progress.
         self.feed_active_pane_text_to_execution();
 
         // Execution service poll: update job statuses from provider adapters.
+        // Also ingest provider items into the completion tracker so the
+        // orchestrator can settle on a terminal decision.
         let updates = self.execution.poll();
         for update in updates {
-            let status = update
-                .decision
+            // Ensure every running job has a tracker (handles restore/restart).
+            if self.completion_tracker.current(&update.job_id).is_none() {
+                if let Some(job) = self.dispatcher.get(&update.job_id) {
+                    let completion_job = to_completion_job_record(job);
+                    let _ = self.completion_tracker.start(&completion_job, &now);
+                }
+            }
+
+            for item in &update.items {
+                let _ = self.completion_tracker.ingest(&update.job_id, item);
+            }
+
+            let tracker_decision = self
+                .completion_tracker
+                .tick(&update.job_id, &now)
+                .ok()
+                .filter(|view| view.decision.terminal)
+                .map(|view| view.decision);
+
+            let effective_decision = tracker_decision.or(update.decision);
+            let status = effective_decision
                 .as_ref()
                 .map(|d| map_completion_status(d.status))
                 .unwrap_or(crate::models::api_models::common::JobStatus::Running);
-            let decision_record = update.decision.as_ref().map(decision_to_record);
+            let decision_record = effective_decision.as_ref().map(decision_to_record);
             self.dispatcher
                 .update_job_status(&update.job_id, status, decision_record);
 
             // Persist terminal completion decisions to the mailbox layer.
-            if let Some(decision) = update.decision.as_ref() {
+            if let Some(decision) = effective_decision.as_ref() {
                 if decision.terminal {
+                    self.completion_tracker.finish(&update.job_id);
                     if let Some(job) = self.dispatcher.get(&update.job_id) {
                         let finished_at = decision
                             .finished_at
@@ -450,6 +487,7 @@ impl CcbdApp {
                 command_template: None,
                 startup_args: &[],
                 auto_permission,
+                spec: None,
             };
             if let Err(e) = launcher.launch(&ctx) {
                 eprintln!("ccbd: provider launch failed for {agent_name}: {e}");
@@ -505,7 +543,9 @@ impl CcbdApp {
     }
 }
 
-fn map_completion_status(status: CompletionStatus) -> crate::models::api_models::common::JobStatus {
+pub(crate) fn map_completion_status(
+    status: CompletionStatus,
+) -> crate::models::api_models::common::JobStatus {
     use crate::models::api_models::common::JobStatus;
     match status {
         CompletionStatus::Completed => JobStatus::Completed,
@@ -515,7 +555,7 @@ fn map_completion_status(status: CompletionStatus) -> crate::models::api_models:
     }
 }
 
-fn decision_to_record(decision: &CompletionDecision) -> serde_json::Value {
+pub(crate) fn decision_to_record(decision: &CompletionDecision) -> serde_json::Value {
     serde_json::json!({
         "terminal": decision.terminal,
         "status": decision.status,

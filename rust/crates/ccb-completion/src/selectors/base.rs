@@ -1,7 +1,7 @@
 use crate::models::{CompletionDecision, ReplyCandidate};
 
 /// Trait implemented by all reply selectors.
-pub trait ReplySelector {
+pub trait ReplySelector: Send {
     fn ingest_candidate(&mut self, candidate: ReplyCandidate);
     fn select(&self, decision: &CompletionDecision) -> String;
     fn preview(&self) -> String;
