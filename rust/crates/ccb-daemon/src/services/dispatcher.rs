@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use ccb_mailbox::models::{AttemptRecord, AttemptState};
+use ccb_mailbox::stores::AttemptStore;
+
 use crate::adapters::mailbox::to_mailbox_job_record;
 use crate::models::api_models::common::{JobStatus, TargetKind};
 use crate::models::api_models::messages::MessageEnvelope;
@@ -163,6 +166,10 @@ pub struct JobDispatcher {
     /// Agent runtime snapshots consulted by `comms_recover` for stale-running
     /// detection (mirrors Python `dispatcher._registry`). Empty by default.
     runtime_states: HashMap<String, RuntimeStateSnapshot>,
+    /// Attempt lineage store (mirrors Python `_message_bureau_control._attempt_store`).
+    /// When wired, `submit`/`retry` record attempts so `comms_recover` can detect
+    /// retry lineage / `already_retried`.
+    attempt_store: Option<AttemptStore>,
 }
 
 impl JobDispatcher {
@@ -174,6 +181,7 @@ impl JobDispatcher {
             agent_names,
             mailbox_job_store: None,
             runtime_states: HashMap::new(),
+            attempt_store: None,
         }
     }
 
@@ -210,6 +218,45 @@ impl JobDispatcher {
         };
         let mailbox_job = to_mailbox_job_record(job);
         let _ = store.append(&mailbox_job);
+    }
+
+    /// Wire the attempt lineage store (mirrors Python `_attempt_store`). When
+    /// set, `submit` records an initial attempt and `retry` records the retry
+    /// chain, enabling `comms_recover` lineage / `already_retried` detection.
+    pub fn with_attempt_store(mut self, store: AttemptStore) -> Self {
+        self.attempt_store = Some(store);
+        self
+    }
+
+    /// Append an attempt record linking `job` to `message_id` with the given
+    /// retry index and state (mirrors Python attempt recording).
+    fn record_attempt(
+        &self,
+        job: &JobRecord,
+        message_id: &str,
+        retry_index: u32,
+        state: AttemptState,
+    ) {
+        let Some(store) = &self.attempt_store else {
+            return;
+        };
+        let now = chrono::Utc::now().to_rfc3339();
+        let attempt = AttemptRecord {
+            attempt_id: format!(
+                "att_{}",
+                &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+            ),
+            message_id: message_id.to_string(),
+            agent_name: job.agent_name.clone(),
+            provider: job.provider.clone(),
+            job_id: job.job_id.clone(),
+            retry_index,
+            health_snapshot_ref: None,
+            started_at: now.clone(),
+            updated_at: now,
+            attempt_state: state,
+        };
+        let _ = store.append(&attempt);
     }
 
     fn initial_status(&self, agent_name: &str) -> JobStatus {
@@ -252,6 +299,13 @@ impl JobDispatcher {
         self.job_store.push(job.clone());
         self.persist_job_to_mailbox(&job);
         self.state.rebuild(&self.job_store);
+        // Record the initial attempt so retry lineage can link subsequent
+        // retries via the shared message_id (mirrors Python attempt recording).
+        let message_id = format!(
+            "msg_{}",
+            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+        );
+        self.record_attempt(&job, &message_id, 0, AttemptState::Running);
 
         SubmitReceipt {
             accepted_at: now.clone(),
@@ -479,14 +533,14 @@ impl JobDispatcher {
     /// hint is cleaned to `None` and ignored. Unknown job ids → `noop`.
     /// Recovery actions (terminal retry / stale-running cancel+retry /
     /// reply-delivery) land in later slices.
-    pub fn comms_recover(&self, payload: &serde_json::Value) -> serde_json::Value {
+    pub fn comms_recover(&mut self, payload: &serde_json::Value) -> serde_json::Value {
         let target = match recover_target_from_payload(payload) {
             Ok(t) => t,
             Err(reason) => {
                 return serde_json::json!({ "status": "noop", "noop_reason": reason });
             }
         };
-        let source = match self.get(&target.job_id) {
+        let source = match self.get(&target.job_id).cloned() {
             Some(job) => job,
             None => {
                 return serde_json::json!({
@@ -496,28 +550,101 @@ impl JobDispatcher {
             }
         };
         let recoverability =
-            self.comms_recoverability_for_job(source, target.block_reason.as_deref());
-        let noop_reason: serde_json::Value = if recoverability.recoverable {
-            serde_json::Value::Null
-        } else {
-            serde_json::Value::String(
-                recoverability
-                    .block_reason
-                    .clone()
-                    .unwrap_or_else(|| "not_recoverable".to_string()),
-            )
-        };
+            self.comms_recoverability_for_job(&source, target.block_reason.as_deref());
+        let block_reason = recoverability.block_reason.clone();
+        if !recoverability.recoverable {
+            // Mirrors Python: a non-recoverable job that was already retried
+            // reports `already_retried` with the latest job id (idempotency).
+            if let Some(latest) = self.already_retried_job_id(&source.job_id) {
+                return serde_json::json!({
+                    "job_id": source.job_id,
+                    "agent_name": source.agent_name,
+                    "status": "noop",
+                    "block_reason": block_reason,
+                    "recoverable": false,
+                    "cancelled_old": null,
+                    "released_event": null,
+                    "retried_job": null,
+                    "next_started": [],
+                    "noop_reason": "already_retried",
+                    "latest_job_id": latest,
+                });
+            }
+            let noop_reason = block_reason.unwrap_or_else(|| "not_recoverable".to_string());
+            return serde_json::json!({
+                "job_id": source.job_id,
+                "agent_name": source.agent_name,
+                "status": "noop",
+                "block_reason": recoverability.block_reason,
+                "recoverable": false,
+                "cancelled_old": null,
+                "released_event": null,
+                "retried_job": null,
+                "next_started": [],
+                "noop_reason": noop_reason,
+            });
+        }
+        // Stale-running recovery (Slice 2): idempotency first.
+        if let Some(latest) = self.already_retried_job_id(&source.job_id) {
+            return serde_json::json!({
+                "job_id": source.job_id,
+                "agent_name": source.agent_name,
+                "status": "noop",
+                "block_reason": block_reason,
+                "recoverable": true,
+                "cancelled_old": null,
+                "released_event": null,
+                "retried_job": null,
+                "next_started": [],
+                "noop_reason": "already_retried",
+                "latest_job_id": latest,
+            });
+        }
+        let cancelled_receipt = self.cancel(&source.job_id);
+        // Force the terminal Cancelled transition for the recovered job. The
+        // Rust `cancel` RPC marks running jobs cancel-requested (defers the
+        // terminal transition to the execution layer); recovery terminates the
+        // job outright, mirroring Python recovery semantics.
+        let now = chrono::Utc::now().to_rfc3339();
+        if let Some(job) = self
+            .job_store
+            .iter_mut()
+            .find(|j| j.job_id == source.job_id)
+        {
+            if !job.status.is_terminal() {
+                job.status = JobStatus::Cancelled;
+                job.updated_at = now;
+            }
+        }
+        self.state.rebuild(&self.job_store);
+        let retried = self.retry_job(&source.job_id);
+        let started: Vec<&JobRecord> = self.tick();
+        let retried_job = retried.as_ref().map(|j| {
+            serde_json::json!({
+                "job_id": j.job_id,
+                "agent_name": j.agent_name,
+                "request": { "message_type": j.request.message_type },
+            })
+        });
+        let next_started: Vec<serde_json::Value> = started
+            .into_iter()
+            .map(|j| serde_json::json!({ "job_id": j.job_id }))
+            .collect();
         serde_json::json!({
             "job_id": source.job_id,
             "agent_name": source.agent_name,
-            "status": if recoverability.recoverable { "pending" } else { "noop" },
-            "block_reason": recoverability.block_reason,
-            "recoverable": recoverability.recoverable,
-            "cancelled_old": null,
+            "status": "recovered",
+            "block_reason": block_reason,
+            "recoverable": true,
+            "cancelled_old": {
+                "job_id": cancelled_receipt.job_id,
+                "agent_name": cancelled_receipt.agent_name,
+                "status": "cancelled",
+            },
             "released_event": null,
-            "retried_job": null,
-            "next_started": [],
-            "noop_reason": noop_reason,
+            "retried_job": retried_job,
+            "next_started": next_started,
+            "noop_reason": null,
         })
     }
 
@@ -584,11 +711,104 @@ impl JobDispatcher {
         })
     }
 
-    pub fn retry(&self, target: &str) -> serde_json::Value {
-        serde_json::json!({
-            "target": target,
-            "status": "retried",
-        })
+    /// Retry a job: create a new job for the same agent/request with the next
+    /// retry index in the attempt lineage. Mirrors Python `dispatcher.retry`.
+    /// Public wrapper for the RPC handler.
+    pub fn retry(&mut self, target: &str) -> serde_json::Value {
+        match self.retry_job(target) {
+            Some(j) => serde_json::json!({
+                "target": target,
+                "status": "retried",
+                "job_id": j.job_id,
+                "agent_name": j.agent_name,
+            }),
+            None => serde_json::json!({
+                "target": target,
+                "status": "noop",
+                "noop_reason": "unknown_job",
+            }),
+        }
+    }
+
+    /// Create a retry job for `job_id` linked into the same attempt lineage
+    /// (shared message_id, retry_index = max+1). Mirrors Python retry internals.
+    fn retry_job(&mut self, job_id: &str) -> Option<JobRecord> {
+        let original = self.get(job_id)?.clone();
+        let message_id = self.attempt_message_id(job_id).unwrap_or_else(|| {
+            format!(
+                "msg_{}",
+                &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+            )
+        });
+        let next_index = self.next_retry_index(job_id, &original.agent_name);
+        let now = chrono::Utc::now().to_rfc3339();
+        let status = self.initial_status(&original.agent_name);
+        let new_job = JobRecord {
+            job_id: format!(
+                "job_{}",
+                &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+            ),
+            submission_id: None,
+            agent_name: original.agent_name.clone(),
+            provider: original.provider.clone(),
+            request: original.request.clone(),
+            status,
+            terminal_decision: None,
+            cancel_requested_at: None,
+            created_at: now.clone(),
+            updated_at: now,
+            workspace_path: original.workspace_path.clone(),
+            target_kind: original.target_kind,
+            target_name: original.target_name.clone(),
+        };
+        self.job_store.push(new_job.clone());
+        self.persist_job_to_mailbox(&new_job);
+        self.record_attempt(&new_job, &message_id, next_index, AttemptState::Running);
+        self.state.rebuild(&self.job_store);
+        Some(new_job)
+    }
+
+    /// Message_id linking the attempt lineage for `job_id`, if an attempt store
+    /// is wired and an attempt exists for the job.
+    fn attempt_message_id(&self, job_id: &str) -> Option<String> {
+        self.attempt_store
+            .as_ref()?
+            .get_latest_by_job_id(job_id)
+            .map(|a| a.message_id)
+    }
+
+    /// Next retry index = max existing retry_index for the message+agent + 1.
+    fn next_retry_index(&self, job_id: &str, agent_name: &str) -> u32 {
+        let Some(store) = &self.attempt_store else {
+            return 1;
+        };
+        let Some(attempt) = store.get_latest_by_job_id(job_id) else {
+            return 1;
+        };
+        store
+            .list_message(&attempt.message_id)
+            .into_iter()
+            .filter(|a| a.agent_name == agent_name)
+            .map(|a| a.retry_index)
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(1)
+    }
+
+    /// If a newer retry attempt exists in the lineage for `job_id`, return its
+    /// job_id (idempotency check mirroring Python `_already_retried_job_id`).
+    fn already_retried_job_id(&self, job_id: &str) -> Option<String> {
+        let store = self.attempt_store.as_ref()?;
+        let attempt = store.get_latest_by_job_id(job_id)?;
+        let latest = store
+            .list_message(&attempt.message_id)
+            .into_iter()
+            .filter(|a| a.agent_name == attempt.agent_name)
+            .last();
+        match latest {
+            Some(l) if l.attempt_id != attempt.attempt_id => Some(l.job_id),
+            _ => None,
+        }
     }
 
     /// Promote one queued job per agent to running when no active job exists.

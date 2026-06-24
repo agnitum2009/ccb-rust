@@ -6,10 +6,14 @@
 //! Later slices add terminal-retry, stale-running cancel+retry, and
 //! reply-delivery recovery.
 
+use camino::Utf8PathBuf;
 use ccb_daemon::models::api_models::common::{DeliveryScope, JobStatus};
 use ccb_daemon::models::api_models::messages::MessageEnvelope;
 use ccb_daemon::services::dispatcher::JobDispatcher;
+use ccb_mailbox::stores::AttemptStore;
+use ccb_storage::paths::PathLayout;
 use serde_json::json;
+use tempfile::TempDir;
 
 fn envelope(to_agent: &str) -> MessageEnvelope {
     MessageEnvelope {
@@ -74,4 +78,227 @@ fn comms_recover_rejects_unknown_running_hint() {
     assert_eq!(payload["status"].as_str(), Some("noop"));
     assert_eq!(payload["noop_reason"].as_str(), Some("not_recoverable"));
     assert_eq!(dispatcher.get(&job_id).unwrap().status, JobStatus::Running);
+}
+
+fn dispatcher_with_attempts() -> (JobDispatcher, PathLayout, TempDir) {
+    let dir = TempDir::new().unwrap();
+    let layout = PathLayout::new(Utf8PathBuf::from_path_buf(dir.path().to_path_buf()).unwrap());
+    let attempt_store = AttemptStore::new(&layout);
+    let mut dispatcher = JobDispatcher::new(
+        ["agent1", "agent2", "agent3"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+    )
+    .with_attempt_store(attempt_store);
+    for agent in ["agent1", "agent2", "agent3"] {
+        dispatcher.set_runtime_state(agent, "idle", "healthy", "alive");
+    }
+    (dispatcher, layout, dir)
+}
+
+/// Mirrors `test_comms_recover_cancels_stale_running_and_starts_waiting_job`.
+#[test]
+fn comms_recover_cancels_stale_running_and_starts_waiting_job() {
+    let (mut dispatcher, layout, _dir) = dispatcher_with_attempts();
+    let stuck = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    let waiting_1 = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    let waiting_2 = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick(); // stuck → running; waiting_1/2 queued
+
+    dispatcher.set_runtime_state("agent1", "degraded", "pane-dead", "dead");
+    let payload = dispatcher.comms_recover(&json!({ "job_id": &stuck }));
+
+    assert_eq!(payload["status"].as_str(), Some("recovered"));
+    assert_eq!(payload["block_reason"].as_str(), Some("pane_dead"));
+    assert_eq!(
+        payload["cancelled_old"]["job_id"].as_str(),
+        Some(stuck.as_str())
+    );
+    assert_eq!(
+        payload["retried_job"]["agent_name"].as_str(),
+        Some("agent1")
+    );
+    let next_started: Vec<&str> = payload["next_started"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v["job_id"].as_str().unwrap())
+        .collect();
+    assert_eq!(next_started, vec![waiting_1.as_str()]);
+    assert_eq!(dispatcher.get(&stuck).unwrap().status, JobStatus::Cancelled);
+    assert_eq!(
+        dispatcher.get(&waiting_1).unwrap().status,
+        JobStatus::Running
+    );
+    assert_eq!(
+        dispatcher.get(&waiting_2).unwrap().status,
+        JobStatus::Queued
+    );
+
+    // retry_index bumped to 1 in the attempt lineage.
+    let attempt_store = AttemptStore::new(&layout);
+    let message_id = attempt_store
+        .get_latest_by_job_id(&stuck)
+        .unwrap()
+        .message_id;
+    let max_retry = attempt_store
+        .list_message(&message_id)
+        .into_iter()
+        .filter(|a| a.agent_name == "agent1")
+        .map(|a| a.retry_index)
+        .max()
+        .unwrap();
+    assert_eq!(max_retry, 1);
+}
+
+/// Mirrors `test_comms_recover_is_idempotent_after_retry`.
+#[test]
+fn comms_recover_is_idempotent_after_retry() {
+    let (mut dispatcher, layout, _dir) = dispatcher_with_attempts();
+    let job_id = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.set_runtime_state("agent1", "degraded", "pane-dead", "dead");
+
+    let first = dispatcher.comms_recover(&json!({ "job_id": &job_id }));
+    let second = dispatcher.comms_recover(&json!({ "job_id": &job_id }));
+
+    assert_eq!(
+        first["retried_job"]["job_id"].as_str(),
+        second["latest_job_id"].as_str(),
+    );
+    assert_eq!(second["status"].as_str(), Some("noop"));
+    assert_eq!(second["noop_reason"].as_str(), Some("already_retried"));
+
+    // The lineage now holds two distinct job ids (original + retry).
+    let attempt_store = AttemptStore::new(&layout);
+    let message_id = attempt_store
+        .get_latest_by_job_id(&job_id)
+        .unwrap()
+        .message_id;
+    let distinct_jobs: std::collections::HashSet<String> = attempt_store
+        .list_message(&message_id)
+        .into_iter()
+        .map(|a| a.job_id)
+        .collect();
+    assert_eq!(distinct_jobs.len(), 2);
+}
+
+/// Mirrors `test_comms_recover_accepts_provider_prompt_idle_hint_for_running_job`.
+#[test]
+fn comms_recover_accepts_provider_prompt_idle_hint() {
+    let (mut dispatcher, layout, _dir) = dispatcher_with_attempts();
+    let stuck = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    let waiting = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+
+    let payload = dispatcher.comms_recover(&json!({
+        "job_id": &stuck,
+        "block_reason": "provider_prompt_idle"
+    }));
+    assert_eq!(payload["status"].as_str(), Some("recovered"));
+    assert_eq!(
+        payload["block_reason"].as_str(),
+        Some("provider_prompt_idle")
+    );
+    assert_eq!(
+        payload["cancelled_old"]["job_id"].as_str(),
+        Some(stuck.as_str())
+    );
+    assert_eq!(
+        payload["retried_job"]["agent_name"].as_str(),
+        Some("agent3")
+    );
+    let next_started: Vec<&str> = payload["next_started"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v["job_id"].as_str().unwrap())
+        .collect();
+    assert_eq!(next_started, vec![waiting.as_str()]);
+    assert_eq!(dispatcher.get(&stuck).unwrap().status, JobStatus::Cancelled);
+
+    let attempt_store = AttemptStore::new(&layout);
+    let message_id = attempt_store
+        .get_latest_by_job_id(&stuck)
+        .unwrap()
+        .message_id;
+    let max_retry = attempt_store
+        .list_message(&message_id)
+        .into_iter()
+        .filter(|a| a.agent_name == "agent3")
+        .map(|a| a.retry_index)
+        .max()
+        .unwrap();
+    assert_eq!(max_retry, 1);
+}
+
+/// Mirrors `test_comms_recover_accepts_provider_prompt_idle_stale_hint_for_running_job`.
+#[test]
+fn comms_recover_accepts_provider_prompt_idle_stale_hint() {
+    let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
+    let stuck = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+
+    let payload = dispatcher.comms_recover(&json!({
+        "job_id": &stuck,
+        "block_reason": "provider_prompt_idle_stale"
+    }));
+    assert_eq!(payload["status"].as_str(), Some("recovered"));
+    assert_eq!(
+        payload["block_reason"].as_str(),
+        Some("provider_prompt_idle_stale")
+    );
+    assert_eq!(
+        payload["cancelled_old"]["job_id"].as_str(),
+        Some(stuck.as_str())
+    );
+    assert_eq!(
+        payload["retried_job"]["agent_name"].as_str(),
+        Some("agent3")
+    );
+    assert_eq!(dispatcher.get(&stuck).unwrap().status, JobStatus::Cancelled);
+}
+
+/// Mirrors `test_comms_recover_accepts_provider_prompt_input_stuck_hint_for_running_job`.
+#[test]
+fn comms_recover_accepts_provider_prompt_input_stuck_hint() {
+    let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
+    let stuck = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+
+    let payload = dispatcher.comms_recover(&json!({
+        "job_id": &stuck,
+        "block_reason": "provider_prompt_input_stuck"
+    }));
+    assert_eq!(payload["status"].as_str(), Some("recovered"));
+    assert_eq!(
+        payload["block_reason"].as_str(),
+        Some("provider_prompt_input_stuck")
+    );
+    assert_eq!(
+        payload["cancelled_old"]["job_id"].as_str(),
+        Some(stuck.as_str())
+    );
+    assert_eq!(
+        payload["retried_job"]["agent_name"].as_str(),
+        Some("agent3")
+    );
+    assert_eq!(dispatcher.get(&stuck).unwrap().status, JobStatus::Cancelled);
 }
