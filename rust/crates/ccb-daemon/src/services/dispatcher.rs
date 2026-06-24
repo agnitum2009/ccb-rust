@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ccb_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
 use ccb_mailbox::models::{AttemptRecord, AttemptState};
 use ccb_mailbox::stores::AttemptStore;
 
@@ -173,6 +174,15 @@ pub struct JobDispatcher {
     /// Reply-delivery lineage: source job id → delivery job ids (mirrors the
     /// reply-delivery job chain Python creates via `prepare_reply_deliveries`).
     reply_deliveries: HashMap<String, Vec<String>>,
+    /// Real mailbox control service (mirrors Python `_message_bureau_control`).
+    /// When wired, comms_recover uses its kernel/inbound/attempt stores for
+    /// terminal-retry head release + lineage (tests 8/12). When absent, the
+    /// simplified `attempt_store` path is used (tests 1-7, 9-11).
+    mailbox_control: Option<MessageBureauControlService>,
+    /// Real mailbox facade (mirrors Python `_message_bureau_control`'s facade).
+    /// When wired, `submit` records the full message+inbound+attempt state via
+    /// `record_submission` so comms_recover can release the blocking head.
+    mailbox: Option<MessageBureauFacade>,
 }
 
 impl JobDispatcher {
@@ -186,6 +196,8 @@ impl JobDispatcher {
             runtime_states: HashMap::new(),
             attempt_store: None,
             reply_deliveries: HashMap::new(),
+            mailbox_control: None,
+            mailbox: None,
         }
     }
 
@@ -232,6 +244,32 @@ impl JobDispatcher {
         self
     }
 
+    /// Wire the real mailbox control service (mirrors Python
+    /// `_message_bureau_control`). When set, comms_recover uses its
+    /// kernel/inbound/attempt stores for terminal-retry head release + lineage.
+    pub fn with_mailbox_control(mut self, control: MessageBureauControlService) -> Self {
+        self.mailbox_control = Some(control);
+        self
+    }
+
+    /// Wire the real mailbox facade so `submit` records full message+inbound+
+    /// attempt state via `record_submission` (mirrors Python JobDispatcher
+    /// owning the message bureau). Pair with `with_mailbox_control`.
+    pub fn with_mailbox(mut self, facade: MessageBureauFacade) -> Self {
+        self.mailbox = Some(facade);
+        self
+    }
+
+    /// Unified attempt-lineage store: the real mailbox attempt store when a
+    /// control service is wired, else the simplified `attempt_store`.
+    fn lineage_store(&self) -> Option<&AttemptStore> {
+        if let Some(control) = &self.mailbox_control {
+            Some(control.attempt_store())
+        } else {
+            self.attempt_store.as_ref()
+        }
+    }
+
     /// Append an attempt record linking `job` to `message_id` with the given
     /// retry index and state (mirrors Python attempt recording).
     fn record_attempt(
@@ -241,7 +279,7 @@ impl JobDispatcher {
         retry_index: u32,
         state: AttemptState,
     ) {
-        let Some(store) = &self.attempt_store else {
+        let Some(store) = self.lineage_store() else {
             return;
         };
         let now = chrono::Utc::now().to_rfc3339();
@@ -303,13 +341,21 @@ impl JobDispatcher {
         self.job_store.push(job.clone());
         self.persist_job_to_mailbox(&job);
         self.state.rebuild(&self.job_store);
-        // Record the initial attempt so retry lineage can link subsequent
-        // retries via the shared message_id (mirrors Python attempt recording).
-        let message_id = format!(
-            "msg_{}",
-            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
-        );
-        self.record_attempt(&job, &message_id, 0, AttemptState::Running);
+        // Record attempt lineage. When the real mailbox facade is wired, record
+        // the full message+inbound+attempt via record_submission (mirrors Python
+        // JobDispatcher owning the message bureau); otherwise record a
+        // simplified attempt for lineage.
+        if let Some(facade) = &self.mailbox {
+            let mb_env = crate::adapters::mailbox::to_mailbox_envelope(envelope);
+            let mb_job = crate::adapters::mailbox::to_mailbox_job_record(&job);
+            let _ = facade.record_submission(&mb_env, &[mb_job], None, &now, None);
+        } else {
+            let message_id = format!(
+                "msg_{}",
+                &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+            );
+            self.record_attempt(&job, &message_id, 0, AttemptState::Running);
+        }
 
         SubmitReceipt {
             accepted_at: now.clone(),
@@ -613,23 +659,58 @@ impl JobDispatcher {
                 "latest_job_id": latest,
             });
         }
-        let cancelled_receipt = self.cancel(&source.job_id);
-        // Force the terminal Cancelled transition for the recovered job. The
-        // Rust `cancel` RPC marks running jobs cancel-requested (defers the
-        // terminal transition to the execution layer); recovery terminates the
-        // job outright, mirroring Python recovery semantics.
-        let now = chrono::Utc::now().to_rfc3339();
-        if let Some(job) = self
-            .job_store
-            .iter_mut()
-            .find(|j| j.job_id == source.job_id)
-        {
-            if !job.status.is_terminal() {
-                job.status = JobStatus::Cancelled;
-                job.updated_at = now;
+        if source.status == JobStatus::Running {
+            // Stale-running recovery: cancel + retry + tick.
+            let cancelled_receipt = self.cancel(&source.job_id);
+            // Force the terminal Cancelled transition for the recovered job. The
+            // Rust `cancel` RPC marks running jobs cancel-requested (defers the
+            // terminal transition to the execution layer); recovery terminates
+            // the job outright, mirroring Python recovery semantics.
+            let now = chrono::Utc::now().to_rfc3339();
+            if let Some(job) = self
+                .job_store
+                .iter_mut()
+                .find(|j| j.job_id == source.job_id)
+            {
+                if !job.status.is_terminal() {
+                    job.status = JobStatus::Cancelled;
+                    job.updated_at = now;
+                }
             }
+            self.state.rebuild(&self.job_store);
+            let retried = self.retry_job(&source.job_id);
+            let started: Vec<&JobRecord> = self.tick();
+            let retried_job = retried.as_ref().map(|j| {
+                serde_json::json!({
+                    "job_id": j.job_id,
+                    "agent_name": j.agent_name,
+                    "request": { "message_type": j.request.message_type },
+                })
+            });
+            let next_started: Vec<serde_json::Value> = started
+                .into_iter()
+                .map(|j| serde_json::json!({ "job_id": j.job_id }))
+                .collect();
+            return serde_json::json!({
+                "job_id": source.job_id,
+                "agent_name": source.agent_name,
+                "status": "recovered",
+                "block_reason": block_reason,
+                "recoverable": true,
+                "cancelled_old": {
+                    "job_id": cancelled_receipt.job_id,
+                    "agent_name": cancelled_receipt.agent_name,
+                    "status": "cancelled",
+                },
+                "released_event": null,
+                "retried_job": retried_job,
+                "next_started": next_started,
+                "noop_reason": null,
+            });
         }
-        self.state.rebuild(&self.job_store);
+        // Terminal-retry recovery (Slice 5): release the blocking mailbox head
+        // (if any), then retry + tick. Mirrors Python `_recover_terminal_retry`.
+        let released_event = self.release_blocking_head(&source);
         let retried = self.retry_job(&source.job_id);
         let started: Vec<&JobRecord> = self.tick();
         let retried_job = retried.as_ref().map(|j| {
@@ -649,12 +730,8 @@ impl JobDispatcher {
             "status": "recovered",
             "block_reason": block_reason,
             "recoverable": true,
-            "cancelled_old": {
-                "job_id": cancelled_receipt.job_id,
-                "agent_name": cancelled_receipt.agent_name,
-                "status": "cancelled",
-            },
-            "released_event": null,
+            "cancelled_old": null,
+            "released_event": released_event,
             "retried_job": retried_job,
             "next_started": next_started,
             "noop_reason": null,
@@ -677,10 +754,70 @@ impl JobDispatcher {
                 };
             }
         }
+        let failed_terminal = matches!(
+            job.status,
+            JobStatus::Failed | JobStatus::Incomplete | JobStatus::Cancelled
+        );
+        if failed_terminal && self.can_retry_terminal(job) {
+            let reason = format!("job_{}", format!("{:?}", job.status).to_lowercase());
+            return CommsRecoverability {
+                recoverable: true,
+                block_reason: Some(reason),
+            };
+        }
         CommsRecoverability {
             recoverable: false,
             block_reason: None,
         }
+    }
+
+    /// Mirrors Python `_can_retry_job` (relaxed for the simplified dispatcher):
+    /// a failed-terminal job is retryable when it has attempt lineage and its
+    /// attempt is the latest for its message (no newer retry already exists).
+    fn can_retry_terminal(&self, job: &JobRecord) -> bool {
+        let Some(store) = self.lineage_store() else {
+            return false;
+        };
+        let Some(attempt) = store.get_latest_by_job_id(&job.job_id) else {
+            return false;
+        };
+        let latest = store
+            .list_message(&attempt.message_id)
+            .into_iter()
+            .filter(|a| a.agent_name == attempt.agent_name)
+            .last();
+        matches!(latest, Some(l) if l.attempt_id == attempt.attempt_id)
+    }
+
+    /// Release the blocking mailbox head for `source`'s agent, if the source's
+    /// inbound event is currently the pending head. Mirrors Python
+    /// `_release_lineage_head_if_blocking`. Returns the released-event record.
+    fn release_blocking_head(&self, source: &JobRecord) -> Option<serde_json::Value> {
+        let control = self.mailbox_control.as_ref()?;
+        let attempt = control
+            .attempt_store()
+            .get_latest_by_job_id(&source.job_id)?;
+        let inbound = control
+            .inbound_store()
+            .get_latest_for_attempt(&attempt.agent_name, &attempt.attempt_id)?;
+        let head = control
+            .mailbox_kernel()
+            .head_pending_event(&inbound.agent_name)?;
+        if head.inbound_event_id != inbound.inbound_event_id {
+            return None;
+        }
+        let now = chrono::Utc::now().to_rfc3339();
+        let released = control.mailbox_kernel().abandon(
+            &inbound.agent_name,
+            &inbound.inbound_event_id,
+            Some(&now),
+        )?;
+        Some(serde_json::json!({
+            "agent_name": released.agent_name,
+            "inbound_event_id": released.inbound_event_id,
+            "attempt_id": released.attempt_id,
+            "status": format!("{:?}", released.status).to_lowercase(),
+        }))
     }
 
     /// Mirrors Python `_running_stale_reason`. A recognized hint short-circuits
@@ -784,15 +921,14 @@ impl JobDispatcher {
     /// Message_id linking the attempt lineage for `job_id`, if an attempt store
     /// is wired and an attempt exists for the job.
     fn attempt_message_id(&self, job_id: &str) -> Option<String> {
-        self.attempt_store
-            .as_ref()?
+        self.lineage_store()?
             .get_latest_by_job_id(job_id)
             .map(|a| a.message_id)
     }
 
     /// Next retry index = max existing retry_index for the message+agent + 1.
     fn next_retry_index(&self, job_id: &str, agent_name: &str) -> u32 {
-        let Some(store) = &self.attempt_store else {
+        let Some(store) = self.lineage_store() else {
             return 1;
         };
         let Some(attempt) = store.get_latest_by_job_id(job_id) else {
@@ -811,7 +947,7 @@ impl JobDispatcher {
     /// If a newer retry attempt exists in the lineage for `job_id`, return its
     /// job_id (idempotency check mirroring Python `_already_retried_job_id`).
     fn already_retried_job_id(&self, job_id: &str) -> Option<String> {
-        let store = self.attempt_store.as_ref()?;
+        let store = self.lineage_store()?;
         let attempt = store.get_latest_by_job_id(job_id)?;
         let latest = store
             .list_message(&attempt.message_id)

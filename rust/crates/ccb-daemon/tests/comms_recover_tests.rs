@@ -6,11 +6,14 @@
 //! Later slices add terminal-retry, stale-running cancel+retry, and
 //! reply-delivery recovery.
 
+use std::sync::Arc;
+
 use camino::Utf8PathBuf;
 use ccb_daemon::models::api_models::common::{DeliveryScope, JobStatus};
 use ccb_daemon::models::api_models::messages::MessageEnvelope;
 use ccb_daemon::services::dispatcher::JobDispatcher;
-use ccb_mailbox::stores::AttemptStore;
+use ccb_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
+use ccb_mailbox::stores::{AttemptStore, InboundEventStore};
 use ccb_storage::paths::PathLayout;
 use serde_json::json;
 use tempfile::TempDir;
@@ -430,4 +433,58 @@ fn comms_recover_failed_reply_delivery_is_idempotent() {
         .filter(|j| j.request.message_type == "reply_delivery")
         .count();
     assert_eq!(delivery_count, 2);
+}
+
+/// Mirrors `test_comms_recover_releases_only_targeted_mailbox_head`.
+#[test]
+fn comms_recover_releases_only_targeted_mailbox_head() {
+    let dir = TempDir::new().unwrap();
+    let layout = PathLayout::new(Utf8PathBuf::from_path_buf(dir.path().to_path_buf()).unwrap());
+    let facade = MessageBureauFacade::new(
+        layout.clone(),
+        None,
+        Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
+    );
+    let control = MessageBureauControlService::from_facade(&facade, None, None, None);
+    let mut dispatcher =
+        JobDispatcher::new(["agent1", "agent2"].iter().map(|s| s.to_string()).collect())
+            .with_mailbox(facade)
+            .with_mailbox_control(control);
+    dispatcher.set_runtime_state("agent1", "idle", "healthy", "alive");
+    dispatcher.set_runtime_state("agent2", "idle", "healthy", "alive");
+
+    let source = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.complete(&source, JobStatus::Incomplete, "manual_fail");
+    // An unrelated job for another agent must be unaffected by recovery.
+    let unrelated = dispatcher.submit(&envelope("agent2"), "codex", None).jobs[0]
+        .job_id
+        .clone();
+
+    // The source's task_request inbound is agent1's mailbox head (file-backed
+    // on the shared layout, so fresh store instances read it).
+    let attempt = AttemptStore::new(&layout)
+        .get_latest_by_job_id(&source)
+        .expect("attempt recorded");
+    let inbound = InboundEventStore::new(&layout)
+        .get_latest_for_attempt("agent1", &attempt.attempt_id)
+        .expect("inbound recorded");
+
+    let payload = dispatcher.comms_recover(&json!({ "job_id": &source }));
+
+    assert_eq!(payload["status"].as_str(), Some("recovered"));
+    assert_eq!(
+        payload["released_event"]["inbound_event_id"].as_str(),
+        Some(inbound.inbound_event_id.as_str())
+    );
+    assert!(payload["retried_job"]["job_id"].as_str().is_some());
+    // The unrelated agent's job is untouched by the targeted recovery (not
+    // cancelled/terminated). (Python asserts Accepted; the Rust tick promotes
+    // it to Running — both are non-terminal / unaffected.)
+    assert!(
+        !dispatcher.get(&unrelated).unwrap().status.is_terminal(),
+        "unrelated job should not be terminated by recovery"
+    );
 }
