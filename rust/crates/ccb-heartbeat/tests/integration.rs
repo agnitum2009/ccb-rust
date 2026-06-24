@@ -379,6 +379,23 @@ fn maintenance_classifier_keeps_active_ccb_job_healthy() {
 }
 
 #[test]
+fn maintenance_classifier_keeps_active_comms_without_current_job_healthy() {
+    let agent = base_agent();
+    let comm = serde_json::json!({
+        "id": "job_replying_1234",
+        "target": "demo",
+        "business_status": "replying",
+        "status": "running",
+    });
+
+    let evaluation = evaluate_project_view(&project_view_payload(agent, vec![comm]));
+    assert_eq!(evaluation.health, "healthy");
+    assert_eq!(evaluation.summary["active_comms_count"], 1);
+    assert_eq!(evaluation.summary["suspicion_count"], 0);
+    assert!(evaluation.evidence.is_empty());
+}
+
+#[test]
 fn maintenance_classifier_flags_degraded_activity_evidence() {
     let mut agent = base_agent();
     agent["activity_state"] = "pending".into();
@@ -391,6 +408,21 @@ fn maintenance_classifier_flags_degraded_activity_evidence() {
     let envelope = evaluation.evidence[0].as_object().unwrap();
     assert_eq!(envelope["condition_kind"], "degraded_activity_evidence");
     assert_eq!(envelope["source"], "unknown");
+}
+
+#[test]
+fn maintenance_classifier_flags_active_degraded_activity_evidence() {
+    let mut agent = base_agent();
+    agent["activity_state"] = "active".into();
+    agent["activity_reason"] = "provider_working".into();
+    agent["activity_source"] = "".into();
+
+    let evaluation = evaluate_project_view(&project_view_payload(agent, vec![]));
+    assert_eq!(evaluation.health, "unknown");
+    assert_eq!(evaluation.summary["suspicion_count"], 1);
+    let envelope = evaluation.evidence[0].as_object().unwrap();
+    assert_eq!(envelope["condition_kind"], "degraded_activity_evidence");
+    assert_eq!(envelope["control_state"]["activity_state"], "active");
 }
 
 #[test]

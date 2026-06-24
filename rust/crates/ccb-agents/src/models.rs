@@ -630,7 +630,7 @@ impl ToolWindowSpec {
 
 pub const PROVIDER_COMMAND_PLACEHOLDER: &str = "{command}";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AgentSpec {
     pub name: String,
     pub provider: String,
@@ -1333,7 +1333,7 @@ pub fn project_layout_signature(
 
 // --- Runtime / restore state ---
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AgentRuntime {
     pub agent_name: String,
     pub state: AgentState,

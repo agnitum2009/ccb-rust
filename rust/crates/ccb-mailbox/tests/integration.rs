@@ -3,6 +3,7 @@ use std::sync::Arc;
 use ccb_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
 use ccb_mailbox::facade_recording::CompletionDecision;
 use ccb_mailbox::models::{DeliveryScope, JobRecord, JobStatus, MessageEnvelope, TargetKind};
+use ccb_mailbox::{InboundEventStore, MailboxStore};
 use ccb_storage::paths::PathLayout;
 use serde_json::Value;
 
@@ -232,4 +233,65 @@ fn test_notice_and_cancelled_terminal() {
         message.message_state,
         ccb_mailbox::models::MessageState::Cancelled
     ));
+}
+
+/// Mirrors Python `test_message_bureau_submission_fastpath.py::test_record_retry_attempt_does_not_refresh_mailbox`.
+#[test]
+fn test_record_retry_attempt_increments_queue_without_refreshing_mailbox() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = camino::Utf8Path::from_path(dir.path()).unwrap();
+    let layout = PathLayout::new(path);
+    let config = config_with_agent("agent1");
+    let clock = fixed_clock();
+
+    let facade = MessageBureauFacade::new(layout.clone(), Some(config.clone()), Arc::clone(&clock));
+    let job = make_job("job_1", "agent1");
+    let jobs = vec![job.clone()];
+    let message_id = facade
+        .record_submission(&job.request, &jobs, None, &clock(), None)
+        .unwrap();
+
+    let retry_job = make_job("job_2", "agent1");
+    facade
+        .record_retry_attempt(&message_id, &retry_job, &clock())
+        .unwrap();
+
+    let events = InboundEventStore::new(&layout).list_agent("agent1");
+    assert_eq!(events.len(), 2);
+    assert_eq!(
+        events[1].event_type,
+        ccb_mailbox::models::InboundEventType::TaskRequest
+    );
+
+    let mailbox = MailboxStore::new(&layout).load("agent1").unwrap().unwrap();
+    assert_eq!(mailbox.queue_depth, 2);
+    assert_eq!(mailbox.pending_reply_count, 0);
+    assert!(matches!(
+        mailbox.mailbox_state,
+        ccb_mailbox::models::MailboxState::Blocked
+    ));
+}
+
+/// Mirrors Python `test_message_bureau_submission_fastpath.py::test_record_reply_delivery_skips_non_mailbox_caller`.
+#[test]
+fn test_record_reply_delivery_skips_non_mailbox_caller() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = camino::Utf8Path::from_path(dir.path()).unwrap();
+    let layout = PathLayout::new(path);
+    let config = config_with_agent("agent1");
+    let clock = fixed_clock();
+
+    let facade = MessageBureauFacade::new(layout.clone(), Some(config), Arc::clone(&clock));
+    let job = make_job("job_1", "agent1");
+    let jobs = vec![job.clone()];
+    facade
+        .record_submission(&job.request, &jobs, None, &clock(), None)
+        .unwrap();
+
+    let mut completed_job = job.clone();
+    completed_job.status = JobStatus::Completed;
+    let decision = CompletionDecision::completed("done");
+    facade.record_reply(&completed_job, &decision, &clock(), true);
+
+    assert!(!layout.ccbd_mailboxes_dir().join("user").exists());
 }

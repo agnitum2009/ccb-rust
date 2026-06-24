@@ -1,0 +1,3 @@
+{"timestamp":"2026-06-20T06:30:00Z","check":"cargo test -p ccb-agents -p ccb-heartbeat -p ccb-memory -p ccb-mailbox -p ccb-message-bureau -- --test-threads=1","result":"pass"}
+{"timestamp":"2026-06-20T06:30:00Z","check":"cargo fmt --all -- --check","result":"pass"}
+{"timestamp":"2026-06-20T06:30:00Z","check":"cargo clippy -p ccb-cli --tests","result":"pass"}
