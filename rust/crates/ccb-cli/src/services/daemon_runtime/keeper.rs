@@ -1,9 +1,61 @@
 //! Mirrors Python `lib/cli/services/daemon_runtime/keeper.py`.
 
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
+use camino::Utf8PathBuf;
+use ccb_storage::paths::PathLayout;
 use serde_json::Value;
+
+/// Context required by keeper runtime helpers.
+///
+/// Mirrors the `context` object passed to Python keeper functions.
+#[derive(Debug, Clone)]
+pub struct KeeperContext {
+    pub project_id: String,
+    pub project_root: PathBuf,
+    pub paths: PathLayout,
+}
+
+impl KeeperContext {
+    /// Build a keeper context from a project root.
+    pub fn from_project_root(project_root: impl Into<PathBuf>) -> Self {
+        let project_root = project_root.into();
+        let utf8_root = Utf8PathBuf::from_path_buf(project_root.clone())
+            .unwrap_or_else(|_| Utf8PathBuf::from(project_root.to_string_lossy().as_ref()));
+        let paths = PathLayout::new(utf8_root);
+        Self {
+            project_id: paths.project_id().to_string(),
+            project_root,
+            paths,
+        }
+    }
+}
+
+/// Describes a spawned keeper process without actually executing it.
+///
+/// Used by [`spawn_keeper_process_with`] so tests can inspect the command
+/// that would be run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeeperSpawn {
+    pub program: PathBuf,
+    pub args: Vec<String>,
+    pub cwd: PathBuf,
+    pub env: HashMap<String, String>,
+}
+
+/// Trait for ownership guards that provide a startup lock.
+///
+/// Mirrors Python `OwnershipGuard.startup_lock()` context manager.
+pub trait OwnershipGuard {
+    /// Run `f` while holding the startup lock.
+    fn with_startup_lock<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R;
+}
 
 /// Clear shutdown intent from keeper state store.
 ///
@@ -267,4 +319,350 @@ where
         |_| true, // State load returns bool (simulating successful load)
         |_| true, // Is running returns true
     )
+}
+
+/// Compute the `lib/` root used to locate `ccbd/keeper_main.py`.
+///
+/// Mirrors Python `_lib_root()`. At build time this is derived from
+/// `CARGO_MANIFEST_DIR`; at runtime a release install would need a different
+/// resolution strategy.
+pub fn keeper_lib_root() -> PathBuf {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let project_root = manifest_dir
+        .ancestors()
+        .nth(3)
+        .expect("CARGO_MANIFEST_DIR should have a project-root ancestor");
+    project_root.join("lib")
+}
+
+/// Build the command/environment description for spawning the keeper.
+///
+/// Mirrors the preparation half of Python `spawn_keeper_process(context)`.
+pub fn prepare_keeper_spawn(context: &KeeperContext) -> KeeperSpawn {
+    let lib_root = keeper_lib_root();
+    let script = lib_root.join("ccbd").join("keeper_main.py");
+
+    let mut env = HashMap::new();
+    env.insert("PYTHONUNBUFFERED".to_string(), "1".to_string());
+    env.insert(
+        "PYTHONPATH".to_string(),
+        lib_root.to_string_lossy().to_string(),
+    );
+
+    KeeperSpawn {
+        program: PathBuf::from("python"),
+        args: vec![
+            script.to_string_lossy().to_string(),
+            "--project".to_string(),
+            context.project_root.to_string_lossy().to_string(),
+        ],
+        cwd: context.project_root.clone(),
+        env,
+    }
+}
+
+/// Spawn the keeper process for `context`.
+///
+/// Mirrors Python `spawn_keeper_process(context)`.
+pub fn spawn_keeper_process(context: &KeeperContext) -> std::io::Result<()> {
+    spawn_keeper_process_with(context, |spawn| {
+        let mut cmd = Command::new(&spawn.program);
+        cmd.args(&spawn.args)
+            .current_dir(&spawn.cwd)
+            .envs(&spawn.env)
+            .stdout(Stdio::from(
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(keeper_stdout_path(context))?,
+            ))
+            .stderr(Stdio::from(
+                std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(keeper_stderr_path(context))?,
+            ));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            unsafe {
+                cmd.pre_exec(|| {
+                    libc::setsid();
+                    Ok(())
+                });
+            }
+        }
+
+        let _ = cmd.spawn()?;
+        Ok(())
+    })
+}
+
+/// Variant that accepts a custom spawn function for testing.
+pub fn spawn_keeper_process_with<F>(context: &KeeperContext, spawn_fn: F) -> std::io::Result<()>
+where
+    F: FnOnce(KeeperSpawn) -> std::io::Result<()>,
+{
+    ensure_keeper_dirs(context)?;
+    let spawn = prepare_keeper_spawn(context);
+    spawn_fn(spawn)
+}
+
+fn keeper_stdout_path(context: &KeeperContext) -> PathBuf {
+    context
+        .paths
+        .ccbd_dir()
+        .as_std_path()
+        .join("keeper.stdout.log")
+}
+
+fn keeper_stderr_path(context: &KeeperContext) -> PathBuf {
+    context
+        .paths
+        .ccbd_dir()
+        .as_std_path()
+        .join("keeper.stderr.log")
+}
+
+fn ensure_keeper_dirs(context: &KeeperContext) -> std::io::Result<()> {
+    // Ensure runtime state root and ccbd dir exist. The Python code also calls
+    // `context.paths.ensure_runtime_state_root()`; we create the directories
+    // that the logs live under.
+    std::fs::create_dir_all(context.paths.ccbd_dir().as_std_path())?;
+    std::fs::create_dir_all(context.paths.runtime_state_root().as_std_path())?;
+    Ok(())
+}
+
+/// Ensure keeper is started for `context`, with injection closures for tests.
+///
+/// Mirrors Python `ensure_keeper_started(context, ...)`.
+pub fn ensure_keeper_started_for_context<M, G, E, C, S>(
+    context: &KeeperContext,
+    mount_manager_factory: impl FnOnce(&PathLayout) -> M,
+    ownership_guard_factory: impl FnOnce(&PathLayout, M) -> G,
+    mut process_exists_fn: E,
+    mut process_cmdline_fn: C,
+    spawn_keeper_process_fn: S,
+    ready_timeout_s: f64,
+) -> bool
+where
+    G: OwnershipGuard,
+    E: FnMut(u32) -> bool,
+    C: FnMut(u32) -> Vec<String>,
+    S: FnOnce(&KeeperContext),
+{
+    if keeper_state_is_running_for_context(
+        context,
+        &load_keeper_state(context),
+        &mut process_exists_fn,
+        &mut process_cmdline_fn,
+        true,
+    ) {
+        return true;
+    }
+
+    let manager = mount_manager_factory(&context.paths);
+    let guard = ownership_guard_factory(&context.paths, manager);
+
+    guard.with_startup_lock(|| {
+        if keeper_state_is_running_for_context(
+            context,
+            &load_keeper_state(context),
+            &mut process_exists_fn,
+            &mut process_cmdline_fn,
+            true,
+        ) {
+            return true;
+        }
+
+        spawn_keeper_process_fn(context);
+
+        wait_for_keeper_ready_for_context(
+            context,
+            ready_timeout_s,
+            &mut process_exists_fn,
+            &mut process_cmdline_fn,
+        )
+    })
+}
+
+/// Wait until keeper state shows it is running for `context`.
+pub fn wait_for_keeper_ready_for_context<E, C>(
+    context: &KeeperContext,
+    timeout_s: f64,
+    process_exists_fn: &mut E,
+    process_cmdline_fn: &mut C,
+) -> bool
+where
+    E: FnMut(u32) -> bool,
+    C: FnMut(u32) -> Vec<String>,
+{
+    let deadline = Instant::now() + Duration::from_secs_f64(timeout_s.max(0.0));
+
+    while Instant::now() < deadline {
+        if keeper_state_is_running_for_context(
+            context,
+            &load_keeper_state(context),
+            process_exists_fn,
+            process_cmdline_fn,
+            true,
+        ) {
+            return true;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    keeper_state_is_running_for_context(
+        context,
+        &load_keeper_state(context),
+        process_exists_fn,
+        process_cmdline_fn,
+        true,
+    )
+}
+
+/// Determine whether the loaded keeper state represents a running keeper for
+/// this project.
+pub fn keeper_state_is_running_for_context<E, C>(
+    context: &KeeperContext,
+    state: &Option<Value>,
+    process_exists_fn: &mut E,
+    process_cmdline_fn: &mut C,
+    require_cmdline_match: bool,
+) -> bool
+where
+    E: FnMut(u32) -> bool,
+    C: FnMut(u32) -> Vec<String>,
+{
+    let state = match state {
+        Some(s) => s,
+        None => return false,
+    };
+
+    if state.get("state").and_then(|v| v.as_str()) != Some("running") {
+        return false;
+    }
+
+    if state.get("project_id").and_then(|v| v.as_str()) != Some(&context.project_id) {
+        return false;
+    }
+
+    let keeper_pid = match state.get("keeper_pid").and_then(|v| v.as_u64()) {
+        Some(pid) if pid > 0 && pid <= u32::MAX as u64 => pid as u32,
+        _ => return false,
+    };
+
+    if !process_exists_fn(keeper_pid) {
+        return false;
+    }
+
+    if !require_cmdline_match {
+        return true;
+    }
+
+    let cmdline = process_cmdline_fn(keeper_pid);
+    keeper_cmdline_matches_project(&cmdline, &context.project_root)
+}
+
+fn keeper_cmdline_matches_project(cmdline: &[String], project_root: &Path) -> bool {
+    if cmdline.is_empty() {
+        return false;
+    }
+    if !cmdline.iter().any(|arg| is_keeper_entrypoint_arg(arg)) {
+        return false;
+    }
+    let project_arg = match project_arg_value(cmdline) {
+        Some(arg) => arg,
+        None => return false,
+    };
+    normalized_path(&project_arg) == normalized_path(project_root)
+}
+
+fn is_keeper_entrypoint_arg(value: &str) -> bool {
+    let normalized = value.replace('\\', "/");
+    normalized == "ccbd.keeper_main" || normalized.ends_with("/ccbd/keeper_main.py")
+}
+
+fn project_arg_value(args: &[String]) -> Option<String> {
+    for (index, arg) in args.iter().enumerate() {
+        if arg == "--project" && index + 1 < args.len() {
+            return Some(args[index + 1].clone());
+        }
+        if let Some(value) = arg.strip_prefix("--project=") {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
+fn normalized_path(value: impl AsRef<Path>) -> String {
+    let path = value.as_ref();
+    if let Ok(resolved) = path.canonicalize() {
+        resolved.to_string_lossy().to_string()
+    } else if let Ok(absolute) = std::path::absolute(path) {
+        absolute.to_string_lossy().to_string()
+    } else {
+        path.to_string_lossy().to_string()
+    }
+}
+
+fn keeper_state_path(context: &KeeperContext) -> PathBuf {
+    context.paths.ccbd_dir().as_std_path().join("keeper.json")
+}
+
+fn load_keeper_state(context: &KeeperContext) -> Option<Value> {
+    let path = keeper_state_path(context);
+    let text = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prepare_keeper_spawn_points_at_lib_keeper_main() {
+        let context = KeeperContext::from_project_root("/tmp/repo");
+        let spawn = prepare_keeper_spawn(&context);
+
+        let lib_root = keeper_lib_root();
+        let expected_script = lib_root.join("ccbd").join("keeper_main.py");
+        assert_eq!(spawn.program, PathBuf::from("python"));
+        assert_eq!(spawn.args[0], expected_script.to_string_lossy().to_string());
+        assert_eq!(spawn.args[1], "--project");
+        assert_eq!(spawn.args[2], "/tmp/repo");
+        assert_eq!(
+            spawn.env.get("PYTHONPATH"),
+            Some(&lib_root.to_string_lossy().to_string())
+        );
+    }
+
+    #[test]
+    fn keeper_cmdline_matches_project_detects_project_arg() {
+        let cmdline = vec![
+            "python".to_string(),
+            "/opt/ccb/lib/ccbd/keeper_main.py".to_string(),
+            "--project".to_string(),
+            "/tmp/repo".to_string(),
+        ];
+        assert!(keeper_cmdline_matches_project(
+            &cmdline,
+            Path::new("/tmp/repo")
+        ));
+    }
+
+    #[test]
+    fn keeper_cmdline_matches_project_rejects_wrong_project() {
+        let cmdline = vec![
+            "python".to_string(),
+            "/opt/ccb/lib/ccbd/keeper_main.py".to_string(),
+            "--project".to_string(),
+            "/other/repo".to_string(),
+        ];
+        assert!(!keeper_cmdline_matches_project(
+            &cmdline,
+            Path::new("/tmp/repo")
+        ));
+    }
 }
