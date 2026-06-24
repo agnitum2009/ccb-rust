@@ -2,38 +2,44 @@
 
 > 整体迁移的计划基准。驱动后续 Trellis 任务创建与优先级决策。source-backed：所有数字/路径来自 2026-06-22 扫描。
 
-## Current state (2026-06-22)
+## Current state (2026-06-24)
 
-- **workspace stub**: 1218（含 `TODO: align`）。分布：
-  - `ccb-providers` 463, `ccb-daemon` 348（合计 67%）
-  - `ccb-cli` 173, `ccb-agents` 73, `ccb-memory` 56, `ccb-provider-core` 46
+- **workspace stub**: **1101**（含 `TODO: align`），较 2026-06-22 基准 1218 减少 117。分布：
+  - `ccb-providers` 368, `ccb-daemon` 345（合计 ~65%）
+  - `ccb-cli` 158, `ccb-agents` 73, `ccb-memory` 53, `ccb-provider-core` 46
   - `ccb-mailbox` 19, `ccb-completion` 11, 其余 < 10
-- **parity matrix**: 26 集群**全部 `partial`**，0 `complete`（`plans/rust-python-test-parity-matrix.md`）。
-- **已闭环 Trellis 任务**: `06-20-py2rust-daemon-lifecycle`（launchers+services）、`06-22-fix-ccb-cli-flaky-env-tests`。
+- **parity matrix**: 多个集群已标 `complete`（runtime_env、stdio_runtime、doctor_runtime、diagnostics_bundle、cleanup_service、kill_runtime_agent_cleanup、kill_service、ask_service、runtime_launch、management_cleanup、storage_paths、agents_roles、heartbeat、memory、mailbox、config_project、types_i18n 等），`partial` 集群集中在 `cli_entrypoint`、`daemon_lifecycle`、`providers`、`completion`、`terminal_runtime`。
+- **已闭环/已提交 Trellis 任务**:
+  - `06-24-py2rust-cli-services-impl`（Wave 1，`Phase2Services` 架构解锁，commit `9be27c74` 包含）。
+  - `06-24-py2rust-core-parity`（Wave 2，runtime launch / completion SessionRotate / heartbeat classifier / jobs store filter，commit `9be27c74` 包含）。
 - **daemon_runtime 接口完整**（`crates/ccb-cli/src/services/daemon_runtime/` stub=0）。
+- **Wave 3 已准备**: `06-24-py2rust-providers-daemon-deep` 状态 `ready`，并附有 `HANDOFF.md` 供 `glm5.2` 接手。
 
-## ⚠️ Architecture gap（最高风险）
+## ⚠️ Architecture gap（最高风险，已解除）
 
-`Phase2Services` trait（`crates/ccb-cli/src/phase2_runtime/handlers_ops.rs`）定义了 17+ service 方法 + 24 handler + `dispatch`（28 命令），但 **0 个 impl**（`grep -rln "impl Phase2Services" crates/` 为空）。
-
-**后果**: `dispatch → handle_xxx → render_xxx` 链断在 service 层。render（29 函数）+ handlers + launchers 零件齐全，但 CLI 无法端到端运行任何命令。继续做 providers/daemon stub 是「堆零件不组装」。
+`Phase2Services` trait 在 Wave 1 已实现为 `DaemonPhase2Services`，`dispatch → handle_xxx → render_xxx` 链已打通。剩余风险转移至 **provider execution adapters** 和 **daemon dispatcher runtime** 的 parity 完整性。
 
 ## Roadmap（4 waves, dependency-ordered）
 
-### Wave 1 — 架构解锁（最高优先级，杠杆点）
-- **Task**: `py2rust-cli-services-impl`
-- **Scope**: 为一个 service struct 实现 `Phase2Services`，调用 ccb-daemon socket client + ccb-providers launchers，接通 dispatch。
-- **依赖**: daemon_runtime（✓ stub=0）、socket client（确认状态）
-- **验收**: `dispatch` 能驱动真实命令（如 `ccb ps` / `ccb ping`）端到端，render 输出与 Python 一致。
-- **文件**: `crates/ccb-cli/src/phase2_runtime/handlers_ops.rs`（trait）、新增 `services_impl.rs` 或类似。
+### Wave 1 — 架构解锁（最高优先级，杠杆点，已完成）
+- **Task**: `06-24-py2rust-cli-services-impl`
+- **Scope**: 实现 `Phase2Services`（`DaemonPhase2Services`），调用 ccb-daemon socket client + ccb-providers launchers，接通 dispatch。
+- **依赖**: daemon_runtime（✓ stub=0）、socket client（✓）。
+- **验收**: `dispatch` 能驱动真实命令（`ccb ps` / `ccb ping` / `ccb start` / `ccb ask` 等）端到端，render 输出与 Python 一致。
+- **Commit**: `9be27c74`（包含在 Wave 2 commit 中，任务已归档）。
+- **文件**: `crates/ccb-cli/src/phase2_services.rs`, `crates/ccb-cli/tests/phase2_services_tests.rs`。
 
-### Wave 2 — 核心 parity
-- `py2rust-runtime-launch-orchestration`: `ensure_agent_runtime` 编排（detached fallback / stale / foreign binding / tmux namespace 限制）。承接 `06-20` 任务 Phase B。文件：`crates/ccb-daemon/src/start_runtime/agent_runtime*.rs`。
-- `py2rust-completion`: Job store / 完成编排 / heartbeat classifier。文件：`crates/ccb-completion/`, `crates/ccb-jobs/`。
+### Wave 2 — 核心 parity（已完成）
+- **Task**: `06-24-py2rust-core-parity`
+- **Scope**: `ensure_agent_runtime` 编排（detached fallback / pane size / foreign binding / namespace limits）、completion `SessionRotate` selector reset、heartbeat classifier re-export、jobs store 非 `job_event` 记录过滤、CLI maintenance `status/tick/schedule/runner` 完整编排。
+- **Commit**: `9be27c74`。
+- **文件**: `crates/ccb-daemon/src/start_runtime/agent_runtime*.rs`, `crates/ccb-completion/tests/integration_tests.rs`, `crates/ccb-heartbeat/src/classifier.rs`, `crates/ccb-jobs/src/store.rs`, `crates/ccb-cli/src/services/maintenance.rs`。
 
-### Wave 3 — stub 削减（量，67% 在此）
-- `py2rust-providers-deep`: `ccb-providers` 463 stub，按 provider 子主题拆分（codex/claude/gemini/droid/agy/opencode 的 execution/comm/session）。
-- `py2rust-daemon-deep`: `ccb-daemon` 348 stub（dispatcher_runtime / services 深化）。
+### Wave 3 — stub 削减（量，~65% 在此）
+- **Task**: `06-24-py2rust-providers-daemon-deep`
+- **Scope**: `ccb-providers` 368 stub + `ccb-daemon` 345 stub，按 provider/daemon 子主题拆分实施。
+- **Handoff**: `.trellis/tasks/06-24-py2rust-providers-daemon-deep/HANDOFF.md`（已为 `glm5.2` 准备）。
+- **目标**: providers/daemon stubs 各降至 ≤ 50。
 
 ### Wave 4 — 端到端 + 边缘
 - `py2rust-e2e-recovery`: 多 agent 会话持久化/恢复（`test_v2_ccbd_*` 系列，matrix 标为最大缺口）。
