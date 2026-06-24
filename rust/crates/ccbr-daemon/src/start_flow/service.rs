@@ -80,7 +80,7 @@ impl StartFlowService {
             actions_taken.push("auto_permission_enabled".to_string());
         }
 
-        let reused_panes: HashMap<String, String> = namespace_agent_panes
+        let mut reused_panes: HashMap<String, String> = namespace_agent_panes
             .map(|m| {
                 m.iter()
                     .filter(|(name, _)| agent_names.contains(name))
@@ -88,9 +88,31 @@ impl StartFlowService {
                     .collect()
             })
             .unwrap_or_default();
-        let reuse_all = agent_names
+        let mut reuse_all = agent_names
             .iter()
             .all(|name| reused_panes.contains_key(name));
+
+        // Verify reused panes actually exist in tmux before trusting them.
+        // Stale pane IDs (from daemon restart or legacy .ccb sessions) must
+        // fall through to fresh creation, not a respawn of phantom panes.
+        if reuse_all && !reused_panes.is_empty() && matches!(self.mode, StartFlowMode::Tmux) {
+            let probe = DaemonLayoutBackend::new(tmux_socket_path);
+            let all_alive = reused_panes.values().all(|pane_id| {
+                probe
+                    .tmux_run(
+                        &["display-message", "-p", "-t", pane_id, "#{pane_id}"],
+                        false,
+                        true,
+                    )
+                    .map(|s| s.trim().starts_with('%'))
+                    .unwrap_or(false)
+            });
+            if !all_alive {
+                actions_taken.push("stale_panes_detected_fallback_to_create".to_string());
+                reuse_all = false;
+                reused_panes.clear();
+            }
+        }
 
         let (agent_panes, agent_results, root_pane_id) = match self.mode {
             StartFlowMode::Tmux => {
