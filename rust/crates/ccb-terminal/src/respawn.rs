@@ -331,6 +331,17 @@ mod tests {
     }
 
     #[test]
+    fn test_append_stderr_redirection_creates_parent_dir() {
+        let tmp = std::env::temp_dir().join(format!("ccb-test-stderr-{}", std::process::id()));
+        let nested = tmp.join("a/b/c").join("err.log");
+        let (cmd, path) = append_stderr_redirection("echo hi", Some(nested.to_str().unwrap()));
+        assert!(cmd.contains("2>>"));
+        assert!(path.is_some());
+        assert!(nested.parent().unwrap().exists());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
     fn test_normalize_start_dir() {
         assert_eq!(normalize_start_dir(None), "");
         assert_eq!(normalize_start_dir(Some(".")), "");

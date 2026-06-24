@@ -89,3 +89,73 @@ fn test_tmux_respawn_service_does_not_retry_non_transient_failure() {
     assert!(result.unwrap_err().to_string().contains("pane not found"));
     assert_eq!(*respawn_attempts.lock().unwrap(), 1);
 }
+
+#[test]
+fn test_tmux_respawn_service_retries_all_transient_failure_patterns() {
+    for pattern in [
+        "fork failed\n",
+        "no server running on /tmp/ccb-runtime/test.sock\n",
+        "server exited unexpectedly\n",
+    ] {
+        let respawn_attempts = std::sync::Arc::new(std::sync::Mutex::new(0));
+        let attempts_clone = respawn_attempts.clone();
+        let runner: Box<dyn TmuxRunner> = Box::new(
+            move |args: &[&str], _check: bool, _capture: bool| -> anyhow::Result<TmuxRunOutput> {
+                if args == ["show-option", "-gqv", "default-shell"] {
+                    return Ok(ok("/bin/bash\n"));
+                }
+                if !args.is_empty() && args[0] == "respawn-pane" {
+                    let mut attempts = attempts_clone.lock().unwrap();
+                    *attempts += 1;
+                    if *attempts == 1 {
+                        return Ok(err(pattern));
+                    }
+                }
+                Ok(ok(""))
+            },
+        );
+        let service = TmuxRespawnService::new(
+            runner,
+            |_pane_id| {},
+            HashMap::from_iter([("SHELL".to_string(), "/bin/bash".to_string())]),
+        );
+        service
+            .respawn_pane("%9", "echo hi", None, None, false)
+            .unwrap();
+        assert_eq!(*respawn_attempts.lock().unwrap(), 2, "pattern: {pattern:?}");
+    }
+}
+
+#[test]
+fn test_tmux_respawn_service_uses_shared_ready_budget_for_transient_failures() {
+    let respawn_attempts = std::sync::Arc::new(std::sync::Mutex::new(0));
+    let attempts_clone = respawn_attempts.clone();
+    let runner: Box<dyn TmuxRunner> = Box::new(
+        move |args: &[&str], _check: bool, _capture: bool| -> anyhow::Result<TmuxRunOutput> {
+            if args == ["show-option", "-gqv", "default-shell"] {
+                return Ok(ok("/bin/bash\n"));
+            }
+            if !args.is_empty() && args[0] == "respawn-pane" {
+                *attempts_clone.lock().unwrap() += 1;
+                return Ok(err("no server running on /tmp/ccb-runtime/test.sock\n"));
+            }
+            Ok(ok(""))
+        },
+    );
+    std::env::set_var("CCB_TMUX_OBJECT_READY_TIMEOUT_S", "0.15");
+    std::env::set_var("CCB_TMUX_OBJECT_READY_POLL_INTERVAL_S", "0.01");
+    let service = TmuxRespawnService::new(
+        runner,
+        |_pane_id| {},
+        HashMap::from_iter([("SHELL".to_string(), "/bin/bash".to_string())]),
+    );
+    let result = service.respawn_pane("%9", "echo hi", None, None, false);
+    std::env::remove_var("CCB_TMUX_OBJECT_READY_TIMEOUT_S");
+    std::env::remove_var("CCB_TMUX_OBJECT_READY_POLL_INTERVAL_S");
+    assert!(result.is_err());
+    let attempts = *respawn_attempts.lock().unwrap();
+    assert!(
+        attempts >= 10 && attempts <= 30,
+        "expected retry budget to be shared, got {attempts} attempts"
+    );
+}

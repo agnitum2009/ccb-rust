@@ -176,6 +176,60 @@ mod tests {
     }
 
     #[test]
+    fn test_tmux_text_sender_deletes_buffer_after_paste_failure() {
+        #[derive(Debug, Clone)]
+        struct Capture {
+            args: Vec<Vec<String>>,
+        }
+        struct CaptureRunner {
+            capture: std::sync::Arc<std::sync::Mutex<Capture>>,
+        }
+        impl TmuxRunner for CaptureRunner {
+            fn run(
+                &self,
+                args: &[&str],
+                _check: bool,
+                _capture: bool,
+            ) -> anyhow::Result<TmuxRunOutput> {
+                self.capture
+                    .lock()
+                    .unwrap()
+                    .args
+                    .push(args.iter().map(|s| s.to_string()).collect());
+                if args[0] == "paste-buffer" {
+                    return Err(anyhow::anyhow!("paste failed"));
+                }
+                Ok(ok())
+            }
+            fn run_with_input(
+                &self,
+                args: &[&str],
+                _check: bool,
+                _capture: bool,
+                _input_bytes: Option<&[u8]>,
+            ) -> anyhow::Result<TmuxRunOutput> {
+                self.capture
+                    .lock()
+                    .unwrap()
+                    .args
+                    .push(args.iter().map(|s| s.to_string()).collect());
+                Ok(ok())
+            }
+        }
+        let capture = std::sync::Arc::new(std::sync::Mutex::new(Capture { args: Vec::new() }));
+        let runner: Box<dyn TmuxRunner> = Box::new(CaptureRunner {
+            capture: capture.clone(),
+        });
+        let sender = TmuxTextSender::new(runner, |_pane_id| {}, |_name, default| default);
+        assert!(sender.send_text("%1", "hello").is_err());
+        let cap = capture.lock().unwrap();
+        assert_eq!(cap.args[0][0], "load-buffer");
+        assert_eq!(cap.args[1][0], "paste-buffer");
+        assert_eq!(cap.args[2], vec!["send-keys", "-t", "%1", "Enter"]);
+        assert_eq!(cap.args[3][0], "delete-buffer");
+    }
+
+    #[test]
     fn test_tmux_text_sender_passes_text_to_load_buffer_for_pane_targets() {
         #[derive(Debug, Clone)]
         struct Capture {

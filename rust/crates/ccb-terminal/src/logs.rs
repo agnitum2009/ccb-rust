@@ -318,6 +318,79 @@ mod tests {
     }
 
     #[test]
+    fn test_refresh_pane_logs_skips_panes_with_existing_pipe() {
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::<Vec<String>>::new()));
+        let calls_clone = calls.clone();
+        let runner: Box<dyn TmuxRunner> =
+            Box::new(move |args: &[&str], _check: bool, _capture: bool| {
+                calls_clone
+                    .lock()
+                    .unwrap()
+                    .push(args.iter().map(|s| s.to_string()).collect());
+                if args == ["display-message", "-p", "-t", "%1", "#{pane_pipe}"] {
+                    return Ok(TmuxRunOutput {
+                        stdout: "1\n".to_string(),
+                        stderr: String::new(),
+                        returncode: 0,
+                    });
+                }
+                Ok(ok())
+            });
+        let manager = TmuxPaneLogManager::new(None, runner, |_pane_id| true);
+        manager.ensure_pane_log("%1");
+        let pipe_pane_before = calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c[0] == "pipe-pane")
+            .count();
+        manager.refresh_pane_logs();
+        let pipe_pane_after = calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c[0] == "pipe-pane")
+            .count();
+        assert_eq!(
+            pipe_pane_after, pipe_pane_before,
+            "refresh should not call pipe-pane when pane_pipe is 1"
+        );
+    }
+
+    #[test]
+    fn test_refresh_pane_logs_skips_dead_panes() {
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::<Vec<String>>::new()));
+        let calls_clone = calls.clone();
+        let runner: Box<dyn TmuxRunner> =
+            Box::new(move |args: &[&str], _check: bool, _capture: bool| {
+                calls_clone
+                    .lock()
+                    .unwrap()
+                    .push(args.iter().map(|s| s.to_string()).collect());
+                Ok(ok())
+            });
+        let manager = TmuxPaneLogManager::new(None, runner, |_pane_id| false);
+        manager.ensure_pane_log("%1");
+        let pipe_pane_before = calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c[0] == "pipe-pane")
+            .count();
+        manager.refresh_pane_logs();
+        let pipe_pane_after = calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|c| c[0] == "pipe-pane")
+            .count();
+        assert_eq!(
+            pipe_pane_after, pipe_pane_before,
+            "refresh should not call pipe-pane for dead panes"
+        );
+    }
+
+    #[test]
     fn test_cleanup_pane_logs_drops_expired() {
         let tmp = std::env::temp_dir().join(format!("ccb-log-clean-test-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&tmp);

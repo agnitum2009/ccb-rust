@@ -12,6 +12,19 @@ fn test_tmux_base_includes_socket_when_present() {
         tmux_base(Some("ccb-demo"), None),
         vec!["tmux", "-f", "/dev/null", "-L", "ccb-demo"]
     );
+    let with_path = tmux_base(None, Some("~/.tmux/demo.sock"));
+    assert_eq!(with_path[0..4], vec!["tmux", "-f", "/dev/null", "-S"]);
+    assert!(with_path[4].ends_with(".tmux/demo.sock"));
+}
+
+#[test]
+fn test_tmux_base_allows_managed_config_override() {
+    std::env::set_var("CCB_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
+    let base = tmux_base(None, None);
+    assert_eq!(base[0], "tmux");
+    assert_eq!(base[1], "-f");
+    assert!(base[2].ends_with(".config/ccb/tmux.conf"));
+    std::env::remove_var("CCB_TMUX_CONFIG");
 }
 
 #[test]
