@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub const SIDEBAR_BINARY_NAME: &str = "ccbr-agent-sidebar";
-pub const SIDEBAR_ENV_PATH: &str = "CCB_AGENT_SIDEBAR_BIN";
+pub const SIDEBAR_ENV_PATH: &str = "CCBR_AGENT_SIDEBAR_BIN";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SidebarHelperResolution {
@@ -21,7 +21,7 @@ impl SidebarHelperResolution {
 }
 
 /// Resolve the sidebar helper binary using the same search order as Python:
-/// 1. `CCB_AGENT_SIDEBAR_BIN` environment override
+/// 1. `CCBR_AGENT_SIDEBAR_BIN` environment override
 /// 2. `<script_root>/bin/ccbr-agent-sidebar`
 /// 3. `$CODEX_INSTALL_PREFIX/bin/ccbr-agent-sidebar`
 /// 4. `PATH` lookup
@@ -102,7 +102,7 @@ pub fn missing_sidebar_respawn_args(reason: Option<&str>) -> Vec<String> {
     let message = "CCB sidebar helper unavailable";
     let detail = reason.unwrap_or("ccbr-agent-sidebar not found");
     let body = format!(
-        "printf '%s\\n' '{}'; printf '%s\\n' '{}'; printf '%s\\n' 'Build or install bin/ccbr-agent-sidebar, or set CCB_AGENT_SIDEBAR_BIN.'; while :; do sleep 3600; done",
+        "printf '%s\\n' '{}'; printf '%s\\n' '{}'; printf '%s\\n' 'Build or install bin/ccbr-agent-sidebar, or set CCBR_AGENT_SIDEBAR_BIN.'; while :; do sleep 3600; done",
         shell_single_quote_text(message),
         shell_single_quote_text(detail),
     );

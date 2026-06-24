@@ -22,10 +22,10 @@ pub struct KillPreparation {
 pub fn collect_candidate_tmux_sockets() -> HashSet<Option<String>> {
     let mut sockets: HashSet<Option<String>> = HashSet::new();
     for name in [
-        std::env::var("CCB_TMUX_SOCKET_PATH")
+        std::env::var("CCBR_TMUX_SOCKET_PATH")
             .ok()
             .filter(|s| !s.is_empty()),
-        normalize_socket_name(std::env::var("CCB_TMUX_SOCKET").ok().as_deref()),
+        normalize_socket_name(std::env::var("CCBR_TMUX_SOCKET").ok().as_deref()),
         socket_ref_from_tmux_env(std::env::var("TMUX").ok().as_deref()),
     ]
     .into_iter()

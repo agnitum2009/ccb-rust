@@ -15,14 +15,14 @@ const ANY_REQ_ID_PATTERN: &str = r"(?:job_[a-z0-9]+|[0-9a-fA-F]{32}|\d{8}-\d{6}-
 
 static REQ_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(
-        r"(?i)CCB_REQ_ID:\s*({ANY_REQ_ID_PATTERN})(?-i:[^A-Za-z0-9_-]|$)"
+        r"(?i)CCBR_REQ_ID:\s*({ANY_REQ_ID_PATTERN})(?-i:[^A-Za-z0-9_-]|$)"
     ))
     .unwrap()
 });
 
 static OUTER_REQ_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(
-        r"(?i)^\s*CCB_REQ_ID:\s*({ANY_REQ_ID_PATTERN})(?-i:[^A-Za-z0-9_-]|$)"
+        r"(?i)^\s*CCBR_REQ_ID:\s*({ANY_REQ_ID_PATTERN})(?-i:[^A-Za-z0-9_-]|$)"
     ))
     .unwrap()
 });
@@ -562,15 +562,15 @@ mod tests {
     #[test]
     fn test_extract_req_id_patterns() {
         assert_eq!(
-            extract_req_id("CCB_REQ_ID: job_current123"),
+            extract_req_id("CCBR_REQ_ID: job_current123"),
             Some("job_current123".into())
         );
         assert_eq!(
-            extract_req_id("CCB_REQ_ID: 1234567890abcdef1234567890abcdef"),
+            extract_req_id("CCBR_REQ_ID: 1234567890abcdef1234567890abcdef"),
             Some("1234567890abcdef1234567890abcdef".into())
         );
         assert_eq!(
-            extract_req_id("CCB_REQ_ID: 20240101-120000-000-1-1"),
+            extract_req_id("CCBR_REQ_ID: 20240101-120000-000-1-1"),
             Some("20240101-120000-000-1-1".into())
         );
         assert_eq!(extract_req_id("no marker"), None);
@@ -579,11 +579,11 @@ mod tests {
     #[test]
     fn test_extract_outer_req_id_requires_start() {
         assert_eq!(
-            extract_outer_req_id("CCB_REQ_ID: job_current123\nbody"),
+            extract_outer_req_id("CCBR_REQ_ID: job_current123\nbody"),
             Some("job_current123".into())
         );
         assert_eq!(
-            extract_outer_req_id("body CCB_REQ_ID: job_current123"),
+            extract_outer_req_id("body CCBR_REQ_ID: job_current123"),
             None
         );
     }
@@ -594,7 +594,7 @@ mod tests {
             "type": "user",
             "message": {
                 "role": "user",
-                "content": "CCB_REQ_ID: job_current123\n\nReview this transcript:\nCCB_REQ_ID: job_old456\n```text\nCCB_REQ_ID: job_code789\n```"
+                "content": "CCBR_REQ_ID: job_current123\n\nReview this transcript:\nCCBR_REQ_ID: job_old456\n```text\nCCBR_REQ_ID: job_code789\n```"
             }
         })]);
         assert_eq!(
@@ -609,7 +609,7 @@ mod tests {
             "type": "user",
             "message": {
                 "role": "user",
-                "content": "Please inspect why CCB_REQ_ID: job_old456 did not return."
+                "content": "Please inspect why CCBR_REQ_ID: job_old456 did not return."
             }
         })]);
         assert_eq!(latest_user_req_id_from_transcript_text(&content), None);
@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn test_current_turn_req_id_follows_parent_chain() {
         let content = jsonl(&[
-            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_current123\n\nRun a tool."}}),
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_current123\n\nRun a tool."}}),
             json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Read"}]}}),
             json!({"uuid": "u2", "parentUuid": "a1", "type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}, "toolUseResult": {"type": "text"}}),
             json!({"uuid": "a2", "parentUuid": "u2", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}}),
@@ -632,9 +632,9 @@ mod tests {
     #[test]
     fn test_current_turn_req_id_empty_reply_after_prior_assistant() {
         let content = jsonl(&[
-            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_previous111\n\nPrevious task."}}),
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_previous111\n\nPrevious task."}}),
             json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "previous done"}]}}),
-            json!({"uuid": "u2", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_emptyclaude123\n\nRun the task."}}),
+            json!({"uuid": "u2", "type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_emptyclaude123\n\nRun the task."}}),
         ]);
         assert_eq!(
             current_turn_req_id_from_transcript_text(&content, None),
@@ -645,8 +645,8 @@ mod tests {
     #[test]
     fn test_latest_user_req_id_ignores_tool_result_after_outer_marker() {
         let content = jsonl(&[
-            json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_current123\n\nRun the check."}}),
-            json!({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "Command output mentioned CCB_REQ_ID: job_tool999"}]}}),
+            json!({"type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_current123\n\nRun the check."}}),
+            json!({"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "Command output mentioned CCBR_REQ_ID: job_tool999"}]}}),
         ]);
         assert_eq!(
             latest_user_req_id_from_transcript_text(&content),
@@ -661,9 +661,9 @@ mod tests {
         fs::write(
             &path,
             jsonl(&[
-                json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_first111\n\nInitial request."}}),
+                json!({"type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_first111\n\nInitial request."}}),
                 json!({"type": "assistant", "message": {"role": "assistant", "content": "Working."}}),
-                json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_second222\n\nForwarded text contains CCB_REQ_ID: job_old333."}}),
+                json!({"type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_second222\n\nForwarded text contains CCBR_REQ_ID: job_old333."}}),
             ]),
         )
         .unwrap();
@@ -677,7 +677,7 @@ mod tests {
     fn test_last_prompt_req_id_uses_outer_marker() {
         let content = jsonl(&[json!({
             "type": "last-prompt",
-            "lastPrompt": "CCB_REQ_ID: job_prompt123\n\nThe request body includes CCB_REQ_ID: job_body456."
+            "lastPrompt": "CCBR_REQ_ID: job_prompt123\n\nThe request body includes CCBR_REQ_ID: job_body456."
         })]);
         assert_eq!(
             latest_last_prompt_req_id_from_transcript_text(&content),
@@ -688,12 +688,12 @@ mod tests {
     #[test]
     fn test_current_turn_req_id_ignores_scheduled_task_after_interrupted_prompt() {
         let content = jsonl(&[
-            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_stale123\n\nRun a long task."}}),
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_stale123\n\nRun a long task."}}),
             json!({"uuid": "u2", "parentUuid": "u1", "type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "[Request interrupted by user]"}]}}),
             json!({"uuid": "s1", "parentUuid": "u2", "type": "system", "subtype": "scheduled_task_fire", "content": "Running scheduled task"}),
             json!({"uuid": "u3", "parentUuid": "s1", "type": "user", "message": {"role": "user", "content": "循环计数，共50次"}, "isMeta": true}),
             json!({"uuid": "a1", "parentUuid": "u3", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "当前进度：已完成第9次。"}]}}),
-            json!({"type": "last-prompt", "lastPrompt": "CCB_REQ_ID: job_stale123\n\nRun a long task."}),
+            json!({"type": "last-prompt", "lastPrompt": "CCBR_REQ_ID: job_stale123\n\nRun a long task."}),
         ]);
         assert_eq!(
             current_turn_req_id_from_transcript_text(&content, Some("当前进度：已完成第9次。")),
@@ -704,7 +704,7 @@ mod tests {
     #[test]
     fn test_current_turn_req_id_empty_reply_does_not_reuse_previous_assistant_req_id() {
         let content = jsonl(&[
-            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_old111\n\nOld task."}}),
+            json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_old111\n\nOld task."}}),
             json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "old done"}]}}),
         ]);
         assert_eq!(

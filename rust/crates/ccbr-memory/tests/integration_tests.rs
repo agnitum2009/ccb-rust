@@ -28,7 +28,7 @@ type StartedRecord = (
 #[test]
 fn test_deduper_strips_protocol_markers() {
     let deduper = ConversationDeduper::new();
-    let text = "Hello\nCCB_REQ_ID: 20240101-120000-000-1-1\nWorld";
+    let text = "Hello\nCCBR_REQ_ID: 20240101-120000-000-1-1\nWorld";
     assert_eq!(deduper.strip_protocol_markers(text), "Hello\nWorld");
 }
 
@@ -42,7 +42,7 @@ fn test_deduper_strips_system_noise() {
 #[test]
 fn test_deduper_clean_content() {
     let deduper = ConversationDeduper::new();
-    let text = "  Hello  \nCCB_CALLER=claude\n\n\n<env>x</env>\nWorld  ";
+    let text = "  Hello  \nCCBR_CALLER=claude\n\n\n<env>x</env>\nWorld  ";
     assert_eq!(deduper.clean_content(text), "Hello  \n\nWorld");
 }
 
@@ -91,12 +91,12 @@ fn test_deduper_collapse_tool_calls() {
 #[test]
 fn test_deduper_strips_various_protocol_markers() {
     let deduper = ConversationDeduper::new();
-    let text = "Hello\nCCB_REQ_ID: 20260202-123456-001-1-1\nCCB_BEGIN: 20260202-123456-001-1-1\nCCB_DONE: 20260202-123456-001-1-1\n[CCB_ASYNC_SUBMITTED provider=codex]\nWorld";
+    let text = "Hello\nCCBR_REQ_ID: 20260202-123456-001-1-1\nCCBR_BEGIN: 20260202-123456-001-1-1\nCCBR_DONE: 20260202-123456-001-1-1\n[CCBR_ASYNC_SUBMITTED provider=codex]\nWorld";
     let result = deduper.strip_protocol_markers(text);
-    assert!(!result.contains("CCB_REQ_ID"));
-    assert!(!result.contains("CCB_BEGIN"));
-    assert!(!result.contains("CCB_DONE"));
-    assert!(!result.contains("CCB_ASYNC_SUBMITTED"));
+    assert!(!result.contains("CCBR_REQ_ID"));
+    assert!(!result.contains("CCBR_BEGIN"));
+    assert!(!result.contains("CCBR_DONE"));
+    assert!(!result.contains("CCBR_ASYNC_SUBMITTED"));
     assert!(result.contains("Hello"));
     assert!(result.contains("World"));
 }
@@ -424,13 +424,13 @@ fn test_filter_install_blocks() {
         "provider_user_memory",
         "Memory",
         PathBuf::from("/tmp/mem.md"),
-        "start\n<!-- CCB_CONFIG_START -->\ninstall\n<!-- CCB_CONFIG_END -->\nend",
+        "start\n<!-- CCBR_CONFIG_START -->\ninstall\n<!-- CCBR_CONFIG_END -->\nend",
         true,
     );
     let filtered = ccbr_memory::filter_memory_source(&source, &["ccbr_install_blocks".to_string()]);
     assert!(filtered.filtered);
     assert!(filtered.content.contains("start"));
-    assert!(!filtered.content.contains("CCB_CONFIG"));
+    assert!(!filtered.content.contains("CCBR_CONFIG"));
 }
 
 #[test]
@@ -573,7 +573,7 @@ fn filter_source(text: &str, kind: &str) -> ProjectMemorySource {
 #[test]
 fn filter_strips_complete_ccbr_config_block() {
     let result = filter_source(
-        "before\n<!-- CCB_CONFIG_START -->\nconfig\n<!-- CCB_CONFIG_END -->\nafter\n",
+        "before\n<!-- CCBR_CONFIG_START -->\nconfig\n<!-- CCBR_CONFIG_END -->\nafter\n",
         "provider_user_memory",
     );
     assert_eq!(result.content, "before\nafter\n");
@@ -584,7 +584,7 @@ fn filter_strips_complete_ccbr_config_block() {
 #[test]
 fn filter_strips_complete_roles_and_rubrics_blocks() {
     let result = filter_source(
-        "keep\n<!-- CCB_ROLES_START -->roles<!-- CCB_ROLES_END -->\n<!-- REVIEW_RUBRICS_START -->rubric<!-- REVIEW_RUBRICS_END -->\ntail\n",
+        "keep\n<!-- CCBR_ROLES_START -->roles<!-- CCBR_ROLES_END -->\n<!-- REVIEW_RUBRICS_START -->rubric<!-- REVIEW_RUBRICS_END -->\ntail\n",
         "provider_user_memory",
     );
     assert_eq!(result.content, "keep\ntail\n");
@@ -622,7 +622,7 @@ fn filter_strips_legacy_chinese_collaboration_sections() {
 #[test]
 fn filter_preserves_user_paragraph_spacing_after_block_removal() {
     let result = filter_source(
-        "first paragraph\n\nsecond paragraph\n<!-- CCB_CONFIG_START -->\nold config\n<!-- CCB_CONFIG_END -->\nthird paragraph\n",
+        "first paragraph\n\nsecond paragraph\n<!-- CCBR_CONFIG_START -->\nold config\n<!-- CCBR_CONFIG_END -->\nthird paragraph\n",
         "provider_user_memory",
     );
     assert_eq!(
@@ -633,7 +633,7 @@ fn filter_preserves_user_paragraph_spacing_after_block_removal() {
 
 #[test]
 fn filter_preserves_isolated_marker() {
-    let text = "before\n<!-- CCB_CONFIG_START -->\nuser note without end marker\n";
+    let text = "before\n<!-- CCBR_CONFIG_START -->\nuser note without end marker\n";
     let result = filter_source(text, "provider_user_memory");
     assert_eq!(result.content, text);
     assert!(!result.filtered);
@@ -649,7 +649,7 @@ fn filter_preserves_unrelated_user_text() {
 
 #[test]
 fn filter_only_applies_to_provider_user_memory() {
-    let text = "before\n<!-- CCB_CONFIG_START -->\nconfig\n<!-- CCB_CONFIG_END -->\nafter\n";
+    let text = "before\n<!-- CCBR_CONFIG_START -->\nconfig\n<!-- CCBR_CONFIG_END -->\nafter\n";
     let result = filter_source(text, "ccbr_shared");
     assert_eq!(result.content, text);
     assert!(!result.filtered);
@@ -1087,7 +1087,7 @@ fn materialize_runtime_memory_bundle_handles_invalid_agent_name() {
 #[test]
 fn maybe_auto_transfer_starts_once_for_same_key() {
     clear_seen();
-    std::env::set_var("CCB_CTX_TRANSFER_ON_SESSION_SWITCH", "1");
+    std::env::set_var("CCBR_CTX_TRANSFER_ON_SESSION_SWITCH", "1");
     let tmp = tempfile::tempdir().unwrap();
     let original_cwd = std::env::current_dir().unwrap();
     std::env::set_current_dir(tmp.path()).unwrap();
@@ -1133,7 +1133,7 @@ fn maybe_auto_transfer_starts_once_for_same_key() {
 #[test]
 fn maybe_auto_transfer_skips_foreign_work_dir() {
     clear_seen();
-    std::env::set_var("CCB_CTX_TRANSFER_ON_SESSION_SWITCH", "1");
+    std::env::set_var("CCBR_CTX_TRANSFER_ON_SESSION_SWITCH", "1");
     let tmp = tempfile::tempdir().unwrap();
     let original_cwd = std::env::current_dir().unwrap();
     std::env::set_current_dir(tmp.path()).unwrap();
@@ -1358,11 +1358,11 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
 
     write_test_file(
         &claude_source_home.join(".claude").join("CLAUDE.md"),
-        "CLAUDE-USER-SENTINEL\n<!-- CCB_CONFIG_START -->\nOLD-CLAUDE-INSTALL-BLOCK\n<!-- CCB_CONFIG_END -->\n",
+        "CLAUDE-USER-SENTINEL\n<!-- CCBR_CONFIG_START -->\nOLD-CLAUDE-INSTALL-BLOCK\n<!-- CCBR_CONFIG_END -->\n",
     );
     write_test_file(
         &codex_source_home.join("AGENTS.md"),
-        "CODEX-USER-SENTINEL\n<!-- CCB_ROLES_START -->\nOLD-CODEX-ROLES-BLOCK\n<!-- CCB_ROLES_END -->\n",
+        "CODEX-USER-SENTINEL\n<!-- CCBR_ROLES_START -->\nOLD-CODEX-ROLES-BLOCK\n<!-- CCBR_ROLES_END -->\n",
     );
 
     let claude_home = project_root

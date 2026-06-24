@@ -83,7 +83,7 @@ fn crate_root_reexports_are_reachable() {
     assert_eq!(completion_status_label(Some("failed"), true), "Failed");
     assert_eq!(
         completion_status_marker(Some("failed"), true),
-        "[CCB_TASK_FAILED]"
+        "[CCBR_TASK_FAILED]"
     );
     assert_eq!(
         default_reply_for_status(Some("cancelled"), true),
@@ -95,7 +95,7 @@ fn crate_root_reexports_are_reachable() {
         completion.join("events").join("job-123.json")
     );
     assert_eq!(
-        extract_req_id("CCB_REQ_ID: job_current123"),
+        extract_req_id("CCBR_REQ_ID: job_current123"),
         Some("job_current123".into())
     );
     assert!(latest_req_id_from_transcript(None).is_none());

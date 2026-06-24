@@ -248,7 +248,7 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     for event in events {
         match event {
             LogEvent::User(text) => {
-                if !anchor_seen && text.contains(&format!("CCB_REQ_ID: {}", request_anchor)) {
+                if !anchor_seen && text.contains(&format!("CCBR_REQ_ID: {}", request_anchor)) {
                     anchor_seen = true;
                     if let Ok(item) = CompletionItem::new(
                         CompletionItemKind::AnchorSeen,

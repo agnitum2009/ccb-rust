@@ -343,10 +343,10 @@ fn test_resolve_ask_sender_defaults_to_user_for_project_root() {
     let tmp = tempfile::TempDir::new().unwrap();
     let context = make_context(&tmp);
     for name in [
-        "CCB_CALLER_ACTOR",
-        "CCB_CALLER_RUNTIME_DIR",
+        "CCBR_CALLER_ACTOR",
+        "CCBR_CALLER_RUNTIME_DIR",
         "CODEX_RUNTIME_DIR",
-        "CCB_SESSION_ID",
+        "CCBR_SESSION_ID",
     ] {
         std::env::remove_var(name);
     }
@@ -359,10 +359,10 @@ fn test_resolve_ask_sender_prefers_runtime_dir_actor() {
     let tmp = tempfile::TempDir::new().unwrap();
     let context = make_context(&tmp);
     for name in [
-        "CCB_CALLER_ACTOR",
-        "CCB_CALLER_RUNTIME_DIR",
+        "CCBR_CALLER_ACTOR",
+        "CCBR_CALLER_RUNTIME_DIR",
         "CODEX_RUNTIME_DIR",
-        "CCB_SESSION_ID",
+        "CCBR_SESSION_ID",
     ] {
         std::env::remove_var(name);
     }
@@ -371,10 +371,10 @@ fn test_resolve_ask_sender_prefers_runtime_dir_actor() {
         .join(".ccbr/agents/agent1/provider-runtime/codex");
     std::fs::create_dir_all(&runtime_dir).unwrap();
     std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
-    std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");
+    std::env::set_var("CCBR_SESSION_ID", "legacy-session-without-actor");
     assert_eq!(resolve_ask_sender(&context, None), "agent1");
     std::env::remove_var("CODEX_RUNTIME_DIR");
-    std::env::remove_var("CCB_SESSION_ID");
+    std::env::remove_var("CCBR_SESSION_ID");
 }
 
 #[test]
@@ -383,10 +383,10 @@ fn test_resolve_ask_sender_prefers_relocated_runtime_dir_actor() {
     let tmp = tempfile::TempDir::new().unwrap();
     let before = make_context(&tmp);
     for name in [
-        "CCB_CALLER_ACTOR",
-        "CCB_CALLER_RUNTIME_DIR",
+        "CCBR_CALLER_ACTOR",
+        "CCBR_CALLER_RUNTIME_DIR",
         "CODEX_RUNTIME_DIR",
-        "CCB_SESSION_ID",
+        "CCBR_SESSION_ID",
     ] {
         std::env::remove_var(name);
     }
@@ -421,10 +421,10 @@ fn test_resolve_ask_sender_prefers_relocated_runtime_dir_actor() {
         .into_std_path_buf();
     std::fs::create_dir_all(&runtime_dir).unwrap();
     std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
-    std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");
+    std::env::set_var("CCBR_SESSION_ID", "legacy-session-without-actor");
     assert_eq!(resolve_ask_sender(&context, None), "agent1");
     std::env::remove_var("CODEX_RUNTIME_DIR");
-    std::env::remove_var("CCB_SESSION_ID");
+    std::env::remove_var("CCBR_SESSION_ID");
 }
 
 #[test]

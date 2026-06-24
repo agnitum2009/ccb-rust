@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 const DEFAULT_TTL_S: u64 = 3600;
-const ENV_KEY: &str = "CCB_CTX_TRANSFER_ON_SESSION_SWITCH";
+const ENV_KEY: &str = "CCBR_CTX_TRANSFER_ON_SESSION_SWITCH";
 
 static AUTO_TRANSFER_SEEN: Mutex<Option<HashMap<String, Instant>>> = Mutex::new(None);
 

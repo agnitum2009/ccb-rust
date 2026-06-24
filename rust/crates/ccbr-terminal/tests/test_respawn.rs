@@ -142,16 +142,16 @@ fn test_tmux_respawn_service_uses_shared_ready_budget_for_transient_failures() {
             Ok(ok(""))
         },
     );
-    std::env::set_var("CCB_TMUX_OBJECT_READY_TIMEOUT_S", "0.15");
-    std::env::set_var("CCB_TMUX_OBJECT_READY_POLL_INTERVAL_S", "0.01");
+    std::env::set_var("CCBR_TMUX_OBJECT_READY_TIMEOUT_S", "0.15");
+    std::env::set_var("CCBR_TMUX_OBJECT_READY_POLL_INTERVAL_S", "0.01");
     let service = TmuxRespawnService::new(
         runner,
         |_pane_id| {},
         HashMap::from_iter([("SHELL".to_string(), "/bin/bash".to_string())]),
     );
     let result = service.respawn_pane("%9", "echo hi", None, None, false);
-    std::env::remove_var("CCB_TMUX_OBJECT_READY_TIMEOUT_S");
-    std::env::remove_var("CCB_TMUX_OBJECT_READY_POLL_INTERVAL_S");
+    std::env::remove_var("CCBR_TMUX_OBJECT_READY_TIMEOUT_S");
+    std::env::remove_var("CCBR_TMUX_OBJECT_READY_POLL_INTERVAL_S");
     assert!(result.is_err());
     let attempts = *respawn_attempts.lock().unwrap();
     assert!(

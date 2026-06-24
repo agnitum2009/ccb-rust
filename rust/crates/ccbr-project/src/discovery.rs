@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use crate::path_utils::{expand_user_path, resolve_utf8_path};
 
-pub const CCB_DIRNAME: &str = ".ccbr";
+pub const CCBR_DIRNAME: &str = ".ccbr";
 pub const WORKSPACE_BINDING_FILENAME: &str = ".ccbr-workspace.json";
 
 #[derive(Debug, thiserror::Error)]
@@ -28,7 +28,7 @@ pub enum ProjectDiscoveryError {
     NestedAnchor(String),
     #[error("cannot resolve project for {0}; no .ccbr anchor or workspace binding found")]
     Unresolved(String),
-    #[error("refusing to auto-create .ccbr in {0}; set CCB_INIT_PROJECT_DANGEROUS=1 to override")]
+    #[error("refusing to auto-create .ccbr in {0}; set CCBR_INIT_PROJECT_DANGEROUS=1 to override")]
     DangerousRoot(String),
     #[error("{0}")]
     AnchorNotFound(String),
@@ -45,13 +45,13 @@ pub struct WorkspaceBinding {
 
 /// Return the project-local `.ccbr` directory.
 pub fn project_ccbr_dir(project_root: impl AsRef<Utf8Path>) -> Utf8PathBuf {
-    resolve_utf8_path(project_root.as_ref()).join(CCB_DIRNAME)
+    resolve_utf8_path(project_root.as_ref()).join(CCBR_DIRNAME)
 }
 
 /// Return the global `~/.ccbr` directory.
 pub fn global_ccbr_dir() -> Utf8PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    Utf8PathBuf::from(expand_user_path(&home)).join(CCB_DIRNAME)
+    Utf8PathBuf::from(expand_user_path(&home)).join(CCBR_DIRNAME)
 }
 
 /// Return `start_dir` if it directly contains a `.ccbr` anchor.
@@ -120,7 +120,7 @@ pub fn is_dangerous_project_root(start_dir: impl AsRef<Utf8Path>) -> (bool, Stri
 }
 
 fn project_anchor_dir(root: &Utf8Path) -> Option<Utf8PathBuf> {
-    let primary = root.join(CCB_DIRNAME);
+    let primary = root.join(CCBR_DIRNAME);
     if primary.as_std_path().is_dir() {
         Some(primary)
     } else {
@@ -234,7 +234,7 @@ mod tests {
     fn test_find_current_project_anchor() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(CCBR_DIRNAME)).unwrap();
         assert_eq!(find_current_project_anchor(&root), Some(root.clone()));
         assert!(find_current_project_anchor(Utf8Path::new("/nonexistent-no-anchor")).is_none());
     }
@@ -243,7 +243,7 @@ mod tests {
     fn test_find_nearest_project_anchor_walks_up() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(CCBR_DIRNAME)).unwrap();
         let sub = root.join("src/nested");
         std::fs::create_dir_all(&sub).unwrap();
         assert_eq!(find_nearest_project_anchor(&sub), Some(root));
@@ -253,12 +253,12 @@ mod tests {
     fn test_find_parent_project_anchor_dir() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(CCBR_DIRNAME)).unwrap();
         let child = root.join("child");
         std::fs::create_dir_all(&child).unwrap();
         assert_eq!(
             find_parent_project_anchor_dir(&child),
-            Some(root.join(CCB_DIRNAME))
+            Some(root.join(CCBR_DIRNAME))
         );
     }
 

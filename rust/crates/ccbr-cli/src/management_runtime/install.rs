@@ -58,24 +58,24 @@ pub fn build_unix_installer_env(install_dir: &Path, source_dir: &Path) -> HashMa
 
     let source_root = expand_path(source_dir);
     if source_root.join(".git").exists() {
-        if !env.contains_key("CCB_SOURCE_KIND") {
-            env.insert("CCB_SOURCE_KIND".into(), "source".into());
+        if !env.contains_key("CCBR_SOURCE_KIND") {
+            env.insert("CCBR_SOURCE_KIND".into(), "source".into());
         }
-        if !env.contains_key("CCB_SOURCE_ROOT") {
+        if !env.contains_key("CCBR_SOURCE_ROOT") {
             env.insert(
-                "CCB_SOURCE_ROOT".into(),
+                "CCBR_SOURCE_ROOT".into(),
                 source_root.to_string_lossy().into_owned(),
             );
         }
     }
 
-    if !env.contains_key("CCB_GIT_COMMIT") {
+    if !env.contains_key("CCBR_GIT_COMMIT") {
         let (commit, date) = detect_git_head(&source_root);
         if let Some(commit) = commit {
-            env.insert("CCB_GIT_COMMIT".into(), commit);
-            if !env.contains_key("CCB_GIT_DATE") {
+            env.insert("CCBR_GIT_COMMIT".into(), commit);
+            if !env.contains_key("CCBR_GIT_DATE") {
                 if let Some(date) = date {
-                    env.insert("CCB_GIT_DATE".into(), date);
+                    env.insert("CCBR_GIT_DATE".into(), date);
                 }
             }
         }
@@ -336,7 +336,7 @@ fn run_git_log(source_dir: &Path, format: &str) -> Option<String> {
 }
 
 fn pick_temp_base_dir(install_dir: &Path) -> PathBuf {
-    for key in ["CCB_TMPDIR", "TMPDIR", "TEMP", "TMP"] {
+    for key in ["CCBR_TMPDIR", "TMPDIR", "TEMP", "TMP"] {
         if let Ok(value) = std::env::var(key) {
             let candidate = PathBuf::from(expand_user(value.trim()));
             if probe_temp_base(&candidate) {

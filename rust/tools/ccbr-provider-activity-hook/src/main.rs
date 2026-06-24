@@ -19,19 +19,19 @@ fn main() -> std::process::ExitCode {
     let runtime_dir = if !args.runtime_dir.is_empty() {
         args.runtime_dir.clone()
     } else {
-        std::env::var("CCB_CALLER_RUNTIME_DIR").unwrap_or_default()
+        std::env::var("CCBR_CALLER_RUNTIME_DIR").unwrap_or_default()
     };
     let runtime_dir = runtime_dir.trim().to_string();
     let agent_name = if !args.agent_name.is_empty() {
         args.agent_name.clone()
     } else {
-        std::env::var("CCB_CALLER_ACTOR").unwrap_or_default()
+        std::env::var("CCBR_CALLER_ACTOR").unwrap_or_default()
     };
     let agent_name = agent_name.trim().to_string();
     if state.is_empty() || runtime_dir.is_empty() || agent_name.is_empty() {
         return std::process::ExitCode::SUCCESS;
     }
-    let ccbr_session_id = std::env::var("CCB_SESSION_ID").ok();
+    let ccbr_session_id = std::env::var("CCBR_SESSION_ID").ok();
     let pane_id = std::env::var("TMUX_PANE").ok();
     let event_name = event_name(&payload);
     let provider_session_id = first_text(&payload, &["session_id", "sessionId", "session.id"]);

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-const CCB_PROJECT_CONFIG_DIRNAME: &str = ".ccbr";
+const CCBR_PROJECT_CONFIG_DIRNAME: &str = ".ccbr";
 
 /// Normalize a project path the same way Python
 /// `registry_support.pathing_runtime.normalization.normalize_project_path` does.
@@ -124,7 +124,7 @@ pub fn infer_work_dir_from_session_file(session_file: &Path) -> PathBuf {
         .parent()
         .map(Path::to_path_buf)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-    if parent.file_name().and_then(|n| n.to_str()) == Some(CCB_PROJECT_CONFIG_DIRNAME) {
+    if parent.file_name().and_then(|n| n.to_str()) == Some(CCBR_PROJECT_CONFIG_DIRNAME) {
         parent.parent().map(Path::to_path_buf).unwrap_or(parent)
     } else {
         parent

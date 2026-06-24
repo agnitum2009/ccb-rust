@@ -8,7 +8,7 @@ const TERMINAL_OBSERVER_STATUSES: &[&str] = &["completed", "cancelled", "failed"
 /// Strip CCB protocol lines and collapse runs of blank lines.
 ///
 /// Mirrors Python `display_text(value)`. Replaces the two Python regexes
-/// (`CCB_(REQ_ID|BEGIN|DONE):` line removal and `\n{3,}` → `\n\n`) with
+/// (`CCBR_(REQ_ID|BEGIN|DONE):` line removal and `\n{3,}` → `\n\n`) with
 /// equivalent line-oriented string processing.
 pub fn display_text(value: &Value) -> String {
     let raw = match value {
@@ -22,9 +22,9 @@ pub fn display_text(value: &Value) -> String {
     let mut kept: Vec<&str> = Vec::new();
     for line in raw.split_inclusive('\n') {
         let trimmed = line.trim_start();
-        if trimmed.starts_with("CCB_REQ_ID:")
-            || trimmed.starts_with("CCB_BEGIN:")
-            || trimmed.starts_with("CCB_DONE:")
+        if trimmed.starts_with("CCBR_REQ_ID:")
+            || trimmed.starts_with("CCBR_BEGIN:")
+            || trimmed.starts_with("CCBR_DONE:")
         {
             continue;
         }

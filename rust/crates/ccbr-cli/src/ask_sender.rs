@@ -38,7 +38,7 @@ fn allowed_session_actors(context: &CliContext) -> Vec<String> {
 }
 
 fn _resolve_session_actor(context: &CliContext, allowed: &[String]) -> Option<String> {
-    if let Some(actor) = std::env::var("CCB_CALLER_ACTOR")
+    if let Some(actor) = std::env::var("CCBR_CALLER_ACTOR")
         .ok()
         .and_then(|v| normalized_actor_candidate(&v))
     {
@@ -47,7 +47,7 @@ fn _resolve_session_actor(context: &CliContext, allowed: &[String]) -> Option<St
         }
     }
 
-    for env_name in ["CCB_CALLER_RUNTIME_DIR", "CODEX_RUNTIME_DIR"] {
+    for env_name in ["CCBR_CALLER_RUNTIME_DIR", "CODEX_RUNTIME_DIR"] {
         if let Some(actor) = std::env::var(env_name).ok().and_then(|v| {
             _actor_from_runtime_dir(&v, context.paths.agents_dir().as_std_path(), allowed)
         }) {
@@ -55,7 +55,7 @@ fn _resolve_session_actor(context: &CliContext, allowed: &[String]) -> Option<St
         }
     }
 
-    std::env::var("CCB_SESSION_ID")
+    std::env::var("CCBR_SESSION_ID")
         .ok()
         .and_then(|v| _actor_from_session_id(&v, allowed))
 }
@@ -178,10 +178,10 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let ctx = make_context(&tmp);
         for name in [
-            "CCB_CALLER_ACTOR",
-            "CCB_CALLER_RUNTIME_DIR",
+            "CCBR_CALLER_ACTOR",
+            "CCBR_CALLER_RUNTIME_DIR",
             "CODEX_RUNTIME_DIR",
-            "CCB_SESSION_ID",
+            "CCBR_SESSION_ID",
         ] {
             std::env::remove_var(name);
         }
@@ -194,10 +194,10 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let ctx = make_context(&tmp);
         for name in [
-            "CCB_CALLER_ACTOR",
-            "CCB_CALLER_RUNTIME_DIR",
+            "CCBR_CALLER_ACTOR",
+            "CCBR_CALLER_RUNTIME_DIR",
             "CODEX_RUNTIME_DIR",
-            "CCB_SESSION_ID",
+            "CCBR_SESSION_ID",
         ] {
             std::env::remove_var(name);
         }
@@ -206,7 +206,7 @@ mod tests {
             .join(".ccbr/agents/agent1/provider-runtime/codex");
         std::fs::create_dir_all(&runtime_dir).unwrap();
         std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
-        std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");
+        std::env::set_var("CCBR_SESSION_ID", "legacy-session-without-actor");
         assert_eq!(resolve_ask_sender(&ctx, None), "agent1");
         std::env::remove_var("CODEX_RUNTIME_DIR");
     }

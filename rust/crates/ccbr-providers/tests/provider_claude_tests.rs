@@ -152,7 +152,7 @@ fn test_find_project_session_file_for_instance() {
 #[test]
 fn test_wrap_claude_prompt_format() {
     let wrapped = wrap_claude_prompt("hello", "req-12345678");
-    assert!(wrapped.contains("CCB_REQ_ID: req-12345678"));
+    assert!(wrapped.contains("CCBR_REQ_ID: req-12345678"));
     assert!(wrapped.contains("<<BEGIN:req-12345678>>"));
     assert!(wrapped.contains("<<DONE:req-12345678>>"));
 }
@@ -160,7 +160,7 @@ fn test_wrap_claude_prompt_format() {
 #[test]
 fn test_wrap_claude_turn_prompt_format() {
     let wrapped = wrap_claude_turn_prompt("hello", "req-12345678");
-    assert!(wrapped.contains("CCB_REQ_ID: req-12345678"));
+    assert!(wrapped.contains("CCBR_REQ_ID: req-12345678"));
     assert!(!wrapped.contains("<<DONE:req-12345678>>"));
 }
 

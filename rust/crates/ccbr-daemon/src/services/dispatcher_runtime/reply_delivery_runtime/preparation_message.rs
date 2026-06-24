@@ -316,7 +316,7 @@ fn is_heartbeat_notice(reply: &ReplyRecord) -> bool {
 
 fn reply_header(reply: &ReplyRecord, source_job: Option<&JobRecord>) -> Vec<String> {
     let mut header = vec![
-        "CCB_REPLY".to_string(),
+        "CCBR_REPLY".to_string(),
         format!("from={}", reply.agent_name),
         format!("reply={}", reply.reply_id),
         format!("status={}", format_status(reply.terminal_status)),
@@ -348,7 +348,7 @@ fn format_heartbeat_delivery_body(reply: &ReplyRecord, source_job: Option<&JobRe
 fn heartbeat_header(reply: &ReplyRecord, source_job: Option<&JobRecord>) -> String {
     let diagnostics = &reply.diagnostics;
     let mut header = format!(
-        "CCB_NOTICE kind=heartbeat from={} reply={}",
+        "CCBR_NOTICE kind=heartbeat from={} reply={}",
         reply.agent_name, reply.reply_id
     );
     if let Some(job_id) = heartbeat_job_id(diagnostics, source_job) {
@@ -647,7 +647,7 @@ mod tests {
         let dispatcher = TestDispatcher::default().with_source_job(job("j1", Some("task-1")));
         let text = format_reply_delivery_body(&dispatcher, &reply());
         assert!(text
-            .starts_with("CCB_REPLY from=claude reply=rep_1 status=completed job=j1 task=task-1"));
+            .starts_with("CCBR_REPLY from=claude reply=rep_1 status=completed job=j1 task=task-1"));
         assert!(text.ends_with("done"));
     }
 
@@ -660,7 +660,7 @@ mod tests {
         let dispatcher = TestDispatcher::default().with_source_job(job("j1", Some("task-1")));
         let text = format_reply_delivery_body(&dispatcher, &r);
         assert!(text.starts_with(
-            "CCB_NOTICE kind=heartbeat from=claude reply=rep_1 job=j1 task=task-1 silent_for=43s"
+            "CCBR_NOTICE kind=heartbeat from=claude reply=rep_1 job=j1 task=task-1 silent_for=43s"
         ));
         assert!(text.contains("still alive"));
     }

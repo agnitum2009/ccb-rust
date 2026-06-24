@@ -26,7 +26,7 @@ use crate::execution::{
 
 pub const PROVIDER_NAME: &str = "claude";
 
-const CLAUDE_REQ_ID_PREFIX: &str = "CCB_REQ_ID:";
+const CLAUDE_REQ_ID_PREFIX: &str = "CCBR_REQ_ID:";
 const CLAUDE_BEGIN_PREFIX: &str = "<<BEGIN:";
 const CLAUDE_DONE_PREFIX: &str = "<<DONE:";
 
@@ -1516,7 +1516,7 @@ fn runtime_str(state: &HashMap<String, Value>, key: &str) -> String {
 }
 
 fn resolve_ready_timeout_s() -> f64 {
-    std::env::var("CCB_CLAUDE_READY_TIMEOUT_S")
+    std::env::var("CCBR_CLAUDE_READY_TIMEOUT_S")
         .ok()
         .and_then(|v| v.trim().parse::<f64>().ok())
         .map(|v| v.max(0.0))
@@ -1571,8 +1571,8 @@ fn wants_markdown_table(message: &str) -> bool {
 }
 
 fn language_hint() -> Option<&'static str> {
-    let lang = std::env::var("CCB_REPLY_LANG")
-        .or_else(|_| std::env::var("CCB_LANG"))
+    let lang = std::env::var("CCBR_REPLY_LANG")
+        .or_else(|_| std::env::var("CCBR_LANG"))
         .unwrap_or_default()
         .trim()
         .to_lowercase();

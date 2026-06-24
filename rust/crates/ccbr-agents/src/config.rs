@@ -24,9 +24,9 @@ pub const CONFIG_SOURCE_KINDS: &[&str] = &[
     CONFIG_SOURCE_BUILTIN_DEFAULT,
 ];
 
-pub const DEFAULT_CCB_SELF_AGENT: &str = "ccbr_self";
-pub const DEFAULT_CCB_SELF_ROLE: &str = "agentroles.ccbr_self";
-pub const DEFAULT_AGENT_ORDER: &[&str] = &["agent1", "agent2", "agent3", DEFAULT_CCB_SELF_AGENT];
+pub const DEFAULT_CCBR_SELF_AGENT: &str = "ccbr_self";
+pub const DEFAULT_CCBR_SELF_ROLE: &str = "agentroles.ccbr_self";
+pub const DEFAULT_AGENT_ORDER: &[&str] = &["agent1", "agent2", "agent3", DEFAULT_CCBR_SELF_AGENT];
 pub const DEFAULT_DEFAULT_AGENTS: &[&str] = DEFAULT_AGENT_ORDER;
 
 pub const ALLOWED_TOP_LEVEL_KEYS: &[&str] = &[
@@ -691,7 +691,7 @@ pub fn build_default_project_config() -> ProjectConfig {
     );
     agents.insert(
         "ccbr_self".into(),
-        build_default_agent_spec("ccbr_self", "codex", Some(DEFAULT_CCB_SELF_ROLE)),
+        build_default_agent_spec("ccbr_self", "codex", Some(DEFAULT_CCBR_SELF_ROLE)),
     );
     let windows = vec![WindowSpec {
         name: "main".into(),

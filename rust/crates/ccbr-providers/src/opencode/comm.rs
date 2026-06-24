@@ -98,7 +98,7 @@ impl OpenCodeCommunicator {
     /// Find the OpenCode session file.
     /// Mirrors Python `OpenCodeCommunicator._find_session_file`.
     pub fn find_session_file(&self) -> Option<PathBuf> {
-        if let Ok(env) = std::env::var("CCB_SESSION_FILE") {
+        if let Ok(env) = std::env::var("CCBR_SESSION_FILE") {
             let trimmed = env.trim();
             if !trimmed.is_empty() {
                 let path = PathBuf::from(trimmed);
@@ -182,9 +182,9 @@ mod tests {
         std::fs::create_dir(&other).unwrap();
 
         let _guard = std::env::set_current_dir(&other);
-        std::env::set_var("CCB_SESSION_FILE", session.to_string_lossy().to_string());
+        std::env::set_var("CCBR_SESSION_FILE", session.to_string_lossy().to_string());
         let comm = OpenCodeCommunicator::new();
         assert_eq!(comm.find_session_file().unwrap(), session);
-        std::env::remove_var("CCB_SESSION_FILE");
+        std::env::remove_var("CCBR_SESSION_FILE");
     }
 }

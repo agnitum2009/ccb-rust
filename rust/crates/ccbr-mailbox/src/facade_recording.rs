@@ -85,7 +85,7 @@ pub fn delivered_reply_text(job: &JobRecord, decision: &CompletionDecision) -> S
         return decision.reply.clone();
     }
     let mut parts = vec![
-        "CCB_COMPLETE".to_string(),
+        "CCBR_COMPLETE".to_string(),
         format!("from={}", job.agent_name),
         format!("status={:?}", job.status).to_lowercase(),
         format!("job={}", job.job_id),

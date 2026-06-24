@@ -184,7 +184,7 @@ fn normalize_profile_name(value: Option<&str>) -> Option<String> {
 pub fn tmux_theme_profile(environ: Option<&HashMap<String, String>>) -> String {
     let env = env_map(environ);
     if let Some(override_name) =
-        normalize_profile_name(env.get("CCB_TMUX_THEME_PROFILE").map(|s| s.as_str()))
+        normalize_profile_name(env.get("CCBR_TMUX_THEME_PROFILE").map(|s| s.as_str()))
     {
         return override_name;
     }
@@ -200,7 +200,7 @@ pub fn tmux_theme_profile(environ: Option<&HashMap<String, String>>) -> String {
 pub fn tmux_status_interval(environ: Option<&HashMap<String, String>>) -> String {
     let env = env_map(environ);
     let raw = env
-        .get("CCB_TMUX_STATUS_INTERVAL")
+        .get("CCBR_TMUX_STATUS_INTERVAL")
         .map(|s| s.trim())
         .unwrap_or("");
     if let Ok(n) = raw.parse::<i64>() {
@@ -397,9 +397,9 @@ pub fn shell_exports(
         profile_name,
     );
     let items: Vec<(&str, String)> = vec![
-        ("CCB_TMUX_RENDERED_THEME_PROFILE", rendered.profile_name),
+        ("CCBR_TMUX_RENDERED_THEME_PROFILE", rendered.profile_name),
         (
-            "CCB_TMUX_RENDERED_STATUS_POSITION",
+            "CCBR_TMUX_RENDERED_STATUS_POSITION",
             rendered
                 .session_options
                 .get("status-position")
@@ -407,7 +407,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_INTERVAL",
+            "CCBR_TMUX_RENDERED_STATUS_INTERVAL",
             rendered
                 .session_options
                 .get("status-interval")
@@ -415,7 +415,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_STYLE",
+            "CCBR_TMUX_RENDERED_STATUS_STYLE",
             rendered
                 .session_options
                 .get("status-style")
@@ -423,7 +423,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_LINES",
+            "CCBR_TMUX_RENDERED_STATUS_LINES",
             rendered
                 .session_options
                 .get("status")
@@ -431,7 +431,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_LEFT_LENGTH",
+            "CCBR_TMUX_RENDERED_STATUS_LEFT_LENGTH",
             rendered
                 .session_options
                 .get("status-left-length")
@@ -439,7 +439,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_RIGHT_LENGTH",
+            "CCBR_TMUX_RENDERED_STATUS_RIGHT_LENGTH",
             rendered
                 .session_options
                 .get("status-right-length")
@@ -447,7 +447,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_FORMAT_0",
+            "CCBR_TMUX_RENDERED_STATUS_FORMAT_0",
             rendered
                 .session_options
                 .get("status-format[0]")
@@ -455,7 +455,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_FORMAT_1",
+            "CCBR_TMUX_RENDERED_STATUS_FORMAT_1",
             rendered
                 .session_options
                 .get("status-format[1]")
@@ -463,7 +463,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_LEFT",
+            "CCBR_TMUX_RENDERED_STATUS_LEFT",
             rendered
                 .session_options
                 .get("status-left")
@@ -471,7 +471,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_STATUS_RIGHT",
+            "CCBR_TMUX_RENDERED_STATUS_RIGHT",
             rendered
                 .session_options
                 .get("status-right")
@@ -479,7 +479,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_WINDOW_STATUS_FORMAT",
+            "CCBR_TMUX_RENDERED_WINDOW_STATUS_FORMAT",
             rendered
                 .session_options
                 .get("window-status-format")
@@ -487,7 +487,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_WINDOW_STATUS_CURRENT_FORMAT",
+            "CCBR_TMUX_RENDERED_WINDOW_STATUS_CURRENT_FORMAT",
             rendered
                 .session_options
                 .get("window-status-current-format")
@@ -495,7 +495,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_WINDOW_STATUS_SEPARATOR",
+            "CCBR_TMUX_RENDERED_WINDOW_STATUS_SEPARATOR",
             rendered
                 .session_options
                 .get("window-status-separator")
@@ -503,7 +503,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_PANE_BORDER_STATUS",
+            "CCBR_TMUX_RENDERED_PANE_BORDER_STATUS",
             rendered
                 .window_options
                 .get("pane-border-status")
@@ -511,7 +511,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_PANE_BORDER_STYLE",
+            "CCBR_TMUX_RENDERED_PANE_BORDER_STYLE",
             rendered
                 .window_options
                 .get("pane-border-style")
@@ -519,7 +519,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_PANE_ACTIVE_BORDER_STYLE",
+            "CCBR_TMUX_RENDERED_PANE_ACTIVE_BORDER_STYLE",
             rendered
                 .window_options
                 .get("pane-active-border-style")
@@ -527,7 +527,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_PANE_BORDER_FORMAT",
+            "CCBR_TMUX_RENDERED_PANE_BORDER_FORMAT",
             rendered
                 .window_options
                 .get("pane-border-format")
@@ -535,7 +535,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_WINDOW_STYLE",
+            "CCBR_TMUX_RENDERED_WINDOW_STYLE",
             rendered
                 .window_options
                 .get("window-style")
@@ -543,7 +543,7 @@ pub fn shell_exports(
                 .unwrap_or_default(),
         ),
         (
-            "CCB_TMUX_RENDERED_WINDOW_ACTIVE_STYLE",
+            "CCBR_TMUX_RENDERED_WINDOW_ACTIVE_STYLE",
             rendered
                 .window_options
                 .get("window-active-style")
@@ -588,7 +588,10 @@ mod tests {
     #[test]
     fn test_tmux_theme_profile_override() {
         let mut env = HashMap::new();
-        env.insert("CCB_TMUX_THEME_PROFILE".to_string(), "contrast".to_string());
+        env.insert(
+            "CCBR_TMUX_THEME_PROFILE".to_string(),
+            "contrast".to_string(),
+        );
         assert_eq!(tmux_theme_profile(Some(&env)), "contrast");
     }
 
@@ -608,11 +611,11 @@ mod tests {
     #[test]
     fn test_tmux_status_interval() {
         let mut env = HashMap::new();
-        env.insert("CCB_TMUX_STATUS_INTERVAL".to_string(), "10".to_string());
+        env.insert("CCBR_TMUX_STATUS_INTERVAL".to_string(), "10".to_string());
         assert_eq!(tmux_status_interval(Some(&env)), "10");
-        env.insert("CCB_TMUX_STATUS_INTERVAL".to_string(), "0".to_string());
+        env.insert("CCBR_TMUX_STATUS_INTERVAL".to_string(), "0".to_string());
         assert_eq!(tmux_status_interval(Some(&env)), "5");
-        env.insert("CCB_TMUX_STATUS_INTERVAL".to_string(), "abc".to_string());
+        env.insert("CCBR_TMUX_STATUS_INTERVAL".to_string(), "abc".to_string());
         assert_eq!(tmux_status_interval(Some(&env)), "5");
     }
 
@@ -673,9 +676,9 @@ mod tests {
     #[test]
     fn test_shell_exports_contains_keys() {
         let exports = shell_exports("7.5.2", None, None, None, None);
-        assert!(exports.contains("CCB_TMUX_RENDERED_THEME_PROFILE"));
-        assert!(exports.contains("CCB_TMUX_RENDERED_STATUS_LEFT"));
-        assert!(exports.contains("CCB_TMUX_RENDERED_PANE_BORDER_FORMAT"));
+        assert!(exports.contains("CCBR_TMUX_RENDERED_THEME_PROFILE"));
+        assert!(exports.contains("CCBR_TMUX_RENDERED_STATUS_LEFT"));
+        assert!(exports.contains("CCBR_TMUX_RENDERED_PANE_BORDER_FORMAT"));
     }
 
     #[test]

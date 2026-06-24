@@ -36,7 +36,7 @@ migration pass and are documented here for follow-up work:
 - **Completion tracking / message bureau integration**: dispatcher tracks jobs
   but does not yet integrate with `ccbr-completion` or `ccbr-mailbox` for actual
   provider execution.
-- **Keeper process integration**: `CCB_KEEPER_PID` and keeper lifecycle are not
+- **Keeper process integration**: `CCBR_KEEPER_PID` and keeper lifecycle are not
   wired.
 - **Ownership guard lease persistence**: ownership records are in-memory only
   in this pass.

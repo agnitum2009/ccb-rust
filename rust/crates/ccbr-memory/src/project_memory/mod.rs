@@ -12,7 +12,7 @@ pub use hashing::sha256_text;
 pub use materializer::{materialize_runtime_memory_bundle, runtime_memory_bundle_path};
 pub use policy::{
     filters_for_source, memory_policy_for_provider, should_include_source, MemorySourcePolicy,
-    ProviderMemoryPolicy, FILTER_CCB_INSTALL_BLOCKS, SOURCE_AGENT_PRIVATE, SOURCE_CCB_SHARED,
+    ProviderMemoryPolicy, FILTER_CCBR_INSTALL_BLOCKS, SOURCE_AGENT_PRIVATE, SOURCE_CCBR_SHARED,
     SOURCE_PROVIDER_NATIVE_PROJECT, SOURCE_PROVIDER_USER_MEMORY, SOURCE_RULES_DIR,
     SOURCE_RUNTIME_COORDINATION_RULES,
 };

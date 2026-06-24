@@ -6,7 +6,7 @@ use ccbr_terminal::tmux::{
 
 #[test]
 fn test_tmux_base_includes_socket_when_present() {
-    std::env::remove_var("CCB_TMUX_CONFIG");
+    std::env::remove_var("CCBR_TMUX_CONFIG");
     assert_eq!(tmux_base(None, None), vec!["tmux", "-f", "/dev/null"]);
     assert_eq!(
         tmux_base(Some("ccbr-demo"), None),
@@ -19,12 +19,12 @@ fn test_tmux_base_includes_socket_when_present() {
 
 #[test]
 fn test_tmux_base_allows_managed_config_override() {
-    std::env::set_var("CCB_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
+    std::env::set_var("CCBR_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
     let base = tmux_base(None, None);
     assert_eq!(base[0], "tmux");
     assert_eq!(base[1], "-f");
     assert!(base[2].ends_with(".config/ccb/tmux.conf"));
-    std::env::remove_var("CCB_TMUX_CONFIG");
+    std::env::remove_var("CCBR_TMUX_CONFIG");
 }
 
 #[test]

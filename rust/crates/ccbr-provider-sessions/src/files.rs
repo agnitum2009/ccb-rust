@@ -120,9 +120,9 @@ impl ProviderClientSpec {
         let stem = provider_key.trim().to_uppercase().replace('-', "_");
         Self {
             provider_key: provider_key.to_string(),
-            enabled_env: format!("CCB_{stem}"),
-            autostart_env: format!("CCB_{stem}_AUTOSTART"),
-            state_file_env: format!("CCB_{stem}_STATE_FILE"),
+            enabled_env: format!("CCBR_{stem}"),
+            autostart_env: format!("CCBR_{stem}_AUTOSTART"),
+            state_file_env: format!("CCBR_{stem}_STATE_FILE"),
             session_filename: session_filename.to_string(),
         }
     }
@@ -132,13 +132,13 @@ impl ProviderClientSpec {
 // Project config / session file helpers (mirrors Python `provider_sessions`).
 // ---------------------------------------------------------------------------
 
-pub const CCB_PROJECT_CONFIG_DIRNAME: &str = ".ccbr";
+pub const CCBR_PROJECT_CONFIG_DIRNAME: &str = ".ccbr";
 
-const CCB_DIRNAME: &str = ".ccbr";
+const CCBR_DIRNAME: &str = ".ccbr";
 const WORKSPACE_BINDING_FILENAME: &str = ".ccbr-workspace.json";
 
 pub fn project_config_dir(work_dir: impl AsRef<Path>) -> PathBuf {
-    resolve_dir(work_dir.as_ref()).join(CCB_DIRNAME)
+    resolve_dir(work_dir.as_ref()).join(CCBR_DIRNAME)
 }
 
 pub fn resolve_project_config_dir(work_dir: impl AsRef<Path>) -> PathBuf {
@@ -328,7 +328,7 @@ pub fn find_project_session_file<P: AsRef<Path>>(
 }
 
 /// Find a session file honoring workspace binding agent names and the
-/// `CCB_SESSION_FILE` environment variable.
+/// `CCBR_SESSION_FILE` environment variable.
 ///
 /// Mirrors Python `provider_core.session_binding_runtime.find_bound_session_file`.
 pub fn find_bound_session_file<P: AsRef<Path>>(
@@ -353,7 +353,7 @@ pub fn find_bound_session_file<P: AsRef<Path>>(
 }
 
 fn env_bound_session_file(base_filename: &str) -> Option<PathBuf> {
-    let raw = std::env::var("CCB_SESSION_FILE").ok()?;
+    let raw = std::env::var("CCBR_SESSION_FILE").ok()?;
     let expanded = expand_user_path_str(&raw);
     let path = PathBuf::from(expanded);
     if !path.is_file() {
@@ -451,7 +451,7 @@ fn find_nearest_project_anchor(current: &Path) -> Option<PathBuf> {
 }
 
 fn project_anchor_dir(root: &Path) -> Option<PathBuf> {
-    let primary = root.join(CCB_DIRNAME);
+    let primary = root.join(CCBR_DIRNAME);
     primary.is_dir().then_some(primary)
 }
 

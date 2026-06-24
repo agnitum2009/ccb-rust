@@ -170,7 +170,7 @@ fn start_mimo_run_submission(
     ]);
 
     let mut env = session_env(&session.data);
-    env.insert("CCB_REQ_ID".to_string(), request_anchor.clone());
+    env.insert("CCBR_REQ_ID".to_string(), request_anchor.clone());
 
     let stdout_file = match std::fs::File::create(&stdout_path) {
         Ok(f) => f,

@@ -105,7 +105,7 @@ fn test_claude_launcher_build_start_cmd_includes_home_overrides_and_env_prefix()
         "cmd: {}",
         cmd
     );
-    assert!(cmd.contains("CCB_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
+    assert!(cmd.contains("CCBR_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
     assert!(cmd.contains(" claude "), "cmd: {}", cmd);
 }
 

@@ -66,21 +66,21 @@ fn test_backend_registry_contains_droid() {
 #[test]
 fn test_wrap_droid_prompt_format() {
     let wrapped = wrap_droid_prompt("do the thing", "req-12345678");
-    assert!(wrapped.contains("CCB_REQ_ID: req-12345678"));
+    assert!(wrapped.contains("CCBR_REQ_ID: req-12345678"));
     assert!(wrapped.contains("do the thing"));
-    assert!(wrapped.contains("CCB_DONE: req-12345678"));
+    assert!(wrapped.contains("CCBR_DONE: req-12345678"));
 }
 
 #[test]
 fn test_is_done_text_and_strip_done_text() {
-    let text = "some reply\nCCB_DONE: req-1";
+    let text = "some reply\nCCBR_DONE: req-1";
     assert!(is_done_text(text, "req-1"));
     assert_eq!(strip_done_text(text, "req-1"), "some reply");
 }
 
 #[test]
 fn test_extract_reply_for_req() {
-    let text = "reply body\nCCB_DONE: req-1";
+    let text = "reply body\nCCBR_DONE: req-1";
     assert_eq!(extract_reply_for_req(text, "req-1"), "reply body");
 }
 
@@ -138,13 +138,13 @@ fn test_execution_adapter_poll_emits_items() {
     let request_anchor = "req-123";
     writeln!(
         file,
-        r#"{{"type":"message","message":{{"role":"user","content":"CCB_REQ_ID: {}"}},"work_dir":"{}"}}"#,
+        r#"{{"type":"message","message":{{"role":"user","content":"CCBR_REQ_ID: {}"}},"work_dir":"{}"}}"#,
         request_anchor, work_dir
     )
     .unwrap();
     writeln!(
         file,
-        r#"{{"type":"message","message":{{"role":"assistant","content":"reply body\nCCB_DONE: {}"}},"work_dir":"{}"}}"#,
+        r#"{{"type":"message","message":{{"role":"assistant","content":"reply body\nCCBR_DONE: {}"}},"work_dir":"{}"}}"#,
         request_anchor, work_dir
     )
     .unwrap();

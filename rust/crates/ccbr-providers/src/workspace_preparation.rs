@@ -449,11 +449,11 @@ fn _claude_versions_dir_points_to_shared_cache(
 /// Locate a native provider hook binary.
 ///
 /// Search order:
-/// 1. `CCB_HOOK_BIN_DIR` environment variable.
+/// 1. `CCBR_HOOK_BIN_DIR` environment variable.
 /// 2. Directory containing the currently running executable.
 /// 3. `PATH` environment variable.
 fn provider_hook_binary_path(name: &str) -> Option<Utf8PathBuf> {
-    if let Ok(dir) = std::env::var("CCB_HOOK_BIN_DIR") {
+    if let Ok(dir) = std::env::var("CCBR_HOOK_BIN_DIR") {
         let candidate = Utf8PathBuf::from(dir).join(name);
         if candidate.exists() {
             return Some(candidate);

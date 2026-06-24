@@ -8,14 +8,14 @@ fn ansi_escape_re() -> Regex {
 }
 
 fn ccbr_req_id_re() -> Regex {
-    RegexBuilder::new(r"^\s*CCB_REQ_ID:\s*(\S+)\s*$")
+    RegexBuilder::new(r"^\s*CCBR_REQ_ID:\s*(\S+)\s*$")
         .multi_line(true)
         .build()
         .unwrap()
 }
 
 fn ccbr_done_re() -> Regex {
-    RegexBuilder::new(r"^\s*CCB_DONE:\s*req-[a-f0-9]{8}\s*$")
+    RegexBuilder::new(r"^\s*CCBR_DONE:\s*req-[a-f0-9]{8}\s*$")
         .multi_line(true)
         .case_insensitive(true)
         .build()
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_extract_assistant_blocks_collects_each_protocol_segment() {
-        let text = "user1\nCCB_REQ_ID: job_1\nassistant one\nCCB_DONE: req-12345678\nuser2\nCCB_REQ_ID: job_2\nassistant two\n";
+        let text = "user1\nCCBR_REQ_ID: job_1\nassistant one\nCCBR_DONE: req-12345678\nuser2\nCCBR_REQ_ID: job_2\nassistant two\n";
         assert_eq!(
             extract_assistant_blocks(text),
             vec!["assistant one".to_string(), "assistant two".to_string()]
@@ -108,13 +108,13 @@ mod tests {
 
     #[test]
     fn test_extract_conversation_pairs_preserves_user_and_assistant_segments() {
-        let text = "first user\nCCB_REQ_ID: job_1\nfirst assistant\nCCB_DONE: req-12345678\nsecond user\nCCB_REQ_ID: job_2\nsecond assistant\n";
+        let text = "first user\nCCBR_REQ_ID: job_1\nfirst assistant\nCCBR_DONE: req-12345678\nsecond user\nCCBR_REQ_ID: job_2\nsecond assistant\n";
         assert_eq!(
             extract_conversation_pairs(text),
             vec![
                 ("first user".to_string(), "first assistant".to_string()),
                 (
-                    "CCB_DONE: req-12345678\nsecond user".to_string(),
+                    "CCBR_DONE: req-12345678\nsecond user".to_string(),
                     "second assistant".to_string()
                 ),
             ]

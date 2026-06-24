@@ -6,7 +6,7 @@ pub mod watch;
 pub use files::{
     check_session_writable, find_project_session_file, print_session_error,
     print_session_error_stderr, project_config_dir, resolve_project_config_dir, safe_write_session,
-    CCB_PROJECT_CONFIG_DIRNAME,
+    CCBR_PROJECT_CONFIG_DIRNAME,
 };
 pub use resolution::{resolve_work_dir, resolve_work_dir_with_registry};
 pub use watch::{SessionFileWatcher, HAS_WATCHDOG};
@@ -24,7 +24,7 @@ mod tests {
 
     #[test]
     fn crate_root_reexports_are_reachable() {
-        let _ = CCB_PROJECT_CONFIG_DIRNAME;
+        let _ = CCBR_PROJECT_CONFIG_DIRNAME;
         let _ = HAS_WATCHDOG;
 
         print_session_error("stdout message", false);
@@ -60,7 +60,7 @@ mod tests {
             None,
             None,
             None,
-            "CCB_REGISTRY_ONLY_REEXPORT_TEST",
+            "CCBR_REGISTRY_ONLY_REEXPORT_TEST",
         );
     }
 }

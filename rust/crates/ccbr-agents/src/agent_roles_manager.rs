@@ -209,7 +209,7 @@ fn command_context() -> crate::Result<CommandContext> {
 /// Mirrors `agent_roles_manager._agent_roles_source_root`.
 fn agent_roles_source_root() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
-    for env_name in ["AGENT_ROLES_SPEC_HOME", "CCB_AGENT_ROLES_SPEC_HOME"] {
+    for env_name in ["AGENT_ROLES_SPEC_HOME", "CCBR_AGENT_ROLES_SPEC_HOME"] {
         if let Ok(value) = std::env::var(env_name) {
             let value = value.trim();
             if !value.is_empty() {
@@ -235,7 +235,7 @@ fn agent_roles_source_root() -> Option<PathBuf> {
 ///
 /// Mirrors `agent_roles_manager._timeout_seconds`.
 fn timeout_seconds() -> f64 {
-    let raw = std::env::var("CCB_AGENT_ROLES_TIMEOUT_SECONDS").unwrap_or_default();
+    let raw = std::env::var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS").unwrap_or_default();
     let raw = raw.trim();
     if raw.is_empty() {
         return DEFAULT_TIMEOUT;
@@ -328,29 +328,29 @@ mod tests {
 
     #[test]
     fn test_timeout_seconds_default() {
-        std::env::remove_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS");
+        std::env::remove_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS");
         assert!((timeout_seconds() - DEFAULT_TIMEOUT).abs() < f64::EPSILON);
     }
 
     #[test]
     fn test_timeout_seconds_parsed() {
-        std::env::set_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS", "30");
+        std::env::set_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS", "30");
         assert!((timeout_seconds() - 30.0).abs() < f64::EPSILON);
-        std::env::remove_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS");
+        std::env::remove_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS");
     }
 
     #[test]
     fn test_timeout_seconds_clamps_to_minimum() {
-        std::env::set_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS", "0.1");
+        std::env::set_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS", "0.1");
         assert!((timeout_seconds() - 1.0).abs() < f64::EPSILON);
-        std::env::remove_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS");
+        std::env::remove_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS");
     }
 
     #[test]
     fn test_timeout_seconds_invalid_falls_back() {
-        std::env::set_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS", "not-a-number");
+        std::env::set_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS", "not-a-number");
         assert!((timeout_seconds() - DEFAULT_TIMEOUT).abs() < f64::EPSILON);
-        std::env::remove_var("CCB_AGENT_ROLES_TIMEOUT_SECONDS");
+        std::env::remove_var("CCBR_AGENT_ROLES_TIMEOUT_SECONDS");
     }
 
     #[test]

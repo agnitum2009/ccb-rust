@@ -103,7 +103,7 @@ fn route_inherited_tree(source: &Path, target: &Path, enabled: bool) {
 }
 
 fn system_factory_home() -> PathBuf {
-    if std::env::var("CCB_SOURCE_HOME").is_ok() {
+    if std::env::var("CCBR_SOURCE_HOME").is_ok() {
         return current_provider_source_home().join(".factory");
     }
     for name in ["FACTORY_HOME", "FACTORY_ROOT"] {

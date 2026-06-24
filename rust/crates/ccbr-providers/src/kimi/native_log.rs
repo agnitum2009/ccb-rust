@@ -589,7 +589,7 @@ mod tests {
         write_lines(
             &path,
             &[
-                r#"{"type":"turn.prompt","payload":{"user_input":[{"text":"CCB_REQ_ID: req-123"}],"turnId":"turn-1"}}"#,
+                r#"{"type":"turn.prompt","payload":{"user_input":[{"text":"CCBR_REQ_ID: req-123"}],"turnId":"turn-1"}}"#,
                 r#"{"type":"ContentPart","payload":{"text":"hello"}}"#,
                 r#"{"type":"TurnEnd"}"#,
             ],
@@ -627,7 +627,7 @@ mod tests {
         write_lines(
             &wire_path,
             &[
-                r#"{"type":"turn.prompt","payload":{"user_input":[{"text":"CCB_REQ_ID: req-abc"}]}}"#,
+                r#"{"type":"turn.prompt","payload":{"user_input":[{"text":"CCBR_REQ_ID: req-abc"}]}}"#,
                 r#"{"type":"ContentPart","payload":{"text":"reply"}}"#,
                 r#"{"type":"TurnEnd"}"#,
             ],

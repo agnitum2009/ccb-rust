@@ -153,8 +153,8 @@ fn target_ready(client: &dyn DaemonClient, target: &str) -> Result<bool, String>
 /// Mirrors `services.watch_runtime.watch_target`: repeatedly calls the daemon
 /// `watch` RPC with an advancing `start_line` cursor, accumulating new output
 /// until the batch is `terminal` or the wall-clock timeout elapses. Timeout and
-/// poll interval are env-overridable (`CCB_WATCH_TIMEOUT_S`, default 10s;
-/// `CCB_WATCH_POLL_INTERVAL_S`, default 0.1s).
+/// poll interval are env-overridable (`CCBR_WATCH_TIMEOUT_S`, default 10s;
+/// `CCBR_WATCH_POLL_INTERVAL_S`, default 0.1s).
 pub fn watch(client: &dyn DaemonClient, cmd: &ParsedWatch) -> Result<String, String> {
     if cmd.target.is_empty() {
         return Err("watch requires a target".to_string());
@@ -189,7 +189,7 @@ pub fn watch(client: &dyn DaemonClient, cmd: &ParsedWatch) -> Result<String, Str
 }
 
 fn watch_timeout_s() -> f64 {
-    std::env::var("CCB_WATCH_TIMEOUT_S")
+    std::env::var("CCBR_WATCH_TIMEOUT_S")
         .ok()
         .and_then(|v| v.trim().parse::<f64>().ok())
         .filter(|v| *v > 0.0)
@@ -197,7 +197,7 @@ fn watch_timeout_s() -> f64 {
 }
 
 fn watch_poll_interval_s() -> f64 {
-    std::env::var("CCB_WATCH_POLL_INTERVAL_S")
+    std::env::var("CCBR_WATCH_POLL_INTERVAL_S")
         .ok()
         .and_then(|v| v.trim().parse::<f64>().ok())
         .filter(|v| *v > 0.0)

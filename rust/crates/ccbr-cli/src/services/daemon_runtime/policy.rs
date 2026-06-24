@@ -21,34 +21,34 @@ fn float_env(name: &str, default: f64) -> f64 {
 
 /// Overall startup transaction timeout (floor 0.1s).
 pub fn startup_transaction_timeout_s() -> f64 {
-    float_env("CCB_STARTUP_TRANSACTION_TIMEOUT_S", 20.0).max(0.1)
+    float_env("CCBR_STARTUP_TRANSACTION_TIMEOUT_S", 20.0).max(0.1)
 }
 
 /// Allowed startup progress stall duration (floor 0.0s).
 pub fn startup_progress_stall_timeout_s() -> f64 {
-    float_env("CCB_STARTUP_PROGRESS_STALL_TIMEOUT_S", 0.0).max(0.0)
+    float_env("CCBR_STARTUP_PROGRESS_STALL_TIMEOUT_S", 0.0).max(0.0)
 }
 
 /// Keeper readiness probe timeout (floor 0.1s).
 pub fn keeper_ready_timeout_s() -> f64 {
-    float_env("CCB_KEEPER_READY_TIMEOUT_S", 2.0).max(0.1)
+    float_env("CCBR_KEEPER_READY_TIMEOUT_S", 2.0).max(0.1)
 }
 
 /// Control-plane RPC timeout (floor 0.1s).
 pub fn control_plane_rpc_timeout_s() -> f64 {
-    float_env("CCB_CONTROL_PLANE_RPC_TIMEOUT_S", 0.5).max(0.1)
+    float_env("CCBR_CONTROL_PLANE_RPC_TIMEOUT_S", 0.5).max(0.1)
 }
 
 /// Foreground-attach RPC timeout (floor 0.1s).
 pub fn foreground_attach_rpc_timeout_s() -> f64 {
-    float_env("CCB_FOREGROUND_ATTACH_RPC_TIMEOUT_S", 3.0).max(0.1)
+    float_env("CCBR_FOREGROUND_ATTACH_RPC_TIMEOUT_S", 3.0).max(0.1)
 }
 
 /// Foreground-attach target-ready timeout, capped at the startup transaction
 /// timeout (floor 0.1s).
 pub fn foreground_attach_target_ready_timeout_s() -> f64 {
     startup_transaction_timeout_s()
-        .min(float_env("CCB_FOREGROUND_ATTACH_TARGET_READY_TIMEOUT_S", 10.0).max(0.1))
+        .min(float_env("CCBR_FOREGROUND_ATTACH_TARGET_READY_TIMEOUT_S", 10.0).max(0.1))
 }
 
 /// Legacy alias for `startup_transaction_timeout_s`.
@@ -73,12 +73,12 @@ mod tests {
 
     #[test]
     fn foreground_attach_target_ready_timeout_is_capped_by_startup_transaction_timeout() {
-        with_env("CCB_STARTUP_TRANSACTION_TIMEOUT_S", "4.0", || {
+        with_env("CCBR_STARTUP_TRANSACTION_TIMEOUT_S", "4.0", || {
             with_env(
-                "CCB_FOREGROUND_ATTACH_TARGET_READY_TIMEOUT_S",
+                "CCBR_FOREGROUND_ATTACH_TARGET_READY_TIMEOUT_S",
                 "10.0",
                 || {
-                    with_env("CCB_FOREGROUND_ATTACH_RPC_TIMEOUT_S", "2.5", || {
+                    with_env("CCBR_FOREGROUND_ATTACH_RPC_TIMEOUT_S", "2.5", || {
                         assert_eq!(foreground_attach_rpc_timeout_s(), 2.5);
                         assert_eq!(foreground_attach_target_ready_timeout_s(), 4.0);
                     });

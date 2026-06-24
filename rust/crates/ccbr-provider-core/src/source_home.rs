@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 /// Determine the provider source home directory.
 ///
 /// Resolution order:
-/// 1. `CCB_SOURCE_HOME` environment variable.
+/// 1. `CCBR_SOURCE_HOME` environment variable.
 /// 2. `HOME` environment variable, unless it looks like a CCB provider home.
 /// 3. `USERPROFILE` environment variable (Windows fallback).
 /// 4. `HOME` as a last resort.
 pub fn current_provider_source_home() -> PathBuf {
-    if let Some(path) = env_path("CCB_SOURCE_HOME") {
+    if let Some(path) = env_path("CCBR_SOURCE_HOME") {
         return path;
     }
 

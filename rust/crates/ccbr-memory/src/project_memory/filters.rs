@@ -1,10 +1,10 @@
-use crate::project_memory::policy::{FILTER_CCB_INSTALL_BLOCKS, SOURCE_PROVIDER_USER_MEMORY};
+use crate::project_memory::policy::{FILTER_CCBR_INSTALL_BLOCKS, SOURCE_PROVIDER_USER_MEMORY};
 use crate::types::ProjectMemorySource;
 use regex::Regex;
 
 const MARKER_PAIRS: &[(&str, &str)] = &[
-    ("<!-- CCB_CONFIG_START -->", "<!-- CCB_CONFIG_END -->"),
-    ("<!-- CCB_ROLES_START -->", "<!-- CCB_ROLES_END -->"),
+    ("<!-- CCBR_CONFIG_START -->", "<!-- CCBR_CONFIG_END -->"),
+    ("<!-- CCBR_ROLES_START -->", "<!-- CCBR_ROLES_END -->"),
     (
         "<!-- REVIEW_RUBRICS_START -->",
         "<!-- REVIEW_RUBRICS_END -->",
@@ -40,11 +40,11 @@ pub fn filter_memory_source(
     let mut content = source.content.clone();
     let mut applied: Vec<String> = Vec::new();
 
-    if filter_names.contains(&FILTER_CCB_INSTALL_BLOCKS.to_string()) {
+    if filter_names.contains(&FILTER_CCBR_INSTALL_BLOCKS.to_string()) {
         let (new_content, changed) = strip_ccbr_install_blocks(&content);
         if changed {
             content = new_content;
-            applied.push(FILTER_CCB_INSTALL_BLOCKS.to_string());
+            applied.push(FILTER_CCBR_INSTALL_BLOCKS.to_string());
         }
     }
 

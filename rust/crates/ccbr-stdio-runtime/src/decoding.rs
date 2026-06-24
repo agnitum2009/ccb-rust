@@ -61,7 +61,7 @@ fn decode_utf16(data: &[u8], big_endian: bool) -> Option<String> {
 }
 
 fn forced_stdin_encoding() -> Option<String> {
-    let value = std::env::var("CCB_STDIN_ENCODING").unwrap_or_default();
+    let value = std::env::var("CCBR_STDIN_ENCODING").unwrap_or_default();
     let value = value.trim();
     if value.is_empty() {
         None
@@ -164,19 +164,19 @@ mod tests {
 
     #[test]
     fn test_decode_forced_encoding_latin1() {
-        std::env::set_var("CCB_STDIN_ENCODING", "latin1");
+        std::env::set_var("CCBR_STDIN_ENCODING", "latin1");
         assert_eq!(decode_stdin_bytes(&[0xe9]), "é");
-        std::env::remove_var("CCB_STDIN_ENCODING");
+        std::env::remove_var("CCBR_STDIN_ENCODING");
     }
 
     #[test]
     fn test_decode_forced_encoding_unknown_falls_back_to_utf8_lossy() {
-        std::env::set_var("CCB_STDIN_ENCODING", "not-a-real-encoding");
+        std::env::set_var("CCBR_STDIN_ENCODING", "not-a-real-encoding");
         // Invalid UTF-8 bytes should be replaced rather than returning an
         // empty string.
         let result = decode_stdin_bytes(&[0x80]);
         assert!(!result.is_empty());
-        std::env::remove_var("CCB_STDIN_ENCODING");
+        std::env::remove_var("CCBR_STDIN_ENCODING");
     }
 
     #[test]
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_decode_preferred_locale_latin1() {
         std::env::set_var("LANG", "en_US.ISO-8859-1");
-        std::env::remove_var("CCB_STDIN_ENCODING");
+        std::env::remove_var("CCBR_STDIN_ENCODING");
         assert_eq!(decode_stdin_bytes(&[0xe9]), "é");
         std::env::remove_var("LANG");
     }
@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_decode_prefers_utf8_when_valid_over_locale() {
         std::env::set_var("LANG", "zh_CN.gbk");
-        std::env::remove_var("CCB_STDIN_ENCODING");
+        std::env::remove_var("CCBR_STDIN_ENCODING");
         let raw = "你好".as_bytes();
         assert_eq!(decode_stdin_bytes(raw), "你好");
         std::env::remove_var("LANG");
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn test_decode_falls_back_to_preferred_gbk() {
         std::env::set_var("LANG", "zh_CN.gbk");
-        std::env::remove_var("CCB_STDIN_ENCODING");
+        std::env::remove_var("CCBR_STDIN_ENCODING");
         let text = "你好Codex！这是一条中文消息";
         let raw = encoding_rs::GBK.encode(text).0;
         assert_eq!(decode_stdin_bytes(&raw), text);

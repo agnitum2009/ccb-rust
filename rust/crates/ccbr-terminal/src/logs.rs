@@ -139,7 +139,7 @@ static LAST_PANE_LOG_CLEAN: std::sync::Mutex<f64> = std::sync::Mutex::new(0.0);
 
 /// Clean up old pane logs in a directory.
 pub fn cleanup_pane_logs(dir_path: &Path) {
-    let interval_s = env::env_float("CCB_PANE_LOG_CLEAN_INTERVAL_S", 600.0);
+    let interval_s = env::env_float("CCBR_PANE_LOG_CLEAN_INTERVAL_S", 600.0);
     let now = now_secs();
     {
         let Ok(mut last) = LAST_PANE_LOG_CLEAN.lock() else {
@@ -151,8 +151,8 @@ pub fn cleanup_pane_logs(dir_path: &Path) {
         *last = now;
     }
 
-    let ttl_days = env::env_int("CCB_PANE_LOG_TTL_DAYS", 7);
-    let max_files = env::env_int("CCB_PANE_LOG_MAX_FILES", 200);
+    let ttl_days = env::env_int("CCBR_PANE_LOG_TTL_DAYS", 7);
+    let max_files = env::env_int("CCBR_PANE_LOG_MAX_FILES", 200);
     if ttl_days <= 0 && max_files <= 0 {
         return;
     }
@@ -231,7 +231,7 @@ fn trim_extra_logs(files: &[PathBuf], max_files: usize) {
 
 /// Trim a log file to a maximum byte size keeping the tail.
 pub fn maybe_trim_log(path: &Path) {
-    let max_bytes = env::env_int("CCB_PANE_LOG_MAX_BYTES", 10 * 1024 * 1024);
+    let max_bytes = env::env_int("CCBR_PANE_LOG_MAX_BYTES", 10 * 1024 * 1024);
     if max_bytes <= 0 {
         return;
     }
@@ -401,12 +401,12 @@ mod tests {
             .arg("1970-01-01")
             .arg(&old)
             .status();
-        std::env::set_var("CCB_PANE_LOG_CLEAN_INTERVAL_S", "0");
-        std::env::set_var("CCB_PANE_LOG_TTL_DAYS", "1");
+        std::env::set_var("CCBR_PANE_LOG_CLEAN_INTERVAL_S", "0");
+        std::env::set_var("CCBR_PANE_LOG_TTL_DAYS", "1");
         cleanup_pane_logs(&tmp);
         assert!(!old.exists());
         let _ = std::fs::remove_dir_all(&tmp);
-        std::env::remove_var("CCB_PANE_LOG_CLEAN_INTERVAL_S");
-        std::env::remove_var("CCB_PANE_LOG_TTL_DAYS");
+        std::env::remove_var("CCBR_PANE_LOG_CLEAN_INTERVAL_S");
+        std::env::remove_var("CCBR_PANE_LOG_TTL_DAYS");
     }
 }

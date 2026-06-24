@@ -490,7 +490,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("sess.jsonl");
         let mut file = std::fs::File::create(&path).unwrap();
-        writeln!(file, r#"{{"role":"user","content":"CCB_REQ_ID: req-123"}}"#).unwrap();
+        writeln!(
+            file,
+            r#"{{"role":"user","content":"CCBR_REQ_ID: req-123"}}"#
+        )
+        .unwrap();
         writeln!(
             file,
             r#"{{"role":"assistant","content":"hello","id":"msg-1"}}"#

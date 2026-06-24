@@ -12,7 +12,7 @@ use crate::roles::{canonical_role_id, role_id_candidates};
 
 pub const SUPPORTED_ROLE_SCHEMA: &str = "rolepack/v1";
 pub const AGENT_ROLE_SCHEMA_PREFIX: &str = "agent-role/preview-";
-pub const CCB_ADAPTER_SCHEMA_PREFIX: &str = "agent-role-adapter/ccbr-preview-";
+pub const CCBR_ADAPTER_SCHEMA_PREFIX: &str = "agent-role-adapter/ccbr-preview-";
 pub const SOURCE_REGISTRY_SCHEMA: &str = "rolepack-source-registry/v1";
 pub const ROLE_LOCK_SCHEMA: &str = "rolepack-lock/v1";
 pub const SYSTEM_ROLE_SOURCE_NAMES: &[&str] = &["systemroles", "dotroles"];
@@ -238,7 +238,7 @@ fn load_ccbr_adapter(root: &Path) -> crate::Result<serde_json::Map<String, serde
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .trim();
-    if !schema.is_empty() && !schema.starts_with(CCB_ADAPTER_SCHEMA_PREFIX) {
+    if !schema.is_empty() && !schema.starts_with(CCBR_ADAPTER_SCHEMA_PREFIX) {
         return Ok(serde_json::Map::new());
     }
     Ok(adapter)
@@ -676,7 +676,7 @@ fn catalog_base_name(role_path: &Path) -> String {
 }
 
 fn include_reference_roles_default() -> bool {
-    let value = std::env::var("CCB_AGENT_ROLES_INCLUDE_REFERENCE")
+    let value = std::env::var("CCBR_AGENT_ROLES_INCLUDE_REFERENCE")
         .unwrap_or_default()
         .trim()
         .to_lowercase();
@@ -751,7 +751,7 @@ fn _migrate_legacy_source_registry(target: &Path) {
 pub fn system_role_sources() -> Vec<RoleSource> {
     let mut candidates: Vec<(&str, PathBuf)> = Vec::new();
     if let Ok(raw) =
-        std::env::var("CCB_SYSTEM_ROLES_HOME").or_else(|_| std::env::var("CCB_ROLES_HOME"))
+        std::env::var("CCBR_SYSTEM_ROLES_HOME").or_else(|_| std::env::var("CCBR_ROLES_HOME"))
     {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
@@ -788,7 +788,7 @@ pub fn system_role_sources() -> Vec<RoleSource> {
 
 pub fn default_agent_roles_source(_refresh: bool) -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
-    for env_name in &["AGENT_ROLES_SPEC_HOME", "CCB_AGENT_ROLES_SPEC_HOME"] {
+    for env_name in &["AGENT_ROLES_SPEC_HOME", "CCBR_AGENT_ROLES_SPEC_HOME"] {
         if let Ok(raw) = std::env::var(env_name) {
             let trimmed = raw.trim();
             if !trimmed.is_empty() {
@@ -2531,8 +2531,8 @@ fn run_architec_npm_install(action: &str, required: bool) -> ToolHookResult {
         };
     }
 
-    let _timeout = std::env::var("CCB_ARCHITEC_NPM_TIMEOUT_S")
-        .or_else(|_| std::env::var("CCB_ROLE_TOOL_TIMEOUT_S"))
+    let _timeout = std::env::var("CCBR_ARCHITEC_NPM_TIMEOUT_S")
+        .or_else(|_| std::env::var("CCBR_ROLE_TOOL_TIMEOUT_S"))
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(900);
@@ -2657,7 +2657,7 @@ fn run_architec_doctor(action: &str, required: bool) -> ToolHookResult {
 }
 
 fn architec_npm_bin() -> String {
-    std::env::var("CCB_ARCHITEC_NPM_BIN")
+    std::env::var("CCBR_ARCHITEC_NPM_BIN")
         .or_else(|_| std::env::var("NPM_BIN"))
         .ok()
         .map(|s| s.trim().to_string())
@@ -2671,8 +2671,8 @@ fn architec_npm_bin() -> String {
 }
 
 fn architec_npm_package() -> String {
-    std::env::var("CCB_ARCHI_NPM_PACKAGE")
-        .or_else(|_| std::env::var("CCB_ARCHITEC_NPM_PACKAGE"))
+    std::env::var("CCBR_ARCHI_NPM_PACKAGE")
+        .or_else(|_| std::env::var("CCBR_ARCHITEC_NPM_PACKAGE"))
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
@@ -2749,7 +2749,7 @@ fn run_role_tool_command(
         });
     }
 
-    let _timeout = std::env::var("CCB_ROLE_TOOL_TIMEOUT_S")
+    let _timeout = std::env::var("CCBR_ROLE_TOOL_TIMEOUT_S")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(900);
@@ -2760,10 +2760,10 @@ fn run_role_tool_command(
     }
 
     cmd.current_dir(&role.root);
-    cmd.env("CCB_ROLE_ID", &role.id);
-    cmd.env("CCB_ROLE_ROOT", role.root.to_string_lossy().as_ref());
-    cmd.env("CCB_ROLE_TOOL_ID", tool_id);
-    cmd.env("CCB_ROLE_TOOL_ACTION", action);
+    cmd.env("CCBR_ROLE_ID", &role.id);
+    cmd.env("CCBR_ROLE_ROOT", role.root.to_string_lossy().as_ref());
+    cmd.env("CCBR_ROLE_TOOL_ID", tool_id);
+    cmd.env("CCBR_ROLE_TOOL_ACTION", action);
     cmd.env("PYTHONDONTWRITEBYTECODE", "1");
 
     match cmd.output() {

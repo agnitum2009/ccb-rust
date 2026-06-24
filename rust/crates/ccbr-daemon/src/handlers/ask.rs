@@ -87,7 +87,7 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
     }
 
     // Start execution tracking through the provider adapter so the adapter can
-    // prepare a provider-specific prompt (e.g. wrapping with CCB_REQ_ID).
+    // prepare a provider-specific prompt (e.g. wrapping with CCBR_REQ_ID).
     let mut prompt_text = body.clone();
     if !job_id.is_empty() && !provider.is_empty() {
         let completion_job = JobRecord::new(&job_id, &to_agent, &provider)

@@ -48,7 +48,7 @@ fn run(args: &[&str]) -> i32 {
     let owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     // Integration tests run the CLI from the source checkout against temp
     // project directories, so bypass the source-runtime guard.
-    std::env::set_var("CCB_SOURCE_RUNTIME_OK", "1");
+    std::env::set_var("CCBR_SOURCE_RUNTIME_OK", "1");
     run_cli(&owned)
 }
 

@@ -16,7 +16,7 @@ pub fn render_ask(summary: &Value) -> Vec<String> {
         let job_id = field(job, "job_id");
         return vec![
             format!("accepted job={} target={}", job_id, target),
-            format!("[CCB_ASYNC_SUBMITTED job={} target={}]", job_id, target),
+            format!("[CCBR_ASYNC_SUBMITTED job={} target={}]", job_id, target),
         ];
     }
     let rendered = jobs
@@ -26,7 +26,7 @@ pub fn render_ask(summary: &Value) -> Vec<String> {
         .join(",");
     vec![
         format!("accepted jobs={}", rendered),
-        format!("[CCB_ASYNC_SUBMITTED jobs={}]", rendered),
+        format!("[CCBR_ASYNC_SUBMITTED jobs={}]", rendered),
     ]
 }
 

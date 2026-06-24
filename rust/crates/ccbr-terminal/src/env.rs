@@ -125,8 +125,8 @@ pub fn isolated_tmux_env() -> HashMap<String, String> {
     for key in [
         "TMUX",
         "TMUX_PANE",
-        "CCB_TMUX_SOCKET",
-        "CCB_TMUX_SOCKET_PATH",
+        "CCBR_TMUX_SOCKET",
+        "CCBR_TMUX_SOCKET_PATH",
     ] {
         isolated.remove(key);
     }
@@ -139,21 +139,21 @@ mod tests {
 
     #[test]
     fn test_env_float() {
-        std::env::set_var("TEST_CCB_FLOAT", "1.5");
-        assert_eq!(env_float("TEST_CCB_FLOAT", 0.0), 1.5);
-        std::env::set_var("TEST_CCB_FLOAT", "-1");
-        assert_eq!(env_float("TEST_CCB_FLOAT", 0.0), 0.0);
-        std::env::remove_var("TEST_CCB_FLOAT");
-        assert_eq!(env_float("TEST_CCB_FLOAT_MISSING", 2.0), 2.0);
+        std::env::set_var("TEST_CCBR_FLOAT", "1.5");
+        assert_eq!(env_float("TEST_CCBR_FLOAT", 0.0), 1.5);
+        std::env::set_var("TEST_CCBR_FLOAT", "-1");
+        assert_eq!(env_float("TEST_CCBR_FLOAT", 0.0), 0.0);
+        std::env::remove_var("TEST_CCBR_FLOAT");
+        assert_eq!(env_float("TEST_CCBR_FLOAT_MISSING", 2.0), 2.0);
     }
 
     #[test]
     fn test_env_int() {
-        std::env::set_var("TEST_CCB_INT", "42");
-        assert_eq!(env_int("TEST_CCB_INT", 0), 42);
-        std::env::set_var("TEST_CCB_INT", "");
-        assert_eq!(env_int("TEST_CCB_INT", 0), 0);
-        std::env::remove_var("TEST_CCB_INT");
+        std::env::set_var("TEST_CCBR_INT", "42");
+        assert_eq!(env_int("TEST_CCBR_INT", 0), 42);
+        std::env::set_var("TEST_CCBR_INT", "");
+        assert_eq!(env_int("TEST_CCBR_INT", 0), 0);
+        std::env::remove_var("TEST_CCBR_INT");
     }
 
     #[test]

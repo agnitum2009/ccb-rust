@@ -33,7 +33,7 @@ fn test_current_provider_source_home_uses_home_when_not_managed() {
     with_env(
         &[
             ("HOME", Some(&home)),
-            ("CCB_SOURCE_HOME", None),
+            ("CCBR_SOURCE_HOME", None),
             ("USERPROFILE", None),
         ],
         || {
@@ -59,7 +59,7 @@ fn test_current_provider_source_home_falls_back_from_managed_home_to_passwd_home
     with_env(
         &[
             ("HOME", Some(&managed_home)),
-            ("CCB_SOURCE_HOME", None),
+            ("CCBR_SOURCE_HOME", None),
             ("USERPROFILE", None),
         ],
         || {
@@ -88,7 +88,7 @@ fn test_current_provider_source_home_honors_explicit_override() {
     with_env(
         &[
             ("HOME", Some(&managed_home)),
-            ("CCB_SOURCE_HOME", Some(&override_home)),
+            ("CCBR_SOURCE_HOME", Some(&override_home)),
             ("USERPROFILE", None),
         ],
         || {

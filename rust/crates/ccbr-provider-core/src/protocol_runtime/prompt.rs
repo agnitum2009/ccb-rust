@@ -1,6 +1,6 @@
 use super::constants::{DONE_PREFIX, REQ_ID_PREFIX};
 
-/// Wrap a prompt with a request ID and a required final `CCB_DONE:` line.
+/// Wrap a prompt with a request ID and a required final `CCBR_DONE:` line.
 pub fn wrap_codex_prompt(message: &str, req_id: &str) -> String {
     let rendered = message.trim_end();
     format!(
@@ -26,17 +26,17 @@ mod tests {
     #[test]
     fn test_wrap_codex_prompt() {
         let wrapped = wrap_codex_prompt("hello", "job_abc123");
-        assert!(wrapped.contains("CCB_REQ_ID: job_abc123"));
+        assert!(wrapped.contains("CCBR_REQ_ID: job_abc123"));
         assert!(wrapped.contains("hello"));
-        assert!(wrapped.contains("CCB_DONE: job_abc123"));
+        assert!(wrapped.contains("CCBR_DONE: job_abc123"));
         assert!(wrapped.contains("End your reply with this exact final line"));
     }
 
     #[test]
     fn test_wrap_codex_turn_prompt() {
         let wrapped = wrap_codex_turn_prompt("hello", "job_abc123");
-        assert!(wrapped.contains("CCB_REQ_ID: job_abc123"));
+        assert!(wrapped.contains("CCBR_REQ_ID: job_abc123"));
         assert!(wrapped.contains("hello"));
-        assert!(!wrapped.contains("CCB_DONE:"));
+        assert!(!wrapped.contains("CCBR_DONE:"));
     }
 }

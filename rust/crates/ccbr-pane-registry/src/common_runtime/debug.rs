@@ -3,12 +3,12 @@ use std::env;
 /// Return whether CCB debug logging is enabled.
 pub fn debug_enabled() -> bool {
     matches!(
-        env::var("CCB_DEBUG").as_deref(),
+        env::var("CCBR_DEBUG").as_deref(),
         Ok("1") | Ok("true") | Ok("yes")
     )
 }
 
-/// Emit a debug message to stderr when `CCB_DEBUG` is enabled.
+/// Emit a debug message to stderr when `CCBR_DEBUG` is enabled.
 pub fn debug(message: &str) {
     if !debug_enabled() {
         return;
@@ -22,23 +22,23 @@ mod tests {
 
     #[test]
     fn test_debug_enabled_variants() {
-        let old = env::var("CCB_DEBUG").ok();
+        let old = env::var("CCBR_DEBUG").ok();
         for value in ["1", "true", "yes"] {
-            env::set_var("CCB_DEBUG", value);
+            env::set_var("CCBR_DEBUG", value);
             assert!(debug_enabled(), "expected enabled for {value}");
         }
-        env::set_var("CCB_DEBUG", "0");
+        env::set_var("CCBR_DEBUG", "0");
         assert!(!debug_enabled());
-        env::remove_var("CCB_DEBUG");
+        env::remove_var("CCBR_DEBUG");
         assert!(!debug_enabled());
         if let Some(v) = old {
-            env::set_var("CCB_DEBUG", v);
+            env::set_var("CCBR_DEBUG", v);
         }
     }
 
     #[test]
     fn test_debug_does_not_panic_when_disabled() {
-        env::remove_var("CCB_DEBUG");
+        env::remove_var("CCBR_DEBUG");
         debug("this should be silent");
     }
 }

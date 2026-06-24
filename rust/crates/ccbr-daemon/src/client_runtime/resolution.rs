@@ -55,6 +55,6 @@ pub fn resolve_work_dir_with_registry(
         cli_session_file,
         env_session_file,
         default_cwd,
-        "CCB_REGISTRY_ONLY",
+        "CCBR_REGISTRY_ONLY",
     )
 }

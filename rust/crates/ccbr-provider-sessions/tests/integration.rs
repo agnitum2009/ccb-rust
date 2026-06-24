@@ -203,7 +203,7 @@ fn test_resolve_work_dir_with_registry_finds_project_file() {
         None,
         None,
         Some(&project),
-        "CCB_REGISTRY_ONLY_TEST",
+        "CCBR_REGISTRY_ONLY_TEST",
     )
     .unwrap();
     assert_eq!(work, project.canonicalize().unwrap());
@@ -215,7 +215,7 @@ fn test_resolve_work_dir_with_registry_only_env() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
     fs::create_dir_all(&project).unwrap();
-    let env_key = "CCB_REGISTRY_ONLY_INTEGRATION";
+    let env_key = "CCBR_REGISTRY_ONLY_INTEGRATION";
     std::env::set_var(env_key, "1");
 
     let spec = ProviderClientSpec::new("agy", ".agy-session");
@@ -312,7 +312,7 @@ fn test_is_watch_file_predicate() {
 fn test_crate_root_reexports_reachable() {
     use std::path::Path;
 
-    let _: &str = ccbr_provider_sessions::CCB_PROJECT_CONFIG_DIRNAME;
+    let _: &str = ccbr_provider_sessions::CCBR_PROJECT_CONFIG_DIRNAME;
     let _: bool = ccbr_provider_sessions::HAS_WATCHDOG;
 
     let _: fn(&str, bool) = ccbr_provider_sessions::print_session_error;
@@ -335,7 +335,7 @@ fn test_crate_root_reexports_reachable() {
         None,
         None,
         None,
-        "CCB_REGISTRY_ONLY_REEXPORT_TEST",
+        "CCBR_REGISTRY_ONLY_REEXPORT_TEST",
     );
 
     let _watcher = ccbr_provider_sessions::SessionFileWatcher::new(

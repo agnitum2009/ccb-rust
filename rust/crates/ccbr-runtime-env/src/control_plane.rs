@@ -32,17 +32,17 @@ pub const CONTROL_PLANE_ALLOWLIST: &[&str] = &[
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_AUTH_TOKEN",
     "ANTHROPIC_BASE_URL",
-    "CCB_BACKEND_ENV",
-    "CCB_CCBD_FAULTHANDLER",
-    "CCB_CCBD_MIN_POLL_INTERVAL_S",
-    "CCB_DEBUG",
-    "CCB_KEEPER_PID",
-    "CCB_KEYCHAIN_SERVICE_OVERRIDE",
-    "CCB_LANG",
-    "CCB_NO_ATTACH",
-    "CCB_REPLY_LANG",
-    "CCB_STDIN_ENCODING",
-    "CCB_VERSION",
+    "CCBR_BACKEND_ENV",
+    "CCBR_CCBD_FAULTHANDLER",
+    "CCBR_CCBD_MIN_POLL_INTERVAL_S",
+    "CCBR_DEBUG",
+    "CCBR_KEEPER_PID",
+    "CCBR_KEYCHAIN_SERVICE_OVERRIDE",
+    "CCBR_LANG",
+    "CCBR_NO_ATTACH",
+    "CCBR_REPLY_LANG",
+    "CCBR_STDIN_ENCODING",
+    "CCBR_VERSION",
     "DBUS_SESSION_BUS_ADDRESS",
     "DESKTOP_SESSION",
     "DISPLAY",
@@ -91,15 +91,15 @@ pub const CONTROL_PLANE_BLOCKED_PREFIXES: &[&str] = &[
     "GEMINI_",
     "OPENCODE_",
     "DROID_",
-    "CCB_CALLER_",
+    "CCBR_CALLER_",
 ];
 
 /// Environment variable names exactly blocked from the control plane.
 pub const CONTROL_PLANE_BLOCKED_EXACT: &[&str] = &[
-    "CCB_SESSION_FILE",
-    "CCB_SESSION_ID",
-    "CCB_TMUX_SOCKET",
-    "CCB_TMUX_SOCKET_PATH",
+    "CCBR_SESSION_FILE",
+    "CCBR_SESSION_ID",
+    "CCBR_TMUX_SOCKET",
+    "CCBR_TMUX_SOCKET_PATH",
     "PYTHONPATH",
     "TMUX",
     "TMUX_PANE",
@@ -172,7 +172,7 @@ mod tests {
             "GEMINI_API_KEY",
             "GEMINI_MODEL",
             "GOOGLE_GEMINI_BASE_URL",
-            "CCB_KEYCHAIN_SERVICE_OVERRIDE",
+            "CCBR_KEYCHAIN_SERVICE_OVERRIDE",
             "DISPLAY",
             "WAYLAND_DISPLAY",
             "DBUS_SESSION_BUS_ADDRESS",
@@ -188,12 +188,12 @@ mod tests {
             "CODEX_SESSION_ROOT",
             "GEMINI_ROOT",
             "CLAUDE_PROJECTS_ROOT",
-            "CCB_SESSION_ID",
-            "CCB_CALLER_ACTOR",
+            "CCBR_SESSION_ID",
+            "CCBR_CALLER_ACTOR",
             "TMUX",
             "TMUX_PANE",
-            "CCB_TMUX_SOCKET",
-            "CCB_TMUX_SOCKET_PATH",
+            "CCBR_TMUX_SOCKET",
+            "CCBR_TMUX_SOCKET_PATH",
             "PYTHONPATH",
             "PYTHONUNBUFFERED",
         ] {
@@ -238,7 +238,7 @@ mod tests {
         }
         std::env::set_var("CODEX_HOME", "/tmp/global-codex-home");
         std::env::set_var("QWEN_HOME", "/tmp/global-qwen-home");
-        std::env::set_var("CCB_SESSION_ID", "stale-session");
+        std::env::set_var("CCBR_SESSION_ID", "stale-session");
 
         let env = control_plane_env(None);
 
@@ -250,21 +250,21 @@ mod tests {
         }
         assert!(!env.contains_key("CODEX_HOME"));
         assert!(!env.contains_key("QWEN_HOME"));
-        assert!(!env.contains_key("CCB_SESSION_ID"));
+        assert!(!env.contains_key("CCBR_SESSION_ID"));
     }
 
     #[test]
     fn test_control_plane_env_keeps_claude_keychain_override() {
         clear_test_env();
         std::env::set_var(
-            "CCB_KEYCHAIN_SERVICE_OVERRIDE",
+            "CCBR_KEYCHAIN_SERVICE_OVERRIDE",
             "Claude Code-credentials-account-a",
         );
 
         let env = control_plane_env(None);
 
         assert_eq!(
-            env.get("CCB_KEYCHAIN_SERVICE_OVERRIDE").unwrap(),
+            env.get("CCBR_KEYCHAIN_SERVICE_OVERRIDE").unwrap(),
             "Claude Code-credentials-account-a"
         );
     }
@@ -303,8 +303,8 @@ mod tests {
         std::env::set_var("CODEX_SESSION_ROOT", "/tmp/global-codex-sessions");
         std::env::set_var("GEMINI_ROOT", "/tmp/global-gemini-root");
         std::env::set_var("CLAUDE_PROJECTS_ROOT", "/tmp/global-claude-projects");
-        std::env::set_var("CCB_SESSION_ID", "stale-session");
-        std::env::set_var("CCB_CALLER_ACTOR", "stale-agent");
+        std::env::set_var("CCBR_SESSION_ID", "stale-session");
+        std::env::set_var("CCBR_CALLER_ACTOR", "stale-agent");
 
         let env = control_plane_env(None);
 
@@ -321,8 +321,8 @@ mod tests {
         assert!(!env.contains_key("CODEX_SESSION_ROOT"));
         assert!(!env.contains_key("GEMINI_ROOT"));
         assert!(!env.contains_key("CLAUDE_PROJECTS_ROOT"));
-        assert!(!env.contains_key("CCB_SESSION_ID"));
-        assert!(!env.contains_key("CCB_CALLER_ACTOR"));
+        assert!(!env.contains_key("CCBR_SESSION_ID"));
+        assert!(!env.contains_key("CCBR_CALLER_ACTOR"));
     }
 
     #[test]
@@ -330,15 +330,15 @@ mod tests {
         clear_test_env();
         std::env::set_var("TMUX", "/tmp/tmux-1000/default,123,0");
         std::env::set_var("TMUX_PANE", "%77");
-        std::env::set_var("CCB_TMUX_SOCKET", "outer");
-        std::env::set_var("CCB_TMUX_SOCKET_PATH", "/tmp/outer.sock");
+        std::env::set_var("CCBR_TMUX_SOCKET", "outer");
+        std::env::set_var("CCBR_TMUX_SOCKET_PATH", "/tmp/outer.sock");
 
         let env = control_plane_env(None);
 
         assert!(!env.contains_key("TMUX"));
         assert!(!env.contains_key("TMUX_PANE"));
-        assert!(!env.contains_key("CCB_TMUX_SOCKET"));
-        assert!(!env.contains_key("CCB_TMUX_SOCKET_PATH"));
+        assert!(!env.contains_key("CCBR_TMUX_SOCKET"));
+        assert!(!env.contains_key("CCBR_TMUX_SOCKET_PATH"));
     }
 
     #[test]

@@ -423,7 +423,7 @@ fn preferred_log_path(runtime_state: &HashMap<String, Value>) -> Option<String> 
 }
 
 fn resolved_delivery_timeout_s() -> f64 {
-    std::env::var("CCB_CODEX_DELIVERY_TIMEOUT_S")
+    std::env::var("CCBR_CODEX_DELIVERY_TIMEOUT_S")
         .ok()
         .and_then(|s| s.parse::<f64>().ok())
         .unwrap_or(120.0)

@@ -47,7 +47,7 @@ pub use project_memory::{
     project_memory_path, provider_native_memory_path, read_memory_source, read_seed_metadata,
     render_memory_bundle, render_provider_home_memory, runtime_memory_bundle_path,
     runtime_memory_bundle_relative_path, seed_metadata_path, sha256_text, should_include_source,
-    MemorySourcePolicy, ProviderMemoryPolicy, FILTER_CCB_INSTALL_BLOCKS, SOURCE_AGENT_PRIVATE,
-    SOURCE_CCB_SHARED, SOURCE_PROVIDER_NATIVE_PROJECT, SOURCE_PROVIDER_USER_MEMORY,
+    MemorySourcePolicy, ProviderMemoryPolicy, FILTER_CCBR_INSTALL_BLOCKS, SOURCE_AGENT_PRIVATE,
+    SOURCE_CCBR_SHARED, SOURCE_PROVIDER_NATIVE_PROJECT, SOURCE_PROVIDER_USER_MEMORY,
     SOURCE_RULES_DIR, SOURCE_RUNTIME_COORDINATION_RULES,
 };

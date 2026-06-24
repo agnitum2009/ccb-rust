@@ -301,7 +301,7 @@ fn resolve_timeout(explicit: Option<f64>) -> f64 {
         }
         return 3.0;
     }
-    if let Ok(raw) = std::env::var("CCB_CCBD_CLIENT_TIMEOUT_S") {
+    if let Ok(raw) = std::env::var("CCBR_CCBD_CLIENT_TIMEOUT_S") {
         if let Ok(t) = raw.parse::<f64>() {
             if t.is_finite() && t >= 0.1 {
                 return t;

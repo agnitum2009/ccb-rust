@@ -1,9 +1,9 @@
 use regex::Regex;
 use std::sync::OnceLock;
 
-pub const REQ_ID_PREFIX: &str = "CCB_REQ_ID:";
-pub const DONE_PREFIX: &str = "CCB_DONE:";
-pub const BEGIN_PREFIX: &str = "CCB_BEGIN:";
+pub const REQ_ID_PREFIX: &str = "CCBR_REQ_ID:";
+pub const DONE_PREFIX: &str = "CCBR_DONE:";
+pub const BEGIN_PREFIX: &str = "CCBR_BEGIN:";
 
 /// Wrap a user message with the Droid request anchor and done marker instructions.
 ///
@@ -58,7 +58,7 @@ pub fn strip_done_text(text: &str, req_id: &str) -> String {
     lines.join("\n").trim_end().to_string()
 }
 
-/// Extract the reply window belonging to the latest `CCB_DONE:` marker for `req_id`.
+/// Extract the reply window belonging to the latest `CCBR_DONE:` marker for `req_id`.
 ///
 /// Mirrors Python `provider_core.protocol_runtime.reply_runtime.extraction.extract_reply_for_req`.
 pub fn extract_reply_for_req(text: &str, req_id: &str) -> String {
@@ -80,14 +80,14 @@ pub fn extract_reply_for_req(text: &str, req_id: &str) -> String {
 
 fn done_line_re(req_id: &str) -> Regex {
     let escaped = regex::escape(req_id);
-    Regex::new(&format!(r"^\s*CCB_DONE:\s*{escaped}\s*$")).unwrap()
+    Regex::new(&format!(r"^\s*CCBR_DONE:\s*{escaped}\s*$")).unwrap()
 }
 
 fn any_done_line_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
         Regex::new(
-            r"^\s*CCB_DONE:\s*(?:job_[a-z0-9]+|[0-9a-fA-F]{32}|\d{8}-\d{6}-\d{3}-\d+-\d+)\s*$",
+            r"^\s*CCBR_DONE:\s*(?:job_[a-z0-9]+|[0-9a-fA-F]{32}|\d{8}-\d{6}-\d{3}-\d+-\d+)\s*$",
         )
         .unwrap()
     })
@@ -157,7 +157,7 @@ fn is_trailing_noise_line(line: &str) -> bool {
         )
         .unwrap()
     });
-    re.is_match(trimmed) && !trimmed.to_uppercase().starts_with("CCB_DONE")
+    re.is_match(trimmed) && !trimmed.to_uppercase().starts_with("CCBR_DONE")
 }
 
 fn split_lines(text: &str) -> Vec<String> {
@@ -181,14 +181,14 @@ mod tests {
     #[test]
     fn test_wrap_droid_prompt() {
         let out = wrap_droid_prompt("hello", "abc123");
-        assert!(out.contains("CCB_REQ_ID: abc123"));
-        assert!(out.contains("CCB_DONE: abc123"));
+        assert!(out.contains("CCBR_REQ_ID: abc123"));
+        assert!(out.contains("CCBR_DONE: abc123"));
         assert!(out.contains("hello"));
     }
 
     #[test]
     fn test_is_done_text_true() {
-        let text = "some reply\nCCB_DONE: req-1";
+        let text = "some reply\nCCBR_DONE: req-1";
         assert!(is_done_text(text, "req-1"));
     }
 
@@ -200,13 +200,13 @@ mod tests {
     #[test]
     fn test_extract_reply_for_req() {
         // raw_buffer contains only assistant text in the Droid adapter.
-        let text = "reply body\nCCB_DONE: req-1";
+        let text = "reply body\nCCBR_DONE: req-1";
         assert_eq!(extract_reply_for_req(text, "req-1"), "reply body");
     }
 
     #[test]
     fn test_strip_done_text() {
-        let text = "reply body\nCCB_DONE: req-1";
+        let text = "reply body\nCCBR_DONE: req-1";
         assert_eq!(strip_done_text(text, "req-1"), "reply body");
     }
 }

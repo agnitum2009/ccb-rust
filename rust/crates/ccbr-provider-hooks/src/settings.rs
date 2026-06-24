@@ -4,8 +4,8 @@ use serde_json::Map;
 use crate::Result;
 use ccbr_storage::atomic::atomic_write_json;
 
-const CCB_FINISH_HOOK_NAME: &str = "ccbr-provider-finish-hook";
-const CCB_ACTIVITY_HOOK_NAME: &str = "ccbr-provider-activity-hook";
+const CCBR_FINISH_HOOK_NAME: &str = "ccbr-provider-finish-hook";
+const CCBR_ACTIVITY_HOOK_NAME: &str = "ccbr-provider-activity-hook";
 
 const CLAUDE_ACTIVITY_EVENTS: &[&str] = &[
     "SessionStart",
@@ -146,7 +146,7 @@ pub fn install_claude_hooks(home_root: &Utf8Path, command: &str) -> Utf8PathBuf 
     let hooks = hooks_payload(&mut data);
     let event_name = "Stop";
     let groups = event_groups(hooks, event_name);
-    let groups = prune_ccbr_managed_hook_groups(groups, command, CCB_FINISH_HOOK_NAME);
+    let groups = prune_ccbr_managed_hook_groups(groups, command, CCBR_FINISH_HOOK_NAME);
     let groups = if !claude_event_has_command(&groups, command) {
         let mut groups = groups;
         groups.push(command_hook_group(command));
@@ -165,7 +165,7 @@ pub fn install_claude_activity_hooks(home_root: &Utf8Path, command: &str) -> Utf
     let hooks = hooks_payload(&mut data);
     for &event_name in CLAUDE_ACTIVITY_EVENTS {
         let groups = event_groups(hooks, event_name);
-        let groups = prune_ccbr_managed_hook_groups(groups, command, CCB_ACTIVITY_HOOK_NAME);
+        let groups = prune_ccbr_managed_hook_groups(groups, command, CCBR_ACTIVITY_HOOK_NAME);
         let groups = if !claude_event_has_command(&groups, command) {
             let mut groups = groups;
             groups.push(command_hook_group(command));

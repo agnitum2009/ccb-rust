@@ -33,8 +33,8 @@ const AGY_SESSION_FILENAME: &str = ".agy-session";
 const AGY_SESSION_ID_ATTR: &str = "agy_session_id";
 const AGY_SESSION_PATH_ATTR: &str = "agy_session_path";
 
-const AGY_REQ_ID_PREFIX: &str = "CCB_REQ_ID:";
-const AGY_DONE_PREFIX: &str = "CCB_DONE:";
+const AGY_REQ_ID_PREFIX: &str = "CCBR_REQ_ID:";
+const AGY_DONE_PREFIX: &str = "CCBR_DONE:";
 
 const PANE_LINES_DEFAULT: i64 = 2000;
 const QUIET_SECS: f64 = 4.0;
@@ -42,7 +42,7 @@ const MAX_WAIT_SECS: f64 = 300.0;
 const MIN_OBSERVED_SECS: f64 = 2.0;
 const ANCHOR_WAIT_SECS: f64 = 120.0;
 
-const BANNER_KEYWORDS: &[&str] = &["CCB_REQ_ID:", "CCB_DONE:"];
+const BANNER_KEYWORDS: &[&str] = &["CCBR_REQ_ID:", "CCBR_DONE:"];
 const BANNER_INSTRUCTIONS: &[&str] = &[
     "IMPORTANT: when you finish",
     "IMPORTANT:",
@@ -622,7 +622,7 @@ fn poll_native_transcript(
         extra.insert("anchor_seen".to_string(), Value::Bool(false));
         extra.insert(
             "diagnosis".to_string(),
-            Value::String("AGY transcript did not record the submitted CCB_REQ_ID.".to_string()),
+            Value::String("AGY transcript did not record the submitted CCBR_REQ_ID.".to_string()),
         );
         return Some(terminal_result(
             submission,
@@ -980,7 +980,7 @@ pub fn make_req_id(job_id: &str) -> String {
 /// Build the request anchor marker for a job.
 ///
 /// Mirrors Python `provider_core.protocol.request_anchor_for_job` and is used by
-/// AGY as the identifier embedded in `CCB_REQ_ID:` / `CCB_DONE:` markers.
+/// AGY as the identifier embedded in `CCBR_REQ_ID:` / `CCBR_DONE:` markers.
 pub fn request_anchor(job_id: &str) -> String {
     protocol::request_anchor_for_job(job_id)
 }
@@ -1010,8 +1010,8 @@ pub fn pane_contains_req_anchor(text: &str, req_id: &str) -> bool {
 ///
 /// Returns `(reply, done_seen)`. The algorithm mirrors Python
 /// `provider_backends.agy.protocol.extract_reply_for_req`:
-/// the last `CCB_REQ_ID:` anchor is located, and the last two
-/// `CCB_DONE:` occurrences after it are used to separate the echoed
+/// the last `CCBR_REQ_ID:` anchor is located, and the last two
+/// `CCBR_DONE:` occurrences after it are used to separate the echoed
 /// prompt tail from the assistant reply.
 pub fn extract_reply_for_req(text: &str, req_id: &str) -> (String, bool) {
     if text.is_empty() || req_id.is_empty() {
@@ -1120,7 +1120,7 @@ fn strip_done_text_for_req(text: &str, req_id: &str) -> String {
 }
 
 fn strip_any_done_lines(text: &str) -> String {
-    let re = Regex::new(r"(?m)^\s*CCB_DONE:\s*\S+\s*$").unwrap();
+    let re = Regex::new(r"(?m)^\s*CCBR_DONE:\s*\S+\s*$").unwrap();
     re.replace_all(text, "").to_string()
 }
 
@@ -1271,17 +1271,18 @@ mod tests {
     #[test]
     fn test_wrap_agy_prompt_format() {
         let wrapped = wrap_agy_prompt("hello", "<<BEGIN:req-12345678>>");
-        assert!(wrapped.contains("CCB_REQ_ID: <<BEGIN:req-12345678>>"));
+        assert!(wrapped.contains("CCBR_REQ_ID: <<BEGIN:req-12345678>>"));
         assert!(wrapped.contains("hello"));
-        assert!(wrapped.contains("CCB_DONE: <<BEGIN:req-12345678>>"));
+        assert!(wrapped.contains("CCBR_DONE: <<BEGIN:req-12345678>>"));
         assert!(wrapped.ends_with('\n'));
     }
 
     #[test]
     fn test_extract_reply_with_echo_and_model_done() {
         let req_id = "<<BEGIN:req-12345678>>";
-        let text =
-            format!("CCB_REQ_ID: {req_id}\nhello\nCCB_DONE: {req_id}\nworld\nCCB_DONE: {req_id}");
+        let text = format!(
+            "CCBR_REQ_ID: {req_id}\nhello\nCCBR_DONE: {req_id}\nworld\nCCBR_DONE: {req_id}"
+        );
         let (reply, done) = extract_reply_for_req(&text, req_id);
         assert!(done);
         assert_eq!(reply, "world");
@@ -1290,7 +1291,7 @@ mod tests {
     #[test]
     fn test_extract_reply_not_done_with_one_done() {
         let req_id = "<<BEGIN:req-12345678>>";
-        let text = format!("CCB_REQ_ID: {req_id}\nhello\nCCB_DONE: {req_id}");
+        let text = format!("CCBR_REQ_ID: {req_id}\nhello\nCCBR_DONE: {req_id}");
         let (reply, done) = extract_reply_for_req(&text, req_id);
         assert!(!done);
         assert!(reply.is_empty());

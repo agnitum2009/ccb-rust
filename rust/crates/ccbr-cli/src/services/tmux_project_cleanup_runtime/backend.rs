@@ -40,9 +40,9 @@ pub fn build_backend(socket_name: Option<&str>) -> Option<TmuxBackend> {
 
 /// Check whether the `tmux` binary is available.
 ///
-/// Tests may set `CCB_TEST_TMUX_AVAILABLE=1` to bypass the real binary check.
+/// Tests may set `CCBR_TEST_TMUX_AVAILABLE=1` to bypass the real binary check.
 pub fn tmux_available() -> bool {
-    if std::env::var("CCB_TEST_TMUX_AVAILABLE")
+    if std::env::var("CCBR_TEST_TMUX_AVAILABLE")
         .ok()
         .filter(|s| !s.is_empty())
         .is_some()

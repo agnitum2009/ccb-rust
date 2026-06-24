@@ -21,7 +21,7 @@ pub use crate::opencode::{
 };
 
 pub const PROVIDER_NAME: &str = "opencode";
-const OPENCODE_REQ_ID_PREFIX: &str = "CCB_REQ_ID:";
+const OPENCODE_REQ_ID_PREFIX: &str = "CCBR_REQ_ID:";
 
 const DEFAULT_POLL_INTERVAL_MS: u64 = 500;
 const DEFAULT_TIMEOUT_MS: u64 = 300_000;
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn test_wrap_opencode_prompt() {
         let wrapped = wrap_opencode_prompt("hello", "job-123");
-        assert!(wrapped.contains("CCB_REQ_ID:"));
+        assert!(wrapped.contains("CCBR_REQ_ID:"));
         assert!(wrapped.contains("job-123"));
         assert!(wrapped.contains("hello"));
     }

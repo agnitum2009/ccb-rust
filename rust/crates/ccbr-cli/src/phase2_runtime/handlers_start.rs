@@ -33,7 +33,7 @@ pub fn handle_start<S: Phase2Services, W: Write>(
     command: &Value,
 ) -> i32 {
     // Determine if interactive attach should be used
-    let interactive_attach = !env_truthy("CCB_NO_ATTACH") && stream_is_tty();
+    let interactive_attach = !env_truthy("CCBR_NO_ATTACH") && stream_is_tty();
 
     // Get terminal size if interactive attach is enabled
     let terminal_size = if interactive_attach {

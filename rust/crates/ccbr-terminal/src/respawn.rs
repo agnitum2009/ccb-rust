@@ -168,14 +168,14 @@ impl TmuxRespawnService {
 
     fn resolved_shell_command(&self, cmd_body: &str) -> String {
         let shell = resolve_shell(
-            self.env.get("CCB_TMUX_SHELL").map(|s| s.as_str()),
+            self.env.get("CCBR_TMUX_SHELL").map(|s| s.as_str()),
             self.tmux_default_shell().as_deref(),
             self.env.get("SHELL").map(|s| s.as_str()),
             &default_shell().0,
         );
         let flags = resolve_shell_flags(
             &shell,
-            self.env.get("CCB_TMUX_SHELL_FLAGS").map(|s| s.as_str()),
+            self.env.get("CCBR_TMUX_SHELL_FLAGS").map(|s| s.as_str()),
         );
         build_shell_command(&shell, &flags, cmd_body)
     }
@@ -258,11 +258,11 @@ pub fn tmux_object_ready_timeout_s(timeout_s: Option<f64>) -> f64 {
     if let Some(t) = timeout_s {
         return t.max(0.0);
     }
-    env::env_float("CCB_TMUX_OBJECT_READY_TIMEOUT_S", 3.0)
+    env::env_float("CCBR_TMUX_OBJECT_READY_TIMEOUT_S", 3.0)
 }
 
 pub fn tmux_object_ready_poll_interval_s() -> f64 {
-    env::env_float("CCB_TMUX_OBJECT_READY_POLL_INTERVAL_S", 0.05)
+    env::env_float("CCBR_TMUX_OBJECT_READY_POLL_INTERVAL_S", 0.05)
 }
 
 /// Return default shell and flag for current platform.

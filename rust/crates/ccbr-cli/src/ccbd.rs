@@ -114,7 +114,7 @@ fn resolve_timeout(explicit: Option<f64>) -> f64 {
         }
         return 3.0;
     }
-    if let Ok(raw) = std::env::var("CCB_CCBD_CLIENT_TIMEOUT_S") {
+    if let Ok(raw) = std::env::var("CCBR_CCBD_CLIENT_TIMEOUT_S") {
         if let Ok(t) = raw.parse::<f64>() {
             if t.is_finite() && t >= 0.1 {
                 return t;
@@ -131,15 +131,15 @@ mod tests {
 
     #[test]
     fn test_resolve_timeout_default() {
-        std::env::remove_var("CCB_CCBD_CLIENT_TIMEOUT_S");
+        std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
         assert_eq!(resolve_timeout(None), 3.0);
     }
 
     #[test]
     fn test_resolve_timeout_from_env() {
-        std::env::set_var("CCB_CCBD_CLIENT_TIMEOUT_S", "5.0");
+        std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "5.0");
         assert_eq!(resolve_timeout(None), 5.0);
-        std::env::remove_var("CCB_CCBD_CLIENT_TIMEOUT_S");
+        std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
     }
 
     #[test]

@@ -119,7 +119,7 @@ fn test_prepare_start_agents_persists_spec_restore_and_provider_home() {
 
     // Isolate provider source home so the test does not depend on the real $HOME.
     std::env::set_var("HOME", source_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = PathLayout::new(&project_root);
 
@@ -180,7 +180,7 @@ fn test_prepare_start_agents_detects_stale_binding() {
     std::fs::create_dir_all(&source_home).unwrap();
 
     std::env::set_var("HOME", source_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = PathLayout::new(&project_root);
 
@@ -226,7 +226,7 @@ fn test_prepare_start_agents_resolves_window_name() {
     std::fs::create_dir_all(&source_home).unwrap();
 
     std::env::set_var("HOME", source_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = PathLayout::new(&project_root);
 

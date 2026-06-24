@@ -68,7 +68,7 @@ fn test_prepare_hooks_claude_installs_completion_hooks() {
     std::fs::create_dir_all(&bin_dir).unwrap();
     make_hook_bin(&bin_dir, "ccbr-provider-finish-hook");
 
-    std::env::set_var("CCB_HOOK_BIN_DIR", bin_dir.as_str());
+    std::env::set_var("CCBR_HOOK_BIN_DIR", bin_dir.as_str());
     let result = prepare_workspace_provider_hooks(
         "claude",
         &workspace,
@@ -121,7 +121,7 @@ fn test_prepare_hooks_claude_installs_activity_hooks_with_project_and_runtime() 
     make_hook_bin(&bin_dir, "ccbr-provider-finish-hook");
     make_hook_bin(&bin_dir, "ccbr-provider-activity-hook");
 
-    std::env::set_var("CCB_HOOK_BIN_DIR", bin_dir.as_str());
+    std::env::set_var("CCBR_HOOK_BIN_DIR", bin_dir.as_str());
     let result = prepare_workspace_provider_hooks(
         "claude",
         &workspace,
@@ -181,7 +181,7 @@ fn test_prepare_hooks_gemini_installs_completion_hooks() {
     std::fs::create_dir_all(&bin_dir).unwrap();
     make_hook_bin(&bin_dir, "ccbr-provider-finish-hook");
 
-    std::env::set_var("CCB_HOOK_BIN_DIR", bin_dir.as_str());
+    std::env::set_var("CCBR_HOOK_BIN_DIR", bin_dir.as_str());
     let result = prepare_workspace_provider_hooks(
         "gemini",
         &workspace,
@@ -319,7 +319,7 @@ fn test_prepare_provider_workspace_materializes_claude_settings_before_hooks() {
 
     // Point provider source home at the synthetic system home.
     std::env::set_var("HOME", system_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = ccbr_storage::paths::PathLayout::new(&project_root);
     let completion_dir = layout
@@ -373,7 +373,7 @@ fn test_prepare_provider_workspace_materializes_codex_home() {
     std::fs::write(system_home.join("config.toml"), "model = \"gpt-5\"\n").unwrap();
 
     std::env::set_var("HOME", system_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = ccbr_storage::paths::PathLayout::new(&project_root);
     let completion_dir = layout
@@ -415,7 +415,7 @@ fn test_prepare_provider_workspace_materializes_gemini_home() {
     std::fs::create_dir_all(&system_home).unwrap();
 
     std::env::set_var("HOME", system_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = ccbr_storage::paths::PathLayout::new(&project_root);
     let completion_dir = layout
@@ -451,7 +451,7 @@ fn test_prepare_provider_workspace_materializes_opencode_config() {
     let project_root = root.join("repo");
     let workspace = project_root.join("workspace");
 
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = ccbr_storage::paths::PathLayout::new(&project_root);
     let completion_dir = layout
@@ -497,7 +497,7 @@ fn test_prepare_provider_workspace_records_claude_binary_cache_drift() {
     std::fs::write(versions_dir.join("v1"), "binary").unwrap();
 
     std::env::set_var("HOME", system_home.as_str());
-    std::env::remove_var("CCB_SOURCE_HOME");
+    std::env::remove_var("CCBR_SOURCE_HOME");
 
     let layout = ccbr_storage::paths::PathLayout::new(&project_root);
     let completion_dir = layout

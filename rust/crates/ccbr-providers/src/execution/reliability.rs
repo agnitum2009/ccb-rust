@@ -40,7 +40,7 @@ impl CompletionReliabilityPolicy {
 
     pub fn timeout_env_name(&self) -> String {
         format!(
-            "CCB_{}_NO_TERMINAL_TIMEOUT_S",
+            "CCBR_{}_NO_TERMINAL_TIMEOUT_S",
             self.provider.to_uppercase().replace('-', "_")
         )
     }

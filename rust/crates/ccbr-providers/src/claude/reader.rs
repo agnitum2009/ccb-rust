@@ -77,7 +77,7 @@ impl ClaudeLogReader {
             preferred_session: None,
             include_subagents: true,
             include_subagent_user: false,
-            subagent_tag: std::env::var("CCB_CLAUDE_SUBAGENT_TAG")
+            subagent_tag: std::env::var("CCBR_CLAUDE_SUBAGENT_TAG")
                 .ok()
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty()),

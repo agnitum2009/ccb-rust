@@ -1,7 +1,7 @@
 use crate::types::ProjectMemorySource;
 use std::path::{Path, PathBuf};
 
-const CCB_RUNTIME_COORDINATION_RULES: &str = r#"## CCB Runtime Coordination Rules
+const CCBR_RUNTIME_COORDINATION_RULES: &str = r#"## CCB Runtime Coordination Rules
 
 - CCB `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
 - Prefer `/ask <agent> <message>` when available. Shell fallback:
@@ -41,7 +41,7 @@ pub fn render_memory_bundle(
     lines.extend([
         "-->".to_string(),
         String::new(),
-        CCB_RUNTIME_COORDINATION_RULES.trim_end().to_string(),
+        CCBR_RUNTIME_COORDINATION_RULES.trim_end().to_string(),
         String::new(),
     ]);
 

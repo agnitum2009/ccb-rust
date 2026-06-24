@@ -7,13 +7,13 @@ use crate::services::DaemonClient;
 
 /// Number of seconds to wait for a watch before giving up.
 pub fn watch_timeout_seconds() -> f64 {
-    let raw = std::env::var("CCB_WATCH_TIMEOUT_S").unwrap_or_else(|_| "3600".into());
+    let raw = std::env::var("CCBR_WATCH_TIMEOUT_S").unwrap_or_else(|_| "3600".into());
     raw.trim().parse().unwrap_or(3600.0)
 }
 
 /// Number of seconds between watch polls.
 pub fn watch_poll_interval_seconds() -> f64 {
-    let raw = std::env::var("CCB_WATCH_POLL_INTERVAL_S").unwrap_or_else(|_| "0.1".into());
+    let raw = std::env::var("CCBR_WATCH_POLL_INTERVAL_S").unwrap_or_else(|_| "0.1".into());
     raw.trim().parse::<f64>().unwrap_or(0.1).max(0.0)
 }
 

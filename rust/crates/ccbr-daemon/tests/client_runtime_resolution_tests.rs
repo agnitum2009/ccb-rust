@@ -77,10 +77,10 @@ fn test_resolve_work_dir_with_registry_finds_project_session_file() {
 #[test]
 fn test_resolve_work_dir_with_registry_rejects_registry_only_mode_without_binding() {
     let tmp = tempfile::tempdir().unwrap();
-    std::env::set_var("CCB_REGISTRY_ONLY", "1");
+    std::env::set_var("CCBR_REGISTRY_ONLY", "1");
     let result =
         resolve_work_dir_with_registry(&CODEX_CLIENT_SPEC, "codex", None, None, Some(tmp.path()));
-    std::env::remove_var("CCB_REGISTRY_ONLY");
+    std::env::remove_var("CCBR_REGISTRY_ONLY");
 
     let err = result.unwrap_err();
     assert!(err.contains("no longer supported"), "{err}");

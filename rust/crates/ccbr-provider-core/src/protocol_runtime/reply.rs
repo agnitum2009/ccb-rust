@@ -140,43 +140,43 @@ mod tests {
 
     #[test]
     fn test_extract_reply_for_req() {
-        let text = "CCB_REQ_ID: job_abc123\n\nhello world\nCCB_DONE: job_abc123";
+        let text = "CCBR_REQ_ID: job_abc123\n\nhello world\nCCBR_DONE: job_abc123";
         let reply = extract_reply_for_req(text, "job_abc123");
-        assert_eq!(reply, "CCB_REQ_ID: job_abc123\n\nhello world");
+        assert_eq!(reply, "CCBR_REQ_ID: job_abc123\n\nhello world");
     }
 
     #[test]
     fn test_extract_reply_for_req_with_previous_done() {
-        let text = "first\nCCB_DONE: job_old\nsecond\nCCB_DONE: job_new";
+        let text = "first\nCCBR_DONE: job_old\nsecond\nCCBR_DONE: job_new";
         let reply = extract_reply_for_req(text, "job_new");
         assert_eq!(reply, "second");
     }
 
     #[test]
     fn test_extract_reply_for_req_unknown_returns_empty() {
-        let text = "hello\nCCB_DONE: job_known";
+        let text = "hello\nCCBR_DONE: job_known";
         assert_eq!(extract_reply_for_req(text, "job_unknown"), "");
     }
 
     #[test]
     fn test_is_done_text() {
-        assert!(is_done_text("reply\nCCB_DONE: job_abc123", "job_abc123"));
+        assert!(is_done_text("reply\nCCBR_DONE: job_abc123", "job_abc123"));
         assert!(is_done_text(
             "reply\nnoise\n  ccbr_done: job_abc123  ",
             "job_abc123"
         ));
-        assert!(!is_done_text("reply\nCCB_DONE: job_def", "job_abc123"));
+        assert!(!is_done_text("reply\nCCBR_DONE: job_def", "job_abc123"));
     }
 
     #[test]
     fn test_strip_done_text() {
-        let text = "hello\n\nCCB_DONE: job_abc123\n";
+        let text = "hello\n\nCCBR_DONE: job_abc123\n";
         assert_eq!(strip_done_text(text, "job_abc123"), "hello");
     }
 
     #[test]
     fn test_strip_trailing_markers() {
-        let text = "hello\nCLAUDE_DONE:\nCCB_DONE: job_abc123";
+        let text = "hello\nCLAUDE_DONE:\nCCBR_DONE: job_abc123";
         assert_eq!(strip_trailing_markers(text), "hello");
     }
 

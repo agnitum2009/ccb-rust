@@ -18,10 +18,10 @@ const COMPLETION_STATUS_LABELS: &[(&str, &str)] = &[
 ];
 
 const COMPLETION_STATUS_MARKERS: &[(&str, &str)] = &[
-    (COMPLETION_STATUS_COMPLETED, "[CCB_TASK_COMPLETED]"),
-    (COMPLETION_STATUS_CANCELLED, "[CCB_TASK_CANCELLED]"),
-    (COMPLETION_STATUS_FAILED, "[CCB_TASK_FAILED]"),
-    (COMPLETION_STATUS_INCOMPLETE, "[CCB_TASK_INCOMPLETE]"),
+    (COMPLETION_STATUS_COMPLETED, "[CCBR_TASK_COMPLETED]"),
+    (COMPLETION_STATUS_CANCELLED, "[CCBR_TASK_CANCELLED]"),
+    (COMPLETION_STATUS_FAILED, "[CCBR_TASK_FAILED]"),
+    (COMPLETION_STATUS_INCOMPLETE, "[CCBR_TASK_INCOMPLETE]"),
 ];
 
 pub fn normalize_completion_status(status: Option<&str>, done_seen: bool) -> &'static str {
@@ -56,7 +56,7 @@ pub fn completion_status_marker(status: Option<&str>, done_seen: bool) -> &'stat
         .iter()
         .find(|(s, _)| *s == normalized)
         .map(|(_, marker)| *marker)
-        .unwrap_or("[CCB_TASK_COMPLETED]")
+        .unwrap_or("[CCBR_TASK_COMPLETED]")
 }
 
 pub fn default_reply_for_status(status: Option<&str>, done_seen: bool) -> &'static str {
@@ -110,7 +110,7 @@ mod tests {
         assert_eq!(completion_status_label(Some("failed"), true), "Failed");
         assert_eq!(
             completion_status_marker(Some("failed"), true),
-            "[CCB_TASK_FAILED]"
+            "[CCBR_TASK_FAILED]"
         );
     }
 

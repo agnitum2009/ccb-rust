@@ -77,7 +77,7 @@ pub fn initialize_state<F, G>(
 fn env_timeout(sync_timeout_env: &str) -> u64 {
     std::env::var(sync_timeout_env)
         .ok()
-        .or_else(|| std::env::var("CCB_SYNC_TIMEOUT").ok())
+        .or_else(|| std::env::var("CCBR_SYNC_TIMEOUT").ok())
         .and_then(|v| v.parse().ok())
         .unwrap_or(3600)
 }

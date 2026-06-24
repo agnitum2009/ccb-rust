@@ -158,7 +158,7 @@ mod tests {
     fn test_resolve_project_root_falls_back_to_anchor() {
         let tmp = tempfile::tempdir().unwrap();
         let root = Utf8PathBuf::from_path_buf(tmp.path().to_path_buf()).unwrap();
-        std::fs::create_dir(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         let resolved = resolve_project_root(root.as_str());
         assert_eq!(resolved, root);
     }

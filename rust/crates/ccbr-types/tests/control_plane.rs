@@ -32,14 +32,14 @@ fn test_control_plane_env_keeps_provider_api_env() {
 #[serial]
 fn test_control_plane_env_keeps_claude_keychain_override() {
     std::env::set_var(
-        "CCB_KEYCHAIN_SERVICE_OVERRIDE",
+        "CCBR_KEYCHAIN_SERVICE_OVERRIDE",
         "Claude Code-credentials-account-a",
     );
 
     let env = control_plane_env(None);
 
     assert_eq!(
-        env.get("CCB_KEYCHAIN_SERVICE_OVERRIDE").unwrap(),
+        env.get("CCBR_KEYCHAIN_SERVICE_OVERRIDE").unwrap(),
         "Claude Code-credentials-account-a"
     );
 }
@@ -78,8 +78,8 @@ fn test_control_plane_env_keeps_network_transport_without_provider_authority() {
     std::env::set_var("CODEX_SESSION_ROOT", "/tmp/global-codex-sessions");
     std::env::set_var("GEMINI_ROOT", "/tmp/global-gemini-root");
     std::env::set_var("CLAUDE_PROJECTS_ROOT", "/tmp/global-claude-projects");
-    std::env::set_var("CCB_SESSION_ID", "stale-session");
-    std::env::set_var("CCB_CALLER_ACTOR", "stale-agent");
+    std::env::set_var("CCBR_SESSION_ID", "stale-session");
+    std::env::set_var("CCBR_CALLER_ACTOR", "stale-agent");
 
     let env = control_plane_env(None);
 
@@ -96,8 +96,8 @@ fn test_control_plane_env_keeps_network_transport_without_provider_authority() {
     assert!(!env.contains_key("CODEX_SESSION_ROOT"));
     assert!(!env.contains_key("GEMINI_ROOT"));
     assert!(!env.contains_key("CLAUDE_PROJECTS_ROOT"));
-    assert!(!env.contains_key("CCB_SESSION_ID"));
-    assert!(!env.contains_key("CCB_CALLER_ACTOR"));
+    assert!(!env.contains_key("CCBR_SESSION_ID"));
+    assert!(!env.contains_key("CCBR_CALLER_ACTOR"));
 }
 
 #[test]
@@ -105,15 +105,15 @@ fn test_control_plane_env_keeps_network_transport_without_provider_authority() {
 fn test_control_plane_env_drops_outer_tmux_authority() {
     std::env::set_var("TMUX", "/tmp/tmux-1000/default,123,0");
     std::env::set_var("TMUX_PANE", "%77");
-    std::env::set_var("CCB_TMUX_SOCKET", "outer");
-    std::env::set_var("CCB_TMUX_SOCKET_PATH", "/tmp/outer.sock");
+    std::env::set_var("CCBR_TMUX_SOCKET", "outer");
+    std::env::set_var("CCBR_TMUX_SOCKET_PATH", "/tmp/outer.sock");
 
     let env = control_plane_env(None);
 
     assert!(!env.contains_key("TMUX"));
     assert!(!env.contains_key("TMUX_PANE"));
-    assert!(!env.contains_key("CCB_TMUX_SOCKET"));
-    assert!(!env.contains_key("CCB_TMUX_SOCKET_PATH"));
+    assert!(!env.contains_key("CCBR_TMUX_SOCKET"));
+    assert!(!env.contains_key("CCBR_TMUX_SOCKET_PATH"));
 }
 
 #[test]

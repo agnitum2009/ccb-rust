@@ -529,7 +529,7 @@ mod tests {
 
     #[test]
     fn test_pane_quiet_poll_marks_done_marker_with_reply_completed() {
-        let text = "CCB_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCB_DONE: job_native123\nfinal answer\nCCB_DONE: job_native123\n";
+        let text = "CCBR_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCBR_DONE: job_native123\nfinal answer\nCCBR_DONE: job_native123\n";
         let backend = TestBackend {
             text: RefCell::new(text.to_string()),
             sent_texts: RefCell::new(Vec::new()),
@@ -663,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_pane_quiet_poll_marks_done_marker_with_empty_reply_incomplete() {
-        let text = "CCB_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCB_DONE: job_native123\nCCB_DONE: job_native123\n";
+        let text = "CCBR_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCBR_DONE: job_native123\nCCBR_DONE: job_native123\n";
         let backend = TestBackend {
             text: RefCell::new(text.to_string()),
             sent_texts: RefCell::new(Vec::new()),

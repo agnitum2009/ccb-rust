@@ -74,8 +74,8 @@ fn no_authority_pids(_project_root: &std::path::Path) -> HashMap<u32, Vec<PathBu
 fn test_collect_candidate_tmux_sockets_preserves_tmux_socket_path() {
     with_env(
         &[
-            ("CCB_TMUX_SOCKET", None),
-            ("CCB_TMUX_SOCKET_PATH", None),
+            ("CCBR_TMUX_SOCKET", None),
+            ("CCBR_TMUX_SOCKET_PATH", None),
             ("TMUX", Some("/tmp/ccb project/tmux.sock,123,0")),
         ],
         || {
@@ -92,8 +92,8 @@ fn test_collect_candidate_tmux_sockets_preserves_tmux_socket_path() {
 fn test_collect_candidate_tmux_sockets_defaults_to_none() {
     with_env(
         &[
-            ("CCB_TMUX_SOCKET", None),
-            ("CCB_TMUX_SOCKET_PATH", None),
+            ("CCBR_TMUX_SOCKET", None),
+            ("CCBR_TMUX_SOCKET_PATH", None),
             ("TMUX", None),
         ],
         || {
@@ -115,8 +115,8 @@ fn test_prepare_local_shutdown_captures_runtime_tmux_socket_path() {
     with_env(
         &[
             ("TMUX", None),
-            ("CCB_TMUX_SOCKET", None),
-            ("CCB_TMUX_SOCKET_PATH", None),
+            ("CCBR_TMUX_SOCKET", None),
+            ("CCBR_TMUX_SOCKET_PATH", None),
         ],
         || {
             let preparation =
@@ -295,8 +295,8 @@ fn test_prepare_local_shutdown_falls_back_to_env_tmux_socket_when_no_runtime() {
     with_env(
         &[
             ("TMUX", None),
-            ("CCB_TMUX_SOCKET", None),
-            ("CCB_TMUX_SOCKET_PATH", Some("/env/ccb.sock")),
+            ("CCBR_TMUX_SOCKET", None),
+            ("CCBR_TMUX_SOCKET_PATH", Some("/env/ccb.sock")),
         ],
         || {
             let preparation =

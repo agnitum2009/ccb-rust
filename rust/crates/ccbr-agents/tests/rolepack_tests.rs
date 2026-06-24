@@ -62,10 +62,10 @@ where
     unsafe {
         std::env::set_var("HOME", &home);
         std::env::set_var("AGENT_ROLES_STORE", &roles_store);
-        std::env::remove_var("CCB_SYSTEM_ROLES_HOME");
-        std::env::remove_var("CCB_ROLES_HOME");
+        std::env::remove_var("CCBR_SYSTEM_ROLES_HOME");
+        std::env::remove_var("CCBR_ROLES_HOME");
         std::env::remove_var("AGENT_ROLES_SPEC_HOME");
-        std::env::remove_var("CCB_AGENT_ROLES_SPEC_HOME");
+        std::env::remove_var("CCBR_AGENT_ROLES_SPEC_HOME");
     }
     test();
 }

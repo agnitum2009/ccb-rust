@@ -657,7 +657,7 @@ pub fn maybe_auto_transfer(
     session_id: Option<&str>,
     project_id: Option<&str>,
 ) {
-    if !env_bool("CCB_CTX_TRANSFER_ON_SESSION_SWITCH", true) {
+    if !env_bool("CCBR_CTX_TRANSFER_ON_SESSION_SWITCH", true) {
         return;
     }
     if session_path.is_none() && session_id.is_none() {
@@ -697,10 +697,10 @@ fn run_auto_transfer(
     session_id: Option<&str>,
     project_id: Option<&str>,
 ) -> Result<PathBuf> {
-    let last_n = ccbr_types::env::env_int("CCB_CTX_TRANSFER_LAST_N", 3) as usize;
-    let max_tokens = ccbr_types::env::env_int("CCB_CTX_TRANSFER_MAX_TOKENS", 8000) as u32;
-    let fmt = normalized_env("CCB_CTX_TRANSFER_FORMAT", "markdown");
-    let target_provider = normalized_env("CCB_CTX_TRANSFER_PROVIDER", "auto");
+    let last_n = ccbr_types::env::env_int("CCBR_CTX_TRANSFER_LAST_N", 3) as usize;
+    let max_tokens = ccbr_types::env::env_int("CCBR_CTX_TRANSFER_MAX_TOKENS", 8000) as u32;
+    let fmt = normalized_env("CCBR_CTX_TRANSFER_FORMAT", "markdown");
+    let target_provider = normalized_env("CCBR_CTX_TRANSFER_PROVIDER", "auto");
 
     let transfer = ContextTransfer::new(max_tokens, work_dir);
     let context = transfer.extract_conversations(

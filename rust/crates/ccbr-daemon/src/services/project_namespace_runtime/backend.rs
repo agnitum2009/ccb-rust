@@ -1023,7 +1023,7 @@ fn session_alive_once(backend: &Backend, session_name: &str) -> BackendResult<bo
 
 fn tmux_object_ready_timeout_s(timeout_s: Option<f64>) -> f64 {
     let value = timeout_s.unwrap_or_else(|| {
-        std::env::var("CCB_TMUX_OBJECT_READY_TIMEOUT_S")
+        std::env::var("CCBR_TMUX_OBJECT_READY_TIMEOUT_S")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(TMUX_OBJECT_READY_TIMEOUT_S)
@@ -1032,7 +1032,7 @@ fn tmux_object_ready_timeout_s(timeout_s: Option<f64>) -> f64 {
 }
 
 fn tmux_object_ready_poll_interval_s() -> f64 {
-    let value = std::env::var("CCB_TMUX_OBJECT_READY_POLL_INTERVAL_S")
+    let value = std::env::var("CCBR_TMUX_OBJECT_READY_POLL_INTERVAL_S")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(TMUX_OBJECT_READY_POLL_INTERVAL_S);

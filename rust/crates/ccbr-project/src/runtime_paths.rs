@@ -49,7 +49,7 @@ mod tests {
     fn test_project_anchor_dir_and_exists() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         let anchor = project_anchor_dir(&root);
         assert!(anchor.as_str().ends_with("/.ccbr"));
         assert!(project_anchor_exists(&root));
@@ -59,7 +59,7 @@ mod tests {
     fn test_project_ccbd_registry_lock_dirs() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir_all(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir_all(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         assert!(project_ccbd_dir(&root).as_str().ends_with("/.ccbr/ccbd"));
         assert!(project_registry_dir(&root)
             .as_str()

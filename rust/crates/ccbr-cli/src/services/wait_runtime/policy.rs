@@ -12,7 +12,7 @@ pub fn resolve_timeout(explicit: Option<f64>) -> f64 {
     if let Some(value) = explicit {
         return value.max(MIN_TIMEOUT_S);
     }
-    if let Ok(raw) = std::env::var("CCB_WAIT_TIMEOUT_S") {
+    if let Ok(raw) = std::env::var("CCBR_WAIT_TIMEOUT_S") {
         if let Ok(value) = raw.parse::<f64>() {
             return value.max(MIN_TIMEOUT_S);
         }
@@ -22,7 +22,7 @@ pub fn resolve_timeout(explicit: Option<f64>) -> f64 {
 
 /// Resolve the polling interval between trace calls.
 pub fn resolve_poll_interval() -> f64 {
-    if let Ok(raw) = std::env::var("CCB_WAIT_POLL_INTERVAL_S") {
+    if let Ok(raw) = std::env::var("CCBR_WAIT_POLL_INTERVAL_S") {
         if let Ok(value) = raw.parse::<f64>() {
             return value.max(MIN_POLL_INTERVAL_S);
         }

@@ -2,7 +2,7 @@ use ccbr_mcp_server::{handle_request, McpRequest};
 use std::io::{self, BufRead, Write};
 
 fn main() {
-    let caller = std::env::var("CCB_CALLER")
+    let caller = std::env::var("CCBR_CALLER")
         .ok()
         .map(|s| s.trim().to_lowercase())
         .filter(|s| !s.is_empty())

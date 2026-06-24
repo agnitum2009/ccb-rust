@@ -209,7 +209,7 @@ mod tests {
                 project_id: "proj".to_string(),
                 to_agent: "claude".to_string(),
                 from_actor: "system".to_string(),
-                body: "CCB_REPLY from=claude reply=rep_1 status=completed".to_string(),
+                body: "CCBR_REPLY from=claude reply=rep_1 status=completed".to_string(),
                 task_id: Some("reply:rep_1".to_string()),
                 reply_to: None,
                 message_type: super::super::preparation_message::REPLY_DELIVERY_MESSAGE_TYPE

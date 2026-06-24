@@ -19,7 +19,7 @@ pub fn cmd_bootstrap_command() -> String {
 fn resolved_cmd_shell() -> String {
     let mut seen = std::collections::HashSet::new();
     for candidate in [
-        std::env::var("CCB_CMD_SHELL").unwrap_or_default(),
+        std::env::var("CCBR_CMD_SHELL").unwrap_or_default(),
         std::env::var("SHELL").unwrap_or_default(),
         passwd_login_shell(),
         ccbr_terminal::env::default_shell().0,

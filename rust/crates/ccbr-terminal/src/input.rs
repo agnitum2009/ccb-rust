@@ -106,7 +106,7 @@ impl TmuxTextSender {
                 false,
             )
         };
-        let enter_delay = (self.env_float)("CCB_TMUX_ENTER_DELAY", 0.5);
+        let enter_delay = (self.env_float)("CCBR_TMUX_ENTER_DELAY", 0.5);
         if enter_delay > 0.0 {
             std::thread::sleep(std::time::Duration::from_secs_f64(enter_delay));
         }

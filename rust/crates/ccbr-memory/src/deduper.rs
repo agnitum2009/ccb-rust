@@ -3,11 +3,11 @@ use regex::Regex;
 
 /// Protocol markers to remove.
 pub const PROTOCOL_PATTERNS: &[&str] = &[
-    r"^\s*CCB_REQ_ID:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$",
-    r"^\s*CCB_BEGIN:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$",
-    r"^\s*CCB_DONE:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$",
-    r"^\s*\[CCB_ASYNC_SUBMITTED[^\]]*\].*$",
-    r"^\s*CCB_CALLER=\w+\s*$",
+    r"^\s*CCBR_REQ_ID:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$",
+    r"^\s*CCBR_BEGIN:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$",
+    r"^\s*CCBR_DONE:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$",
+    r"^\s*\[CCBR_ASYNC_SUBMITTED[^\]]*\].*$",
+    r"^\s*CCBR_CALLER=\w+\s*$",
     r"^\s*\[Request interrupted by user for tool use\]\s*$",
     r"^\s*The user doesn't want to proceed with this tool use\..*$",
     r"^\s*User rejected tool use\s*$",
@@ -18,9 +18,9 @@ pub const SYSTEM_NOISE_PATTERNS: &[&str] = &[
     r"<system-reminder>.*?</system-reminder>",
     r"<env>.*?</env>",
     r"<rules>.*?</rules>",
-    r"<!-- CCB_CONFIG_START -->.*?<!-- CCB_CONFIG_END -->",
+    r"<!-- CCBR_CONFIG_START -->.*?<!-- CCBR_CONFIG_END -->",
     r"<local-command-caveat>.*?</local-command-caveat>",
-    r"\[CCB_ASYNC_SUBMITTED[^\]]*\][\s\S]*?(?:\n\n|\z)",
+    r"\[CCBR_ASYNC_SUBMITTED[^\]]*\][\s\S]*?(?:\n\n|\z)",
 ];
 
 /// Clean and deduplicate conversation content.

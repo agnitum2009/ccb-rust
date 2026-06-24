@@ -945,7 +945,7 @@ fn _detect_done_marker(text: &str, config: &NativeCliExecutionConfig) -> Option<
 
 fn _effective_run_timeout_s(config: &NativeCliExecutionConfig) -> f64 {
     let env_name = format!(
-        "CCB_{}_RUN_TIMEOUT_S",
+        "CCBR_{}_RUN_TIMEOUT_S",
         config.provider.to_uppercase().replace('-', "_")
     );
     if let Ok(raw) = std::env::var(&env_name) {

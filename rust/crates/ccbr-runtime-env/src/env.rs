@@ -55,8 +55,8 @@ mod tests {
 
     #[test]
     fn test_env_bool_default() {
-        assert!(!env_bool("CCB_NONEXISTENT_VAR_XYZ", false));
-        assert!(env_bool("CCB_NONEXISTENT_VAR_XYZ", true));
+        assert!(!env_bool("CCBR_NONEXISTENT_VAR_XYZ", false));
+        assert!(env_bool("CCBR_NONEXISTENT_VAR_XYZ", true));
     }
 
     #[test]

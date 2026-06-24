@@ -187,7 +187,7 @@ fn artifact_event_write_and_load() {
 fn transcript_req_id_extraction_prefers_outer_marker() {
     let content = format!(
         "{}\n{}\n",
-        json!({"type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_current123\n\nReview this transcript:\nCCB_REQ_ID: job_old456\n```text\nCCB_REQ_ID: job_code789\n```"}}),
+        json!({"type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_current123\n\nReview this transcript:\nCCBR_REQ_ID: job_old456\n```text\nCCBR_REQ_ID: job_code789\n```"}}),
         json!({"type": "assistant", "message": {"role": "assistant", "content": "Working."}}),
     );
 
@@ -205,7 +205,7 @@ fn transcript_req_id_extraction_prefers_outer_marker() {
 fn transcript_current_turn_follows_parent_chain() {
     let content = format!(
         "{}\n{}\n{}\n{}\n",
-        json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCB_REQ_ID: job_current123\n\nRun a tool."}}),
+        json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "CCBR_REQ_ID: job_current123\n\nRun a tool."}}),
         json!({"uuid": "a1", "parentUuid": "u1", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Read"}]}}),
         json!({"uuid": "u2", "parentUuid": "a1", "type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]}, "toolUseResult": {"type": "text"}}),
         json!({"uuid": "a2", "parentUuid": "u2", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}}),
@@ -384,7 +384,7 @@ fn notifications_status_helpers() {
     );
     assert_eq!(
         notifications::completion_status_marker(Some("failed"), true),
-        "[CCB_TASK_FAILED]"
+        "[CCBR_TASK_FAILED]"
     );
     assert_eq!(
         notifications::default_reply_for_status(Some("cancelled"), true),
@@ -440,7 +440,7 @@ fn test_crate_root_reexports_reachable() {
     // artifacts
     let _ = ccbr_provider_hooks::completion_dir_from_session_data(&HashMap::new());
     let _ = ccbr_provider_hooks::event_path(&completion, "id");
-    let _ = ccbr_provider_hooks::extract_req_id("CCB_REQ_ID: job_1");
+    let _ = ccbr_provider_hooks::extract_req_id("CCBR_REQ_ID: job_1");
     let _ = ccbr_provider_hooks::latest_req_id_from_transcript(None);
     let _ = ccbr_provider_hooks::load_event(&completion, "id");
     let _ = ccbr_provider_hooks::write_event(

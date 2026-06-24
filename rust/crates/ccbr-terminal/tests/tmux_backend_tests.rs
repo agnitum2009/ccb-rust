@@ -5,7 +5,7 @@ use ccbr_terminal::{TerminalBackend, TmuxBackend, TmuxLayoutBackend};
 
 fn test_backend() -> TmuxBackend {
     // Provide explicit empty socket values so the constructor does not pick up
-    // CCB_TMUX_SOCKET* environment variables left over from other tests.
+    // CCBR_TMUX_SOCKET* environment variables left over from other tests.
     TmuxBackend::new(Some(String::new()), Some(String::new()))
 }
 
@@ -25,8 +25,8 @@ fn test_tmux_backend_run_strips_outer_tmux_environment() {
 
     std::env::set_var("TMUX", "/tmp/tmux-1000/default,123,0");
     std::env::set_var("TMUX_PANE", "%77");
-    std::env::set_var("CCB_TMUX_SOCKET", "outer");
-    std::env::set_var("CCB_TMUX_SOCKET_PATH", "/tmp/outer.sock");
+    std::env::set_var("CCBR_TMUX_SOCKET", "outer");
+    std::env::set_var("CCBR_TMUX_SOCKET_PATH", "/tmp/outer.sock");
     std::env::set_var("TERM", "xterm-ghostty");
 
     let backend = TmuxBackend::new(None, Some("/tmp/project.sock".into())).with_runner(
@@ -52,8 +52,8 @@ fn test_tmux_backend_run_strips_outer_tmux_environment() {
     let env_keys: HashSet<_> = env.iter().map(|(k, _)| k.as_str()).collect();
     assert!(!env_keys.contains("TMUX"));
     assert!(!env_keys.contains("TMUX_PANE"));
-    assert!(!env_keys.contains("CCB_TMUX_SOCKET"));
-    assert!(!env_keys.contains("CCB_TMUX_SOCKET_PATH"));
+    assert!(!env_keys.contains("CCBR_TMUX_SOCKET"));
+    assert!(!env_keys.contains("CCBR_TMUX_SOCKET_PATH"));
     assert_eq!(
         env.iter()
             .find(|(k, _)| k == "TERM")

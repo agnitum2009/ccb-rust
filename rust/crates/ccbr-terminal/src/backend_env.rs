@@ -9,7 +9,7 @@ use std::process::Command;
 ///
 /// Returns `"wsl"`, `"windows"`, or `None`.
 pub fn get_backend_env() -> Option<String> {
-    let v = std::env::var("CCB_BACKEND_ENV")
+    let v = std::env::var("CCBR_BACKEND_ENV")
         .unwrap_or_default()
         .trim()
         .to_lowercase();
@@ -157,16 +157,16 @@ mod tests {
 
     #[test]
     fn test_get_backend_env_from_env_var() {
-        std::env::set_var("CCB_BACKEND_ENV", "wsl");
+        std::env::set_var("CCBR_BACKEND_ENV", "wsl");
         assert_eq!(get_backend_env(), Some("wsl".to_string()));
-        std::env::set_var("CCB_BACKEND_ENV", "WINDOWS");
+        std::env::set_var("CCBR_BACKEND_ENV", "WINDOWS");
         assert_eq!(get_backend_env(), Some("windows".to_string()));
-        std::env::remove_var("CCB_BACKEND_ENV");
+        std::env::remove_var("CCBR_BACKEND_ENV");
     }
 
     #[test]
     fn test_get_backend_env_platform_default() {
-        std::env::remove_var("CCB_BACKEND_ENV");
+        std::env::remove_var("CCBR_BACKEND_ENV");
         #[cfg(windows)]
         assert_eq!(get_backend_env(), Some("windows".to_string()));
         #[cfg(not(windows))]
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_apply_backend_env_noop_on_linux() {
-        std::env::remove_var("CCB_BACKEND_ENV");
+        std::env::remove_var("CCBR_BACKEND_ENV");
         std::env::remove_var("CODEX_SESSION_ROOT");
         std::env::remove_var("GEMINI_ROOT");
         apply_backend_env();

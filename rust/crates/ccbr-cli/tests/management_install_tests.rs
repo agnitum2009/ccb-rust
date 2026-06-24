@@ -101,10 +101,10 @@ fn build_unix_installer_env_marks_source_repo_root() {
         .unwrap();
 
     for key in [
-        "CCB_SOURCE_KIND",
-        "CCB_SOURCE_ROOT",
-        "CCB_GIT_COMMIT",
-        "CCB_GIT_DATE",
+        "CCBR_SOURCE_KIND",
+        "CCBR_SOURCE_ROOT",
+        "CCBR_GIT_COMMIT",
+        "CCBR_GIT_DATE",
     ] {
         std::env::remove_var(key);
     }
@@ -114,17 +114,19 @@ fn build_unix_installer_env_marks_source_repo_root() {
         env.get("CODEX_INSTALL_PREFIX").unwrap(),
         &install_dir.to_string_lossy().to_string()
     );
-    assert_eq!(env.get("CCB_SOURCE_KIND").unwrap(), "source");
+    assert_eq!(env.get("CCBR_SOURCE_KIND").unwrap(), "source");
     assert_eq!(
-        env.get("CCB_SOURCE_ROOT").unwrap(),
+        env.get("CCBR_SOURCE_ROOT").unwrap(),
         &source_dir.to_string_lossy().to_string()
     );
     let commit = env
-        .get("CCB_GIT_COMMIT")
-        .expect("CCB_GIT_COMMIT should be set");
-    assert!(!commit.is_empty(), "CCB_GIT_COMMIT should not be empty");
-    let date = env.get("CCB_GIT_DATE").expect("CCB_GIT_DATE should be set");
-    assert_eq!(date.len(), 10, "CCB_GIT_DATE should be YYYY-MM-DD");
+        .get("CCBR_GIT_COMMIT")
+        .expect("CCBR_GIT_COMMIT should be set");
+    assert!(!commit.is_empty(), "CCBR_GIT_COMMIT should not be empty");
+    let date = env
+        .get("CCBR_GIT_DATE")
+        .expect("CCBR_GIT_DATE should be set");
+    assert_eq!(date.len(), 10, "CCBR_GIT_DATE should be YYYY-MM-DD");
 }
 
 #[test]

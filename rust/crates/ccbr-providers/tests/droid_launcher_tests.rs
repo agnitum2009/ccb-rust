@@ -59,7 +59,7 @@ fn test_droid_launcher_build_start_cmd_includes_home_env_and_caller_context() {
     assert!(cmd.contains("FACTORY_HOME="), "cmd: {}", cmd);
     assert!(cmd.contains("FACTORY_SESSIONS_ROOT="), "cmd: {}", cmd);
     assert!(cmd.contains("DROID_SESSIONS_ROOT="), "cmd: {}", cmd);
-    assert!(cmd.contains("CCB_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
+    assert!(cmd.contains("CCBR_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
     assert!(cmd.contains(" droid"), "cmd: {}", cmd);
 }
 

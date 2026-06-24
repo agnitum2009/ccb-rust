@@ -91,11 +91,11 @@ impl std::fmt::Debug for TmuxBackend {
 impl TmuxBackend {
     pub fn new(socket_name: Option<String>, socket_path: Option<String>) -> Self {
         let socket_path = socket_path
-            .or_else(|| std::env::var("CCB_TMUX_SOCKET_PATH").ok())
+            .or_else(|| std::env::var("CCBR_TMUX_SOCKET_PATH").ok())
             .filter(|s| !s.trim().is_empty())
             .map(|s| expanduser(&s));
         let socket_name = socket_name
-            .or_else(|| std::env::var("CCB_TMUX_SOCKET").ok())
+            .or_else(|| std::env::var("CCBR_TMUX_SOCKET").ok())
             .filter(|s| !s.trim().is_empty());
         Self {
             socket_name,
@@ -689,8 +689,8 @@ mod tests {
 
     #[test]
     fn test_tmux_base_no_socket() {
-        std::env::remove_var("CCB_TMUX_SOCKET");
-        std::env::remove_var("CCB_TMUX_SOCKET_PATH");
+        std::env::remove_var("CCBR_TMUX_SOCKET");
+        std::env::remove_var("CCBR_TMUX_SOCKET_PATH");
         let backend = TmuxBackend::new(None, None);
         let base = backend.tmux_base();
         assert_eq!(base[0], "tmux");

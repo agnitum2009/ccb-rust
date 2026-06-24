@@ -10,13 +10,13 @@ pub fn caller_context_env(
     launch_session_id: &str,
 ) -> HashMap<String, String> {
     let mut env = HashMap::new();
-    env.insert("CCB_CALLER_ACTOR".to_string(), actor.trim().to_string());
+    env.insert("CCBR_CALLER_ACTOR".to_string(), actor.trim().to_string());
     env.insert(
-        "CCB_CALLER_RUNTIME_DIR".to_string(),
+        "CCBR_CALLER_RUNTIME_DIR".to_string(),
         runtime_dir.to_string_lossy().to_string(),
     );
     env.insert(
-        "CCB_SESSION_ID".to_string(),
+        "CCBR_SESSION_ID".to_string(),
         launch_session_id.trim().to_string(),
     );
     env
@@ -77,9 +77,9 @@ mod tests {
     #[test]
     fn test_caller_context_env() {
         let env = caller_context_env("claude", Path::new("/tmp/rt"), "sess-1");
-        assert_eq!(env.get("CCB_CALLER_ACTOR").unwrap(), "claude");
-        assert_eq!(env.get("CCB_CALLER_RUNTIME_DIR").unwrap(), "/tmp/rt");
-        assert_eq!(env.get("CCB_SESSION_ID").unwrap(), "sess-1");
+        assert_eq!(env.get("CCBR_CALLER_ACTOR").unwrap(), "claude");
+        assert_eq!(env.get("CCBR_CALLER_RUNTIME_DIR").unwrap(), "/tmp/rt");
+        assert_eq!(env.get("CCBR_SESSION_ID").unwrap(), "sess-1");
     }
 
     #[test]

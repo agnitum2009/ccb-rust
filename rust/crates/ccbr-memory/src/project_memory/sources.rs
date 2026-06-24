@@ -1,6 +1,6 @@
 use crate::project_memory::filters::filter_memory_source;
 use crate::project_memory::policy::{
-    should_include_source, SOURCE_AGENT_PRIVATE, SOURCE_CCB_SHARED, SOURCE_PROVIDER_NATIVE_PROJECT,
+    should_include_source, SOURCE_AGENT_PRIVATE, SOURCE_CCBR_SHARED, SOURCE_PROVIDER_NATIVE_PROJECT,
 };
 use crate::types::ProjectMemorySource;
 use ccbr_storage::path_helpers::normalize_agent_name;
@@ -47,7 +47,7 @@ pub fn load_memory_sources(
         .collect();
 
     sources.push(read_source(
-        SOURCE_CCB_SHARED,
+        SOURCE_CCBR_SHARED,
         "CCB Shared Project Memory",
         &crate::project_memory::seed::project_memory_path(layout),
         true,

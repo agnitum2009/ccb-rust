@@ -58,7 +58,7 @@ fn test_agy_launcher_build_start_cmd_includes_home_override_and_context() {
 
     assert!(cmd.contains("HOME="), "cmd: {}", cmd);
     assert!(cmd.contains("USERPROFILE="), "cmd: {}", cmd);
-    assert!(cmd.contains("CCB_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
+    assert!(cmd.contains("CCBR_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
     assert!(cmd.contains(" agy"), "cmd: {}", cmd);
 }
 

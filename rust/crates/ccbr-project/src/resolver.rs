@@ -71,9 +71,9 @@ pub fn bootstrap_project(
         ));
     }
     let (is_dangerous, danger_reason) = is_dangerous_project_root(&root);
-    if is_dangerous && !env_truthy("CCB_INIT_PROJECT_DANGEROUS") {
+    if is_dangerous && !env_truthy("CCBR_INIT_PROJECT_DANGEROUS") {
         return Err(ProjectDiscoveryError::DangerousRoot(format!(
-            "{danger_reason}; set CCB_INIT_PROJECT_DANGEROUS=1 to override"
+            "{danger_reason}; set CCBR_INIT_PROJECT_DANGEROUS=1 to override"
         )));
     }
     std::fs::create_dir_all(&config_dir)?;
@@ -175,7 +175,7 @@ mod tests {
     fn test_resolve_explicit_project() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         let resolver = ProjectResolver::new();
         let ctx = resolver
             .resolve(Utf8Path::new("/cwd"), Some(root.as_ref()), true)
@@ -190,7 +190,7 @@ mod tests {
         let root = utf8(tmp.path());
         let target = root.join("target");
         std::fs::create_dir(&target).unwrap();
-        std::fs::create_dir(target.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(target.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         let binding = root.join(crate::discovery::WORKSPACE_BINDING_FILENAME);
         std::fs::write(
             &binding,
@@ -207,7 +207,7 @@ mod tests {
     fn test_resolve_anchor_ancestor() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         let sub = root.join("sub");
         std::fs::create_dir(&sub).unwrap();
         let resolver = ProjectResolver::new();
@@ -236,7 +236,7 @@ mod tests {
         assert_eq!(ctx.project_root, root);
         assert_eq!(ctx.source, "bootstrapped");
         assert!(root
-            .join(crate::discovery::CCB_DIRNAME)
+            .join(crate::discovery::CCBR_DIRNAME)
             .as_std_path()
             .is_dir());
     }
@@ -245,7 +245,7 @@ mod tests {
     fn test_bootstrap_rejects_nested_anchor() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
-        std::fs::create_dir(root.join(crate::discovery::CCB_DIRNAME)).unwrap();
+        std::fs::create_dir(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
         let child = root.join("child");
         std::fs::create_dir(&child).unwrap();
         let err = bootstrap_project(&child).unwrap_err();

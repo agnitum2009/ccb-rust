@@ -184,7 +184,7 @@ fn assistant_ui_prefix_re() -> Regex {
     Regex::new(r"^•\s+").unwrap()
 }
 
-const BANNER_KEYWORDS: &[&str] = &["CCB_REQ_ID:", "CCB_DONE:"];
+const BANNER_KEYWORDS: &[&str] = &["CCBR_REQ_ID:", "CCBR_DONE:"];
 const BANNER_INSTRUCTIONS: &[&str] = &[
     "IMPORTANT: when you finish",
     "IMPORTANT:",
@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_extract_reply_for_req_handles_echo_and_model_done_markers() {
-        let text = "CCB_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCB_DONE: job_native123\nfinal answer\nCCB_DONE: job_native123\n";
+        let text = "CCBR_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCBR_DONE: job_native123\nfinal answer\nCCBR_DONE: job_native123\n";
         let (reply, done_seen) = extract_reply_for_req(text, "job_native123");
         assert!(done_seen);
         assert_eq!(reply, "final answer");
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_extract_reply_for_req_strips_kimi_tui_assistant_bullet() {
-        let text = "CCB_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCB_DONE: job_native123\n• final answer\n  CCB_DONE: job_native123\n";
+        let text = "CCBR_REQ_ID: job_native123\nIMPORTANT: when you finish answering\nCCBR_DONE: job_native123\n• final answer\n  CCBR_DONE: job_native123\n";
         let (reply, done_seen) = extract_reply_for_req(text, "job_native123");
         assert!(done_seen);
         assert_eq!(reply, "final answer");
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_extract_reply_for_req_handles_single_model_done_marker_when_prompt_echo_is_hidden() {
-        let text = "CCB_REQ_ID: job_native123\nfinal answer\nCCB_DONE: job_native123\n";
+        let text = "CCBR_REQ_ID: job_native123\nfinal answer\nCCBR_DONE: job_native123\n";
         let (reply, done_seen) = extract_reply_for_req(text, "job_native123");
         assert!(done_seen);
         assert_eq!(reply, "final answer");
@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn test_extract_reply_for_req_ignores_single_prompt_echo_done_marker() {
-        let text = "CCB_REQ_ID: job_native123\nplease answer\nIMPORTANT: when you finish answering, write this exact line\nCCB_DONE: job_native123\n";
+        let text = "CCBR_REQ_ID: job_native123\nplease answer\nIMPORTANT: when you finish answering, write this exact line\nCCBR_DONE: job_native123\n";
         let (reply, done_seen) = extract_reply_for_req(text, "job_native123");
         assert!(!done_seen);
         assert_eq!(reply, "");

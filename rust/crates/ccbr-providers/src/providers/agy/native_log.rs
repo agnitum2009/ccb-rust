@@ -124,7 +124,7 @@ fn transcript_paths(home_candidates: Option<&[PathBuf]>) -> Vec<PathBuf> {
 fn candidate_homes(home_candidates: Option<&[PathBuf]>) -> Vec<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Ok(explicit) =
-        std::env::var("AGY_HOME").or_else(|_| std::env::var("CCB_AGY_SOURCE_HOME"))
+        std::env::var("AGY_HOME").or_else(|_| std::env::var("CCBR_AGY_SOURCE_HOME"))
     {
         let explicit = explicit.trim();
         if !explicit.is_empty() {
@@ -444,7 +444,7 @@ mod tests {
         write_lines(
             &path,
             &[
-                r#"{"source":"USER","type":"USER_INPUT","content":"CCB_REQ_ID: req-123"}"#,
+                r#"{"source":"USER","type":"USER_INPUT","content":"CCBR_REQ_ID: req-123"}"#,
                 r#"{"source":"MODEL","type":"MODEL_RESPONSE","content":"hello agy"}"#,
             ],
         );
@@ -477,7 +477,7 @@ mod tests {
         write_lines(
             &path,
             &[
-                r#"{"source":"USER","type":"USER_INPUT","content":"CCB_REQ_ID: req-abc"}"#,
+                r#"{"source":"USER","type":"USER_INPUT","content":"CCBR_REQ_ID: req-abc"}"#,
                 r#"{"source":"MODEL","type":"MODEL_RESPONSE","content":"reply"}"#,
             ],
         );

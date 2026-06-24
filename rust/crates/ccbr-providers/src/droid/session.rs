@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 const DROID_SESSION_FILENAME: &str = ".droid-session";
 const WORKSPACE_BINDING_FILENAME: &str = ".ccbr-workspace.json";
-const CCB_DIRNAME: &str = ".ccbr";
+const CCBR_DIRNAME: &str = ".ccbr";
 
 /// A loaded Droid project session.
 ///
@@ -132,12 +132,12 @@ fn find_nearest_project_anchor(current: &Path) -> Option<PathBuf> {
 }
 
 fn project_anchor_dir(root: &Path) -> Option<PathBuf> {
-    let primary = root.join(CCB_DIRNAME);
+    let primary = root.join(CCBR_DIRNAME);
     primary.is_dir().then_some(primary)
 }
 
 fn project_config_dir(work_dir: &Path) -> PathBuf {
-    resolve_dir(work_dir).join(CCB_DIRNAME)
+    resolve_dir(work_dir).join(CCBR_DIRNAME)
 }
 
 fn resolve_dir(path: &Path) -> PathBuf {

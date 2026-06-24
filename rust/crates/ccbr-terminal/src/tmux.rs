@@ -1,6 +1,6 @@
 use std::path::Path;
 
-const DEFAULT_CCB_TMUX_CONFIG: &str = "/dev/null";
+const DEFAULT_CCBR_TMUX_CONFIG: &str = "/dev/null";
 
 /// Build the base tmux command vector including config and socket args.
 pub fn tmux_base(socket_name: Option<&str>, socket_path: Option<&str>) -> Vec<String> {
@@ -10,12 +10,12 @@ pub fn tmux_base(socket_name: Option<&str>, socket_path: Option<&str>) -> Vec<St
     cmd
 }
 
-/// Build config arguments from `CCB_TMUX_CONFIG` env.
+/// Build config arguments from `CCBR_TMUX_CONFIG` env.
 pub fn config_base_args() -> Vec<String> {
-    let config_path = std::env::var("CCB_TMUX_CONFIG")
+    let config_path = std::env::var("CCBR_TMUX_CONFIG")
         .ok()
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_CCB_TMUX_CONFIG.to_string());
+        .unwrap_or_else(|| DEFAULT_CCBR_TMUX_CONFIG.to_string());
     if config_path.is_empty() {
         Vec::new()
     } else {
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_tmux_base_includes_socket_when_present() {
-        std::env::remove_var("CCB_TMUX_CONFIG");
+        std::env::remove_var("CCBR_TMUX_CONFIG");
         assert_eq!(tmux_base(None, None), vec!["tmux", "-f", "/dev/null"]);
         assert_eq!(
             tmux_base(Some("ccbr-demo"), None),
@@ -360,13 +360,13 @@ mod tests {
 
     #[test]
     fn test_tmux_base_allows_managed_config_override() {
-        std::env::set_var("CCB_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
+        std::env::set_var("CCBR_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
         let expanded = expanduser("~/.config/ccb/tmux.conf");
         assert_eq!(
             tmux_base(Some("ccbr-demo"), None),
             vec!["tmux", "-f", expanded.as_str(), "-L", "ccbr-demo"]
         );
-        std::env::remove_var("CCB_TMUX_CONFIG");
+        std::env::remove_var("CCBR_TMUX_CONFIG");
     }
 
     #[test]

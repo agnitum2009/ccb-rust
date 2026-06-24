@@ -252,7 +252,7 @@ fn account_home_dir() -> Utf8PathBuf {
 
 pub fn runtime_state_root_candidates() -> Vec<Utf8PathBuf> {
     let mut candidates: Vec<Utf8PathBuf> = Vec::new();
-    if let Some(path) = absolute_path_from_env("CCB_RUNTIME_STATE_HOME") {
+    if let Some(path) = absolute_path_from_env("CCBR_RUNTIME_STATE_HOME") {
         candidates.push(path);
     }
     if let Some(xdg_state) =

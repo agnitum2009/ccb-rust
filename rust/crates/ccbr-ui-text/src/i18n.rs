@@ -3,7 +3,7 @@
 //! Mirrors `ui_text/i18n.py` from Python v7.5.2.
 //!
 //! Language detection priority:
-//! 1. `CCB_LANG` environment variable (`zh`/`en`/`auto`)
+//! 1. `CCBR_LANG` environment variable (`zh`/`en`/`auto`)
 //! 2. System locale (`LANG`/`LC_ALL`/`LC_MESSAGES`)
 //! 3. Default to English
 
@@ -219,7 +219,7 @@ static CURRENT_LANG: Mutex<Option<Language>> = Mutex::new(None);
 
 /// Detect language from the environment.
 pub fn detect_language() -> Language {
-    if let Ok(ccbr_lang) = std::env::var("CCB_LANG") {
+    if let Ok(ccbr_lang) = std::env::var("CCBR_LANG") {
         let ccbr_lang = ccbr_lang.to_lowercase();
         if ccbr_lang == "zh" || ccbr_lang == "cn" || ccbr_lang == "chinese" {
             return Language::Chinese;
@@ -309,28 +309,28 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_detect_language_from_ccbr_lang() {
-        std::env::remove_var("CCB_LANG");
+        std::env::remove_var("CCBR_LANG");
         std::env::remove_var("LANG");
         std::env::remove_var("LC_ALL");
         std::env::remove_var("LC_MESSAGES");
 
-        std::env::set_var("CCB_LANG", "zh");
+        std::env::set_var("CCBR_LANG", "zh");
         assert_eq!(detect_language(), Language::Chinese);
 
-        std::env::set_var("CCB_LANG", "CN");
+        std::env::set_var("CCBR_LANG", "CN");
         assert_eq!(detect_language(), Language::Chinese);
 
-        std::env::set_var("CCB_LANG", "en");
+        std::env::set_var("CCBR_LANG", "en");
         assert_eq!(detect_language(), Language::English);
 
-        std::env::set_var("CCB_LANG", "auto");
+        std::env::set_var("CCBR_LANG", "auto");
         assert_eq!(detect_language(), Language::English);
     }
 
     #[test]
     #[serial_test::serial]
     fn test_detect_language_from_system_locale() {
-        std::env::remove_var("CCB_LANG");
+        std::env::remove_var("CCBR_LANG");
 
         std::env::set_var("LANG", "zh_CN.UTF-8");
         assert_eq!(detect_language(), Language::Chinese);

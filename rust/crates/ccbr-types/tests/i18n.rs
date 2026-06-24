@@ -8,28 +8,28 @@ fn reset_language() {
 #[test]
 #[serial]
 fn test_detect_language_from_ccbr_lang() {
-    std::env::remove_var("CCB_LANG");
+    std::env::remove_var("CCBR_LANG");
     std::env::remove_var("LANG");
     std::env::remove_var("LC_ALL");
     std::env::remove_var("LC_MESSAGES");
 
-    std::env::set_var("CCB_LANG", "zh");
+    std::env::set_var("CCBR_LANG", "zh");
     assert_eq!(i18n::detect_language(), Language::Chinese);
 
-    std::env::set_var("CCB_LANG", "CN");
+    std::env::set_var("CCBR_LANG", "CN");
     assert_eq!(i18n::detect_language(), Language::Chinese);
 
-    std::env::set_var("CCB_LANG", "en");
+    std::env::set_var("CCBR_LANG", "en");
     assert_eq!(i18n::detect_language(), Language::English);
 
-    std::env::set_var("CCB_LANG", "auto");
+    std::env::set_var("CCBR_LANG", "auto");
     assert_eq!(i18n::detect_language(), Language::English);
 }
 
 #[test]
 #[serial]
 fn test_detect_language_from_system_locale() {
-    std::env::remove_var("CCB_LANG");
+    std::env::remove_var("CCBR_LANG");
 
     std::env::set_var("LANG", "zh_CN.UTF-8");
     assert_eq!(i18n::detect_language(), Language::Chinese);

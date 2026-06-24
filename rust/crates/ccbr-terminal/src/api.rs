@@ -100,7 +100,7 @@ pub fn get_pane_id_from_session(session_data: &Value) -> Option<String> {
 /// Infer the shell type for the current platform.
 pub fn get_shell_type() -> String {
     if crate::env::is_windows()
-        && std::env::var("CCB_BACKEND_ENV")
+        && std::env::var("CCBR_BACKEND_ENV")
             .map(|s| s.trim().to_lowercase())
             .unwrap_or_default()
             == "wsl"
@@ -125,16 +125,16 @@ mod tests {
 
     #[test]
     fn test_get_shell_type_bash_on_unix() {
-        std::env::remove_var("CCB_BACKEND_ENV");
+        std::env::remove_var("CCBR_BACKEND_ENV");
         #[cfg(not(windows))]
         assert_eq!(get_shell_type(), "bash");
     }
 
     #[test]
     fn test_get_shell_type_wsl_env() {
-        std::env::set_var("CCB_BACKEND_ENV", "wsl");
+        std::env::set_var("CCBR_BACKEND_ENV", "wsl");
         assert_eq!(get_shell_type(), "bash");
-        std::env::remove_var("CCB_BACKEND_ENV");
+        std::env::remove_var("CCBR_BACKEND_ENV");
     }
 
     #[test]

@@ -188,8 +188,8 @@ fn test_start_creates_active_submission_from_session() {
     assert_eq!(state.get("pane_id").unwrap(), "%42");
     assert!(state.get("prompt_sent").unwrap().as_bool().unwrap());
     let prompt_text = state.get("prompt_text").unwrap().as_str().unwrap();
-    assert!(prompt_text.contains("CCB_REQ_ID:"));
-    assert!(prompt_text.contains("CCB_DONE:"));
+    assert!(prompt_text.contains("CCBR_REQ_ID:"));
+    assert!(prompt_text.contains("CCBR_DONE:"));
     assert!(prompt_text.contains("hello agy"));
 }
 
@@ -246,7 +246,7 @@ fn test_poll_terminal_completed_on_done_marker() {
 
     let req_id = request_anchor(&job.job_id);
     let pane_text = format!(
-        "CCB_REQ_ID: {req_id}\n\necho done\nCCB_DONE: {req_id}\n\nreply body\nCCB_DONE: {req_id}"
+        "CCBR_REQ_ID: {req_id}\n\necho done\nCCBR_DONE: {req_id}\n\nreply body\nCCBR_DONE: {req_id}"
     );
     submission
         .runtime_state
@@ -279,7 +279,7 @@ fn test_poll_terminal_incomplete_on_empty_reply() {
     let mut submission = start_with_mock_target(&adapter, &job, Some(&ctx), &fake_now());
 
     let req_id = request_anchor(&job.job_id);
-    let pane_text = format!("CCB_REQ_ID: {req_id}\nCCB_DONE: {req_id}\nCCB_DONE: {req_id}");
+    let pane_text = format!("CCBR_REQ_ID: {req_id}\nCCBR_DONE: {req_id}\nCCBR_DONE: {req_id}");
     submission
         .runtime_state
         .insert("pane_content".to_string(), Value::String(pane_text));
@@ -341,7 +341,7 @@ fn test_poll_no_terminal_without_done_marker() {
     let mut submission = start_with_mock_target(&adapter, &job, Some(&ctx), &fake_now());
 
     let req_id = request_anchor(&job.job_id);
-    let pane_text = format!("CCB_REQ_ID: {req_id}\n\npartial reply without done marker");
+    let pane_text = format!("CCBR_REQ_ID: {req_id}\n\npartial reply without done marker");
     submission
         .runtime_state
         .insert("pane_content".to_string(), Value::String(pane_text));
@@ -365,7 +365,7 @@ fn test_poll_no_terminal_with_unchanged_content() {
     let mut submission = start_with_mock_target(&adapter, &job, Some(&ctx), &fake_now());
 
     let req_id = request_anchor(&job.job_id);
-    let pane_text = format!("CCB_REQ_ID: {req_id}\n\nstill thinking");
+    let pane_text = format!("CCBR_REQ_ID: {req_id}\n\nstill thinking");
     submission
         .runtime_state
         .insert("pane_content".to_string(), Value::String(pane_text));
@@ -439,8 +439,8 @@ fn test_poll_terminal_failed_on_send_error() {
 fn test_wrap_agy_prompt_format() {
     let req_id = "<<BEGIN:req-12345678>>";
     let wrapped = wrap_agy_prompt("do the thing", req_id);
-    assert!(wrapped.contains(&format!("CCB_REQ_ID: {req_id}")));
-    assert!(wrapped.contains(&format!("CCB_DONE: {req_id}")));
+    assert!(wrapped.contains(&format!("CCBR_REQ_ID: {req_id}")));
+    assert!(wrapped.contains(&format!("CCBR_DONE: {req_id}")));
     assert!(wrapped.contains("do the thing"));
     assert!(wrapped.ends_with('\n'));
 }
@@ -458,7 +458,7 @@ fn test_request_anchor_deterministic() {
 fn test_extract_reply_for_req() {
     let req_id = "<<BEGIN:req-12345678>>";
     let text =
-        format!("CCB_REQ_ID: {req_id}\necho\nCCB_DONE: {req_id}\nhello agy\nCCB_DONE: {req_id}");
+        format!("CCBR_REQ_ID: {req_id}\necho\nCCBR_DONE: {req_id}\nhello agy\nCCBR_DONE: {req_id}");
     let (reply, done) = extract_reply_for_req(&text, req_id);
     assert!(done);
     assert_eq!(reply, "hello agy");
@@ -468,7 +468,7 @@ fn test_extract_reply_for_req() {
 fn test_pane_contains_req_anchor() {
     let req_id = "<<BEGIN:req-12345678>>";
     assert!(pane_contains_req_anchor(
-        &format!("prefix CCB_REQ_ID: {req_id} suffix"),
+        &format!("prefix CCBR_REQ_ID: {req_id} suffix"),
         req_id
     ));
     assert!(!pane_contains_req_anchor("no anchor", req_id));
@@ -501,7 +501,7 @@ fn test_start_dispatches_prompt_to_pane() {
     let guard = sent.lock().unwrap();
     assert_eq!(guard.len(), 1);
     assert_eq!(guard[0].0, "%42");
-    assert!(guard[0].1.contains("CCB_REQ_ID:"));
+    assert!(guard[0].1.contains("CCBR_REQ_ID:"));
     assert!(guard[0].1.contains(&request_anchor(&job.job_id)));
 }
 
@@ -543,7 +543,7 @@ fn test_poll_completes_from_native_transcript() {
     let user_event = serde_json::json!({
         "source": "USER",
         "type": "USER_INPUT",
-        "content": format!("CCB_REQ_ID: {req_id}"),
+        "content": format!("CCBR_REQ_ID: {req_id}"),
     });
     let model_event = serde_json::json!({
         "source": "MODEL",

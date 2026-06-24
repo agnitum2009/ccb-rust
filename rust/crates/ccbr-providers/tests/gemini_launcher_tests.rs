@@ -91,7 +91,7 @@ fn test_gemini_launcher_build_start_cmd_includes_home_env_and_context() {
     assert!(cmd.contains("GEMINI_ROOT="), "cmd: {}", cmd);
     assert!(cmd.contains("NPM_CONFIG_CACHE="), "cmd: {}", cmd);
     assert!(cmd.contains("XDG_CACHE_HOME="), "cmd: {}", cmd);
-    assert!(cmd.contains("CCB_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
+    assert!(cmd.contains("CCBR_CALLER_ACTOR=agent1"), "cmd: {}", cmd);
     assert!(cmd.contains(" gemini"), "cmd: {}", cmd);
 }
 

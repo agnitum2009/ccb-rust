@@ -1,11 +1,11 @@
 pub const SOURCE_RUNTIME_COORDINATION_RULES: &str = "runtime_coordination_rules";
-pub const SOURCE_CCB_SHARED: &str = "ccbr_shared";
+pub const SOURCE_CCBR_SHARED: &str = "ccbr_shared";
 pub const SOURCE_PROVIDER_USER_MEMORY: &str = "provider_user_memory";
 pub const SOURCE_PROVIDER_NATIVE_PROJECT: &str = "provider_native_project";
 pub const SOURCE_AGENT_PRIVATE: &str = "agent_private";
 pub const SOURCE_RULES_DIR: &str = "rules_dir";
 
-pub const FILTER_CCB_INSTALL_BLOCKS: &str = "ccbr_install_blocks";
+pub const FILTER_CCBR_INSTALL_BLOCKS: &str = "ccbr_install_blocks";
 
 /// Policy for a single memory source kind.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,7 +75,7 @@ fn policy(
     filter_provider_user_memory: bool,
 ) -> ProviderMemoryPolicy {
     let user_filters = if filter_provider_user_memory {
-        vec![FILTER_CCB_INSTALL_BLOCKS.to_string()]
+        vec![FILTER_CCBR_INSTALL_BLOCKS.to_string()]
     } else {
         Vec::new()
     };
@@ -86,7 +86,7 @@ fn policy(
         MemorySourcePolicy::new(true, Vec::new()),
     );
     sources.insert(
-        SOURCE_CCB_SHARED.to_string(),
+        SOURCE_CCBR_SHARED.to_string(),
         MemorySourcePolicy::new(true, Vec::new()),
     );
     sources.insert(

@@ -29,17 +29,17 @@ fn env_stem(provider_key: &str) -> String {
     provider_key.trim().to_uppercase().replace('-', "_")
 }
 
-/// Build a `CCB_<PROVIDER>_<SUFFIX>` environment variable name.
+/// Build a `CCBR_<PROVIDER>_<SUFFIX>` environment variable name.
 ///
 /// Empty parts are ignored. When no parts are supplied the base
-/// `CCB_<PROVIDER>` name is returned.
+/// `CCBR_<PROVIDER>` name is returned.
 pub fn provider_env_name(provider_key: &str, parts: &[&str]) -> String {
     let suffix: Vec<String> = parts
         .iter()
         .map(|p| p.trim().to_uppercase())
         .filter(|p| !p.is_empty())
         .collect();
-    let base = format!("CCB_{}", env_stem(provider_key));
+    let base = format!("CCBR_{}", env_stem(provider_key));
     if suffix.is_empty() {
         base
     } else {
@@ -60,7 +60,7 @@ fn build_runtime_spec(provider_key: &str) -> ProviderRuntimeSpec {
         rpc_prefix: provider_key.to_string(),
         state_file_name: format!("{}-runtime.json", provider_key),
         log_file_name: format!("{}-runtime.log", provider_key),
-        idle_timeout_env: format!("CCB_{}_RUNTIME_IDLE_TIMEOUT_S", stem),
+        idle_timeout_env: format!("CCBR_{}_RUNTIME_IDLE_TIMEOUT_S", stem),
         lock_name: format!("{}-runtime", provider_key),
     }
 }
@@ -69,9 +69,9 @@ fn build_client_spec(provider_key: &str, session_filename: &str) -> ProviderClie
     let stem = env_stem(provider_key);
     ProviderClientSpec {
         provider_key: provider_key.to_string(),
-        enabled_env: format!("CCB_{}", stem),
-        autostart_env: format!("CCB_{}_AUTOSTART", stem),
-        state_file_env: format!("CCB_{}_STATE_FILE", stem),
+        enabled_env: format!("CCBR_{}", stem),
+        autostart_env: format!("CCBR_{}_AUTOSTART", stem),
+        state_file_env: format!("CCBR_{}_STATE_FILE", stem),
         session_filename: session_filename.to_string(),
     }
 }
@@ -385,14 +385,14 @@ mod tests {
 
     #[test]
     fn test_provider_env_name() {
-        assert_eq!(provider_env_name("claude", &[]), "CCB_CLAUDE");
+        assert_eq!(provider_env_name("claude", &[]), "CCBR_CLAUDE");
         assert_eq!(
             provider_env_name("claude", &["autostart"]),
-            "CCB_CLAUDE_AUTOSTART"
+            "CCBR_CLAUDE_AUTOSTART"
         );
         assert_eq!(
             provider_env_name("open-code", &["runtime", "idle_timeout_s"]),
-            "CCB_OPEN_CODE_RUNTIME_IDLE_TIMEOUT_S"
+            "CCBR_OPEN_CODE_RUNTIME_IDLE_TIMEOUT_S"
         );
     }
 
@@ -433,14 +433,14 @@ mod tests {
         let spec = runtime_spec_by_provider("codex").unwrap();
         assert_eq!(spec.provider_key, "codex");
         assert_eq!(spec.state_file_name, "codex-runtime.json");
-        assert_eq!(spec.idle_timeout_env, "CCB_CODEX_RUNTIME_IDLE_TIMEOUT_S");
+        assert_eq!(spec.idle_timeout_env, "CCBR_CODEX_RUNTIME_IDLE_TIMEOUT_S");
     }
 
     #[test]
     fn test_client_spec_by_provider() {
         let spec = client_spec_by_provider("claude").unwrap();
         assert_eq!(spec.session_filename, ".claude-session");
-        assert_eq!(spec.enabled_env, "CCB_CLAUDE");
+        assert_eq!(spec.enabled_env, "CCBR_CLAUDE");
     }
 
     #[test]
@@ -448,11 +448,11 @@ mod tests {
         let runtime = runtime_spec_by_provider("kimi").unwrap();
         assert_eq!(runtime.provider_key, "kimi");
         assert_eq!(runtime.state_file_name, "kimi-runtime.json");
-        assert_eq!(runtime.idle_timeout_env, "CCB_KIMI_RUNTIME_IDLE_TIMEOUT_S");
+        assert_eq!(runtime.idle_timeout_env, "CCBR_KIMI_RUNTIME_IDLE_TIMEOUT_S");
 
         let client = client_spec_by_provider("kimi").unwrap();
         assert_eq!(client.session_filename, ".kimi-session");
-        assert_eq!(client.enabled_env, "CCB_KIMI");
+        assert_eq!(client.enabled_env, "CCBR_KIMI");
 
         assert_eq!(KIMI_RUNTIME_SPEC.provider_key, "kimi");
         assert_eq!(KIMI_CLIENT_SPEC.provider_key, "kimi");

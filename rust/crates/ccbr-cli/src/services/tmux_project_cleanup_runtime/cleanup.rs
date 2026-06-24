@@ -169,8 +169,8 @@ mod tests {
     impl EnvGuard {
         fn set() -> Self {
             let _env_lock = ENV_TEST_LOCK.lock().unwrap();
-            let previous = std::env::var("CCB_TEST_TMUX_AVAILABLE").ok();
-            std::env::set_var("CCB_TEST_TMUX_AVAILABLE", "1");
+            let previous = std::env::var("CCBR_TEST_TMUX_AVAILABLE").ok();
+            std::env::set_var("CCBR_TEST_TMUX_AVAILABLE", "1");
             Self {
                 had_var: previous.is_some(),
                 previous,
@@ -182,10 +182,10 @@ mod tests {
         fn drop(&mut self) {
             if self.had_var {
                 if let Some(ref v) = self.previous {
-                    std::env::set_var("CCB_TEST_TMUX_AVAILABLE", v);
+                    std::env::set_var("CCBR_TEST_TMUX_AVAILABLE", v);
                 }
             } else {
-                std::env::remove_var("CCB_TEST_TMUX_AVAILABLE");
+                std::env::remove_var("CCBR_TEST_TMUX_AVAILABLE");
             }
         }
     }

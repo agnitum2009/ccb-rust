@@ -41,7 +41,7 @@ pub fn source_runtime_allowed(argv: &[String], cwd: &Path) -> GuardResult {
         return GuardResult::allow();
     }
 
-    if std::env::var("CCB_SOURCE_RUNTIME_OK").ok().as_deref() == Some("1") {
+    if std::env::var("CCBR_SOURCE_RUNTIME_OK").ok().as_deref() == Some("1") {
         return GuardResult::allow();
     }
 
@@ -88,7 +88,7 @@ pub fn source_runtime_allowed(argv: &[String], cwd: &Path) -> GuardResult {
          `{}` for source-change validation.\n\
          Current directory: {}\n\
          Allowed source roots: {rendered}\n\
-         Override only for explicit diagnostics with CCB_SOURCE_RUNTIME_OK=1.",
+         Override only for explicit diagnostics with CCBR_SOURCE_RUNTIME_OK=1.",
         example_test_binary.display(),
         example_test_root.display(),
         cwd.display()
@@ -96,7 +96,7 @@ pub fn source_runtime_allowed(argv: &[String], cwd: &Path) -> GuardResult {
 }
 
 fn resolve_source_root() -> Option<PathBuf> {
-    if let Ok(root) = std::env::var("CCB_SOURCE_ROOT") {
+    if let Ok(root) = std::env::var("CCBR_SOURCE_ROOT") {
         let path = PathBuf::from(root);
         if path.is_dir() {
             return Some(path);
@@ -153,7 +153,7 @@ fn default_source_allowed_roots(root: &Path) -> Vec<PathBuf> {
 }
 
 fn source_allowed_roots(root: &Path) -> Vec<PathBuf> {
-    match std::env::var("CCB_SOURCE_ALLOWED_ROOTS")
+    match std::env::var("CCBR_SOURCE_ALLOWED_ROOTS")
         .ok()
         .filter(|s| !s.trim().is_empty())
     {
@@ -232,7 +232,7 @@ mod tests {
         let cwd = root.join("workspace");
         std::fs::create_dir_all(&cwd).unwrap();
 
-        // Point CCB_SOURCE_ROOT at a directory with no .git => allow.
+        // Point CCBR_SOURCE_ROOT at a directory with no .git => allow.
         let argv = vec!["start".to_string()];
         let result = with_source_root(&root, || source_runtime_allowed(&argv, &cwd));
         assert!(result.allowed);
@@ -290,8 +290,8 @@ mod tests {
         let argv = vec!["start".to_string()];
         let result = with_env(
             &[
-                ("CCB_SOURCE_ROOT", root.to_str().unwrap()),
-                ("CCB_SOURCE_RUNTIME_OK", "1"),
+                ("CCBR_SOURCE_ROOT", root.to_str().unwrap()),
+                ("CCBR_SOURCE_RUNTIME_OK", "1"),
             ],
             || source_runtime_allowed(&argv, &cwd),
         );
@@ -330,8 +330,8 @@ mod tests {
         );
         let result = with_env(
             &[
-                ("CCB_SOURCE_ROOT", root.to_str().unwrap()),
-                ("CCB_SOURCE_ALLOWED_ROOTS", &roots),
+                ("CCBR_SOURCE_ROOT", root.to_str().unwrap()),
+                ("CCBR_SOURCE_ALLOWED_ROOTS", &roots),
             ],
             || source_runtime_allowed(&argv, &cwd),
         );
@@ -339,7 +339,7 @@ mod tests {
     }
 
     fn with_source_root<T>(root: &Path, f: impl FnOnce() -> T) -> T {
-        with_env(&[("CCB_SOURCE_ROOT", root.to_str().unwrap())], f)
+        with_env(&[("CCBR_SOURCE_ROOT", root.to_str().unwrap())], f)
     }
 
     fn with_env<T>(vars: &[(&str, &str)], f: impl FnOnce() -> T) -> T {

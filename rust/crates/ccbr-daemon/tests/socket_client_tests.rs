@@ -33,23 +33,23 @@ fn test_ccbd_client_uses_stable_default_timeout() {
 
 #[test]
 fn test_ccbd_client_reads_timeout_from_env() {
-    std::env::set_var("CCB_CCBD_CLIENT_TIMEOUT_S", "4.5");
+    std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "4.5");
     let client = CcbdClient::new(temp_socket_path());
     assert!((client.timeout_s() - 4.5).abs() < f64::EPSILON);
-    std::env::remove_var("CCB_CCBD_CLIENT_TIMEOUT_S");
+    std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
 }
 
 #[test]
 fn test_ccbd_client_explicit_timeout_overrides_env() {
-    std::env::set_var("CCB_CCBD_CLIENT_TIMEOUT_S", "4.5");
+    std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "4.5");
     let client = CcbdClient::new(temp_socket_path()).with_timeout(0.2);
     assert!((client.timeout_s() - 0.2).abs() < f64::EPSILON);
-    std::env::remove_var("CCB_CCBD_CLIENT_TIMEOUT_S");
+    std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
 }
 
 #[test]
 fn test_ccbd_client_with_timeout_preserves_socket_path() {
-    std::env::set_var("CCB_CCBD_CLIENT_TIMEOUT_S", "4.5");
+    std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "4.5");
     let path = temp_socket_path();
     let client = CcbdClient::new(&path);
     let cloned = client.with_timeout(12.0);
@@ -58,7 +58,7 @@ fn test_ccbd_client_with_timeout_preserves_socket_path() {
     assert_eq!(cloned.socket_path(), path);
     assert!((cloned.timeout_s() - 12.0).abs() < f64::EPSILON);
     assert!((client.timeout_s() - 4.5).abs() < f64::EPSILON);
-    std::env::remove_var("CCB_CCBD_CLIENT_TIMEOUT_S");
+    std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
 }
 
 struct TestEnvelope {

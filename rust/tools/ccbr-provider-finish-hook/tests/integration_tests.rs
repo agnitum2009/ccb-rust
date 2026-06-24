@@ -49,7 +49,7 @@ fn test_provider_finish_hook_writes_claude_completion_event() {
     let transcript = tmp.path().join("transcript.jsonl");
     std::fs::write(
         &transcript,
-        r#"{"type":"user","message":{"content":"CCB_REQ_ID: 20260331-130805-796-1333224-9"}}"#,
+        r#"{"type":"user","message":{"content":"CCBR_REQ_ID: 20260331-130805-796-1333224-9"}}"#,
     )
     .unwrap();
 
@@ -90,7 +90,7 @@ fn test_provider_finish_hook_marks_empty_claude_reply_incomplete() {
         serde_json::json!({
             "uuid": "old-user",
             "type": "user",
-            "message": {"role": "user", "content": "CCB_REQ_ID: job_previous111\n\nPrevious task."},
+            "message": {"role": "user", "content": "CCBR_REQ_ID: job_previous111\n\nPrevious task."},
         })
         .to_string()
             + "\n"
@@ -105,7 +105,7 @@ fn test_provider_finish_hook_marks_empty_claude_reply_incomplete() {
             + &serde_json::json!({
                 "uuid": "current-user",
                 "type": "user",
-                "message": {"role": "user", "content": format!("CCB_REQ_ID: {req_id}\n\nRun the task.")},
+                "message": {"role": "user", "content": format!("CCBR_REQ_ID: {req_id}\n\nRun the task.")},
             })
             .to_string()
             + "\n",
@@ -154,7 +154,7 @@ fn test_provider_finish_hook_uses_outer_claude_req_id_when_body_mentions_old_req
             "message": {
                 "role": "user",
                 "content": format!(
-                    "CCB_REQ_ID: {current_req_id}\n\nCCB_REQ_ID: {embedded_old_req_id}\n\nForwarded review context that contains an older request id."
+                    "CCBR_REQ_ID: {current_req_id}\n\nCCBR_REQ_ID: {embedded_old_req_id}\n\nForwarded review context that contains an older request id."
                 ),
             },
         })
@@ -204,7 +204,7 @@ fn test_provider_finish_hook_ignores_later_claude_tool_result_req_id() {
         &transcript,
         serde_json::json!({
             "type": "user",
-            "message": {"role": "user", "content": format!("CCB_REQ_ID: {current_req_id}\n\nReview this package.")},
+            "message": {"role": "user", "content": format!("CCBR_REQ_ID: {current_req_id}\n\nReview this package.")},
         })
         .to_string()
             + "\n"
@@ -212,7 +212,7 @@ fn test_provider_finish_hook_ignores_later_claude_tool_result_req_id() {
                 "type": "user",
                 "message": {
                     "role": "user",
-                    "content": [{"type": "tool_result", "tool_use_id": "tooluse_1", "content": format!("Command output mentioned CCB_REQ_ID: {tool_result_req_id}"), "is_error": false}],
+                    "content": [{"type": "tool_result", "tool_use_id": "tooluse_1", "content": format!("Command output mentioned CCBR_REQ_ID: {tool_result_req_id}"), "is_error": false}],
                 },
             })
             .to_string()
@@ -258,12 +258,12 @@ fn test_provider_finish_hook_ignores_claude_scheduled_task_after_stale_ccbr_prom
     let stale_req_id = "job_stale123abc";
     let scheduled_reply = "当前进度：已完成第9次，正在执行第10次。";
     let records = [
-        serde_json::json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": format!("CCB_REQ_ID: {stale_req_id}\n\nRun a long task.")}}),
+        serde_json::json!({"uuid": "u1", "type": "user", "message": {"role": "user", "content": format!("CCBR_REQ_ID: {stale_req_id}\n\nRun a long task.")}}),
         serde_json::json!({"uuid": "u2", "parentUuid": "u1", "type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "[Request interrupted by user]"}]}}),
         serde_json::json!({"uuid": "s1", "parentUuid": "u2", "type": "system", "subtype": "scheduled_task_fire", "content": "Running scheduled task"}),
         serde_json::json!({"uuid": "u3", "parentUuid": "s1", "type": "user", "message": {"role": "user", "content": "循环计数，共50次"}, "isMeta": true}),
         serde_json::json!({"uuid": "a1", "parentUuid": "u3", "type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": scheduled_reply}]}}),
-        serde_json::json!({"type": "last-prompt", "lastPrompt": format!("CCB_REQ_ID: {stale_req_id}\n\nRun a long task.")}),
+        serde_json::json!({"type": "last-prompt", "lastPrompt": format!("CCBR_REQ_ID: {stale_req_id}\n\nRun a long task.")}),
     ];
     std::fs::write(
         &transcript,
@@ -304,7 +304,7 @@ fn test_provider_finish_hook_writes_gemini_failed_event_for_login_required_respo
     let req_id = "20260331-130805-796-1333224-10";
     let payload = serde_json::json!({
         "hook_event_name": "AfterAgent",
-        "prompt": format!("CCB_REQ_ID: {req_id} Execute the full request from @/tmp/request.md and reply directly."),
+        "prompt": format!("CCBR_REQ_ID: {req_id} Execute the full request from @/tmp/request.md and reply directly."),
         "prompt_response": "Code Assist login required.\nAttempting to open authentication page in your browser.\nOtherwise navigate to:\nhttps://accounts.google.com/o/oauth2/v2/auth?... \n",
         "session_id": "gemini-session-1",
         "finishReason": "STOP",
@@ -348,7 +348,7 @@ fn test_provider_finish_hook_accepts_job_id_anchor_from_prompt() {
     let req_id = "job_06188b28c1db";
     let payload = serde_json::json!({
         "hook_event_name": "AfterAgent",
-        "prompt": format!("CCB_REQ_ID: {req_id} Execute the full request from @/tmp/request.md and reply directly."),
+        "prompt": format!("CCBR_REQ_ID: {req_id} Execute the full request from @/tmp/request.md and reply directly."),
         "prompt_response": "job-based reply",
         "session_id": "gemini-session-1",
         "finishReason": "STOP",
@@ -378,7 +378,7 @@ fn test_provider_finish_hook_marks_empty_gemini_reply_incomplete() {
     let req_id = "job_7c1f6ab28cde";
     let payload = serde_json::json!({
         "hook_event_name": "AfterAgent",
-        "prompt": format!("CCB_REQ_ID: {req_id} Execute the full request from @/tmp/request.md and reply directly."),
+        "prompt": format!("CCBR_REQ_ID: {req_id} Execute the full request from @/tmp/request.md and reply directly."),
         "prompt_response": "",
         "session_id": "gemini-session-1",
         "finishReason": "STOP",

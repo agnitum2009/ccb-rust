@@ -51,12 +51,12 @@ fn test_provider_activity_hook_writes_codex_active_snapshot() {
     std::fs::create_dir_all(&workspace).unwrap();
 
     let mut env = HashMap::new();
-    env.insert("CCB_CALLER_ACTOR".into(), "agent2".into());
+    env.insert("CCBR_CALLER_ACTOR".into(), "agent2".into());
     env.insert(
-        "CCB_CALLER_RUNTIME_DIR".into(),
+        "CCBR_CALLER_RUNTIME_DIR".into(),
         runtime_dir.to_string_lossy().into_owned(),
     );
-    env.insert("CCB_SESSION_ID".into(), "ccbr-agent2-1".into());
+    env.insert("CCBR_SESSION_ID".into(), "ccbr-agent2-1".into());
     env.insert("TMUX_PANE".into(), "%42".into());
 
     let payload = serde_json::json!({
@@ -92,9 +92,9 @@ fn test_provider_activity_hook_maps_claude_waiting_notification() {
     let runtime_dir = tmp.path().join("runtime");
 
     let mut env = HashMap::new();
-    env.insert("CCB_CALLER_ACTOR".into(), "agent3".into());
+    env.insert("CCBR_CALLER_ACTOR".into(), "agent3".into());
     env.insert(
-        "CCB_CALLER_RUNTIME_DIR".into(),
+        "CCBR_CALLER_RUNTIME_DIR".into(),
         runtime_dir.to_string_lossy().into_owned(),
     );
 
@@ -122,9 +122,9 @@ fn test_provider_activity_hook_exits_zero_without_writing_on_malformed_payload()
     let runtime_dir = tmp.path().join("runtime");
 
     let mut env: HashMap<String, String> = HashMap::new();
-    env.insert("CCB_CALLER_ACTOR".into(), "agent2".into());
+    env.insert("CCBR_CALLER_ACTOR".into(), "agent2".into());
     env.insert(
-        "CCB_CALLER_RUNTIME_DIR".into(),
+        "CCBR_CALLER_RUNTIME_DIR".into(),
         runtime_dir.to_string_lossy().into_owned(),
     );
 
@@ -166,9 +166,9 @@ fn test_provider_activity_hook_maps_error_payload_to_failed_without_secret() {
     let runtime_dir = tmp.path().join("runtime");
 
     let mut env = HashMap::new();
-    env.insert("CCB_CALLER_ACTOR".into(), "agent2".into());
+    env.insert("CCBR_CALLER_ACTOR".into(), "agent2".into());
     env.insert(
-        "CCB_CALLER_RUNTIME_DIR".into(),
+        "CCBR_CALLER_RUNTIME_DIR".into(),
         runtime_dir.to_string_lossy().into_owned(),
     );
 
