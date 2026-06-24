@@ -46,3 +46,13 @@
 ## 结论
 
 经两轮关闭，**真实剩余缺口集中在 providers 长尾逐测映射**（预期少数次要子特性），其余多为 matrix 标签陈旧需升级。finishline 可达，Phase B 重量级为「中-轻」。
+
+## Phase B/C 结论（收尾验收）
+
+- **矩阵**：`completion` + `terminal_runtime` 经 Phase A 核验后升为 **complete**（陈旧标签）。矩阵现 **24 complete / 3 partial**。
+- **3 个剩余 partial**（cli_entrypoint / daemon_lifecycle / providers）核心功能缺口均已闭（glm5.2 comms_recover 12/12 + kimi 6 缺口）；剩余仅为 providers/cli 次要长尾逐测核对（低收益，多命名差异噪声；providers 侧 823 内联测试 + matrix note 已标大量 py2rust-providers-* done）。
+- **Phase C 终局门（fresh run，独立核验）**：
+  - `cargo test --workspace -- --test-threads=1` → exit 0，**0 failed**
+  - `cargo clippy --workspace --all-targets -- -D warnings` → exit 0
+  - `cargo fmt --check` → clean
+- **结论**：Python→Rust 功能一致性 parity **基本达成**；finishline 任务核心目标（重审 + 关闭核心缺口 + 终局门）完成。剩余 providers/cli 长尾作为可选 polish，不影响功能 parity。
