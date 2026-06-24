@@ -297,10 +297,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
             project,
             dry_run: has("--dry-run", &filtered),
         })),
-        "restart" => Ok(ParsedCommand::Restart(ParsedRestart {
-            project,
-            agent_name: get(1, &filtered),
-        })),
+        "restart" => parse_restart(&filtered[1..], project),
         "version" | "-v" | "--version" => Ok(ParsedCommand::Version),
         "update" => Ok(ParsedCommand::Update(ParsedUpdate { project })),
         "uninstall" => Ok(ParsedCommand::Uninstall(ParsedUninstall { project })),
@@ -405,6 +402,20 @@ fn parse_ask(args: &[&String], project: Option<String>) -> Result<ParsedCommand,
         task_id,
         compact,
         silence,
+    }))
+}
+
+fn parse_restart(args: &[&String], project: Option<String>) -> Result<ParsedCommand, String> {
+    if args.len() != 1 {
+        return Err("restart requires exactly one agent_name".to_string());
+    }
+    let agent_name = args[0].as_str();
+    if agent_name == "all" {
+        return Err("restart all is not supported".to_string());
+    }
+    Ok(ParsedCommand::Restart(ParsedRestart {
+        project,
+        agent_name: agent_name.to_string(),
     }))
 }
 
@@ -893,6 +904,33 @@ mod tests {
     fn test_dispatch_version() {
         let code = dispatch(ParsedCommand::Version);
         assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn test_parse_restart_single_agent() {
+        let args = vec!["restart".to_string(), "agent1".to_string()];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Restart(r) = cmd {
+            assert_eq!(r.agent_name, "agent1");
+        } else {
+            panic!("expected Restart");
+        }
+    }
+
+    #[test]
+    fn test_parse_restart_all_rejected() {
+        let args = vec!["restart".to_string(), "all".to_string()];
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn test_parse_restart_multiple_rejected() {
+        let args = vec![
+            "restart".to_string(),
+            "agent1".to_string(),
+            "agent2".to_string(),
+        ];
+        assert!(parse_args(&args).is_err());
     }
 
     #[test]

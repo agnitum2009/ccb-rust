@@ -2257,4 +2257,125 @@ mod tests {
         );
         assert_eq!(extract_env_assignment("BAR=/a/b", "FOO"), None);
     }
+
+    #[test]
+    fn test_log_matches_work_dir_matches_canonical_cwd() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("repo");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        let log_path = tmp.path().join("session.jsonl");
+        let mut file = std::fs::File::create(&log_path).unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+            work_dir.to_string_lossy()
+        )
+        .unwrap();
+        assert!(log_matches_work_dir(
+            &log_path,
+            &normalize_work_dir(&work_dir).unwrap()
+        ));
+    }
+
+    #[test]
+    fn test_anchor_fallback_log_does_not_switch_when_current_log_has_unread_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("repo");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        let session_root = work_dir.join("sessions");
+        std::fs::create_dir(&session_root).unwrap();
+
+        let current_log = session_root.join("current.jsonl");
+        {
+            let mut file = std::fs::File::create(&current_log).unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+                work_dir.to_string_lossy()
+            )
+            .unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":"no anchor yet"}}]}}}}"#
+            )
+            .unwrap();
+        }
+
+        let fallback_log = session_root.join("550e8400-e29b-41d4-a716-446655440000.jsonl");
+        let anchor = request_anchor_for_job("j-no-switch");
+        {
+            let mut file = std::fs::File::create(&fallback_log).unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+                work_dir.to_string_lossy()
+            )
+            .unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"event_msg","payload":{{"type":"user_message","message":"{prefix} {anchor}"}}}}"#,
+                prefix = REQ_ID_PREFIX,
+                anchor = anchor
+            )
+            .unwrap();
+        }
+
+        let session = CodexProjectSession {
+            session_file: work_dir.join(".codex-session"),
+            data: {
+                let mut m = HashMap::new();
+                m.insert(
+                    "codex_session_root".to_string(),
+                    Value::String(session_root.to_string_lossy().to_string()),
+                );
+                m.insert(
+                    "codex_session_path".to_string(),
+                    Value::String(current_log.to_string_lossy().to_string()),
+                );
+                m
+            },
+        };
+
+        let job = JobRecord {
+            job_id: "j-no-switch".to_string(),
+            agent_name: "agent1".to_string(),
+            provider: "codex".to_string(),
+            target_kind: ccbr_completion::models::TargetKind::Agent,
+            request: ccbr_completion::models::JobRequest {
+                body: "hello".to_string(),
+                message_type: None,
+            },
+            provider_options: Map::new(),
+            workspace_path: None,
+            provider_instance: None,
+        };
+        let ctx = ProviderRuntimeContext {
+            agent_name: "agent1".to_string(),
+            workspace_path: Some(work_dir.to_string_lossy().to_string()),
+            backend_type: Some("tmux".to_string()),
+            runtime_ref: Some("%1".to_string()),
+            session_ref: None,
+            ..Default::default()
+        };
+        let submission = start_active_submission(&job, Some(&ctx), "2026-04-04T10:00:00Z");
+        let state = submission.runtime_state.clone();
+        let poll_state = state
+            .get("state")
+            .and_then(|v| v.as_object())
+            .cloned()
+            .unwrap_or_default();
+
+        let result = anchor_fallback_log(
+            &submission,
+            &state,
+            &poll_state,
+            &session,
+            &work_dir,
+            &current_log,
+        );
+        assert!(
+            result.is_none(),
+            "expected no fallback while current log has unread data"
+        );
+    }
 }
