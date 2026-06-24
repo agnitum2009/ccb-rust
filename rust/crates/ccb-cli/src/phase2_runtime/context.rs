@@ -44,21 +44,24 @@ pub fn should_bootstrap_if_missing(kind: &str) -> bool {
 /// when the daemon runtime is available.
 pub fn build_context(
     command: &serde_json::Value,
-    cwd: Option<&Path>,
+    _cwd: Option<&Path>,
     builder: &CliContextBuilder,
 ) -> Result<CliContext, crate::context::CliContextError> {
     let kind = command.get("kind").and_then(|v| v.as_str()).unwrap_or("");
-    let reset_context = command.get("reset_context").and_then(|v| v.as_bool()).unwrap_or(false);
+    let reset_context = command
+        .get("reset_context")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     // Handle reset start context
     if kind == "start" && reset_context {
         // NOTE: Full reset flow with confirmation and state reset will be wired
         // when daemon runtime is available. For now, build fresh context.
-        return builder.build();
+        return builder.clone().build();
     }
 
     // Standard context build
-    builder.build()
+    builder.clone().build()
 }
 
 /// Resolve existing context without bootstrapping if project is missing.
@@ -82,11 +85,11 @@ pub fn build_context(
 /// implementation will be extended when project discovery error types are fully
 /// wired into the CliContextBuilder.
 pub fn resolve_existing_context(
-    command: &serde_json::Value,
-    cwd: &Path,
+    _command: &serde_json::Value,
+    _cwd: &Path,
     builder: &CliContextBuilder,
 ) -> Result<Option<CliContext>, crate::context::CliContextError> {
-    match builder.build() {
+    match builder.clone().build() {
         Ok(ctx) => Ok(Some(ctx)),
         Err(e) => {
             // Check if error is due to missing project
@@ -142,7 +145,8 @@ pub fn resolve_requested_project_root(
 
     // Try to resolve to absolute path
     let resolved = if root.exists() {
-        root.canonicalize().unwrap_or_else(|_| root.clone().to_path_buf())
+        root.canonicalize()
+            .unwrap_or_else(|_| root.clone().to_path_buf())
     } else {
         root.clone().to_path_buf()
     };

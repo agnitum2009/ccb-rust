@@ -198,6 +198,7 @@ impl StartFlowService {
                                 command_template: None,
                                 startup_args: &[],
                                 auto_permission,
+                                spec: None,
                             };
                             match launcher.launch(&ctx) {
                                 Ok(_) => ("started".to_string(), None),

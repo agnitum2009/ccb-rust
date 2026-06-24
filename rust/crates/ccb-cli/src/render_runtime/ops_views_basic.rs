@@ -1,9 +1,8 @@
 //! Mirrors Python `lib/cli/render_runtime/ops_views_basic.py`.
 
 use serde_json::Value;
-use std::collections::HashMap;
 
-use super::common::{cleanup_csv, cleanup_field, render_tmux_cleanup_summaries};
+use super::common::render_tmux_cleanup_summaries;
 use super::ops_views_common::binding_line;
 
 /// Render a config validation summary.
@@ -23,15 +22,9 @@ pub fn render_config_validate(summary: &Value) -> Vec<String> {
             "used_builtin_default: {}",
             bool_field(summary, "used_builtin_default")
         ),
-        format!(
-            "default_agents: {}",
-            csv_field(summary, "default_agents")
-        ),
+        format!("default_agents: {}", csv_field(summary, "default_agents")),
         format!("agents: {}", csv_field(summary, "agent_names")),
-        format!(
-            "cmd_enabled: {}",
-            bool_field(summary, "cmd_enabled")
-        ),
+        format!("cmd_enabled: {}", bool_field(summary, "cmd_enabled")),
         format!("layout: {}", field(summary, "layout_spec")),
     ];
 
@@ -54,30 +47,34 @@ pub fn render_start(summary: &Value) -> Vec<String> {
         "start_status: ok".to_string(),
         format!("project: {}", field(summary, "project_root")),
         format!("project_id: {}", field(summary, "project_id")),
-        format!(
-            "ccbd_started: {}",
-            bool_field(summary, "daemon_started")
-        ),
+        format!("ccbd_started: {}", bool_field(summary, "daemon_started")),
         format!("socket_path: {}", field(summary, "socket_path")),
         format!("agents: {}", csv_field(summary, "started")),
     ];
 
-    if let Some(heartbeat) = summary.get("maintenance_heartbeat").and_then(|v| v.as_object()) {
+    if let Some(heartbeat_obj) = summary
+        .get("maintenance_heartbeat")
+        .and_then(|v| v.as_object())
+    {
+        let heartbeat = Value::Object(heartbeat_obj.clone());
         let mut details = vec![
-            format!("status={}", field(heartbeat, "maintenance_status")),
-            format!("action={}", field(heartbeat, "action")),
+            format!("status={}", field(&heartbeat, "maintenance_status")),
+            format!("action={}", field(&heartbeat, "action")),
         ];
 
         if heartbeat.get("runner_status").is_some() {
-            details.push(format!("runner_status={}", field(heartbeat, "runner_status")));
+            details.push(format!(
+                "runner_status={}",
+                field(&heartbeat, "runner_status")
+            ));
         }
         if heartbeat.get("tick_status").is_some() {
-            details.push(format!("tick_status={}", field(heartbeat, "tick_status")));
+            details.push(format!("tick_status={}", field(&heartbeat, "tick_status")));
         }
 
         lines.push(format!("maintenance_heartbeat: {}", details.join(" ")));
 
-        let reason = field(heartbeat, "reason");
+        let reason = field(&heartbeat, "reason");
         if !reason.is_empty() {
             lines.push(format!("maintenance_heartbeat_reason: {}", reason));
         }
@@ -141,18 +138,9 @@ pub fn render_doctor_bundle(summary: &Value) -> Vec<String> {
         format!("bundle_id: {}", field(summary, "bundle_id")),
         format!("bundle_path: {}", field(summary, "bundle_path")),
         format!("file_count: {}", field(summary, "file_count")),
-        format!(
-            "included_count: {}",
-            field(summary, "included_count")
-        ),
-        format!(
-            "missing_count: {}",
-            field(summary, "missing_count")
-        ),
-        format!(
-            "truncated_count: {}",
-            field(summary, "truncated_count")
-        ),
+        format!("included_count: {}", field(summary, "included_count")),
+        format!("missing_count: {}", field(summary, "missing_count")),
+        format!("truncated_count: {}", field(summary, "truncated_count")),
         format!("doctor_error: {}", field(summary, "doctor_error")),
     ]
 }
@@ -165,18 +153,9 @@ pub fn render_cleanup(summary: &Value) -> Vec<String> {
         format!("cleanup_status: {}", field(summary, "status")),
         format!("project_root: {}", field(summary, "project_root")),
         format!("project_id: {}", field(summary, "project_id")),
-        format!(
-            "cleanup_deleted_bytes: {}",
-            field(summary, "deleted_bytes")
-        ),
-        format!(
-            "cleanup_deleted_count: {}",
-            field(summary, "deleted_count")
-        ),
-        format!(
-            "cleanup_skipped_count: {}",
-            field(summary, "skipped_count")
-        ),
+        format!("cleanup_deleted_bytes: {}", field(summary, "deleted_bytes")),
+        format!("cleanup_deleted_count: {}", field(summary, "deleted_count")),
+        format!("cleanup_skipped_count: {}", field(summary, "skipped_count")),
     ];
 
     if let Some(Value::Array(actions)) = summary.get("actions") {
@@ -213,7 +192,7 @@ pub fn render_clear(summary: &Value) -> Vec<String> {
     let results = summary
         .get("results")
         .and_then(|v| v.as_array())
-        .unwrap_or(&[]);
+        .map_or(&[] as &[Value], |v| v.as_slice());
 
     let mut cleared_count = 0;
     let mut skipped_count = 0;
@@ -259,7 +238,11 @@ pub fn render_clear(summary: &Value) -> Vec<String> {
 ///
 /// Mirrors Python `render_restart(summary)`.
 pub fn render_restart(summary: &Value) -> Vec<String> {
-    let status = field_or(summary, "restart_status", &field_or(summary, "status", "unknown"));
+    let status = field_or(
+        summary,
+        "restart_status",
+        &field_or(summary, "status", "unknown"),
+    );
 
     let mut lines = vec![
         format!("restart_status: {}", status),
@@ -269,7 +252,7 @@ pub fn render_restart(summary: &Value) -> Vec<String> {
     let restartable_agents = summary
         .get("restartable_agents")
         .and_then(|v| v.as_array())
-        .unwrap_or(&[]);
+        .map_or(&[] as &[Value], |v| v.as_slice());
 
     let agents: Vec<String> = restartable_agents
         .iter()
@@ -287,12 +270,12 @@ pub fn render_restart(summary: &Value) -> Vec<String> {
     }
 
     if let Some(busy_gate) = summary.get("busy_gate").and_then(|v| v.as_object()) {
-        lines.push(restart_busy_gate_line(busy_gate));
+        lines.push(restart_busy_gate_line(&Value::Object(busy_gate.clone())));
     }
 
     if let Some(Value::Array(blockers)) = summary.get("blockers") {
         for blocker in blockers {
-            if let Some(obj) = blocker.as_object() {
+            if let Some(_obj) = blocker.as_object() {
                 let reason_text = field(blocker, "reason");
                 let detail = field(blocker, "detail");
                 let mut line = format!("blocker: reason={}", reason_text);
@@ -307,15 +290,24 @@ pub fn render_restart(summary: &Value) -> Vec<String> {
     }
 
     if let Some(old_runtime) = summary.get("old_runtime").and_then(|v| v.as_object()) {
-        lines.push(format!("old_runtime: {}", runtime_evidence_text(old_runtime)));
+        lines.push(format!(
+            "old_runtime: {}",
+            runtime_evidence_text(&Value::Object(old_runtime.clone()))
+        ));
     }
 
     if let Some(new_runtime) = summary.get("new_runtime").and_then(|v| v.as_object()) {
-        lines.push(format!("new_runtime: {}", runtime_evidence_text(new_runtime)));
+        lines.push(format!(
+            "new_runtime: {}",
+            runtime_evidence_text(&Value::Object(new_runtime.clone()))
+        ));
     }
 
     if let Some(result) = summary.get("result").and_then(|v| v.as_object()) {
-        lines.push(format!("restart_result: {}", flat_mapping_text(result)));
+        lines.push(format!(
+            "restart_result: {}",
+            flat_mapping_text(&Value::Object(result.clone()))
+        ));
     }
 
     let error = field(summary, "error");
@@ -343,6 +335,16 @@ pub fn render_maintenance(payload: &Value) -> Vec<String> {
         lines.push(format!("reason: {}", reason));
     }
 
+    if let Some(schedule_state) = payload.get("schedule_state").and_then(|v| v.as_str()) {
+        lines.push(format!("schedule_state: {}", schedule_state));
+    }
+    if let Some(schedule_status) = payload.get("schedule_status").and_then(|v| v.as_str()) {
+        lines.push(format!("schedule_status: {}", schedule_status));
+    }
+    if let Some(next_run_at) = payload.get("next_run_at").and_then(|v| v.as_str()) {
+        lines.push(format!("next_run_at: {}", next_run_at));
+    }
+
     if status == "not_implemented" {
         return lines;
     }
@@ -355,14 +357,8 @@ pub fn render_maintenance(payload: &Value) -> Vec<String> {
                 "runner_started: {}",
                 render_optional(payload.get("runner_started"))
             ),
-            format!(
-                "runner_id: {}",
-                render_optional(payload.get("runner_id"))
-            ),
-            format!(
-                "runner_pid: {}",
-                render_optional(payload.get("runner_pid"))
-            ),
+            format!("runner_id: {}", render_optional(payload.get("runner_id"))),
+            format!("runner_pid: {}", render_optional(payload.get("runner_pid"))),
             format!(
                 "runner_exit_reason: {}",
                 render_optional(payload.get("runner_exit_reason"))
@@ -378,10 +374,7 @@ pub fn render_maintenance(payload: &Value) -> Vec<String> {
     if !tick_status.is_empty() {
         lines.extend(vec![
             format!("tick_status: {}", tick_status),
-            format!(
-                "tick_source_kind: {}",
-                field(payload, "tick_source_kind")
-            ),
+            format!("tick_source_kind: {}", field(payload, "tick_source_kind")),
             format!(
                 "tick_recommended_action: {}",
                 field(payload, "tick_recommended_action")
@@ -421,14 +414,20 @@ pub fn render_maintenance(payload: &Value) -> Vec<String> {
         ]);
 
         if let Some(summary) = payload.get("tick_summary").and_then(|v| v.as_object()) {
-            lines.extend(maintenance_summary_lines("tick_summary", summary));
+            lines.extend(maintenance_summary_lines(
+                "tick_summary",
+                &Value::Object(summary.clone()),
+            ));
         }
 
         if let Some(Value::Array(evidence)) = payload.get("tick_evidence") {
             lines.push(format!("tick_evidence_count: {}", evidence.len()));
             for item in evidence.iter().take(5) {
                 if let Some(obj) = item.as_object() {
-                    lines.push(maintenance_evidence_line("tick_evidence", obj));
+                    lines.push(maintenance_evidence_line(
+                        "tick_evidence",
+                        &Value::Object(obj.clone()),
+                    ));
                 }
             }
         }
@@ -454,10 +453,7 @@ pub fn render_maintenance(payload: &Value) -> Vec<String> {
             "heartbeat_assessor_present: {}",
             render_value(payload.get("assessor_present"))
         ),
-        format!(
-            "heartbeat_interval_s: {}",
-            field(payload, "interval_s")
-        ),
+        format!("heartbeat_interval_s: {}", field(payload, "interval_s")),
         format!(
             "heartbeat_min_interval_s: {}",
             field(payload, "min_interval_s")
@@ -477,19 +473,31 @@ pub fn render_maintenance(payload: &Value) -> Vec<String> {
     ]);
 
     if let Some(schedule) = payload.get("schedule").and_then(|v| v.as_object()) {
-        lines.extend(maintenance_record_lines("schedule", schedule));
+        lines.extend(maintenance_record_lines(
+            "schedule",
+            &Value::Object(schedule.clone()),
+        ));
     }
 
     if let Some(last_status) = payload.get("last_status").and_then(|v| v.as_object()) {
-        lines.extend(maintenance_record_lines("last_status", last_status));
+        lines.extend(maintenance_record_lines(
+            "last_status",
+            &Value::Object(last_status.clone()),
+        ));
     }
 
     if let Some(runner) = payload.get("runner").and_then(|v| v.as_object()) {
-        lines.extend(maintenance_record_lines("runner", runner));
+        lines.extend(maintenance_record_lines(
+            "runner",
+            &Value::Object(runner.clone()),
+        ));
     }
 
     if let Some(last_activation) = payload.get("last_activation").and_then(|v| v.as_object()) {
-        lines.extend(maintenance_record_lines("last_activation", last_activation));
+        lines.extend(maintenance_record_lines(
+            "last_activation",
+            &Value::Object(last_activation.clone()),
+        ));
     }
 
     lines
@@ -601,7 +609,7 @@ fn maintenance_record_lines(prefix: &str, payload: &Value) -> Vec<String> {
         ] {
             if record.contains_key(key) {
                 lines.push(format!(
-                    "_{}_: {}",
+                    "_{}_{}: {}",
                     prefix,
                     key,
                     render_value(record.get(key))
@@ -610,7 +618,10 @@ fn maintenance_record_lines(prefix: &str, payload: &Value) -> Vec<String> {
         }
 
         if let Some(summary) = record.get("summary").and_then(|v| v.as_object()) {
-            lines.extend(maintenance_summary_lines(&format!("{}_summary", prefix), summary));
+            lines.extend(maintenance_summary_lines(
+                &format!("{}_summary", prefix),
+                &Value::Object(summary.clone()),
+            ));
         }
 
         if let Some(Value::Array(evidence)) = record.get("evidence") {
@@ -647,7 +658,7 @@ fn maintenance_summary_lines(prefix: &str, payload: &Value) -> Vec<String> {
     ] {
         if payload.get(key).is_some() {
             lines.push(format!(
-                "_{}_: {}",
+                "_{}_{}: {}",
                 prefix,
                 key,
                 render_value(payload.get(key))
@@ -704,70 +715,47 @@ fn render_optional(value: Option<&Value>) -> String {
 ///
 /// Mirrors Python `_restart_busy_gate_line(gate)`.
 fn restart_busy_gate_line(gate: &Value) -> String {
-    let mut fields = HashMap::new();
-    fields.insert("passed", render_value(gate.get("passed")));
-    fields.insert("runtime_state", render_value(gate.get("runtime_state")));
-    fields.insert(
-        "runtime_queue_depth",
+    format!(
+        "restart_busy_gate: passed={} runtime_state={} runtime_queue_depth={} queue_depth={} pending_reply_count={} active_job_id={} active_inbound_event_id={} pending_callback_count={}",
+        render_value(gate.get("passed")),
+        render_value(gate.get("runtime_state")),
         render_value(gate.get("runtime_queue_depth")),
-    );
-    fields.insert("queue_depth", render_value(gate.get("queue_depth")));
-    fields.insert(
-        "pending_reply_count",
+        render_value(gate.get("queue_depth")),
         render_value(gate.get("pending_reply_count")),
-    );
-    fields.insert("active_job_id", render_value(gate.get("active_job_id")));
-    fields.insert(
-        "active_inbound_event_id",
+        render_value(gate.get("active_job_id")),
         render_value(gate.get("active_inbound_event_id")),
-    );
-    fields.insert(
-        "pending_callback_count",
         render_value(gate.get("pending_callback_count")),
-    );
-
-    format!("restart_busy_gate: {}", flat_mapping_text(&fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect()))
+    )
 }
 
 /// Generate runtime evidence text.
 ///
 /// Mirrors Python `_runtime_evidence_text(evidence)`.
 fn runtime_evidence_text(evidence: &Value) -> String {
-    let mut fields = HashMap::new();
-    fields.insert("state", render_value(evidence.get("state")));
-    fields.insert("health", render_value(evidence.get("health")));
-    fields.insert("pane_id", render_value(evidence.get("pane_id")));
-    fields.insert(
-        "active_pane_id",
+    format!(
+        "state={} health={} pane_id={} active_pane_id={} runtime_ref={} session_ref={} runtime_pid={} restart_count={}",
+        render_value(evidence.get("state")),
+        render_value(evidence.get("health")),
+        render_value(evidence.get("pane_id")),
         render_value(evidence.get("active_pane_id")),
-    );
-    fields.insert(
-        "runtime_ref",
         render_value(evidence.get("runtime_ref")),
-    );
-    fields.insert(
-        "session_ref",
         render_value(evidence.get("session_ref")),
-    );
-    fields.insert(
-        "runtime_pid",
         render_value(evidence.get("runtime_pid")),
-    );
-    fields.insert(
-        "restart_count",
         render_value(evidence.get("restart_count")),
-    );
-
-    flat_mapping_text(&fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+    )
 }
 
 /// Flatten a mapping to "key=value key=value" text.
 ///
 /// Mirrors Python `_flat_mapping_text(payload)`.
-fn flat_mapping_text(payload: &HashMap<String, String>) -> String {
-    payload
-        .iter()
-        .map(|(key, value)| format!("{}={}", key, value))
+fn flat_mapping_text(payload: &Value) -> String {
+    let obj = match payload.as_object() {
+        Some(o) => o,
+        None => return String::new(),
+    };
+
+    obj.iter()
+        .map(|(key, value)| format!("{}={}", key, render_value(Some(value))))
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -777,15 +765,23 @@ fn flat_mapping_text(payload: &HashMap<String, String>) -> String {
 /// Mirrors Python `_render_value(value)`.
 fn render_value(value: Option<&Value>) -> String {
     match value {
-        None => "None".to_string(),
-        Some(Value::Null) => "None".to_string(),
+        None | Some(Value::Null) => "None".to_string(),
         Some(Value::Bool(b)) => b.to_string(),
+        Some(Value::String(s)) => s.replace('\n', "\\n"),
+        Some(Value::Number(n)) => n.to_string(),
         Some(Value::Array(arr)) => arr
             .iter()
-            .map(|v| v.to_string().replace('\n', "\\n"))
+            .map(|v| render_value(Some(v)))
             .collect::<Vec<_>>()
             .join(","),
-        Some(v) => v.to_string().replace('\n', "\\n"),
+        Some(Value::Object(obj)) => {
+            // Fallback for objects: mirror Python dict repr loosely.
+            let items: Vec<String> = obj
+                .iter()
+                .map(|(k, v)| format!("'{}': {}", k, render_value(Some(v))))
+                .collect();
+            format!("{{{}}}", items.join(", "))
+        }
     }
 }
 

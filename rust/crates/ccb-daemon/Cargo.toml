@@ -36,5 +36,12 @@ ctrlc = { version = "3", features = ["termination"] }
 name = "ccbd"
 path = "src/main.rs"
 
+[features]
+test-support = []
+
+[[test]]
+name = "runtime_launch_ensure_agent_runtime_tests"
+required-features = ["test-support"]
+
 [dev-dependencies]
 tempfile = "3"

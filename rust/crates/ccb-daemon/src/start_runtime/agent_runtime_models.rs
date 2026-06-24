@@ -23,6 +23,9 @@ pub struct RuntimeBinding {
     pub runtime_root: Option<String>,
     pub runtime_pid: Option<String>,
     pub ccb_session_id: Option<String>,
+    pub provider_identity_state: Option<String>,
+    pub provider_identity_reason: Option<String>,
+    pub ccb_project_id: Option<String>,
 }
 
 /// Result returned by `ensure_agent_runtime` style helpers.
@@ -35,6 +38,8 @@ pub struct EnsureAgentRuntimeResult {
 /// Static call context for runtime resolution.
 #[derive(Debug, Clone)]
 pub struct Context {
+    pub project_id: String,
+    pub project_root: String,
     pub workspace_path: String,
 }
 
@@ -151,6 +156,7 @@ pub trait LaunchBindingHintFn {
         stale_binding: bool,
         assigned_pane_id: Option<&str>,
         tmux_socket_path: Option<&str>,
+        project_id: &str,
     ) -> Result<Option<RuntimeBinding>, String>;
 }
 

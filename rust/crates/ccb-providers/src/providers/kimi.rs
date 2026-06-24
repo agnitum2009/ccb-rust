@@ -40,6 +40,7 @@ pub fn manifest() -> ProviderManifest {
             runtime_mode: "pane-backed".to_string(),
             poll_interval_ms: DEFAULT_POLL_INTERVAL_MS,
             timeout_ms: DEFAULT_TIMEOUT_MS,
+            ..Default::default()
         },
     );
     ProviderManifest::new(

@@ -100,7 +100,10 @@ fn attempt_line(attempt: &Value) -> String {
 }
 
 fn reply_line(reply: &Value) -> String {
-    let notice = reply.get("notice").and_then(|v| v.as_bool()).unwrap_or(false);
+    let notice = reply
+        .get("notice")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     format!(
         "reply: id={} message={} attempt={} agent={} terminal={} size={} notice={} kind={} reason={} finished={} preview={}",
         field(reply, "reply_id"),

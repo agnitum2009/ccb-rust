@@ -1,8 +1,11 @@
 use ccb_storage::{jsonl::JsonlStore, paths::PathLayout};
 use serde::Serialize;
+use std::io::{BufRead, BufReader};
 
 use crate::models::{JobEvent, JobRecord, SubmissionRecord, TargetKind};
 use crate::Result;
+
+const JOB_EVENT_RECORD_TYPE: &str = "job_event";
 
 const SCHEMA_VERSION: i32 = 2;
 
@@ -145,11 +148,39 @@ impl JobEventStore {
         else {
             return (0, Vec::new());
         };
-        let Ok((line_no, rows)) = self.jsonl.read_since::<JobEvent>(&path, start_line) else {
+        let Ok(file) = std::fs::File::open(&path) else {
             return (0, Vec::new());
         };
-        let events = rows.into_iter().collect();
-        (line_no, events)
+        let reader = BufReader::new(file);
+        let mut events = Vec::new();
+        let mut current = 0usize;
+        for line in reader.lines() {
+            let Ok(line) = line else {
+                continue;
+            };
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            current += 1;
+            if current <= start_line {
+                continue;
+            }
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) else {
+                continue;
+            };
+            let record_type = value
+                .get("record_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if record_type != JOB_EVENT_RECORD_TYPE {
+                continue;
+            }
+            if let Ok(event) = serde_json::from_value::<JobEvent>(value) {
+                events.push(event);
+            }
+        }
+        (current, events)
     }
 }
 

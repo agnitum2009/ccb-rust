@@ -1,16 +1,18 @@
 //! Mirrors Python `lib/cli/phase2_runtime/handlers_mailbox.py`.
 //! 1:1 file alignment.
 
-use std::io::Write;
 use serde_json::Value;
+use std::io::Write;
 
+use crate::phase2_runtime::handlers_ops::Phase2Services;
+use crate::render_runtime::common::render_mapping;
+use crate::render_runtime::common::render_observer_notice;
 use crate::render_runtime::job_views::{
     render_cancel, render_resubmit, render_retry, render_wait, render_watch_batch,
 };
-use crate::render_runtime::mailbox_views::{render_ack, render_inbox, render_pend, render_queue, render_trace};
-use crate::render_runtime::common::render_mapping;
-use crate::render_runtime::common::render_observer_notice;
-use crate::phase2_runtime::handlers_ops::Phase2Services;
+use crate::render_runtime::mailbox_views::{
+    render_ack, render_inbox, render_pend, render_queue, render_trace,
+};
 
 /// Handle the `ping` command.
 ///

@@ -7,7 +7,7 @@ use std::io::IsTerminal;
 ///
 /// Mirrors Python `looks_like_config_validate(argv)`.
 pub fn looks_like_config_validate(argv: &[String]) -> bool {
-    let mut tokens = argv.iter();
+    let tokens = argv.iter();
     let mut index = 0usize;
 
     // Skip over `--project` arguments (each consumes the flag and its value)

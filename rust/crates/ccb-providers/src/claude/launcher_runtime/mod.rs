@@ -3,6 +3,7 @@
 pub mod binary_cache;
 pub mod env;
 pub mod env_runtime;
+pub mod history;
 pub mod home;
 pub mod restore;
 pub mod session_paths;

@@ -82,7 +82,22 @@ fn dispatch(cmd: ParsedCommand) -> i32 {
         ParsedCommand::Ack(ack) => commands::ack(&client, &ack),
         ParsedCommand::Reload(reload) => commands::reload(&client, &reload),
         ParsedCommand::Restart(restart) => commands::restart(&client, &restart),
-        ParsedCommand::Maintenance(maintenance) => commands::maintenance(&client, &maintenance),
+        ParsedCommand::Maintenance(maintenance) => {
+            let context_command = crate::models::ParsedCommand::Maintenance(
+                crate::models::ParsedMaintenanceCommand::new(maintenance.project.clone()),
+            );
+            let context = match crate::context::CliContextBuilder::new(context_command)
+                .cwd(cwd.clone())
+                .build()
+            {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    return 2;
+                }
+            };
+            commands::maintenance(&client, &maintenance, &context)
+        }
         ParsedCommand::Logs(logs) => commands::logs(&client, &logs),
         ParsedCommand::Cleanup(_) => commands::cleanup(&client),
         ParsedCommand::Doctor(doctor) => commands::doctor(&client, &doctor, &project_root),
@@ -267,6 +282,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
                 .get(1)
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| "status".into()),
+            args: filtered[2..].iter().map(|s| s.to_string()).collect(),
         })),
         "doctor" => Ok(ParsedCommand::Doctor(ParsedDoctor {
             project,

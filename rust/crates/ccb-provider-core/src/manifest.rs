@@ -11,8 +11,38 @@ pub enum RuntimeMode {
     Headless,
 }
 
+/// Completion family mirrors Python `completion.models.CompletionFamily`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CompletionFamily {
+    #[default]
+    ProtocolTurn,
+    AnchoredSessionStability,
+    SessionBoundary,
+    StructuredResult,
+    TerminalTextQuiet,
+}
+
+/// Completion source kind mirrors Python `completion.models.CompletionSourceKind`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CompletionSourceKind {
+    #[default]
+    ProtocolEventStream,
+    SessionEventLog,
+    SessionSnapshot,
+}
+
+/// Selector family mirrors Python `completion.models.SelectorFamily`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SelectorFamily {
+    #[default]
+    FinalMessage,
+}
+
 /// Completion profile for a specific runtime mode.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CompletionManifest {
     pub provider: String,
     pub runtime_mode: String,
@@ -20,6 +50,22 @@ pub struct CompletionManifest {
     pub poll_interval_ms: u64,
     #[serde(default)]
     pub timeout_ms: u64,
+    #[serde(default)]
+    pub completion_family: CompletionFamily,
+    #[serde(default)]
+    pub completion_source_kind: CompletionSourceKind,
+    #[serde(default)]
+    pub supports_exact_completion: bool,
+    #[serde(default)]
+    pub supports_observed_completion: bool,
+    #[serde(default)]
+    pub supports_anchor_binding: bool,
+    #[serde(default)]
+    pub supports_reply_stability: bool,
+    #[serde(default)]
+    pub supports_terminal_reason: bool,
+    #[serde(default)]
+    pub selector_family: SelectorFamily,
 }
 
 /// Provider manifest: declares capabilities and runtime profiles.
@@ -99,6 +145,14 @@ mod tests {
                 runtime_mode: "pane-backed".into(),
                 poll_interval_ms: 500,
                 timeout_ms: 30000,
+                completion_family: CompletionFamily::ProtocolTurn,
+                completion_source_kind: CompletionSourceKind::ProtocolEventStream,
+                supports_exact_completion: true,
+                supports_observed_completion: false,
+                supports_anchor_binding: true,
+                supports_reply_stability: false,
+                supports_terminal_reason: true,
+                selector_family: SelectorFamily::FinalMessage,
             },
         );
         ProviderManifest::new("test", true, false, false, false, false, profiles)

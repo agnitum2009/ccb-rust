@@ -17,6 +17,86 @@ pub struct GeminiStartCommand {
     pub provider_command_template: Option<String>,
 }
 
+/// Restore target for a Gemini launch.
+#[derive(Debug, Clone)]
+pub struct GeminiRestoreTarget {
+    pub run_cwd: Utf8PathBuf,
+    pub has_history: bool,
+}
+
+/// Resolve whether Gemini should resume an existing session.
+pub fn resolve_gemini_restore_target(
+    _spec: &ccb_agents::models::AgentSpec,
+    runtime_dir: &Utf8Path,
+    restore: bool,
+    workspace_path: Option<&Utf8Path>,
+) -> GeminiRestoreTarget {
+    let (session_root, session_work_dir) = managed_session_root_and_work_dir(runtime_dir);
+    let workspace_path = session_work_dir
+        .or_else(|| workspace_path.map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| Utf8PathBuf::from("."));
+
+    let default = GeminiRestoreTarget {
+        run_cwd: workspace_path.clone(),
+        has_history: false,
+    };
+
+    if !restore {
+        return default;
+    }
+
+    let tmp_root = session_root.unwrap_or_else(|| resolve_gemini_home_layout(runtime_dir).tmp_root);
+    let chats_dir = tmp_root.join(project_hash(&workspace_path)).join("chats");
+
+    let has_history = chats_dir
+        .read_dir()
+        .ok()
+        .map(|mut entries| {
+            entries.any(|e| {
+                e.ok().map(|entry| {
+                    let path = entry.path();
+                    path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json")
+                }) == Some(true)
+            })
+        })
+        .unwrap_or(false);
+
+    GeminiRestoreTarget {
+        run_cwd: workspace_path,
+        has_history,
+    }
+}
+
+fn managed_session_root_and_work_dir(
+    runtime_dir: &Utf8Path,
+) -> (Option<std::path::PathBuf>, Option<Utf8PathBuf>) {
+    let session_path =
+        match crate::session_paths::session_file_for_runtime_dir("gemini", runtime_dir) {
+            Some(p) => p,
+            None => return (None, None),
+        };
+    let payload = match crate::session_paths::read_session_payload(&session_path) {
+        Some(p) => p,
+        None => return (None, None),
+    };
+    let work_dir = payload
+        .get("work_dir")
+        .and_then(|v| v.as_str())
+        .map(Utf8PathBuf::from)
+        .filter(|p| !p.as_str().is_empty());
+    let tmp_root = payload
+        .get("gemini_root")
+        .and_then(|v| v.as_str())
+        .map(std::path::PathBuf::from)
+        .filter(|p| !p.as_os_str().is_empty());
+
+    let managed_home = resolve_gemini_home_layout(runtime_dir).home_root;
+    let managed_tmp = managed_home.join(".gemini").join("tmp");
+    let tmp_root =
+        tmp_root.filter(|root| root.starts_with(&managed_tmp) || root.starts_with(&managed_home));
+    (tmp_root, work_dir)
+}
+
 /// Build the shell command that launches a Gemini runtime pane.
 pub fn build_start_cmd(
     command: &GeminiStartCommand,
@@ -29,16 +109,23 @@ pub fn build_start_cmd(
     let project_root = path_or_none(prepared_state.get("project_root")).ok_or_else(|| {
         anyhow::anyhow!("Gemini launch requires prepare_launch_context before build_start_cmd")
     })?;
-    let _workspace_path = path_or_none(prepared_state.get("workspace_path"));
+    let workspace_path = path_or_none(prepared_state.get("workspace_path"));
 
     let layout = resolve_gemini_home_layout(runtime_dir);
     let home_overrides = gemini_home_overrides(&layout, runtime_dir, Some(&project_root));
+
+    let restore_target = resolve_gemini_restore_target(
+        spec,
+        runtime_dir,
+        command.restore,
+        workspace_path.as_deref(),
+    );
 
     let mut cmd_parts = provider_start_parts("gemini");
     if command.auto_permission {
         cmd_parts.push("--yolo".to_string());
     }
-    if command.restore {
+    if restore_target.has_history {
         cmd_parts.extend(["--resume".to_string(), "latest".to_string()]);
     }
     cmd_parts.extend(spec.startup_args.iter().cloned());

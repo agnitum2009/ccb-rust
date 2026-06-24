@@ -153,72 +153,10 @@ pub fn validate_project_config_text(
     source_path: Option<&Utf8Path>,
     project_root: Option<&Utf8Path>,
 ) -> crate::Result<ProjectConfig> {
-    let (kind, primary, overlay) = classify_config_document(text);
-    let mut document = match kind {
-        "rich" => parse_toml_config_document(primary)?,
-        "compact" => parse_compact_config_document(primary, project_root)?,
-        "hybrid" => {
-            let mut base = parse_compact_config_document(primary, project_root)?;
-            let overlay = parse_toml_config_document(overlay.ok_or_else(|| {
-                crate::AgentError::Config("hybrid config missing overlay".into())
-            })?)?;
-            merge_hybrid_overlay(&mut base, &overlay)?;
-            base
-        }
-        _ => {
-            return Err(crate::AgentError::Config(format!(
-                "unknown config document kind: {kind}"
-            )))
-        }
-    };
-    document.source_path = source_path.map(|p| p.to_string());
-    document.normalize()?;
-    Ok(document)
+    validate_project_config_text_owned(text, source_path, project_root)
 }
 
-fn classify_config_document(text: &str) -> (&str, &str, Option<&str>) {
-    let lines: Vec<&str> = text.lines().collect();
-    let mut first_meaningful_kind: Option<&str> = None;
-    let mut first_rich_index: Option<usize> = None;
-    for (index, line) in lines.iter().enumerate() {
-        let body = line
-            .split('#')
-            .next()
-            .unwrap_or("")
-            .split("//")
-            .next()
-            .unwrap_or("")
-            .trim();
-        if body.is_empty() {
-            continue;
-        }
-        let kind = if body.starts_with('[') || body.contains('=') {
-            "rich"
-        } else {
-            "compact"
-        };
-        if first_meaningful_kind.is_none() {
-            first_meaningful_kind = Some(kind);
-        }
-        if kind == "rich" {
-            first_rich_index = Some(index);
-            break;
-        }
-    }
-    match (first_meaningful_kind, first_rich_index) {
-        (Some("rich"), _) => ("rich", text, None),
-        (Some("compact"), None) => ("compact", text, None),
-        (Some("compact"), Some(idx)) => {
-            let _compact_text = lines[..idx].join("\n");
-            let _overlay_text = lines[idx..].join("\n");
-            ("hybrid", "", None) // handled via text ownership issue; use owned below
-        }
-        _ => ("compact", text, None),
-    }
-}
-
-// Work around lifetime issue for hybrid by re-classifying inside the caller.
-fn classify_config_document_owned(text: &str) -> (String, String, Option<String>) {
+fn classify_config_document(text: &str) -> (String, String, Option<String>) {
     let lines: Vec<&str> = text.lines().collect();
     let mut first_meaningful_kind: Option<&str> = None;
     let mut first_rich_index: Option<usize> = None;
@@ -264,7 +202,7 @@ pub fn validate_project_config_text_owned(
     source_path: Option<&Utf8Path>,
     project_root: Option<&Utf8Path>,
 ) -> crate::Result<ProjectConfig> {
-    let (kind, primary, overlay) = classify_config_document_owned(text);
+    let (kind, primary, overlay) = classify_config_document(text);
     let mut document = match kind.as_str() {
         "rich" => parse_toml_config_document(&primary)?,
         "compact" => parse_compact_config_document(&primary, project_root)?,

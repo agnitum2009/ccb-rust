@@ -384,6 +384,48 @@ fn tracker_service_timeout_finalizes() {
     assert_eq!(view.decision.reason, Some("terminal_quiet".into()));
 }
 
+#[test]
+fn tracker_resets_selector_on_session_rotate() {
+    let manifest = manifest_for(
+        CompletionFamily::ProtocolTurn,
+        SelectorFamily::FinalMessage,
+        CompletionSourceKind::ProtocolEventStream,
+    );
+    let resolver = resolver_for(manifest);
+    let mut service = CompletionTrackerService::new(project_config(), resolver, CompletionRegistry);
+
+    let job = JobRecord::new("job-1", "agent1", "claude");
+    service.start(&job, ts()).unwrap();
+
+    service
+        .ingest(
+            &job.job_id,
+            &item_with_text(CompletionItemKind::TurnBoundary, "reply", "first"),
+        )
+        .unwrap();
+    let view = service.current(&job.job_id).unwrap();
+    assert_eq!(view.decision.reply, "first");
+
+    service
+        .ingest(
+            &job.job_id,
+            &CompletionItem {
+                kind: CompletionItemKind::SessionRotate,
+                timestamp: ts().to_string(),
+                cursor: cursor(),
+                provider: "claude".into(),
+                agent_name: "agent1".into(),
+                req_id: "job-1".into(),
+                payload: Default::default(),
+            },
+        )
+        .unwrap();
+
+    let view_after_rotate = service.current(&job.job_id).unwrap();
+    assert!(!view_after_rotate.decision.terminal);
+    assert!(view_after_rotate.decision.reply.is_empty());
+}
+
 // ---------------------------------------------------------------------------
 // Snapshot store tests
 // ---------------------------------------------------------------------------

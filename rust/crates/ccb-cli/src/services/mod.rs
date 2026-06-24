@@ -27,13 +27,24 @@ pub struct RpcResponse {
 #[derive(Debug, Clone)]
 pub struct UnixDaemonClient {
     socket_path: String,
+    timeout_s: Option<f64>,
 }
 
 impl UnixDaemonClient {
     pub fn new(socket_path: impl Into<String>) -> Self {
         Self {
             socket_path: socket_path.into(),
+            timeout_s: None,
         }
+    }
+
+    pub fn with_timeout(mut self, timeout_s: f64) -> Self {
+        self.timeout_s = Some(timeout_s);
+        self
+    }
+
+    pub fn timeout_s(&self) -> Option<f64> {
+        self.timeout_s
     }
 }
 

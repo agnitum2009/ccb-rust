@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/migration-roadmap.md", "reason": "Defines Wave 4 e2e recovery, terminal namespace, and edge parity scope."}
+{"file": "plans/rust-python-test-parity-matrix.md", "reason": "Lists 27 unmatched Python tests to triage and map during Wave 4."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "E2E recovery crosses daemon reload, namespace, mailbox, completion, and terminal identity layers."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse patterns for daemon integration tests and tmux fake backends."}
+{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/design.md", "reason": "Parent Wave 4 design decisions for e2e recovery and edge parity."}
+{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/prd.md", "reason": "Parent scope and acceptance criteria for the overall parity migration."}
+{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/implement.md", "reason": "Parent execution order and validation commands for all waves."}

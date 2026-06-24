@@ -39,6 +39,7 @@ pub struct CliContext {
 /// Builder for `CliContext`.
 ///
 /// Mirrors Python `build_cli_context()` factory.
+#[derive(Clone)]
 pub struct CliContextBuilder {
     command: ParsedCommand,
     cwd: Option<PathBuf>,

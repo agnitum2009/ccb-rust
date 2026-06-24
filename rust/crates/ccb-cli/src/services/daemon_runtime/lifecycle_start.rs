@@ -18,18 +18,20 @@ pub struct DaemonStartState {
 ///
 /// Mirrors Python `poll_daemon_start_iteration(...)`.
 /// Uses closure injection for all daemon operations.
-pub fn poll_daemon_start_iteration<I, C, S, R>(
-    state: &DaemonStartState,
+pub fn poll_daemon_start_iteration<I, C, S, R, K>(
+    state: &mut DaemonStartState,
     inspect_daemon_fn: I,
     connect_compatible_daemon_fn: C,
     should_restart_unreachable_daemon_fn: S,
     restart_unreachable_daemon_fn: R,
+    ensure_keeper_started_fn: K,
 ) -> Option<DaemonHandle>
 where
     I: Fn() -> (Value, Value, Value),
     C: Fn(&Value, &Value, bool) -> Option<DaemonHandle>,
     S: Fn(&Value) -> bool,
     R: Fn(&Value),
+    K: Fn() -> bool,
 {
     let (_manager, _guard, inspection) = inspect_daemon_fn();
 
@@ -50,7 +52,7 @@ where
     }
 
     // Request spawn if needed
-    maybe_request_spawn(&inspection, state);
+    maybe_request_spawn(&inspection, state, ensure_keeper_started_fn);
 
     None
 }
@@ -60,7 +62,7 @@ where
 /// Mirrors Python `maybe_connect_daemon(...)`.
 fn maybe_connect_daemon<C>(
     inspection: &Value,
-    state: &DaemonStartState,
+    state: &mut DaemonStartState,
     connect_compatible_daemon_fn: C,
 ) -> Option<DaemonHandle>
 where
@@ -94,6 +96,11 @@ where
         });
     }
 
+    if !state.incompatible_restart_requested {
+        state.started = true;
+        state.incompatible_restart_requested = true;
+    }
+
     None
 }
 
@@ -102,7 +109,7 @@ where
 /// Mirrors Python `maybe_restart_unreachable_daemon(...)`.
 fn maybe_restart_unreachable_daemon<S, R>(
     inspection: &Value,
-    state: &DaemonStartState,
+    state: &mut DaemonStartState,
     should_restart_unreachable_daemon_fn: S,
     restart_unreachable_daemon_fn: R,
 ) -> bool
@@ -124,13 +131,21 @@ where
     }
 
     restart_unreachable_daemon_fn(inspection);
+    state.started = true;
+    state.unreachable_restart_requested = true;
     true
 }
 
 /// Request spawn if daemon should start.
 ///
 /// Mirrors Python `maybe_request_spawn(...)`.
-fn maybe_request_spawn(inspection: &Value, _state: &DaemonStartState) {
+fn maybe_request_spawn<K>(
+    inspection: &Value,
+    state: &mut DaemonStartState,
+    ensure_keeper_started_fn: K,
+) where
+    K: Fn() -> bool,
+{
     if _desired_state(inspection) != "running" {
         return;
     }
@@ -142,10 +157,15 @@ fn maybe_request_spawn(inspection: &Value, _state: &DaemonStartState) {
 
     let health = inspection.get("health").and_then(|v| v.as_str());
     let should_spawn = matches!(health, Some("missing") | Some("unmounted") | Some("stale"));
-    if should_spawn {
-        // Mark started - actual spawn handled by keeper
-        // This just signals state tracking
+    if !should_spawn {
+        return;
     }
+
+    state.started = true;
+    if state.keeper_started {
+        return;
+    }
+    state.keeper_started = ensure_keeper_started_fn();
 }
 
 /// Finalize daemon start with error handling.

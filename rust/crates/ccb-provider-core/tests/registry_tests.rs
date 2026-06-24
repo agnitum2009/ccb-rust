@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
 use ccb_provider_core::contracts::LaunchMode;
+use ccb_provider_core::manifest::{CompletionFamily, CompletionSourceKind, SelectorFamily};
 use ccb_provider_core::pathing::session_filename_for_agent;
 use ccb_provider_core::registry::{
-    build_default_runtime_launcher_map, build_default_session_binding_map,
+    build_default_provider_manifests, build_default_runtime_launcher_map,
+    build_default_session_binding_map,
 };
 
 const CORE_PROVIDERS: &[&str] = &["codex", "claude", "gemini"];
@@ -76,6 +78,67 @@ fn test_runtime_launcher_map_core_only() {
     assert_eq!(
         launchers.keys().cloned().collect::<HashSet<String>>(),
         provider_set(CORE_PROVIDERS)
+    );
+}
+
+#[test]
+fn test_default_manifests_assign_expected_completion_families() {
+    let manifests = build_default_provider_manifests(true, false);
+    let by_provider: std::collections::HashMap<
+        String,
+        &ccb_provider_core::manifest::ProviderManifest,
+    > = manifests.iter().map(|m| (m.provider.clone(), m)).collect();
+
+    let pane_manifest = |provider: &str| {
+        by_provider[provider]
+            .completion_manifest_for(&ccb_provider_core::manifest::RuntimeMode::PaneBacked)
+            .unwrap()
+    };
+
+    assert_eq!(
+        pane_manifest("codex").completion_family,
+        CompletionFamily::ProtocolTurn
+    );
+    assert_eq!(
+        pane_manifest("claude").completion_family,
+        CompletionFamily::ProtocolTurn
+    );
+    assert_eq!(
+        pane_manifest("gemini").completion_family,
+        CompletionFamily::AnchoredSessionStability
+    );
+    assert_eq!(
+        pane_manifest("agy").completion_family,
+        CompletionFamily::SessionBoundary
+    );
+    assert_eq!(
+        pane_manifest("kimi").completion_family,
+        CompletionFamily::SessionBoundary
+    );
+    assert_eq!(
+        pane_manifest("deepseek").completion_family,
+        CompletionFamily::SessionBoundary
+    );
+
+    assert_eq!(
+        pane_manifest("codex").completion_source_kind,
+        CompletionSourceKind::ProtocolEventStream
+    );
+    assert_eq!(
+        pane_manifest("agy").completion_source_kind,
+        CompletionSourceKind::SessionEventLog
+    );
+    assert_eq!(
+        pane_manifest("deepseek").completion_source_kind,
+        CompletionSourceKind::SessionSnapshot
+    );
+
+    assert!(pane_manifest("codex").supports_exact_completion);
+    assert!(pane_manifest("codex").supports_anchor_binding);
+    assert!(!pane_manifest("codex").supports_observed_completion);
+    assert_eq!(
+        pane_manifest("codex").selector_family,
+        SelectorFamily::FinalMessage
     );
 }
 

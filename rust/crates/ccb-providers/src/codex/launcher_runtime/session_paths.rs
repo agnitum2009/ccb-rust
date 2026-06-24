@@ -23,7 +23,10 @@ pub fn session_file_for_runtime_dir(runtime_dir: &Utf8Path) -> Option<Utf8PathBu
 }
 
 /// Find the nearest `.ccb` directory ancestor of `runtime_dir`.
-fn find_project_ccb_dir(runtime_dir: &Utf8Path) -> Option<Utf8PathBuf> {
+///
+/// Falls back to the relocated runtime anchor marker if no `.ccb` directory
+/// is found in the ancestor chain.
+pub fn find_project_ccb_dir(runtime_dir: &Utf8Path) -> Option<Utf8PathBuf> {
     let mut current = Some(runtime_dir);
     while let Some(p) = current {
         if p.file_name() == Some(".ccb") {
@@ -31,7 +34,7 @@ fn find_project_ccb_dir(runtime_dir: &Utf8Path) -> Option<Utf8PathBuf> {
         }
         current = p.parent();
     }
-    None
+    ccb_storage::path_helpers::runtime_project_anchor_from_path(runtime_dir)
 }
 
 /// Decide whether to resume a previous Codex session and return its id.
@@ -157,6 +160,7 @@ fn resolved_profile_to_spec(profile: &ResolvedProviderProfile) -> ProviderProfil
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_session_file_for_runtime_dir() {
@@ -165,5 +169,82 @@ mod tests {
             session_file_for_runtime_dir(&runtime),
             Some(Utf8PathBuf::from("/repo/.ccb/.codex-agent1-session"))
         );
+    }
+
+    fn write_runtime_marker(anchor: &Utf8Path, runtime_root: &Utf8Path, project_root: &Utf8Path) {
+        let marker = runtime_root.join("runtime-root.json");
+        std::fs::create_dir_all(runtime_root).unwrap();
+        std::fs::write(
+            &marker,
+            json!({
+                "schema_version": 1,
+                "record_type": "ccb_runtime_root",
+                "project_id": "proj-1",
+                "project_root": project_root.as_str(),
+                "anchor_path": anchor.as_str(),
+                "runtime_root_path": runtime_root.as_str(),
+                "created_at": "2026-05-07T00:00:00Z",
+            })
+            .to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn session_file_follows_relocated_runtime_anchor() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project_root_buf = tmp.path().join("repo");
+        let project_root = Utf8Path::from_path(&project_root_buf).unwrap();
+        let anchor = project_root.join(".ccb");
+        std::fs::create_dir_all(&anchor).unwrap();
+        let runtime_root_buf = tmp.path().join("state-root");
+        let runtime_root = Utf8Path::from_path(&runtime_root_buf).unwrap();
+        write_runtime_marker(&anchor, &runtime_root, &project_root);
+
+        let runtime_dir = runtime_root.join("agents/reviewer/provider-runtime/codex");
+        std::fs::create_dir_all(&runtime_dir).unwrap();
+
+        let expected = anchor.join(".codex-reviewer-session");
+        assert_eq!(
+            find_project_ccb_dir(&runtime_dir),
+            Some(anchor.to_path_buf())
+        );
+        assert_eq!(session_file_for_runtime_dir(&runtime_dir), Some(expected));
+    }
+
+    #[test]
+    fn session_file_rejects_invalid_relocated_runtime_marker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project_root_buf = tmp.path().join("repo");
+        let project_root = Utf8Path::from_path(&project_root_buf).unwrap();
+        let anchor = project_root.join(".ccb");
+        std::fs::create_dir_all(&anchor).unwrap();
+        let runtime_root_buf = tmp.path().join("state-root");
+        let runtime_root = Utf8Path::from_path(&runtime_root_buf).unwrap();
+        let different_root_buf = tmp.path().join("different-root");
+        let different_root = Utf8Path::from_path(&different_root_buf).unwrap();
+        write_runtime_marker(&anchor, &runtime_root, &project_root);
+        // Corrupt the marker to point at a different runtime root.
+        let marker = runtime_root.join("runtime-root.json");
+        std::fs::write(
+            &marker,
+            json!({
+                "schema_version": 1,
+                "record_type": "ccb_runtime_root",
+                "project_id": "proj-1",
+                "project_root": project_root.as_str(),
+                "anchor_path": anchor.as_str(),
+                "runtime_root_path": different_root.as_str(),
+                "created_at": "2026-05-07T00:00:00Z",
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let runtime_dir = runtime_root.join("agents/reviewer/provider-runtime/codex");
+        std::fs::create_dir_all(&runtime_dir).unwrap();
+
+        assert!(find_project_ccb_dir(&runtime_dir).is_none());
+        assert!(session_file_for_runtime_dir(&runtime_dir).is_none());
     }
 }

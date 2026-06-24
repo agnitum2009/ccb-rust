@@ -431,6 +431,7 @@ pub fn manifest(provider: &str) -> ProviderManifest {
             runtime_mode: "pane-backed".to_string(),
             poll_interval_ms: 50,
             timeout_ms: 30_000,
+            ..Default::default()
         },
     );
     if provider == PROVIDER_NAME_FAKE {
@@ -441,6 +442,7 @@ pub fn manifest(provider: &str) -> ProviderManifest {
                 runtime_mode: "headless".to_string(),
                 poll_interval_ms: 50,
                 timeout_ms: 30_000,
+                ..Default::default()
             },
         );
     }

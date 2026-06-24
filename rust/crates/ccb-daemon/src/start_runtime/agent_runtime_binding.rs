@@ -110,6 +110,7 @@ fn launch_or_reuse_binding(
         stale_binding,
         assigned_pane_id,
         tmux_socket_path,
+        &context.project_id,
     )?;
 
     let launch = ensure_agent_runtime_fn.call(
@@ -248,12 +249,26 @@ pub fn compute_launch_binding_hint(
     assigned_pane_id: Option<&str>,
     tmux_socket_path: Option<&str>,
     same_tmux_socket_path_fn: &dyn SameTmuxSocketPathFn,
+    project_id: &str,
 ) -> Option<RuntimeBinding> {
     if binding.is_some() {
         return binding.cloned();
     }
     if !stale_binding {
         return None;
+    }
+    if let Some(raw) = raw_binding {
+        if raw.pane_state.as_deref() == Some("foreign") {
+            return None;
+        }
+        if let Some(raw_project) = raw.ccb_project_id.as_deref() {
+            if raw_project != project_id {
+                return None;
+            }
+        }
+        if !same_tmux_socket_path_fn.call(raw.tmux_socket_path.as_deref(), tmux_socket_path) {
+            return None;
+        }
     }
     if assigned_pane_id.is_some()
         && same_tmux_socket_path_fn.call(

@@ -15,6 +15,8 @@ use std::cell::RefCell;
 
 fn ctx() -> Context {
     Context {
+        project_id: "proj".to_string(),
+        project_root: "/tmp/proj".to_string(),
         workspace_path: "/tmp/ws".to_string(),
     }
 }
@@ -138,6 +140,7 @@ impl LaunchBindingHintFn for DefaultHint {
         stale_binding: bool,
         assigned_pane_id: Option<&str>,
         tmux_socket_path: Option<&str>,
+        project_id: &str,
     ) -> Result<Option<RuntimeBinding>, String> {
         Ok(compute_launch_binding_hint(
             binding,
@@ -146,6 +149,7 @@ impl LaunchBindingHintFn for DefaultHint {
             assigned_pane_id,
             tmux_socket_path,
             &self.same,
+            project_id,
         ))
     }
 }
@@ -310,6 +314,7 @@ fn test_compute_launch_binding_hint_prefers_existing_binding() {
         None,
         Some("/tmp/tmux.sock"),
         &SameSocket,
+        "proj",
     );
     assert_eq!(hint.as_ref().unwrap().runtime_ref, b.runtime_ref);
 }
@@ -324,6 +329,7 @@ fn test_compute_launch_binding_hint_uses_raw_when_stale_and_no_assigned_pane() {
         None,
         Some("/tmp/tmux.sock"),
         &SameSocket,
+        "proj",
     );
     assert_eq!(hint.as_ref().unwrap().runtime_ref, raw.runtime_ref);
 }
@@ -338,6 +344,7 @@ fn test_compute_launch_binding_hint_skips_raw_when_assigned_pane_same_socket() {
         Some("%5"),
         Some("/tmp/tmux.sock"),
         &SameSocket,
+        "proj",
     );
     assert!(hint.is_none());
 }

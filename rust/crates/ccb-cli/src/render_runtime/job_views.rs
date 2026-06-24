@@ -37,7 +37,10 @@ pub fn render_resubmit(summary: &Value) -> Vec<String> {
     let mut lines = vec![
         "resubmit_status: accepted".to_string(),
         format!("project_id: {}", field(summary, "project_id")),
-        format!("original_message_id: {}", field(summary, "original_message_id")),
+        format!(
+            "original_message_id: {}",
+            field(summary, "original_message_id")
+        ),
         format!("message_id: {}", field(summary, "message_id")),
         format!("submission_id: {}", field(summary, "submission_id")),
     ];
@@ -64,7 +67,10 @@ pub fn render_retry(summary: &Value) -> Vec<String> {
         format!("project_id: {}", field(summary, "project_id")),
         format!("target: {}", field(summary, "target")),
         format!("message_id: {}", field(summary, "message_id")),
-        format!("original_attempt_id: {}", field(summary, "original_attempt_id")),
+        format!(
+            "original_attempt_id: {}",
+            field(summary, "original_attempt_id")
+        ),
         format!("attempt_id: {}", field(summary, "attempt_id")),
         format!("job_id: {}", field(summary, "job_id")),
         format!("agent_name: {}", field(summary, "agent_name")),
@@ -98,7 +104,10 @@ pub fn render_wait(summary: &Value) -> Vec<String> {
     ];
     if let Some(Value::Array(replies)) = summary.get("replies") {
         for reply in replies {
-            let notice = reply.get("notice").and_then(|v| v.as_bool()).unwrap_or(false);
+            let notice = reply
+                .get("notice")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             lines.push(format!(
                 "reply: id={} message={} attempt={} agent={} job={} terminal={} notice={} kind={} finished={} reason={}",
                 field(reply, "reply_id"),
@@ -152,7 +161,11 @@ pub fn render_watch_batch(batch: &Value) -> Vec<String> {
             ));
         }
     }
-    if batch.get("terminal").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if batch
+        .get("terminal")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         let target = field(batch, "target_name");
         let target = if target.is_empty() {
             field(batch, "agent_name")
@@ -160,7 +173,11 @@ pub fn render_watch_batch(batch: &Value) -> Vec<String> {
             target
         };
         lines.push("watch_status: terminal".to_string());
-        lines.extend(render_observer_notice("watch", true, "supplementary_snapshot"));
+        lines.extend(render_observer_notice(
+            "watch",
+            true,
+            "supplementary_snapshot",
+        ));
         lines.push(format!("job_id: {}", field(batch, "job_id")));
         lines.push(format!("agent_name: {}", field(batch, "agent_name")));
         lines.push(format!("target_name: {}", target));

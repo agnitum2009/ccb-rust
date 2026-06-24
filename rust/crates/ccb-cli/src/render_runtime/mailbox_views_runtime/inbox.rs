@@ -2,9 +2,7 @@
 
 use serde_json::Value;
 
-use super::super::common::{
-    display_text, observer_status_is_terminal, render_observer_notice,
-};
+use super::super::common::{display_text, observer_status_is_terminal, render_observer_notice};
 
 /// Render an inbox payload as key:value lines.
 ///
@@ -40,8 +38,14 @@ pub fn render_inbox(payload: &Value) -> Vec<String> {
         "mailbox_state: {}",
         nested_field(agent, "mailbox_state")
     ));
-    lines.push(format!("lease_version: {}", nested_field(agent, "lease_version")));
-    lines.push(format!("queue_depth: {}", nested_field(agent, "queue_depth")));
+    lines.push(format!(
+        "lease_version: {}",
+        nested_field(agent, "lease_version")
+    ));
+    lines.push(format!(
+        "queue_depth: {}",
+        nested_field(agent, "queue_depth")
+    ));
     lines.push(format!(
         "pending_reply_count: {}",
         nested_field(agent, "pending_reply_count")
@@ -55,11 +59,21 @@ pub fn render_inbox(payload: &Value) -> Vec<String> {
         "head_inbound_event_id: {}",
         nested_field(head, "inbound_event_id")
     ));
-    lines.push(format!("head_event_type: {}", nested_field(head, "event_type")));
+    lines.push(format!(
+        "head_event_type: {}",
+        nested_field(head, "event_type")
+    ));
     lines.push(format!("head_status: {}", nested_field(head, "status")));
 
-    if payload.get("summary_error").map(|v| !v.is_null()).unwrap_or(false) {
-        lines.push(format!("summary_error: {}", str_field(payload, "summary_error")));
+    if payload
+        .get("summary_error")
+        .map(|v| !v.is_null())
+        .unwrap_or(false)
+    {
+        lines.push(format!(
+            "summary_error: {}",
+            str_field(payload, "summary_error")
+        ));
     }
     match str_field(payload, "summary_status").as_str() {
         "missing" => lines.push(
@@ -95,7 +109,10 @@ pub fn render_inbox(payload: &Value) -> Vec<String> {
             "head_reply_notice_kind: {}",
             nested_field(head, "reply_notice_kind")
         ));
-        lines.push(format!("head_reply_job_id: {}", nested_field(head, "job_id")));
+        lines.push(format!(
+            "head_reply_job_id: {}",
+            nested_field(head, "job_id")
+        ));
         lines.push(format!(
             "head_reply_finished_at: {}",
             nested_field(head, "reply_finished_at")

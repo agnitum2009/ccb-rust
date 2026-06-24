@@ -40,7 +40,7 @@ where
     clear_shutdown_intent_fn();
     let startup_requested = record_running_intent_fn();
 
-    let state = DaemonStartState {
+    let mut state = DaemonStartState {
         keeper_started: ensure_keeper_started_fn(),
         started: startup_requested,
         incompatible_restart_requested: false,
@@ -51,11 +51,12 @@ where
 
     loop {
         let handle = poll_daemon_start_iteration(
-            &state,
+            &mut state,
             &inspect_daemon_fn,
             &connect_compatible_daemon_fn,
             &should_restart_unreachable_daemon_fn,
             &restart_unreachable_daemon_fn,
+            &ensure_keeper_started_fn,
         );
 
         if let Some(h) = handle {
@@ -272,7 +273,7 @@ fn _startup_wait_exhausted(
 }
 
 /// Parse timestamp string to seconds since epoch.
-/// Simplified version: handles Unix timestamp integers and ISO 8601 basic format.
+/// Handles Unix timestamp integers and ISO 8601 / RFC 3339 strings (including `Z`).
 fn _timestamp_seconds(text: &str) -> Option<Duration> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
@@ -290,6 +291,121 @@ fn _timestamp_seconds(text: &str) -> Option<Duration> {
         return Some(Duration::from_secs_f64(secs.max(0.0)));
     }
 
-    // TODO: Add ISO 8601 parsing if needed
+    // Try ISO 8601 / RFC 3339 parsing (accepts trailing `Z`)
+    let normalized = if trimmed.ends_with('Z') {
+        format!("{}+00:00", &trimmed[..trimmed.len() - 1])
+    } else {
+        trimmed.to_string()
+    };
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&normalized) {
+        return Some(Duration::from_secs_f64(dt.timestamp() as f64));
+    }
+
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::daemon_runtime::models::DaemonHandle;
+    use serde_json::json;
+
+    fn make_inspection(
+        phase: &str,
+        socket_connectable: bool,
+        startup_stage: Option<&str>,
+        startup_deadline_at: Option<&str>,
+    ) -> Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert("phase".into(), Value::String(phase.into()));
+        obj.insert("desired_state".into(), Value::String("running".into()));
+        obj.insert("socket_connectable".into(), Value::Bool(socket_connectable));
+        obj.insert("health".into(), Value::String("healthy".into()));
+        if let Some(stage) = startup_stage {
+            obj.insert("startup_stage".into(), Value::String(stage.into()));
+        }
+        if let Some(deadline) = startup_deadline_at {
+            obj.insert("startup_deadline_at".into(), Value::String(deadline.into()));
+        }
+        Value::Object(obj)
+    }
+
+    #[test]
+    fn ensure_daemon_started_waits_until_mounted() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let calls = AtomicUsize::new(0);
+        let inspect = || {
+            let n = calls.fetch_add(1, Ordering::SeqCst) + 1;
+            if n < 3 {
+                (
+                    Value::Null,
+                    Value::Null,
+                    make_inspection("starting", false, Some("spawn_requested"), None),
+                )
+            } else {
+                (
+                    Value::Null,
+                    Value::Null,
+                    make_inspection("mounted", true, None, None),
+                )
+            }
+        };
+        let connect = |_current: &Value, _inspection: &Value, _restart: bool| {
+            Some(DaemonHandle {
+                client: Some(json!({"client": "ccbd"})),
+                inspection: Value::Null,
+                started: false,
+            })
+        };
+
+        let handle = ensure_daemon_started(
+            || {},
+            || true,
+            || true,
+            inspect,
+            connect,
+            |_inspection| false,
+            |_inspection| {},
+            || "incompatible".into(),
+            2.0,
+            0.0,
+        )
+        .unwrap();
+
+        assert!(handle.client.is_some());
+        assert!(handle.started);
+    }
+
+    #[test]
+    fn ensure_daemon_started_uses_shared_startup_deadline() {
+        let inspection = make_inspection(
+            "starting",
+            false,
+            Some("spawn_requested"),
+            Some("1970-01-01T00:00:08Z"),
+        );
+        let err = ensure_daemon_started(
+            || {},
+            || true,
+            || true,
+            || (Value::Null, Value::Null, inspection.clone()),
+            |_current, _inspection, _restart| None,
+            |_inspection| false,
+            |_inspection| {},
+            || "incompatible".into(),
+            20.0,
+            0.0,
+        )
+        .unwrap_err();
+
+        assert!(err
+            .to_string()
+            .contains("lifecycle_starting(stage=spawn_requested)"));
+    }
+
+    #[test]
+    fn timestamp_seconds_parses_iso_with_z() {
+        let ts = _timestamp_seconds("2026-04-24T00:00:04Z").unwrap();
+        assert_eq!(ts.as_secs(), 1_776_988_804);
+    }
 }

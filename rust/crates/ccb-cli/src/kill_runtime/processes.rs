@@ -319,12 +319,16 @@ mod tests {
     #[test]
     fn is_pid_alive_with_state_treats_zombie_as_dead() {
         let current = std::process::id() as i64;
-        assert!(!is_pid_alive_with_state(current, |_pid| Some("Z".to_string())));
+        assert!(!is_pid_alive_with_state(current, |_pid| Some(
+            "Z".to_string()
+        )));
     }
 
     #[test]
     fn is_pid_alive_with_state_treats_uninterruptible_as_alive() {
         let current = std::process::id() as i64;
-        assert!(is_pid_alive_with_state(current, |_pid| Some("D".to_string())));
+        assert!(is_pid_alive_with_state(current, |_pid| Some(
+            "D".to_string()
+        )));
     }
 }

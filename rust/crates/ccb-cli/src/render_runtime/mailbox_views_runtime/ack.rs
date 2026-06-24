@@ -21,7 +21,10 @@ pub fn render_ack(payload: &Value) -> Vec<String> {
         format!("attempt_id: {}", str_field(payload, "attempt_id")),
         format!("job_id: {}", str_field(payload, "job_id")),
         format!("reply_id: {}", str_field(payload, "reply_id")),
-        format!("reply_from_agent: {}", str_field(payload, "reply_from_agent")),
+        format!(
+            "reply_from_agent: {}",
+            str_field(payload, "reply_from_agent")
+        ),
         format!(
             "reply_terminal_status: {}",
             str_field(payload, "reply_terminal_status")
@@ -33,8 +36,14 @@ pub fn render_ack(payload: &Value) -> Vec<String> {
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
         ),
-        format!("reply_notice_kind: {}", str_field(payload, "reply_notice_kind")),
-        format!("reply_finished_at: {}", str_field(payload, "reply_finished_at")),
+        format!(
+            "reply_notice_kind: {}",
+            str_field(payload, "reply_notice_kind")
+        ),
+        format!(
+            "reply_finished_at: {}",
+            str_field(payload, "reply_finished_at")
+        ),
         format!("mailbox_state: {}", mailbox_field(mailbox, "mailbox_state")),
         format!("queue_depth: {}", mailbox_field(mailbox, "queue_depth")),
         format!(

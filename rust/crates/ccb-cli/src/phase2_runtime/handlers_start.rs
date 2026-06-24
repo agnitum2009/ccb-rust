@@ -1,13 +1,13 @@
 //! Mirrors Python `lib/cli/phase2_runtime/handlers_start.py`.
 //! 1:1 file alignment.
 
-use std::io::Write;
 use serde_json::Value;
+use std::io::Write;
 
+use crate::phase2_runtime::common::{env_truthy, stream_is_tty};
+use crate::phase2_runtime::handlers_ops::Phase2Services;
 use crate::render_runtime::ops_views::render_config_validate;
 use crate::render_runtime::ops_views::render_start;
-use crate::phase2_runtime::handlers_ops::Phase2Services;
-use crate::phase2_runtime::common::{env_truthy, stream_is_tty};
 
 /// Handle the `config validate` command.
 ///
@@ -66,9 +66,19 @@ pub fn handle_start<S: Phase2Services, W: Write>(
 /// Mirrors Python `_terminal_size_for_streams(*streams)`.
 /// Returns None if terminal size cannot be determined.
 fn get_terminal_size() -> Option<(u16, u16)> {
-    // Try to get terminal size from stdout
-    std::io::stdout()
-        .terminal_size()
-        .ok()
-        .map(|size| (size.columns, size.rows))
+    use std::os::fd::AsRawFd;
+
+    let fd = std::io::stdout().as_raw_fd();
+    // SAFETY: `winsize` is a plain C struct and `ioctl` is called with a valid fd.
+    unsafe {
+        let mut winsize: libc::winsize = std::mem::zeroed();
+        if libc::ioctl(fd, libc::TIOCGWINSZ, &mut winsize) == 0
+            && winsize.ws_col > 0
+            && winsize.ws_row > 0
+        {
+            Some((winsize.ws_col, winsize.ws_row))
+        } else {
+            None
+        }
+    }
 }

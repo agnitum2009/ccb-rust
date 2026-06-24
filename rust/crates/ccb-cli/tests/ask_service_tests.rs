@@ -482,3 +482,108 @@ fn test_exit_code_for_ask_status() {
     assert_eq!(exit_code_for_ask_status(Some("failed"), ""), 1);
     assert_eq!(exit_code_for_ask_status(None, ""), 1);
 }
+
+#[test]
+fn test_submit_ask_role_id_alias_requires_binding() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let context = make_context_with_config(
+        &tmp,
+        "version = 2\ndefault_agents = [\"agent1\"]\n[agents]\nagent1 = { provider = \"codex\" }\n",
+    );
+    let command = make_command("agentroles.archi", "review");
+    let err = submit_ask_with(
+        &context,
+        &command,
+        ccb_agents::config::load_project_config,
+        |_ctx, _sender| "agent1".into(),
+        |_ctx, _allow, request_fn| {
+            let client = FakeClient {
+                captured: Arc::new(Mutex::new(HashMap::new())),
+                response: json!({}),
+            };
+            request_fn(&client)
+        },
+    )
+    .unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("role agentroles.archi is not bound to any configured agent"));
+}
+
+#[test]
+fn test_submit_ask_role_id_alias_rejects_multiple_bindings() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let context = make_context_with_config(
+        &tmp,
+        "version = 2\ndefault_agents = [\"agent1\", \"agent2\"]\n[agents]\nagent1 = { provider = \"codex\", role = \"agentroles.archi\" }\nagent2 = { provider = \"codex\", role = \"agentroles.archi\" }\n",
+    );
+    let command = make_command("agentroles.archi", "review");
+    let err = submit_ask_with(
+        &context,
+        &command,
+        ccb_agents::config::load_project_config,
+        |_ctx, _sender| "agent1".into(),
+        |_ctx, _allow, request_fn| {
+            let client = FakeClient {
+                captured: Arc::new(Mutex::new(HashMap::new())),
+                response: json!({}),
+            };
+            request_fn(&client)
+        },
+    )
+    .unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("role agentroles.archi is bound to multiple agents"));
+    assert!(msg.contains("agent1") && msg.contains("agent2"));
+}
+
+#[test]
+fn test_submit_ask_maps_artifact_route_options() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let context = make_context(&tmp);
+    let mut command = make_command("agent2", "collect evidence");
+    command.artifact_request = true;
+    command.artifact_reply = true;
+    let captured = Arc::new(Mutex::new(HashMap::new()));
+    let captured_clone = captured.clone();
+
+    submit_ask_with(
+        &context,
+        &command,
+        ccb_agents::config::load_project_config,
+        |_ctx, _sender| "agent1".into(),
+        |_ctx, _allow, request_fn| {
+            let client = FakeClient {
+                captured: captured_clone.clone(),
+                response: json!({
+                    "job_id": "job_1",
+                    "agent_name": "agent2",
+                    "target_name": "agent2",
+                    "status": "accepted",
+                }),
+            };
+            request_fn(&client)
+        },
+    )
+    .unwrap();
+
+    let cap = captured.lock().unwrap();
+    assert_eq!(
+        cap.get("route_options").unwrap(),
+        &json!({"artifact_request": true, "artifact_reply": true})
+    );
+}
+
+#[test]
+fn test_message_with_reply_guidance_uses_silent_hint_for_silenced_asks() {
+    let body = message_with_reply_guidance("run smoke test", "ask", false, true);
+    assert!(body.contains("Silent-on-success requested."));
+}
+
+#[test]
+fn test_ask_guidance_source_has_no_literal_chinese_characters() {
+    let body = message_with_reply_guidance("review", "ask", false, false);
+    assert!(!body.contains('\u{7b54}')); // 答
+    assert!(!body.contains('\u{76f4}')); // 直
+    assert!(!body.contains('\u{63a5}')); // 接
+}

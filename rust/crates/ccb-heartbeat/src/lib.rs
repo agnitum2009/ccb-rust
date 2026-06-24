@@ -28,3 +28,4 @@ pub use models::{
 pub use store::{
     HeartbeatStateStore, MaintenanceHeartbeatReadResult, MaintenanceHeartbeatStore, ReadState,
 };
+pub use time::{plus_seconds, seconds_between};

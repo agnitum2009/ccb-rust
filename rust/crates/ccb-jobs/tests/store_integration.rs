@@ -3,6 +3,7 @@ use ccb_jobs::{
     DeliveryScope, JobEvent, JobEventStore, JobRecord, JobStatus, JobStore, MessageEnvelope,
     SubmissionRecord, SubmissionStore, TargetKind,
 };
+use std::io::Write;
 use tempfile::TempDir;
 
 fn make_job(job_id: &str, agent_name: &str) -> JobRecord {
@@ -199,4 +200,50 @@ fn job_event_store_record_has_header() {
         "job_event"
     );
     assert!(record.get("type").is_some());
+}
+
+#[test]
+fn event_store_skips_non_job_event_records() {
+    let dir = TempDir::new().unwrap();
+    let p = Utf8Path::from_path(dir.path()).unwrap();
+    let layout = ccb_storage::paths::PathLayout::new(p);
+    let store = JobEventStore::new(&layout);
+
+    let event = |event_id: &str, event_type: &str| JobEvent {
+        event_id: event_id.into(),
+        job_id: "job1".into(),
+        agent_name: "claude".into(),
+        target_kind: TargetKind::Agent,
+        target_name: "claude".into(),
+        event_type: event_type.into(),
+        payload: serde_json::Value::Object(Default::default()),
+        timestamp: "2025-01-01T00:00:00Z".into(),
+    };
+
+    store.append(&event("e1", "started")).unwrap();
+    store.append(&event("e2", "running")).unwrap();
+
+    // Inject a foreign record type directly into the events JSONL file.
+    let path = layout.target_events_path("agent", "claude").unwrap();
+    let foreign = serde_json::json!({
+        "schema_version": 2,
+        "record_type": "heartbeat_state",
+        "agent_name": "claude",
+        "timestamp": "2025-01-01T00:00:00Z",
+    });
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(path.as_std_path())
+        .unwrap()
+        .write_all(format!("{}\n", foreign).as_bytes())
+        .unwrap();
+
+    store.append(&event("e3", "completed")).unwrap();
+
+    let (line_no, events) = store.read_since("claude", 0);
+    assert_eq!(line_no, 4, "line count should include the foreign record");
+    assert_eq!(events.len(), 3, "only job_event records should be returned");
+    assert_eq!(events[0].event_id, "e1");
+    assert_eq!(events[1].event_id, "e2");
+    assert_eq!(events[2].event_id, "e3");
 }

@@ -1,3 +1,4 @@
+use crate::context::CliContext;
 use crate::parser::{
     FaultAction, ParsedAck, ParsedAsk, ParsedAutonew, ParsedCancel, ParsedClear,
     ParsedConfigValidate, ParsedCtxTransfer, ParsedDoctor, ParsedFault, ParsedInbox, ParsedLogs,
@@ -308,21 +309,84 @@ pub fn restart(client: &dyn DaemonClient, cmd: &ParsedRestart) -> Result<String,
 }
 
 /// Maintenance operations.
-pub fn maintenance(client: &dyn DaemonClient, cmd: &ParsedMaintenance) -> Result<String, String> {
-    match cmd.action.as_str() {
-        "status" => {
-            let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-            Ok(render_maintenance(&result))
-        }
+pub fn maintenance(
+    client: &dyn DaemonClient,
+    cmd: &ParsedMaintenance,
+    context: &CliContext,
+) -> Result<String, String> {
+    let result = match cmd.action.as_str() {
+        "status" => crate::services::maintenance::maintenance_status(context),
         "tick" => {
-            let result = client.call("maintenance_tick", serde_json::json!({}))?;
-            Ok(render_maintenance(&result))
+            let force = cmd.args.iter().any(|a| a == "--force");
+            let no_dispatch = cmd.args.iter().any(|a| a == "--no-dispatch");
+            let now = crate::services::maintenance::utc_now_iso();
+            crate::services::maintenance::maintenance_tick(
+                context,
+                client,
+                force,
+                no_dispatch,
+                &now,
+            )
         }
-        other => Err(format!(
-            "maintenance action '{}' not yet implemented",
-            other
-        )),
-    }
+        "schedule" => {
+            let after = parse_schedule_after(&cmd.args)
+                .unwrap_or(crate::services::maintenance::DEFAULT_INTERVAL_S);
+            let reason =
+                parse_schedule_reason(&cmd.args).unwrap_or_else(|| "manual_schedule".to_string());
+            let now = crate::services::maintenance::utc_now_iso();
+            crate::services::maintenance::maintenance_schedule(context, after, &reason, &now)
+        }
+        "runner" => {
+            let runner_id = parse_runner_id(&cmd.args)
+                .unwrap_or_else(|| format!("ccb-runner-{}", std::process::id()));
+            let max_iterations = parse_max_iterations(&cmd.args).unwrap_or(0);
+            let sleep_cap_s = parse_sleep_cap(&cmd.args)
+                .unwrap_or(crate::services::maintenance::DEFAULT_RUNNER_SLEEP_CAP_S);
+            let no_dispatch = cmd.args.iter().any(|a| a == "--no-dispatch");
+            let now = crate::services::maintenance::utc_now_iso();
+            crate::services::maintenance::maintenance_runner(
+                context,
+                client,
+                &runner_id,
+                max_iterations,
+                sleep_cap_s,
+                no_dispatch,
+                &now,
+            )
+        }
+        other => return Err(format!("maintenance action '{}' not supported", other)),
+    };
+    Ok(render_maintenance(&result))
+}
+
+fn parse_schedule_after(args: &[String]) -> Option<u32> {
+    args.windows(2)
+        .find(|w| w[0] == "--after")
+        .and_then(|w| w[1].parse::<u32>().ok())
+}
+
+fn parse_schedule_reason(args: &[String]) -> Option<String> {
+    args.windows(2)
+        .find(|w| w[0] == "--reason")
+        .map(|w| w[1].clone())
+}
+
+fn parse_runner_id(args: &[String]) -> Option<String> {
+    args.windows(2)
+        .find(|w| w[0] == "--runner-id")
+        .map(|w| w[1].clone())
+}
+
+fn parse_max_iterations(args: &[String]) -> Option<u32> {
+    args.windows(2)
+        .find(|w| w[0] == "--max-iterations")
+        .and_then(|w| w[1].parse::<u32>().ok())
+}
+
+fn parse_sleep_cap(args: &[String]) -> Option<u64> {
+    args.windows(2)
+        .find(|w| w[0] == "--sleep-cap")
+        .and_then(|w| w[1].trim_end_matches('s').parse::<u64>().ok())
 }
 
 /// Show recent logs for an agent.

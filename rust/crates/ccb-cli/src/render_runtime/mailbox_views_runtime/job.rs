@@ -40,8 +40,7 @@ pub fn render_job_state(payload: &Value) -> Vec<String> {
 /// Mirrors Python `render_pend(payload)`.
 pub fn render_pend(payload: &Value) -> Vec<String> {
     let mut lines = render_job_state(payload);
-    let mut terminal =
-        observer_status_is_terminal(payload.get("status").unwrap_or(&Value::Null));
+    let mut terminal = observer_status_is_terminal(payload.get("status").unwrap_or(&Value::Null));
     if let Some(mailbox_status) = payload.get("mailbox_reply_terminal_status") {
         if !mailbox_status.is_null() {
             terminal = observer_status_is_terminal(mailbox_status);
@@ -69,7 +68,10 @@ pub fn render_pend(payload: &Value) -> Vec<String> {
                 "mailbox_reply_ready: {}",
                 value.as_bool().unwrap_or(false)
             ));
-            lines.push(format!("mailbox_reply_id: {}", field(payload, "mailbox_reply_id")));
+            lines.push(format!(
+                "mailbox_reply_id: {}",
+                field(payload, "mailbox_reply_id")
+            ));
             lines.push(format!(
                 "mailbox_reply_from_agent: {}",
                 field(payload, "mailbox_reply_from_agent")

@@ -1,16 +1,16 @@
 //! Mirrors Python `lib/cli/phase2_runtime/dispatch.py`.
 //! 1:1 file alignment.
 
-use std::io::Write;
 use serde_json::Value;
+use std::io::Write;
 
 use crate::context::CliContext;
-use crate::phase2_runtime::handlers_ops::Phase2Services;
 use crate::phase2_runtime::handlers_ask::handle_ask;
 use crate::phase2_runtime::handlers_mailbox::{
     handle_ack, handle_cancel, handle_inbox, handle_pend, handle_ping, handle_queue,
     handle_resubmit, handle_retry, handle_trace, handle_wait, handle_watch,
 };
+use crate::phase2_runtime::handlers_ops::Phase2Services;
 use crate::phase2_runtime::handlers_ops::{
     handle_cleanup, handle_clear, handle_doctor, handle_fault_arm, handle_fault_clear,
     handle_fault_list, handle_kill, handle_logs, handle_maintenance, handle_ps, handle_reload,
@@ -40,10 +40,7 @@ pub fn dispatch<S: Phase2Services, W: Write>(
     services: &S,
 ) -> i32 {
     // Extract command kind
-    let kind = command
-        .get("kind")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let kind = command.get("kind").and_then(|v| v.as_str()).unwrap_or("");
 
     // Route to appropriate handler based on command kind
     match kind {

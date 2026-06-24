@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use crate::contracts::{
     LaunchMode, ProviderBackend, ProviderRuntimeLauncher, ProviderSessionBinding,
 };
-use crate::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};
+use crate::manifest::{
+    CompletionFamily, CompletionManifest, CompletionSourceKind, ProviderManifest, RuntimeMode,
+    SelectorFamily,
+};
 
 /// Provider names that are always included.
 pub const CORE_PROVIDER_NAMES: &[&str] = &["claude", "codex", "gemini"];
@@ -281,6 +284,51 @@ fn build_test_double_backends() -> Vec<ProviderBackend> {
 
 fn default_manifest(provider: &str) -> ProviderManifest {
     let provider = provider.trim().to_lowercase();
+    let (family, source, supports_observed, supports_anchor) = match provider.as_str() {
+        "codex" | "fake-codex" | "claude" | "fake-claude" => (
+            CompletionFamily::ProtocolTurn,
+            CompletionSourceKind::ProtocolEventStream,
+            false,
+            true,
+        ),
+        "gemini" | "fake-gemini" => (
+            CompletionFamily::AnchoredSessionStability,
+            CompletionSourceKind::ProtocolEventStream,
+            false,
+            true,
+        ),
+        "agy" | "kimi" => (
+            CompletionFamily::SessionBoundary,
+            CompletionSourceKind::SessionEventLog,
+            true,
+            true,
+        ),
+        "deepseek" => (
+            CompletionFamily::SessionBoundary,
+            CompletionSourceKind::SessionSnapshot,
+            true,
+            true,
+        ),
+        "fake" => (
+            CompletionFamily::StructuredResult,
+            CompletionSourceKind::ProtocolEventStream,
+            false,
+            false,
+        ),
+        "fake-legacy" => (
+            CompletionFamily::TerminalTextQuiet,
+            CompletionSourceKind::ProtocolEventStream,
+            false,
+            false,
+        ),
+        _ => (
+            CompletionFamily::ProtocolTurn,
+            CompletionSourceKind::ProtocolEventStream,
+            false,
+            true,
+        ),
+    };
+
     let mut profiles = HashMap::new();
     profiles.insert(
         RuntimeMode::PaneBacked,
@@ -289,6 +337,14 @@ fn default_manifest(provider: &str) -> ProviderManifest {
             runtime_mode: "pane-backed".to_string(),
             poll_interval_ms: 500,
             timeout_ms: 30000,
+            completion_family: family,
+            completion_source_kind: source,
+            supports_exact_completion: true,
+            supports_observed_completion: supports_observed,
+            supports_anchor_binding: supports_anchor,
+            supports_reply_stability: false,
+            supports_terminal_reason: true,
+            selector_family: SelectorFamily::FinalMessage,
         },
     );
     ProviderManifest::new(&provider, true, false, false, false, false, profiles)

@@ -81,6 +81,7 @@ mod tests {
     use super::*;
 
     fn manifest(name: &str) -> ProviderManifest {
+        use crate::manifest::{CompletionFamily, CompletionSourceKind, SelectorFamily};
         let mut profiles = HashMap::new();
         profiles.insert(
             RuntimeMode::PaneBacked,
@@ -89,6 +90,14 @@ mod tests {
                 runtime_mode: "pane-backed".to_string(),
                 poll_interval_ms: 500,
                 timeout_ms: 30000,
+                completion_family: CompletionFamily::ProtocolTurn,
+                completion_source_kind: CompletionSourceKind::ProtocolEventStream,
+                supports_exact_completion: true,
+                supports_observed_completion: false,
+                supports_anchor_binding: true,
+                supports_reply_stability: false,
+                supports_terminal_reason: true,
+                selector_family: SelectorFamily::FinalMessage,
             },
         );
         ProviderManifest::new(name, true, false, false, false, false, profiles)
@@ -116,5 +125,124 @@ mod tests {
         let mut catalog = ProviderCatalog::new(None);
         catalog.register(manifest("claude")).unwrap();
         assert!(catalog.register(manifest("claude")).is_err());
+    }
+
+    #[test]
+    fn default_catalog_contains_expected_providers_and_families() {
+        use crate::manifest::{CompletionFamily, CompletionSourceKind};
+        let catalog = build_default_provider_catalog(true, true);
+        let providers: std::collections::HashSet<String> =
+            catalog.providers().iter().map(|s| s.to_string()).collect();
+        for expected in &[
+            "fake",
+            "fake-codex",
+            "fake-claude",
+            "fake-gemini",
+            "fake-legacy",
+            "claude",
+            "codex",
+            "gemini",
+            "opencode",
+            "droid",
+            "agy",
+            "kimi",
+            "deepseek",
+        ] {
+            assert!(
+                providers.contains(*expected),
+                "missing provider {}",
+                expected
+            );
+        }
+
+        let codex = catalog
+            .resolve_completion_manifest("codex", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(codex.completion_family, CompletionFamily::ProtocolTurn);
+
+        let gemini = catalog
+            .resolve_completion_manifest("gemini", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(
+            gemini.completion_family,
+            CompletionFamily::AnchoredSessionStability
+        );
+
+        let fake = catalog
+            .resolve_completion_manifest("fake", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(fake.completion_family, CompletionFamily::StructuredResult);
+
+        let fake_codex = catalog
+            .resolve_completion_manifest("fake-codex", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(fake_codex.completion_family, CompletionFamily::ProtocolTurn);
+
+        let fake_gemini = catalog
+            .resolve_completion_manifest("fake-gemini", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(
+            fake_gemini.completion_family,
+            CompletionFamily::AnchoredSessionStability
+        );
+
+        let agy = catalog
+            .resolve_completion_manifest("agy", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(agy.completion_family, CompletionFamily::SessionBoundary);
+        assert_eq!(
+            agy.completion_source_kind,
+            CompletionSourceKind::SessionEventLog
+        );
+        assert!(agy.supports_observed_completion);
+        assert!(agy.supports_anchor_binding);
+        assert!(catalog.get("agy").unwrap().supports_resume);
+
+        let kimi = catalog
+            .resolve_completion_manifest("kimi", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(kimi.completion_family, CompletionFamily::SessionBoundary);
+        assert_eq!(
+            kimi.completion_source_kind,
+            CompletionSourceKind::SessionEventLog
+        );
+        assert!(kimi.supports_observed_completion);
+        assert!(kimi.supports_anchor_binding);
+
+        let deepseek = catalog
+            .resolve_completion_manifest("deepseek", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(
+            deepseek.completion_family,
+            CompletionFamily::SessionBoundary
+        );
+        assert_eq!(
+            deepseek.completion_source_kind,
+            CompletionSourceKind::SessionSnapshot
+        );
+        assert!(deepseek.supports_observed_completion);
+        assert!(deepseek.supports_anchor_binding);
+
+        let fake_legacy = catalog
+            .resolve_completion_manifest("fake-legacy", &RuntimeMode::PaneBacked)
+            .unwrap();
+        assert_eq!(
+            fake_legacy.completion_family,
+            CompletionFamily::TerminalTextQuiet
+        );
+    }
+
+    #[test]
+    fn core_only_catalog_excludes_optional_and_test_doubles() {
+        let catalog = build_default_provider_catalog(false, false);
+        let providers: std::collections::HashSet<String> =
+            catalog.providers().iter().map(|s| s.to_string()).collect();
+        assert_eq!(
+            providers,
+            ["claude", "codex", "gemini"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
+        );
     }
 }

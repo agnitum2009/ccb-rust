@@ -1,16 +1,14 @@
 //! Mirrors Python `lib/cli/phase2_runtime/handlers_ops.py`.
 //! 1:1 file alignment.
 
-use std::io::Write;
 use serde_json::Value;
+use std::io::Write;
 
 use crate::render_runtime::ops_views::{
     render_cleanup, render_clear, render_doctor, render_doctor_bundle, render_doctor_storage,
     render_fault_arm, render_fault_clear, render_fault_list, render_kill, render_logs,
     render_maintenance, render_ps, render_reload, render_restart,
 };
-use crate::render_runtime::common::write_lines;
-
 /// Trait mirroring the Python `services` object passed to phase2 handlers.
 ///
 /// Service methods return JSON payloads; concrete implementations will be wired
@@ -21,12 +19,20 @@ pub trait Phase2Services {
 
     // Service methods for ops handlers
     fn kill_project(&self, context: &crate::context::CliContext, command: &Value) -> Value;
-    fn cleanup_project_storage(&self, context: &crate::context::CliContext, command: &Value) -> Value;
+    fn cleanup_project_storage(
+        &self,
+        context: &crate::context::CliContext,
+        command: &Value,
+    ) -> Value;
     fn clear_agent_context(&self, context: &crate::context::CliContext, command: &Value) -> Value;
     fn agent_logs(&self, context: &crate::context::CliContext, command: &Value) -> Value;
     fn maintenance_status(&self, context: &crate::context::CliContext, command: &Value) -> Value;
     fn ps_summary(&self, context: &crate::context::CliContext, command: &Value) -> Value;
-    fn export_diagnostic_bundle(&self, context: &crate::context::CliContext, command: &Value) -> Value;
+    fn export_diagnostic_bundle(
+        &self,
+        context: &crate::context::CliContext,
+        command: &Value,
+    ) -> Value;
     fn doctor_storage_summary(&self, context: &crate::context::CliContext) -> Value;
     fn doctor_summary(&self, context: &crate::context::CliContext) -> Value;
     fn list_fault_rules(&self, context: &crate::context::CliContext) -> Value;
@@ -47,7 +53,12 @@ pub trait Phase2Services {
     fn wait_for_replies(&self, context: &crate::context::CliContext, command: &Value) -> Value;
     fn cancel_job(&self, context: &crate::context::CliContext, command: &Value) -> Value;
     fn validate_config_context(&self, context: &crate::context::CliContext) -> Value;
-    fn start_agents(&self, context: &crate::context::CliContext, command: &Value, terminal_size: Option<(u16, u16)>) -> Value;
+    fn start_agents(
+        &self,
+        context: &crate::context::CliContext,
+        command: &Value,
+        terminal_size: Option<(u16, u16)>,
+    ) -> Value;
 }
 
 /// Handle the `kill` command.
@@ -152,18 +163,30 @@ pub fn handle_doctor<S: Phase2Services, W: Write>(
     command: &Value,
 ) -> i32 {
     // Check for bundle mode (command.bundle is true)
-    if command.get("bundle").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if command
+        .get("bundle")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         let summary = services.export_diagnostic_bundle(context, command);
         services.write_lines(out, &render_doctor_bundle(&summary));
         return 0;
     }
 
     // Check for storage mode (command.storage is true)
-    if command.get("storage").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if command
+        .get("storage")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         let payload = services.doctor_storage_summary(context);
 
         // JSON output mode
-        if command.get("json_output").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if command
+            .get("json_output")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             let json_str = serde_json::to_string_pretty(&payload).unwrap_or_default();
             writeln!(out, "{}", json_str).ok();
             return 0;
@@ -256,5 +279,9 @@ pub fn handle_restart<S: Phase2Services, W: Write>(
         .or_else(|| payload.get("status"))
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    if status == "ok" { 0 } else { 1 }
+    if status == "ok" {
+        0
+    } else {
+        1
+    }
 }

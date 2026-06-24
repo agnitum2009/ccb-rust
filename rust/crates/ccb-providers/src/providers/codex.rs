@@ -136,6 +136,7 @@ pub fn manifest() -> ProviderManifest {
             runtime_mode: "pane-backed".to_string(),
             poll_interval_ms: 500,
             timeout_ms: 300_000,
+            ..Default::default()
         },
     );
     ProviderManifest::new(

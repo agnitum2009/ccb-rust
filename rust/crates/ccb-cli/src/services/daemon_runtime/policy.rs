@@ -55,3 +55,35 @@ pub fn foreground_attach_target_ready_timeout_s() -> f64 {
 pub fn start_timeout_s() -> f64 {
     startup_transaction_timeout_s()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    fn with_env(name: &str, value: &str, f: impl FnOnce()) {
+        let previous = env::var(name).ok();
+        env::set_var(name, value);
+        f();
+        match previous {
+            Some(prev) => env::set_var(name, prev),
+            None => env::remove_var(name),
+        }
+    }
+
+    #[test]
+    fn foreground_attach_target_ready_timeout_is_capped_by_startup_transaction_timeout() {
+        with_env("CCB_STARTUP_TRANSACTION_TIMEOUT_S", "4.0", || {
+            with_env(
+                "CCB_FOREGROUND_ATTACH_TARGET_READY_TIMEOUT_S",
+                "10.0",
+                || {
+                    with_env("CCB_FOREGROUND_ATTACH_RPC_TIMEOUT_S", "2.5", || {
+                        assert_eq!(foreground_attach_rpc_timeout_s(), 2.5);
+                        assert_eq!(foreground_attach_target_ready_timeout_s(), 4.0);
+                    });
+                },
+            );
+        });
+    }
+}

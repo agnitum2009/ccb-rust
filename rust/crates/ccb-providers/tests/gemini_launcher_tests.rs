@@ -96,7 +96,7 @@ fn test_gemini_launcher_build_start_cmd_includes_home_env_and_context() {
 }
 
 #[test]
-fn test_gemini_launcher_build_start_cmd_auto_permission_and_restore() {
+fn test_gemini_launcher_build_start_cmd_auto_permission_and_restore_without_history() {
     let tmp = tempfile::tempdir().unwrap();
     let project = tmp.path().join("project");
     let runtime_dir = project.join("rt");
@@ -118,6 +118,56 @@ fn test_gemini_launcher_build_start_cmd_auto_permission_and_restore() {
     .unwrap();
 
     assert!(cmd.contains("--yolo"), "cmd: {}", cmd);
+    assert!(!cmd.contains("--resume latest"), "cmd: {}", cmd);
+}
+
+#[test]
+fn test_gemini_launcher_build_start_cmd_restores_when_history_exists() {
+    use sha2::Digest;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let project = tmp.path().join("project");
+    let runtime_dir = project
+        .join(".ccb")
+        .join("agents")
+        .join("agent1")
+        .join("provider-runtime")
+        .join("gemini");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(project.to_string_lossy().as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+
+    let managed_home = project
+        .join(".ccb")
+        .join("agents")
+        .join("agent1")
+        .join("provider-state")
+        .join("gemini")
+        .join("home");
+    let chats_dir = managed_home
+        .join(".gemini")
+        .join("tmp")
+        .join(&hash)
+        .join("chats");
+    std::fs::create_dir_all(&chats_dir).unwrap();
+    std::fs::write(chats_dir.join("history.json"), "{}\n").unwrap();
+
+    let s = spec("agent1");
+    let command = GeminiStartCommand {
+        restore: true,
+        ..Default::default()
+    };
+    let cmd = build_gemini_start_cmd(
+        &command,
+        &s,
+        &camino::Utf8PathBuf::from_path_buf(runtime_dir).unwrap(),
+        "sess-1",
+        Some(&prepared_state(&project)),
+    )
+    .unwrap();
+
     assert!(cmd.contains("--resume latest"), "cmd: {}", cmd);
 }
 

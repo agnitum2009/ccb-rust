@@ -105,7 +105,8 @@ fn test_logs_returns_tail_lines() {
     app.start().unwrap();
     register_agent(&mut app, "codex", "codex", dir.path());
 
-    let session_path = dir.path().join("codex-session.jsonl");
+    let session_path = dir.path().join(".ccb").join(".codex-codex-session");
+    fs::create_dir_all(session_path.parent().unwrap()).unwrap();
     let content: String = (1..=20).map(|i| format!("line {}\n", i)).collect();
     fs::write(&session_path, content).unwrap();
 

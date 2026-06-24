@@ -422,6 +422,8 @@ pub struct ParsedLogs {
 pub struct ParsedMaintenance {
     pub project: Option<String>,
     pub action: String,
+    #[serde(default)]
+    pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

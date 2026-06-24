@@ -10,7 +10,10 @@ pub fn render_reload(payload: &Value) -> Vec<String> {
     let mut lines = vec![
         format!("reload_status: {}", status),
         format!("dry_run: {}", bool_field(payload, "dry_run")),
-        format!("mutation_enabled: {}", bool_field(payload, "mutation_enabled")),
+        format!(
+            "mutation_enabled: {}",
+            bool_field(payload, "mutation_enabled")
+        ),
         format!("plan_class: {}", field(payload, "plan_class")),
         format!("safe_to_apply: {}", bool_field(payload, "safe_to_apply")),
         format!(
@@ -29,7 +32,10 @@ pub fn render_reload(payload: &Value) -> Vec<String> {
     lines.extend(reload_apply_lines(payload));
     lines.extend(reload_operation_lines(payload));
     lines.extend(reload_drain_intent_lines(payload));
-    if let Some(patch_plan) = payload.get("namespace_patch_plan").filter(|v| v.is_object()) {
+    if let Some(patch_plan) = payload
+        .get("namespace_patch_plan")
+        .filter(|v| v.is_object())
+    {
         lines.extend(namespace_patch_lines(patch_plan));
     }
     lines.extend(prefixed_values("reload_reason", payload.get("reasons")));
@@ -81,7 +87,10 @@ fn reload_drain_intent_lines(payload: &Value) -> Vec<String> {
     if let Some(Value::Array(intents)) = payload.get("drain_intents") {
         for intent in intents {
             if intent.is_object() {
-                lines.push(format!("reload_drain_intent: {}", drain_intent_line(intent)));
+                lines.push(format!(
+                    "reload_drain_intent: {}",
+                    drain_intent_line(intent)
+                ));
             } else {
                 lines.push(format!("reload_drain_intent: {}", field_value(intent)));
             }
@@ -150,7 +159,14 @@ fn operation_line(operation: &Value) -> String {
     let mut fields = vec![format!("op={}", field(operation, "op"))];
     fields.extend(present_fields(
         operation,
-        &["agent", "window", "from_window", "to_window", "field", "change"],
+        &[
+            "agent",
+            "window",
+            "from_window",
+            "to_window",
+            "field",
+            "change",
+        ],
     ));
     fields.extend(list_fields(operation, &["agents", "fields"]));
     let reason = field(operation, "reason");
@@ -165,7 +181,10 @@ fn drain_intent_line(intent: &Value) -> String {
     fields.extend(present_fields(intent, &["agent", "initial_phase"]));
     if let Some(dry_run_only) = intent.get("dry_run_only") {
         if !dry_run_only.is_null() {
-            fields.push(format!("dry_run_only={}", dry_run_only.as_bool().unwrap_or(false)));
+            fields.push(format!(
+                "dry_run_only={}",
+                dry_run_only.as_bool().unwrap_or(false)
+            ));
         }
     }
     let reason = field(intent, "reason");
@@ -206,7 +225,14 @@ fn namespace_patch_step_line(step: &Value) -> String {
     let mut fields = vec![format!("action={}", field(step, "action"))];
     fields.extend(present_fields(
         step,
-        &["window", "agent", "role", "slot_key", "managed_by", "anchor_agent"],
+        &[
+            "window",
+            "agent",
+            "role",
+            "slot_key",
+            "managed_by",
+            "anchor_agent",
+        ],
     ));
     let reason = field(step, "reason");
     if !reason.is_empty() {
@@ -247,11 +273,7 @@ fn list_fields(record: &Value, keys: &[&str]) -> Vec<String> {
     for key in keys {
         if let Some(Value::Array(arr)) = record.get(key) {
             if !arr.is_empty() {
-                let joined = arr
-                    .iter()
-                    .map(field_value)
-                    .collect::<Vec<_>>()
-                    .join(",");
+                let joined = arr.iter().map(field_value).collect::<Vec<_>>().join(",");
                 fields.push(format!("{}={}", key, joined));
             }
         }
@@ -296,11 +318,7 @@ fn render_value(value: &Value) -> String {
                 .collect::<Vec<_>>()
                 .join(",")
         }
-        Value::Array(arr) => arr
-            .iter()
-            .map(field_value)
-            .collect::<Vec<_>>()
-            .join(","),
+        Value::Array(arr) => arr.iter().map(field_value).collect::<Vec<_>>().join(","),
         Value::Bool(b) => b.to_string(),
         Value::Null => String::new(),
         Value::String(s) => s.clone(),

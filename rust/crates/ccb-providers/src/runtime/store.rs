@@ -63,3 +63,62 @@ impl ProviderHealthSnapshotStore {
         snapshots
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime::health::{ProgressState, ProviderCompletionState, ProviderHealthSnapshot};
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    fn make_layout(tmp: &tempfile::TempDir) -> PathLayout {
+        PathLayout::new(
+            camino::Utf8Path::from_path(tmp.path()).unwrap_or(camino::Utf8Path::new("/")),
+        )
+    }
+
+    #[test]
+    fn health_snapshot_store_tracks_job_history() {
+        let tmp = tempfile::tempdir().unwrap();
+        let layout = make_layout(&tmp);
+        let store = ProviderHealthSnapshotStore::new(layout);
+
+        let mut d1 = HashMap::new();
+        d1.insert("phase".into(), json!("accepted"));
+        store
+            .append(
+                &ProviderHealthSnapshot::new("job-1", "codex", "Agent1", "2026-03-30T12:00:00Z")
+                    .with_runtime_alive(true)
+                    .with_session_reachable(Some(true))
+                    .with_progress_state(ProgressState::Accepted)
+                    .with_completion_state(ProviderCompletionState::NotComplete)
+                    .with_last_progress_at("2026-03-30T12:00:00Z")
+                    .with_diagnostics(d1),
+            )
+            .unwrap();
+
+        let mut d2 = HashMap::new();
+        d2.insert("phase".into(), json!("complete"));
+        store
+            .append(
+                &ProviderHealthSnapshot::new("job-1", "codex", "agent1", "2026-03-30T12:00:05Z")
+                    .with_runtime_alive(true)
+                    .with_session_reachable(Some(true))
+                    .with_progress_state(ProgressState::OutputAdvancing)
+                    .with_completion_state(ProviderCompletionState::TerminalComplete)
+                    .with_last_progress_at("2026-03-30T12:00:03Z")
+                    .with_diagnostics(d2),
+            )
+            .unwrap();
+
+        let latest = store.latest("job-1").unwrap();
+        assert_eq!(latest.agent_name, "agent1");
+        assert_eq!(latest.progress_state, ProgressState::OutputAdvancing);
+        assert_eq!(
+            latest.completion_state,
+            ProviderCompletionState::TerminalComplete
+        );
+        assert_eq!(store.list_job("job-1").unwrap().len(), 2);
+        assert_eq!(store.list_all().len(), 2);
+    }
+}

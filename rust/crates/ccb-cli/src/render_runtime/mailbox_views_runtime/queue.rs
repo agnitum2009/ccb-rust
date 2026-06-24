@@ -22,7 +22,11 @@ pub fn render_queue(payload: &Value) -> Vec<String> {
     }
 
     let mut lines = vec![format!("queue_status: {}", status)];
-    lines.extend(render_observer_notice("queue", false, "supplementary_snapshot"));
+    lines.extend(render_observer_notice(
+        "queue",
+        false,
+        "supplementary_snapshot",
+    ));
     lines.push(format!("target: {}", target));
 
     if target == "all" {
@@ -105,7 +109,10 @@ pub fn render_queue(payload: &Value) -> Vec<String> {
         _ => {}
     }
 
-    if let Some(active) = agent.and_then(|a| a.get("active")).filter(|v| v.is_object()) {
+    if let Some(active) = agent
+        .and_then(|a| a.get("active"))
+        .filter(|v| v.is_object())
+    {
         lines.push(format!(
             "queue_active: event={} type={} status={} message={} attempt={} job={}",
             field(active, "inbound_event_id"),
