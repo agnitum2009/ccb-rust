@@ -3,7 +3,7 @@
   "name": "py2rust-remove-stub-mirrors",
   "title": "Wave 3 清理：批量删除 ccb-providers/ccb-daemon 空 stub 镜像（干净树）",
   "description": "Batch-delete the 697 unreferenced empty 1:1 stub mirrors (ccb-providers 352 + ccb-daemon 345) and their pub mod declarations; keep workspace green. Python source remains the debugging reference.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

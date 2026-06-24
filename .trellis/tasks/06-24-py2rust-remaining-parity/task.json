@@ -23,7 +23,9 @@
     "06-24-py2rust-core-parity",
     "06-24-py2rust-providers-daemon-deep",
     "06-24-py2rust-e2e-terminal-edge",
-    "06-24-py2rust-consistency-closure"
+    "06-24-py2rust-consistency-closure",
+    "06-24-py2rust-consistency-finishline",
+    "06-24-py2rust-remove-stub-mirrors"
   ],
   "parent": null,
   "relatedFiles": [],
