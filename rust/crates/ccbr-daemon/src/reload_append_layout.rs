@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_append_layout.py`.
+//! Mirrors Python `lib/ccbrd/reload_append_layout.py`.
 
 use ccbr_agents::layout::{parse_layout_spec, LayoutNode};
 

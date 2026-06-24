@@ -1,3 +1,3 @@
-//! Mirrors Python `lib/ccbd/client_runtime/`.
+//! Mirrors Python `lib/ccbrd/client_runtime/`.
 
 pub mod resolution;

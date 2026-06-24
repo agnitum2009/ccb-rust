@@ -492,7 +492,7 @@ fn apply_identity(
         ("@ccbr_slot", agent_label),
         ("@ccbr_project_id", project_id),
         ("@ccbr_session_id", session_id),
-        ("@ccbr_managed_by", "ccbd"),
+        ("@ccbr_managed_by", "ccbrd"),
     ];
     for (name, value) in options {
         backend.set_pane_user_option(pane_id, name, value);

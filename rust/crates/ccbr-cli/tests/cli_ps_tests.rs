@@ -60,7 +60,7 @@ fn test_ps_summary_includes_tmux_socket_and_pane_observation() {
     let summary = ps_summary(&context, &ParsedPsCommand::new(None));
     let summary: Value = serde_json::to_value(summary).unwrap();
 
-    assert_eq!(summary["ccbd_state"], "mounted");
+    assert_eq!(summary["ccbrd_state"], "mounted");
     let agents = summary["agents"].as_array().unwrap();
     assert_eq!(agents.len(), 1);
     let agent = &agents[0];

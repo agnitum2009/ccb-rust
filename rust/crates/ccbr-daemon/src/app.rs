@@ -143,7 +143,7 @@ impl CcbdApp {
         let current_config = config.clone();
         let (registry, agent_names) = load_agent_registry(&layout, config.as_ref());
         let config_value = config.as_ref().and_then(|c| serde_json::to_value(c).ok());
-        let socket_path = layout.ccbd_socket_path().as_str().to_string();
+        let socket_path = layout.ccbrd_socket_path().as_str().to_string();
         let shared_job_store = JobStore::new(&layout);
 
         let mailbox = MessageBureauFacade::new(
@@ -198,15 +198,15 @@ impl CcbdApp {
     }
 
     pub fn socket_path(&self) -> String {
-        self.layout.ccbd_socket_path().as_str().to_string()
+        self.layout.ccbrd_socket_path().as_str().to_string()
     }
 
     pub fn tmux_socket_path(&self) -> String {
-        self.layout.ccbd_tmux_socket_path().as_str().to_string()
+        self.layout.ccbrd_tmux_socket_path().as_str().to_string()
     }
 
     pub fn tmux_session_name(&self) -> String {
-        self.layout.ccbd_tmux_session_name()
+        self.layout.ccbrd_tmux_session_name()
     }
 
     pub fn request_shutdown(&self) {
@@ -235,7 +235,7 @@ impl CcbdApp {
             failure_reason: None,
             api_version: crate::models::api_models::common::API_VERSION,
         };
-        let report_path = self.layout.ccbd_startup_report_path();
+        let report_path = self.layout.ccbrd_startup_report_path();
         self.last_startup_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
 
@@ -272,7 +272,7 @@ impl CcbdApp {
             failure_reason: None,
             api_version: crate::models::api_models::common::API_VERSION,
         };
-        let report_path = self.layout.ccbd_shutdown_report_path();
+        let report_path = self.layout.ccbrd_shutdown_report_path();
         self.last_shutdown_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
         self.ownership.release();
@@ -490,7 +490,7 @@ impl CcbdApp {
                 spec: None,
             };
             if let Err(e) = launcher.launch(&ctx) {
-                eprintln!("ccbd: provider launch failed for {agent_name}: {e}");
+                eprintln!("ccbrd: provider launch failed for {agent_name}: {e}");
             }
         }
 
@@ -510,7 +510,7 @@ impl CcbdApp {
                 })
                 .collect();
             let _ = ccbr_storage::json::JsonStore::new()
-                .save(&self.layout.ccbd_startup_report_path(), report);
+                .save(&self.layout.ccbrd_startup_report_path(), report);
         }
 
         Ok(result)
@@ -579,7 +579,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test_ccbd_app_lifecycle() {
+    fn test_ccbrd_app_lifecycle() {
         let dir = TempDir::new().unwrap();
         let app = CcbdApp::with_backend(
             dir.path(),
@@ -611,7 +611,7 @@ mod tests {
             StartFlowService::with_stub(),
             StopFlowService::with_stub(),
         );
-        let response = app.handle_rpc(r#"{"op":"ping","request":{"target":"ccbd"}}"#);
+        let response = app.handle_rpc(r#"{"op":"ping","request":{"target":"ccbrd"}}"#);
         assert!(response.contains("pong"));
     }
 
@@ -623,7 +623,7 @@ mod tests {
             StartFlowService::with_stub(),
             StopFlowService::with_stub(),
         );
-        let response = app.handle_rpc(r#"{"method":"ping","params":{"target":"ccbd"}}"#);
+        let response = app.handle_rpc(r#"{"method":"ping","params":{"target":"ccbrd"}}"#);
         assert!(response.contains("pong"));
         assert!(response.contains("\"result\""));
     }

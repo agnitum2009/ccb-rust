@@ -98,7 +98,7 @@ fn test_render_doctor_includes_root_runtime_identity_lines() {
             "tmux_path": "/usr/bin/tmux",
             "provider_commands": [],
         },
-        "ccbd": {
+        "ccbrd": {
             "state": "unmounted",
             "health": "unknown",
             "generation": 0,

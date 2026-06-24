@@ -61,7 +61,7 @@ impl ProjectNamespaceController {
     pub fn new(layout: &ccbr_storage::paths::PathLayout) -> Self {
         Self {
             namespace: None,
-            path: layout.ccbd_dir().join("project-namespace.json"),
+            path: layout.ccbrd_dir().join("project-namespace.json"),
         }
     }
 

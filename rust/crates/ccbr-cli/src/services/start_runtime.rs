@@ -35,14 +35,14 @@ pub struct JsonStartupReportStore;
 
 impl StartupReportStore for JsonStartupReportStore {
     fn load(&self, context: &CliContext) -> Option<Value> {
-        let path = context.paths.ccbd_startup_report_path();
+        let path = context.paths.ccbrd_startup_report_path();
         ccbr_storage::json::JsonStore::new()
             .load::<Value>(&path)
             .ok()
     }
 
     fn save(&self, context: &CliContext, report: &Value) -> Result<(), String> {
-        let path = context.paths.ccbd_startup_report_path();
+        let path = context.paths.ccbrd_startup_report_path();
         ccbr_storage::json::JsonStore::new()
             .save(&path, report)
             .map_err(|e| e.to_string())
@@ -183,7 +183,7 @@ fn summary_from_payload(
             .get("socket_path")
             .and_then(|v| v.as_str())
             .map(String::from)
-            .unwrap_or_else(|| context.paths.ccbd_socket_path().to_string()),
+            .unwrap_or_else(|| context.paths.ccbrd_socket_path().to_string()),
         cleanup_summaries,
         worktree_warnings: Vec::new(),
         worktree_retired: Vec::new(),
@@ -261,7 +261,7 @@ mod tests {
                 "project_root": context.project.project_root.to_string_lossy().to_string(),
                 "project_id": context.project.project_id,
                 "started": ["demo"],
-                "socket_path": context.paths.ccbd_socket_path(),
+                "socket_path": context.paths.ccbrd_socket_path(),
                 "cleanup_summaries": [],
             }))
         };
@@ -319,7 +319,7 @@ mod tests {
                 "project_root": context.project.project_root.to_string_lossy().to_string(),
                 "project_id": context.project.project_id,
                 "started": ["demo"],
-                "socket_path": context.paths.ccbd_socket_path(),
+                "socket_path": context.paths.ccbrd_socket_path(),
                 "cleanup_summaries": [],
             }))
         };
@@ -359,7 +359,7 @@ mod tests {
                 "project_root": context.project.project_root.to_string_lossy().to_string(),
                 "project_id": context.project.project_id,
                 "started": ["demo"],
-                "socket_path": context.paths.ccbd_socket_path(),
+                "socket_path": context.paths.ccbrd_socket_path(),
                 "cleanup_summaries": [
                     {
                         "socket_name": "sock-a",
@@ -415,7 +415,7 @@ mod tests {
                 "project_root": context.project.project_root.to_string_lossy().to_string(),
                 "project_id": context.project.project_id,
                 "started": ["demo"],
-                "socket_path": context.paths.ccbd_socket_path(),
+                "socket_path": context.paths.ccbrd_socket_path(),
                 "cleanup_summaries": [],
             }))
         };
@@ -459,7 +459,7 @@ mod tests {
                 "project_root": context.project.project_root.to_string_lossy().to_string(),
                 "project_id": context.project.project_id,
                 "started": ["demo"],
-                "socket_path": context.paths.ccbd_socket_path(),
+                "socket_path": context.paths.ccbrd_socket_path(),
                 "cleanup_summaries": [],
             }))
         };

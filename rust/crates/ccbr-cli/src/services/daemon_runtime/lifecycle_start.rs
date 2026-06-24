@@ -212,19 +212,19 @@ where
             let trimmed = s.trim();
             if !trimmed.is_empty() {
                 return Err(CcbdServiceError(format!(
-                    "ccbd is unavailable: lifecycle_starting(stage={})",
+                    "ccbrd is unavailable: lifecycle_starting(stage={})",
                     trimmed
                 )));
             }
         }
         return Err(CcbdServiceError(
-            "ccbd is unavailable: lifecycle_starting".to_string(),
+            "ccbrd is unavailable: lifecycle_starting".to_string(),
         ));
     }
 
     if phase == "stopping" {
         return Err(CcbdServiceError(
-            "ccbd is unavailable: lifecycle_stopping".to_string(),
+            "ccbrd is unavailable: lifecycle_stopping".to_string(),
         ));
     }
 
@@ -240,7 +240,7 @@ where
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
                 return Err(CcbdServiceError(format!(
-                    "ccbd is unavailable: {}; lifecycle_failure: {}",
+                    "ccbrd is unavailable: {}; lifecycle_failure: {}",
                     inspection_reason, trimmed
                 )));
             }
@@ -252,7 +252,7 @@ where
         .and_then(|v| v.as_str())
         .unwrap_or("unknown");
     Err(CcbdServiceError(format!(
-        "ccbd is unavailable: {}",
+        "ccbrd is unavailable: {}",
         inspection_reason
     )))
 }

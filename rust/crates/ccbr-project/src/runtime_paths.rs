@@ -18,19 +18,19 @@ pub fn project_anchor_exists(work_dir: impl AsRef<Utf8Path>) -> bool {
     }
 }
 
-/// Return the `ccbd` runtime directory for the project containing `work_dir`.
-pub fn project_ccbd_dir(work_dir: impl AsRef<Utf8Path>) -> Utf8PathBuf {
-    project_anchor_dir(work_dir).join("ccbd")
+/// Return the `ccbrd` runtime directory for the project containing `work_dir`.
+pub fn project_ccbrd_dir(work_dir: impl AsRef<Utf8Path>) -> Utf8PathBuf {
+    project_anchor_dir(work_dir).join("ccbrd")
 }
 
 /// Return the registry directory for the project containing `work_dir`.
 pub fn project_registry_dir(work_dir: impl AsRef<Utf8Path>) -> Utf8PathBuf {
-    project_ccbd_dir(work_dir).join("registry")
+    project_ccbrd_dir(work_dir).join("registry")
 }
 
 /// Return the lock directory for the project containing `work_dir`.
 pub fn project_lock_dir(work_dir: impl AsRef<Utf8Path>) -> Utf8PathBuf {
-    project_ccbd_dir(work_dir).join("locks")
+    project_ccbrd_dir(work_dir).join("locks")
 }
 
 #[cfg(test)]
@@ -56,17 +56,17 @@ mod tests {
     }
 
     #[test]
-    fn test_project_ccbd_registry_lock_dirs() {
+    fn test_project_ccbrd_registry_lock_dirs() {
         let tmp = tmpdir();
         let root = utf8(tmp.path());
         std::fs::create_dir_all(root.join(crate::discovery::CCBR_DIRNAME)).unwrap();
-        assert!(project_ccbd_dir(&root).as_str().ends_with("/.ccbr/ccbd"));
+        assert!(project_ccbrd_dir(&root).as_str().ends_with("/.ccbr/ccbrd"));
         assert!(project_registry_dir(&root)
             .as_str()
-            .ends_with("/.ccbr/ccbd/registry"));
+            .ends_with("/.ccbr/ccbrd/registry"));
         assert!(project_lock_dir(&root)
             .as_str()
-            .ends_with("/.ccbr/ccbd/locks"));
+            .ends_with("/.ccbr/ccbrd/locks"));
     }
 
     #[test]

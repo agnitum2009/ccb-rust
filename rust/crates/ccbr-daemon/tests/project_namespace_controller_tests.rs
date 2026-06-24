@@ -53,21 +53,21 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
     let state = state.unwrap();
     assert_eq!(
         state.tmux_socket_path,
-        layout.ccbd_tmux_socket_path().to_string()
+        layout.ccbrd_tmux_socket_path().to_string()
     );
-    assert_eq!(state.tmux_session_name, layout.ccbd_tmux_session_name());
+    assert_eq!(state.tmux_session_name, layout.ccbrd_tmux_session_name());
     assert_eq!(
         state.control_window_name,
-        Some(layout.ccbd_tmux_control_window_name().to_string())
+        Some(layout.ccbrd_tmux_control_window_name().to_string())
     );
     assert_eq!(
         state.workspace_window_name,
-        Some(layout.ccbd_tmux_workspace_window_name().to_string())
+        Some(layout.ccbrd_tmux_workspace_window_name().to_string())
     );
     assert_eq!(state.workspace_epoch, 1);
     assert_eq!(
-        guard.active_windows.get(&layout.ccbd_tmux_session_name()),
-        Some(&layout.ccbd_tmux_workspace_window_name().to_string())
+        guard.active_windows.get(&layout.ccbrd_tmux_session_name()),
+        Some(&layout.ccbrd_tmux_workspace_window_name().to_string())
     );
     assert_eq!(guard.pane_titles.get("%2"), Some(&"cmd".to_string()));
     assert_eq!(
@@ -88,12 +88,12 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
             .get("%2")
             .unwrap()
             .get("@ccbr_managed_by"),
-        Some(&"ccbd".to_string())
+        Some(&"ccbrd".to_string())
     );
     let window_key = format!(
         "{}:{}",
-        layout.ccbd_tmux_session_name(),
-        layout.ccbd_tmux_workspace_window_name()
+        layout.ccbrd_tmux_session_name(),
+        layout.ccbrd_tmux_workspace_window_name()
     );
     assert_eq!(
         guard
@@ -105,7 +105,7 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
     );
     assert!(guard
         .hooks
-        .get(&layout.ccbd_tmux_session_name())
+        .get(&layout.ccbrd_tmux_session_name())
         .unwrap()
         .contains_key("after-select-pane"));
     assert!(latest_event.is_some());
@@ -191,7 +191,7 @@ fn topology_plan(
 ) -> ccbr_daemon::services::project_namespace_runtime::topology_plan::NamespaceTopologyPlan {
     build_namespace_topology_plan(
         config,
-        Some(layout.ccbd_socket_path().to_string()),
+        Some(layout.ccbrd_socket_path().to_string()),
         Some(layout.project_root.as_str().to_string()),
     )
 }
@@ -220,7 +220,7 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
     let guard = state_arc.lock().unwrap();
     let windows: std::collections::HashMap<String, _> = guard
         .sessions
-        .get(&layout.ccbd_tmux_session_name())
+        .get(&layout.ccbrd_tmux_session_name())
         .unwrap()
         .iter()
         .map(|w| (w.name.clone(), w.clone()))
@@ -240,7 +240,7 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
     );
     assert_eq!(namespace.workspace_window_name, Some("review".to_string()));
     assert_eq!(
-        guard.active_windows.get(&layout.ccbd_tmux_session_name()),
+        guard.active_windows.get(&layout.ccbrd_tmux_session_name()),
         Some(&"review".to_string())
     );
     assert_eq!(
@@ -292,8 +292,8 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
         m.insert("agent3".to_string(), "%5".to_string());
         m
     });
-    let main_key = format!("{}:main", layout.ccbd_tmux_session_name());
-    let review_key = format!("{}:review", layout.ccbd_tmux_session_name());
+    let main_key = format!("{}:main", layout.ccbrd_tmux_session_name());
+    let review_key = format!("{}:review", layout.ccbrd_tmux_session_name());
     assert_eq!(
         guard
             .window_options
@@ -424,7 +424,7 @@ fn test_project_namespace_controller_refreshes_topology_ui_for_existing_session(
     {
         let state = backend.state();
         let mut guard = state.lock().unwrap();
-        let review_key = format!("{}:review", layout.ccbd_tmux_session_name());
+        let review_key = format!("{}:review", layout.ccbrd_tmux_session_name());
         let opts = guard.window_options.entry(review_key).or_default();
         opts.insert("pane-border-status".to_string(), "off".to_string());
         opts.insert(
@@ -439,7 +439,7 @@ fn test_project_namespace_controller_refreshes_topology_ui_for_existing_session(
 
     let state = backend.state();
     let guard = state.lock().unwrap();
-    let review_key = format!("{}:review", layout.ccbd_tmux_session_name());
+    let review_key = format!("{}:review", layout.ccbrd_tmux_session_name());
     assert!(!second.created_this_call);
     assert_eq!(second.namespace_epoch, first.namespace_epoch);
     assert_eq!(
@@ -563,7 +563,7 @@ fn test_project_namespace_controller_preserves_manual_sidebar_width_override() {
         guard.pane_widths.insert("%3".to_string(), 23);
         guard
             .session_options
-            .entry(layout.ccbd_tmux_session_name())
+            .entry(layout.ccbrd_tmux_session_name())
             .or_default()
             .insert("@ccbr_sidebar_width_cells".to_string(), "41".to_string());
         guard.resize_calls.clear();
@@ -794,7 +794,7 @@ fn test_project_namespace_controller_recreates_missing_session_with_new_epoch() 
     {
         let state = backend.state();
         let mut guard = state.lock().unwrap();
-        guard.drop_session(&layout.ccbd_tmux_session_name());
+        guard.drop_session(&layout.ccbrd_tmux_session_name());
     }
     let second = controller
         .ensure(None, None, false, None, None, None)
@@ -843,7 +843,7 @@ fn test_project_namespace_controller_recreates_after_kill_when_has_session_repor
         let mut guard = state.lock().unwrap();
         guard.has_session_error = Some(format!(
             "no server running on {}",
-            layout.ccbd_tmux_socket_path()
+            layout.ccbrd_tmux_socket_path()
         ));
     }
     let second = controller
@@ -860,7 +860,7 @@ fn test_project_namespace_controller_recreates_after_kill_when_has_session_repor
         .lock()
         .unwrap()
         .sessions
-        .contains_key(&layout.ccbd_tmux_session_name()));
+        .contains_key(&layout.ccbrd_tmux_session_name()));
     assert!(latest_event.is_some());
     let event = latest_event.unwrap();
     assert_eq!(event.event_kind, "namespace_created");
@@ -880,8 +880,8 @@ fn test_project_namespace_controller_recreates_session_when_layout_version_chang
         .save(&ProjectNamespaceState {
             project_id: "proj-5".to_string(),
             namespace_epoch: 4,
-            tmux_socket_path: layout.ccbd_tmux_socket_path().to_string(),
-            tmux_session_name: layout.ccbd_tmux_session_name(),
+            tmux_socket_path: layout.ccbrd_tmux_socket_path().to_string(),
+            tmux_session_name: layout.ccbrd_tmux_session_name(),
             layout_version: 1,
             layout_signature: Some("cmd; agent1:codex".to_string()),
             control_window_name: None,
@@ -899,8 +899,8 @@ fn test_project_namespace_controller_recreates_session_when_layout_version_chang
     {
         let state = backend.state();
         let mut guard = state.lock().unwrap();
-        let session = layout.ccbd_tmux_session_name();
-        let window_name = layout.ccbd_tmux_workspace_window_name();
+        let session = layout.ccbrd_tmux_session_name();
+        let window_name = layout.ccbrd_tmux_workspace_window_name();
         guard.sessions.insert(
             session.clone(),
             vec![Window {
@@ -965,8 +965,8 @@ fn test_project_namespace_controller_recreates_session_when_layout_signature_cha
         .save(&ProjectNamespaceState {
             project_id: "proj-6".to_string(),
             namespace_epoch: 7,
-            tmux_socket_path: layout.ccbd_tmux_socket_path().to_string(),
-            tmux_session_name: layout.ccbd_tmux_session_name(),
+            tmux_socket_path: layout.ccbrd_tmux_socket_path().to_string(),
+            tmux_session_name: layout.ccbrd_tmux_session_name(),
             layout_version: 3,
             layout_signature: Some("cmd; agent1:codex".to_string()),
             control_window_name: None,
@@ -984,8 +984,8 @@ fn test_project_namespace_controller_recreates_session_when_layout_signature_cha
     {
         let state = backend.state();
         let mut guard = state.lock().unwrap();
-        let session = layout.ccbd_tmux_session_name();
-        let window_name = layout.ccbd_tmux_workspace_window_name();
+        let session = layout.ccbrd_tmux_session_name();
+        let window_name = layout.ccbrd_tmux_workspace_window_name();
         guard.sessions.insert(
             session.clone(),
             vec![Window {
@@ -1250,13 +1250,13 @@ fn test_project_namespace_controller_waits_for_delayed_window_and_pane_visibilit
 
     assert_eq!(
         namespace.workspace_window_name,
-        Some(layout.ccbd_tmux_workspace_window_name().to_string())
+        Some(layout.ccbrd_tmux_workspace_window_name().to_string())
     );
     assert!(state.is_some());
     let state = state.unwrap();
     assert_eq!(
         state.workspace_window_name,
-        Some(layout.ccbd_tmux_workspace_window_name().to_string())
+        Some(layout.ccbrd_tmux_workspace_window_name().to_string())
     );
     let state = backend.state();
     let guard = state.lock().unwrap();
@@ -1300,8 +1300,8 @@ fn test_project_namespace_controller_reflow_waits_for_delayed_workspace_visibili
             .lock()
             .unwrap()
             .active_windows
-            .get(&layout.ccbd_tmux_session_name()),
-        Some(&layout.ccbd_tmux_workspace_window_name().to_string())
+            .get(&layout.ccbrd_tmux_session_name()),
+        Some(&layout.ccbrd_tmux_workspace_window_name().to_string())
     );
 }
 
@@ -1382,8 +1382,8 @@ fn test_project_namespace_controller_reflow_workspace_replaces_window_without_ki
             .lock()
             .unwrap()
             .active_windows
-            .get(&layout.ccbd_tmux_session_name()),
-        Some(&layout.ccbd_tmux_workspace_window_name().to_string())
+            .get(&layout.ccbrd_tmux_session_name()),
+        Some(&layout.ccbrd_tmux_workspace_window_name().to_string())
     );
     assert_eq!(
         backend.state().lock().unwrap().pane_titles.get("%3"),
@@ -1414,7 +1414,7 @@ fn test_project_namespace_controller_reflow_workspace_replaces_window_without_ki
     for args in &targeted {
         let target = args.get(2).expect("target argument");
         assert!(!target.contains(".__reflow__."));
-        assert!(target.starts_with(&format!("{}:@", layout.ccbd_tmux_session_name())));
+        assert!(target.starts_with(&format!("{}:@", layout.ccbrd_tmux_session_name())));
     }
 }
 
@@ -1446,7 +1446,7 @@ fn test_prepare_server_failure_includes_diagnostics() {
         "expected failure context, got: {text}"
     );
     assert!(
-        text.contains(&layout.ccbd_tmux_socket_path().to_string()),
+        text.contains(&layout.ccbrd_tmux_socket_path().to_string()),
         "expected socket path, got: {text}"
     );
     assert!(

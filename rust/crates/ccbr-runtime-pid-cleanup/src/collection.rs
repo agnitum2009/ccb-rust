@@ -96,7 +96,7 @@ pub fn collect_project_process_candidates(
     candidates
 }
 
-/// Collect authority PIDs from CCBD JSON state files.
+/// Collect authority PIDs from CCBRD JSON state files.
 ///
 /// Mirrors Python `runtime_pid_cleanup.collection.collect_project_authority_pid_candidates`.
 pub fn collect_project_authority_pid_candidates(project_root: &Path) -> HashMap<u32, Vec<PathBuf>> {
@@ -106,10 +106,13 @@ pub fn collect_project_authority_pid_candidates(project_root: &Path) -> HashMap<
     };
     let mut candidates: HashMap<u32, Vec<PathBuf>> = HashMap::new();
     let paths_and_keys: [(PathBuf, &[&str]); 3] = [
-        (layout.ccbd_lease_path().into(), &["ccbd_pid", "keeper_pid"]),
-        (layout.ccbd_keeper_path().into(), &["keeper_pid"]),
         (
-            layout.ccbd_lifecycle_path().into(),
+            layout.ccbrd_lease_path().into(),
+            &["ccbrd_pid", "keeper_pid"],
+        ),
+        (layout.ccbrd_keeper_path().into(), &["keeper_pid"]),
+        (
+            layout.ccbrd_lifecycle_path().into(),
             &["owner_pid", "keeper_pid"],
         ),
     ];
@@ -170,7 +173,7 @@ fn project_runtime_markers(
     ) {
         for path in [
             PathBuf::from(layout.runtime_state_root().as_str()).join("agents"),
-            PathBuf::from(layout.runtime_state_root().as_str()).join("ccbd"),
+            PathBuf::from(layout.runtime_state_root().as_str()).join("ccbrd"),
         ] {
             if !markers.contains(&path) {
                 markers.push(path);
@@ -199,13 +202,13 @@ fn control_plane_marker(
     if cmdline.is_empty() {
         return None;
     }
-    if !cmdline.contains("ccbd/main.py") && !cmdline.contains("ccbd/keeper_main.py") {
+    if !cmdline.contains("ccbrd/main.py") && !cmdline.contains("ccbrd/keeper_main.py") {
         return None;
     }
     if !cmdline_has_project_arg(cmdline, project_root) {
         return None;
     }
-    Some(layout.ccbd_dir().into())
+    Some(layout.ccbrd_dir().into())
 }
 
 fn cmdline_has_project_arg(cmdline: &str, project_root: &Path) -> bool {
@@ -355,11 +358,11 @@ mod tests {
     fn collect_project_authority_pid_candidates_reads_lease() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path().join("project");
-        fs::create_dir_all(project_root.join(".ccbr/ccbd")).unwrap();
-        let lease_path = project_root.join(".ccbr/ccbd/lease.json");
+        fs::create_dir_all(project_root.join(".ccbr/ccbrd")).unwrap();
+        let lease_path = project_root.join(".ccbr/ccbrd/lease.json");
         fs::write(
             &lease_path,
-            serde_json::json!({"ccbd_pid": 1111, "keeper_pid": 2222}).to_string(),
+            serde_json::json!({"ccbrd_pid": 1111, "keeper_pid": 2222}).to_string(),
         )
         .unwrap();
 
@@ -375,11 +378,11 @@ mod tests {
         fs::create_dir_all(project_root.join(".ccbr")).unwrap();
         let layout = build_layout(&project_root).unwrap();
         let cmdline = format!(
-            "python ccbd/main.py --project {} --daemon",
+            "python ccbrd/main.py --project {} --daemon",
             project_root.to_string_lossy()
         );
         let marker = control_plane_marker(&project_root, &cmdline, &layout);
-        assert_eq!(marker, Some(layout.ccbd_dir().into()));
+        assert_eq!(marker, Some(layout.ccbrd_dir().into()));
     }
 
     #[test]
@@ -388,7 +391,7 @@ mod tests {
         let project_root = tmp.path().join("project");
         fs::create_dir_all(project_root.join(".ccbr")).unwrap();
         let layout = build_layout(&project_root).unwrap();
-        let cmdline = "python ccbd/main.py --project /other/project --daemon".to_string();
+        let cmdline = "python ccbrd/main.py --project /other/project --daemon".to_string();
         let marker = control_plane_marker(&project_root, &cmdline, &layout);
         assert_eq!(marker, None);
     }
@@ -400,7 +403,7 @@ mod tests {
         fs::create_dir_all(&project_root).unwrap();
         let expected = resolved_project_text(&project_root);
         let cmdline = format!(
-            "python ccbd/main.py --project={}",
+            "python ccbrd/main.py --project={}",
             project_root.to_string_lossy()
         );
         assert!(cmdline_has_project_arg(&cmdline, &project_root));

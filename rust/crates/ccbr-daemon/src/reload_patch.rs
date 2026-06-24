@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_patch.py`.
+//! Mirrors Python `lib/ccbrd/reload_patch.py`.
 //!
 //! Namespace patch plan computation: how the tmux namespace should be patched
 //! during a reload (additive/remove/refresh steps + blocked operations).

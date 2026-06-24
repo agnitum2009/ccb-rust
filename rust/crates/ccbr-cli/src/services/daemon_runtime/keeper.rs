@@ -321,7 +321,7 @@ where
     )
 }
 
-/// Compute the `lib/` root used to locate `ccbd/keeper_main.py`.
+/// Compute the `lib/` root used to locate `ccbrd/keeper_main.py`.
 ///
 /// Mirrors Python `_lib_root()`. At build time this is derived from
 /// `CARGO_MANIFEST_DIR`; at runtime a release install would need a different
@@ -340,7 +340,7 @@ pub fn keeper_lib_root() -> PathBuf {
 /// Mirrors the preparation half of Python `spawn_keeper_process(context)`.
 pub fn prepare_keeper_spawn(context: &KeeperContext) -> KeeperSpawn {
     let lib_root = keeper_lib_root();
-    let script = lib_root.join("ccbd").join("keeper_main.py");
+    let script = lib_root.join("ccbrd").join("keeper_main.py");
 
     let mut env = HashMap::new();
     env.insert("PYTHONUNBUFFERED".to_string(), "1".to_string());
@@ -412,7 +412,7 @@ where
 fn keeper_stdout_path(context: &KeeperContext) -> PathBuf {
     context
         .paths
-        .ccbd_dir()
+        .ccbrd_dir()
         .as_std_path()
         .join("keeper.stdout.log")
 }
@@ -420,16 +420,16 @@ fn keeper_stdout_path(context: &KeeperContext) -> PathBuf {
 fn keeper_stderr_path(context: &KeeperContext) -> PathBuf {
     context
         .paths
-        .ccbd_dir()
+        .ccbrd_dir()
         .as_std_path()
         .join("keeper.stderr.log")
 }
 
 fn ensure_keeper_dirs(context: &KeeperContext) -> std::io::Result<()> {
-    // Ensure runtime state root and ccbd dir exist. The Python code also calls
+    // Ensure runtime state root and ccbrd dir exist. The Python code also calls
     // `context.paths.ensure_runtime_state_root()`; we create the directories
     // that the logs live under.
-    std::fs::create_dir_all(context.paths.ccbd_dir().as_std_path())?;
+    std::fs::create_dir_all(context.paths.ccbrd_dir().as_std_path())?;
     std::fs::create_dir_all(context.paths.runtime_state_root().as_std_path())?;
     Ok(())
 }
@@ -581,7 +581,7 @@ fn keeper_cmdline_matches_project(cmdline: &[String], project_root: &Path) -> bo
 
 fn is_keeper_entrypoint_arg(value: &str) -> bool {
     let normalized = value.replace('\\', "/");
-    normalized == "ccbd.keeper_main" || normalized.ends_with("/ccbd/keeper_main.py")
+    normalized == "ccbrd.keeper_main" || normalized.ends_with("/ccbrd/keeper_main.py")
 }
 
 fn project_arg_value(args: &[String]) -> Option<String> {
@@ -608,7 +608,7 @@ fn normalized_path(value: impl AsRef<Path>) -> String {
 }
 
 fn keeper_state_path(context: &KeeperContext) -> PathBuf {
-    context.paths.ccbd_dir().as_std_path().join("keeper.json")
+    context.paths.ccbrd_dir().as_std_path().join("keeper.json")
 }
 
 fn load_keeper_state(context: &KeeperContext) -> Option<Value> {
@@ -627,7 +627,7 @@ mod tests {
         let spawn = prepare_keeper_spawn(&context);
 
         let lib_root = keeper_lib_root();
-        let expected_script = lib_root.join("ccbd").join("keeper_main.py");
+        let expected_script = lib_root.join("ccbrd").join("keeper_main.py");
         assert_eq!(spawn.program, PathBuf::from("python"));
         assert_eq!(spawn.args[0], expected_script.to_string_lossy().to_string());
         assert_eq!(spawn.args[1], "--project");
@@ -642,7 +642,7 @@ mod tests {
     fn keeper_cmdline_matches_project_detects_project_arg() {
         let cmdline = vec![
             "python".to_string(),
-            "/opt/ccb/lib/ccbd/keeper_main.py".to_string(),
+            "/opt/ccb/lib/ccbrd/keeper_main.py".to_string(),
             "--project".to_string(),
             "/tmp/repo".to_string(),
         ];
@@ -656,7 +656,7 @@ mod tests {
     fn keeper_cmdline_matches_project_rejects_wrong_project() {
         let cmdline = vec![
             "python".to_string(),
-            "/opt/ccb/lib/ccbd/keeper_main.py".to_string(),
+            "/opt/ccb/lib/ccbrd/keeper_main.py".to_string(),
             "--project".to_string(),
             "/other/repo".to_string(),
         ];

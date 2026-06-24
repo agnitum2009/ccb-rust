@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/backend.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/backend.py`.
 //! 1:1 file alignment stub.
 
 use std::sync::Arc;

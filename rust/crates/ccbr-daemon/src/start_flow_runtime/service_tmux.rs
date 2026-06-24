@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_flow_runtime/service_tmux.py`.
+//! Mirrors Python `lib/ccbrd/start_flow_runtime/service_tmux.py`.
 //!
 //! Helpers for tmux namespace/session preparation, layout selection and active-pane
 //! bookkeeping during the start flow.

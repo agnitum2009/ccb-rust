@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/sidebar_helper.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/sidebar_helper.py`.
 //! Resolves the `ccbr-agent-sidebar` helper binary and builds respawn arguments.
 
 use std::collections::HashMap;
@@ -130,7 +130,7 @@ fn resolve_explicit(path: &Path, source: &str) -> SidebarHelperResolution {
 
 fn default_script_root() -> PathBuf {
     // Mirror Python's `Path(__file__).resolve().parents[4]`, which for
-    // `lib/ccbd/services/project_namespace_runtime/sidebar_helper.py` resolves
+    // `lib/ccbrd/services/project_namespace_runtime/sidebar_helper.py` resolves
     // to the repository root. In the Rust workspace this file lives under
     // `rust/crates/ccbr-daemon/src/services/project_namespace_runtime/`, so we
     // walk up five levels to reach the repository root.

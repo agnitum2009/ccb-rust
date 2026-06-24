@@ -146,13 +146,13 @@ fn test_cleanup_refuses_when_jobs_jsonl_is_malformed() {
 }
 
 #[test]
-fn test_cleanup_refuses_when_ccbd_is_active() {
+fn test_cleanup_refuses_when_ccbrd_is_active() {
     let tmp = tempfile::TempDir::new().unwrap();
     let context = make_context(tmp.path());
 
     let err =
         cleanup_project_storage_with(&context, &serde_json::Value::Null, &active()).unwrap_err();
-    assert!(err.to_string().contains("requires stopped ccbd"));
+    assert!(err.to_string().contains("requires stopped ccbrd"));
 }
 
 #[cfg(unix)]

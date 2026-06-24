@@ -19,7 +19,7 @@ impl ProjectNamespaceStateStore {
     }
 
     pub fn load(&self) -> anyhow::Result<Option<ProjectNamespaceState>> {
-        let path = self.layout.ccbd_state_path();
+        let path = self.layout.ccbrd_state_path();
         if !path.exists() {
             return Ok(None);
         }
@@ -28,7 +28,7 @@ impl ProjectNamespaceStateStore {
     }
 
     pub fn save(&self, state: &ProjectNamespaceState) -> anyhow::Result<()> {
-        let path = self.layout.ccbd_state_path();
+        let path = self.layout.ccbrd_state_path();
         self.store.save(&path, &state.to_record())?;
         Ok(())
     }
@@ -48,13 +48,13 @@ impl ProjectNamespaceEventStore {
     }
 
     pub fn append(&self, event: &ProjectNamespaceEvent) -> anyhow::Result<()> {
-        let path = self.layout.ccbd_lifecycle_log_path();
+        let path = self.layout.ccbrd_lifecycle_log_path();
         self.store.append(&path, &event.to_record())?;
         Ok(())
     }
 
     pub fn read_all(&self) -> anyhow::Result<Vec<ProjectNamespaceEvent>> {
-        let path = self.layout.ccbd_lifecycle_log_path();
+        let path = self.layout.ccbrd_lifecycle_log_path();
         if !path.exists() {
             return Ok(Vec::new());
         }

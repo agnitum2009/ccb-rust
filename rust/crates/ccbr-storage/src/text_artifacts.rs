@@ -79,7 +79,7 @@ pub fn write_text_artifact(
     let artifact_id = format!("art_{}", &Uuid::new_v4().as_simple().to_string()[..16]);
     let safe_kind = safe_segment(kind, "text");
     let safe_owner = safe_segment(owner_id, "unknown");
-    let directory = layout.ccbd_text_artifacts_dir().join(&safe_kind);
+    let directory = layout.ccbrd_text_artifacts_dir().join(&safe_kind);
     fs::create_dir_all(&directory)?;
     let path = directory.join(format!("{}-{}.txt", safe_owner, artifact_id));
     atomic_write_text(&path, body)?;
@@ -201,7 +201,7 @@ pub fn sweep_expired_text_artifacts(
     layout: &PathLayout,
     now: Option<&str>,
 ) -> crate::Result<Vec<Utf8PathBuf>> {
-    let root = layout.ccbd_text_artifacts_dir();
+    let root = layout.ccbrd_text_artifacts_dir();
     if !root.exists() {
         return Ok(Vec::new());
     }
@@ -260,7 +260,7 @@ fn walk_txt_files(root: &Utf8Path) -> std::io::Result<Vec<std::io::Result<Utf8Pa
 }
 
 fn validated_artifact_path(layout: &PathLayout, value: &str) -> crate::Result<PathBuf> {
-    let root = layout.ccbd_text_artifacts_dir();
+    let root = layout.ccbrd_text_artifacts_dir();
     let root = std::fs::canonicalize(&root).unwrap_or_else(|_| PathBuf::from(root.as_str()));
     let path = PathBuf::from(expand_user_path(value));
     let resolved = std::fs::canonicalize(&path)

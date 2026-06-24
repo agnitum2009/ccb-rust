@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/api_models.py`.
+//! Mirrors Python `lib/ccbrd/api_models.py`.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/tmux_runtime/`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/tmux_runtime/`.
 
 pub mod backend;
 pub mod namespace;

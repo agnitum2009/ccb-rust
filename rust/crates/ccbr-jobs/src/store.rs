@@ -200,19 +200,19 @@ impl SubmissionStore {
     }
 
     pub fn append(&self, record: &SubmissionRecord) -> Result<()> {
-        let path = self.layout.ccbd_submissions_path();
+        let path = self.layout.ccbrd_submissions_path();
         self.jsonl
             .append(&path, &Record::new("submission_record", record))
             .map_err(Into::into)
     }
 
     pub fn list_all(&self) -> Vec<SubmissionRecord> {
-        let path = self.layout.ccbd_submissions_path();
+        let path = self.layout.ccbrd_submissions_path();
         self.jsonl.read_all(&path).unwrap_or_default()
     }
 
     pub fn get_latest(&self, submission_id: &str) -> Option<SubmissionRecord> {
-        let path = self.layout.ccbd_submissions_path();
+        let path = self.layout.ccbrd_submissions_path();
         self.jsonl
             .find_last(&path, |payload: &SubmissionRecord| {
                 payload.submission_id == submission_id

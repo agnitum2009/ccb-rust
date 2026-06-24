@@ -18,7 +18,7 @@ impl CcbdStartupReport {
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
-            "record_type": "ccbd_startup_report",
+            "record_type": "ccbrd_startup_report",
             "api_version": self.api_version,
             "project_id": self.project_id,
             "generated_at": self.generated_at,
@@ -79,7 +79,7 @@ impl CcbdShutdownReport {
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
-            "record_type": "ccbd_shutdown_report",
+            "record_type": "ccbrd_shutdown_report",
             "api_version": self.api_version,
             "project_id": self.project_id,
             "generated_at": self.generated_at,

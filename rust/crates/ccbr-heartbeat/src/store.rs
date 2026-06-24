@@ -79,7 +79,7 @@ impl HeartbeatStateStore {
             }
             vec![dir]
         } else {
-            let root = self.layout.ccbd_heartbeats_dir();
+            let root = self.layout.ccbrd_heartbeats_dir();
             if !root.exists() {
                 return Ok(Vec::new());
             }
@@ -247,7 +247,7 @@ impl MaintenanceHeartbeatStore {
 
     pub fn load_schedule(&self) -> MaintenanceHeartbeatReadResult<MaintenanceHeartbeatSchedule> {
         self.load(
-            &self.layout.ccbd_maintenance_heartbeat_schedule_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_schedule_path(),
             MaintenanceHeartbeatSchedule::from_record,
         )
     }
@@ -258,14 +258,14 @@ impl MaintenanceHeartbeatStore {
     ) -> Result<(), StorageError> {
         self.ensure_project(&schedule.project_id)?;
         self.json_store.save(
-            &self.layout.ccbd_maintenance_heartbeat_schedule_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_schedule_path(),
             &schedule.to_record(),
         )
     }
 
     pub fn load_status(&self) -> MaintenanceHeartbeatReadResult<MaintenanceHeartbeatStatus> {
         self.load(
-            &self.layout.ccbd_maintenance_heartbeat_status_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_status_path(),
             MaintenanceHeartbeatStatus::from_record,
         )
     }
@@ -273,14 +273,14 @@ impl MaintenanceHeartbeatStore {
     pub fn save_status(&self, status: &MaintenanceHeartbeatStatus) -> Result<(), StorageError> {
         self.ensure_project(&status.project_id)?;
         self.json_store.save(
-            &self.layout.ccbd_maintenance_heartbeat_status_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_status_path(),
             &status.to_record(),
         )
     }
 
     pub fn load_runner(&self) -> MaintenanceHeartbeatReadResult<MaintenanceHeartbeatRunner> {
         self.load(
-            &self.layout.ccbd_maintenance_heartbeat_runner_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_runner_path(),
             MaintenanceHeartbeatRunner::from_record,
         )
     }
@@ -288,7 +288,7 @@ impl MaintenanceHeartbeatStore {
     pub fn save_runner(&self, runner: &MaintenanceHeartbeatRunner) -> Result<(), StorageError> {
         self.ensure_project(&runner.project_id)?;
         self.json_store.save(
-            &self.layout.ccbd_maintenance_heartbeat_runner_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_runner_path(),
             &runner.to_record(),
         )
     }
@@ -299,7 +299,7 @@ impl MaintenanceHeartbeatStore {
     ) -> Result<(), StorageError> {
         self.ensure_project(&activation.project_id)?;
         self.jsonl_store.append(
-            &self.layout.ccbd_maintenance_heartbeat_activations_path(),
+            &self.layout.ccbrd_maintenance_heartbeat_activations_path(),
             &activation.to_record(),
         )
     }
@@ -308,7 +308,7 @@ impl MaintenanceHeartbeatStore {
         &self,
         limit: usize,
     ) -> Result<Vec<MaintenanceHeartbeatActivation>, StorageError> {
-        let path = self.layout.ccbd_maintenance_heartbeat_activations_path();
+        let path = self.layout.ccbrd_maintenance_heartbeat_activations_path();
         if !path.exists() {
             return Ok(Vec::new());
         }

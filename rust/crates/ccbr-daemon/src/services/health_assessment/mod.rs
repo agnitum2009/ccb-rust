@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/`.
 
 pub mod models;
 pub mod provider_pane;

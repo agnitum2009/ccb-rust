@@ -8,7 +8,7 @@ pub mod locks;
 pub mod path_helpers;
 pub mod paths;
 pub mod paths_agents;
-pub mod paths_ccbd;
+pub mod paths_ccbrd;
 pub mod paths_targets;
 pub mod project_identity;
 pub mod text_artifacts;

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/tmux_runtime/namespace.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/tmux_runtime/namespace.py`.
 
 /// Runtime information needed to decide pane namespace membership.
 #[derive(Debug, Clone)]
@@ -123,7 +123,7 @@ fn record_outside_namespace(
         "agent",
         slot_key,
         window_name,
-        "ccbd",
+        "ccbrd",
     );
     if !matches {
         return true;

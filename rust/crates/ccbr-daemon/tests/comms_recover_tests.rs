@@ -1,5 +1,5 @@
 //! Parity tests for `JobDispatcher::comms_recover`, mirroring Python
-//! `test/test_ccbd_comms_recover.py`.
+//! `test/test_ccbrd_comms_recover.py`.
 //!
 //! Slice 1 covers the noop paths (tests 1 & 5): a RUNNING job whose agent
 //! runtime is healthy, with no hint or an unrecognized hint, is not recoverable.

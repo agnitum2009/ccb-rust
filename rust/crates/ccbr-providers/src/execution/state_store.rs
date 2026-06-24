@@ -42,7 +42,7 @@ impl ExecutionStateStore {
     }
 
     pub fn list_all(&self) -> Vec<PersistedExecutionState> {
-        let directory = self.layout.ccbd_executions_dir();
+        let directory = self.layout.ccbrd_executions_dir();
         if !directory.exists() {
             return Vec::new();
         }

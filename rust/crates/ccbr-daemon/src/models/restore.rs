@@ -58,7 +58,7 @@ impl CcbdRestoreReport {
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
-            "record_type": "ccbd_restore_report",
+            "record_type": "ccbrd_restore_report",
             "api_version": self.api_version,
             "project_id": self.project_id,
             "generated_at": self.generated_at,

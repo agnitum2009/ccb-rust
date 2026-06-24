@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_transaction_publish.py`.
+//! Mirrors Python `lib/ccbrd/reload_transaction_publish.py`.
 
 use crate::app::CcbdApp;
 use crate::reload_apply_models::ServiceGraph;

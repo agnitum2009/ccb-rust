@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_transaction_context.py`.
+//! Mirrors Python `lib/ccbrd/reload_transaction_context.py`.
 
 use crate::reload_apply_models::ServiceGraph;
 use serde_json::Value;

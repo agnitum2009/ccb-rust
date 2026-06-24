@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/tmux_runtime/backend.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/tmux_runtime/backend.py`.
 
 /// Result of inspecting whether a tmux pane belongs to the current project
 /// namespace.

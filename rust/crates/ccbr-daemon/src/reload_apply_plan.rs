@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_apply_plan.py`.
+//! Mirrors Python `lib/ccbrd/reload_apply_plan.py`.
 //! 1:1 file alignment stub.
 
 use crate::reload_apply_models::AdditiveReloadApplyResult;

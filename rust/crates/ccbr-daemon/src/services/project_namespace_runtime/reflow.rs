@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/reflow.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/reflow.py`.
 //!
 //! Reflows the workspace window of an existing namespace without killing the
 //! tmux server.
@@ -37,7 +37,7 @@ pub fn reflow_project_workspace(
     reason: Option<&str>,
     session_probe_timeout_s: Option<f64>,
 ) -> Result<ProjectNamespace> {
-    std::fs::create_dir_all(&controller.layout.ccbd_dir)?;
+    std::fs::create_dir_all(&controller.layout.ccbrd_dir)?;
 
     let context = load_namespace_context(controller, layout_signature, None, reason)?;
     let context = refresh_session_liveness(controller, &context, session_probe_timeout_s)?;
@@ -218,12 +218,12 @@ mod tests {
     fn test_layout(root: &std::path::Path) -> LayoutConfig {
         LayoutConfig {
             project_root: root.to_string_lossy().to_string(),
-            ccbd_dir: root.join(".ccbr"),
-            ccbd_socket_path: root.join(".ccbr/ccbd.sock").to_string_lossy().to_string(),
-            ccbd_tmux_socket_path: root.join(".ccbr/tmux.sock").to_string_lossy().to_string(),
-            ccbd_tmux_session_name: "ccbr-test".to_string(),
-            ccbd_tmux_control_window_name: "control".to_string(),
-            ccbd_tmux_workspace_window_name: "workspace".to_string(),
+            ccbrd_dir: root.join(".ccbr"),
+            ccbrd_socket_path: root.join(".ccbr/ccbrd.sock").to_string_lossy().to_string(),
+            ccbrd_tmux_socket_path: root.join(".ccbr/tmux.sock").to_string_lossy().to_string(),
+            ccbrd_tmux_session_name: "ccbr-test".to_string(),
+            ccbrd_tmux_control_window_name: "control".to_string(),
+            ccbrd_tmux_workspace_window_name: "workspace".to_string(),
         }
     }
 
@@ -265,21 +265,21 @@ mod tests {
     fn setup_alive_namespace(controller: &NamespaceController, fake: &FakeTmuxBackend) {
         let backend = fake
             .backend_factory()
-            .build(&controller.layout.ccbd_tmux_socket_path)
+            .build(&controller.layout.ccbrd_tmux_socket_path)
             .unwrap();
         create_session(
             &backend,
-            &controller.layout.ccbd_tmux_session_name,
+            &controller.layout.ccbrd_tmux_session_name,
             &controller.layout.project_root,
-            Some(&controller.layout.ccbd_tmux_control_window_name),
+            Some(&controller.layout.ccbrd_tmux_control_window_name),
             None,
             None,
         )
         .unwrap();
         create_window(
             &backend,
-            &controller.layout.ccbd_tmux_session_name,
-            &controller.layout.ccbd_tmux_workspace_window_name,
+            &controller.layout.ccbrd_tmux_session_name,
+            &controller.layout.ccbrd_tmux_workspace_window_name,
             &controller.layout.project_root,
             false,
             None,

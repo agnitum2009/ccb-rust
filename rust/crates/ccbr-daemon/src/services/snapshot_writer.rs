@@ -14,7 +14,7 @@ impl SnapshotWriter {
     pub fn save(&self, job_id: &str, snapshot: &serde_json::Value) -> Result<(), String> {
         let path = self
             .layout
-            .ccbd_dir()
+            .ccbrd_dir()
             .join("snapshots")
             .join(format!("{}.json", job_id));
         self.json_store
@@ -25,7 +25,7 @@ impl SnapshotWriter {
     pub fn load(&self, job_id: &str) -> Option<serde_json::Value> {
         let path = self
             .layout
-            .ccbd_dir()
+            .ccbrd_dir()
             .join("snapshots")
             .join(format!("{}.json", job_id));
         if !path.exists() {
@@ -37,7 +37,7 @@ impl SnapshotWriter {
     pub fn delete(&self, job_id: &str) -> Result<(), String> {
         let path = self
             .layout
-            .ccbd_dir()
+            .ccbrd_dir()
             .join("snapshots")
             .join(format!("{}.json", job_id));
         if path.exists() {

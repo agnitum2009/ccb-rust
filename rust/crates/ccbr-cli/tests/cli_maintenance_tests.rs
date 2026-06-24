@@ -189,7 +189,7 @@ fn test_cli_maintenance_runner_due_tick() {
     let project_id = layout.project_id().to_string();
 
     // Write a schedule that is already due so the runner ticks immediately.
-    let schedule_path = layout.ccbd_maintenance_heartbeat_schedule_path();
+    let schedule_path = layout.ccbrd_maintenance_heartbeat_schedule_path();
     std::fs::create_dir_all(schedule_path.parent().unwrap()).unwrap();
     std::fs::write(
         &schedule_path,
@@ -229,7 +229,7 @@ fn test_cli_maintenance_runner_due_tick() {
     handle.join().unwrap();
 }
 
-/// Spawn a minimal fake ccbd that responds to Unix socket RPCs in the format
+/// Spawn a minimal fake ccbrd that responds to Unix socket RPCs in the format
 /// used by `ccbr_cli::services::UnixDaemonClient` (`{"method":..., "params":...}`).
 fn spawn_fake_daemon(
     socket_path: &std::path::Path,
@@ -299,7 +299,7 @@ fn test_cli_maintenance_tick_concern_submits_activation() {
         "project_view".to_string(),
         json!({
             "view": {
-                "ccbd": {"state": "mounted", "health": "healthy", "generation": 1},
+                "ccbrd": {"state": "mounted", "health": "healthy", "generation": 1},
                 "agents": [
                     {"name": "demo", "activity_state": "offline"},
                 ],

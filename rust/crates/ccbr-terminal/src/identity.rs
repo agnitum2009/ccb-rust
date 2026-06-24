@@ -82,7 +82,7 @@ pub fn apply_ccbr_pane_identity<B>(
     if let Some(epoch) = namespace_epoch {
         opts.insert("@ccbr_namespace_epoch", epoch.to_string());
     }
-    let managed = managed_by.unwrap_or("ccbd");
+    let managed = managed_by.unwrap_or("ccbrd");
     opts.insert("@ccbr_managed_by", managed.trim().to_string());
 
     for (name, value) in opts {
@@ -203,6 +203,6 @@ mod tests {
             .any(|(_, k, v)| k == "@ccbr_project_id" && v == "proj-42"));
         assert!(options
             .iter()
-            .any(|(_, k, v)| k == "@ccbr_managed_by" && v == "ccbd"));
+            .any(|(_, k, v)| k == "@ccbr_managed_by" && v == "ccbrd"));
     }
 }

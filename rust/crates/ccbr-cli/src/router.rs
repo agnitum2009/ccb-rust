@@ -137,21 +137,21 @@ Primary workflow:
   ccb -s               Safe start. Disable CLI auto-permission override.
   ccb -n               Rebuild runtime state while preserving config and managed agent history.
   ccb clear [agent...]  Send provider-native /clear to managed agent panes.
-  ccb restart <agent> Restart one idle configured agent pane through ccbd.
+  ccb restart <agent> Restart one idle configured agent pane through ccbrd.
   ccb reload            Apply a safe additive config reload, or reject with diagnostics.
   ccb reload --dry-run  Validate and plan config reload without mutation.
   ccb maintenance status Show maintenance heartbeat config and stored status.
   ccb maintenance tick   Run one maintenance heartbeat diagnosis tick.
   ccb kill             Stop the current project's background runtime.
   ccb kill -f          Force cleanup project-owned runtime residue.
-  ccb cleanup          Prune safe provider rebuildable caches after ccbd is stopped.
+  ccb cleanup          Prune safe provider rebuildable caches after ccbrd is stopped.
 
 Core commands:
   ccb ask <agent> [from <sender>] <message>
   ccb doctor
 
 Diagnostics-only control-plane status:
-  ccb ping <agent|ccbd>
+  ccb ping <agent|ccbrd>
 
 Diagnostics-only observer:
   ccb pend <agent|job_id> [N]
@@ -191,7 +191,7 @@ pub fn print_kill_help<W: Write>(out: &mut W) -> std::io::Result<()> {
 usage: ccb kill [-f]
 
 Project runtime cleanup:
-  ccb kill     Stop the current project's ccbd, agents, and tmux namespace.
+  ccb kill     Stop the current project's ccbrd, agents, and tmux namespace.
   ccb kill -f  Force cleanup project-owned runtime residue before `ccb -n`.
 
 Notes:
@@ -218,12 +218,12 @@ pub fn command_help_text(command_name: &str) -> Option<&'static str> {
 
 static COMMAND_HELP: &[(&str, &str)] = &[
     ("ping", "\
-usage: ccb ping <agent|all|ccbd>
+usage: ccb ping <agent|all|ccbrd>
 
 Diagnostics-only control-plane status:
   ccb ping <agent>   Show cached runtime status for one named agent.
   ccb ping all       Show cached mounted-agent status across the project.
-  ccb ping ccbd      Show cached project daemon status.
+  ccb ping ccbrd      Show cached project daemon status.
 "),
     ("pend", "\
 usage: ccb pend [--watch|--inbox|--queue] [--detail] <agent|job_id|all> [N]
@@ -316,10 +316,10 @@ Storage diagnostics subview:
 usage: ccb cleanup
 
 Storage cleanup:
-  ccb cleanup   Prune safe provider rebuildable caches after ccbd is stopped.
+  ccb cleanup   Prune safe provider rebuildable caches after ccbrd is stopped.
 
 Safety:
-  - Refuses to run while ccbd is active or ask jobs are pending/running.
+  - Refuses to run while ccbrd is active or ask jobs are pending/running.
   - Keeps Claude versions currently referenced by managed homes.
   - Does not remove provider sessions, auth, plugin bundles, mailbox data, or runtime authority.
   - Use `ccb doctor storage` before cleanup to inspect storage classes.
@@ -342,7 +342,7 @@ Notes:
 usage: ccb restart <agent_name>
 
 Guarded single-agent runtime restart:
-  ccb restart agent1   Restart one configured mounted agent pane through ccbd.
+  ccb restart agent1   Restart one configured mounted agent pane through ccbrd.
 
 Safety:
   - Target authority comes from the current mounted daemon graph.
@@ -359,12 +359,12 @@ Maintenance heartbeat diagnostics:
                            Schedule the next heartbeat follow-up.
 
 Safety:
-  - tick reads ccbd/project-view evidence and may write only maintenance-heartbeat status/schedule/activation records.
+  - tick reads ccbrd/project-view evidence and may write only maintenance-heartbeat status/schedule/activation records.
   - non-healthy tick may submit one silent ask to the configured assessor, default ccbr_self.
   - tick does not run repairs or start providers.
   - runner is an internal project-scoped schedule consumer used by startup ensure.
   - enable and disable are config-authority in v1; edit [maintenance.heartbeat].enabled.
-  - Status reads `.ccbr/ccbd/maintenance-heartbeat/`, not `.ccbr/ccbd/heartbeats/`.
+  - Status reads `.ccbr/ccbrd/maintenance-heartbeat/`, not `.ccbr/ccbrd/heartbeats/`.
 "),
     ("doctor", "\
 usage: ccb doctor [ps|logs <agent>|storage] [--output [PATH]]

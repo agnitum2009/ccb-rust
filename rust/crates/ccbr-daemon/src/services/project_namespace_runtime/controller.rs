@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/controller.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/controller.py`.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -102,7 +102,7 @@ impl ProjectNamespaceController {
         session_probe_timeout_s: Option<f64>,
         terminal_size: Option<(i32, i32)>,
     ) -> Result<ProjectNamespace> {
-        std::fs::create_dir_all(self.layout.ccbd_dir())?;
+        std::fs::create_dir_all(self.layout.ccbrd_dir())?;
 
         let mut inner = self.build_inner_controller()?;
         let internal_plan = topology_plan.map(convert_topology_plan);
@@ -130,7 +130,7 @@ impl ProjectNamespaceController {
         reason: Option<&str>,
         session_probe_timeout_s: Option<f64>,
     ) -> Result<ProjectNamespace> {
-        std::fs::create_dir_all(self.layout.ccbd_dir())?;
+        std::fs::create_dir_all(self.layout.ccbrd_dir())?;
 
         let mut inner = self.build_inner_controller()?;
         let result = reflow_project_workspace(
@@ -152,7 +152,7 @@ impl ProjectNamespaceController {
         reason: &str,
         #[allow(unused_variables)] force: bool,
     ) -> Result<ProjectNamespaceDestroySummary> {
-        std::fs::create_dir_all(self.layout.ccbd_dir())?;
+        std::fs::create_dir_all(self.layout.ccbrd_dir())?;
 
         let mut inner = self.build_inner_controller()?;
         let summary = destroy_project_namespace(&mut inner, reason)?;
@@ -167,14 +167,17 @@ impl ProjectNamespaceController {
         };
         let layout = LayoutConfig {
             project_root: self.layout.project_root.as_str().to_string(),
-            ccbd_dir: PathBuf::from(self.layout.ccbd_dir().as_str()),
-            ccbd_socket_path: self.layout.ccbd_socket_path().to_string(),
-            ccbd_tmux_socket_path: self.layout.ccbd_tmux_socket_path().to_string(),
-            ccbd_tmux_session_name: self.layout.ccbd_tmux_session_name(),
-            ccbd_tmux_control_window_name: self.layout.ccbd_tmux_control_window_name().to_string(),
-            ccbd_tmux_workspace_window_name: self
+            ccbrd_dir: PathBuf::from(self.layout.ccbrd_dir().as_str()),
+            ccbrd_socket_path: self.layout.ccbrd_socket_path().to_string(),
+            ccbrd_tmux_socket_path: self.layout.ccbrd_tmux_socket_path().to_string(),
+            ccbrd_tmux_session_name: self.layout.ccbrd_tmux_session_name(),
+            ccbrd_tmux_control_window_name: self
                 .layout
-                .ccbd_tmux_workspace_window_name()
+                .ccbrd_tmux_control_window_name()
+                .to_string(),
+            ccbrd_tmux_workspace_window_name: self
+                .layout
+                .ccbrd_tmux_workspace_window_name()
                 .to_string(),
         };
 

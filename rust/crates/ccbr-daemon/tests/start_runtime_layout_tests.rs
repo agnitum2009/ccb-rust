@@ -1,4 +1,4 @@
-//! Mirrors Python `test/test_ccbd_start_runtime_layout.py`.
+//! Mirrors Python `test/test_ccbrd_start_runtime_layout.py`.
 
 use ccbr_daemon::start_runtime_layout::cmd_bootstrap_command;
 use std::io::Write;

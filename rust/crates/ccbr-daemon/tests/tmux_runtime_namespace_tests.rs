@@ -1,4 +1,4 @@
-//! Mirrors Python `test/test_ccbd_tmux_namespace.py`.
+//! Mirrors Python `test/test_ccbrd_tmux_namespace.py`.
 
 use ccbr_daemon::services::health_assessment::tmux_runtime::namespace::{
     pane_outside_project_namespace, NamespaceStateInfo, NamespaceStateStore, PaneRecord,
@@ -129,7 +129,7 @@ fn test_pane_outside_namespace_checks_project_namespace_record() {
                 role: "agent".into(),
                 slot_key: Some("agent1".into()),
                 window_name: None,
-                managed_by: "ccbd".into(),
+                managed_by: "ccbrd".into(),
             }),
         }),
     };
@@ -183,7 +183,7 @@ fn test_pane_outside_namespace_accepts_declared_secondary_window() {
                 role: "agent".into(),
                 slot_key: Some("agent2".into()),
                 window_name: Some("review".into()),
-                managed_by: "ccbd".into(),
+                managed_by: "ccbrd".into(),
             }),
         }),
     };
@@ -221,7 +221,7 @@ fn test_pane_outside_namespace_rejects_mismatched_declared_window() {
                 role: "agent".into(),
                 slot_key: Some("agent2".into()),
                 window_name: Some("other".into()),
-                managed_by: "ccbd".into(),
+                managed_by: "ccbrd".into(),
             }),
         }),
     };

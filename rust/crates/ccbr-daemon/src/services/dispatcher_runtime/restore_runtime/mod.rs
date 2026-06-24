@@ -1,3 +1,3 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/restore_runtime/`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/restore_runtime/`.
 
 pub mod execution;

@@ -1,7 +1,7 @@
-//! Mirrors Python `lib/ccbd/socket_client.py`.
+//! Mirrors Python `lib/ccbrd/socket_client.py`.
 //!
 //! Daemon socket client for CLI commands.
-//! Provides RPC interface to the ccbd daemon over Unix socket.
+//! Provides RPC interface to the ccbrd daemon over Unix socket.
 
 use std::path::{Path, PathBuf};
 
@@ -55,14 +55,14 @@ impl CcbdClient {
         transport::send_request(&mut sock, &req)?;
         let raw = transport::recv_response_line(&mut sock)?;
         if raw.is_empty() {
-            return Err(CcbdClientError::new("empty response from ccbd"));
+            return Err(CcbdClientError::new("empty response from ccbrd"));
         }
         let response = transport::decode_response(&raw)?;
         if !response.ok {
             return Err(CcbdClientError::new(
                 response
                     .error
-                    .unwrap_or_else(|| "ccbd request failed".into()),
+                    .unwrap_or_else(|| "ccbrd request failed".into()),
             ));
         }
         Ok(response.payload.unwrap_or(Value::Null))
@@ -114,7 +114,7 @@ fn resolve_timeout(explicit: Option<f64>) -> f64 {
         }
         return 3.0;
     }
-    if let Ok(raw) = std::env::var("CCBR_CCBD_CLIENT_TIMEOUT_S") {
+    if let Ok(raw) = std::env::var("CCBR_CCBRD_CLIENT_TIMEOUT_S") {
         if let Ok(t) = raw.parse::<f64>() {
             if t.is_finite() && t >= 0.1 {
                 return t;
@@ -131,15 +131,15 @@ mod tests {
 
     #[test]
     fn test_resolve_timeout_default() {
-        std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
+        std::env::remove_var("CCBR_CCBRD_CLIENT_TIMEOUT_S");
         assert_eq!(resolve_timeout(None), 3.0);
     }
 
     #[test]
     fn test_resolve_timeout_from_env() {
-        std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "5.0");
+        std::env::set_var("CCBR_CCBRD_CLIENT_TIMEOUT_S", "5.0");
         assert_eq!(resolve_timeout(None), 5.0);
-        std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
+        std::env::remove_var("CCBR_CCBRD_CLIENT_TIMEOUT_S");
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/provider_runtime_facts.py`.
+//! Mirrors Python `lib/ccbrd/services/provider_runtime_facts.py`.
 
 use std::path::Path;
 
@@ -12,7 +12,7 @@ use ccbr_provider_core::session_binding::{
 
 /// Provider runtime facts extracted from a loaded session and binding.
 ///
-/// Mirrors Python `ccbd.services.provider_runtime_facts.ProviderRuntimeFacts`.
+/// Mirrors Python `ccbrd.services.provider_runtime_facts.ProviderRuntimeFacts`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ProviderRuntimeFacts {
     pub runtime_ref: Option<String>,
@@ -32,7 +32,7 @@ pub struct ProviderRuntimeFacts {
 
 /// Build provider runtime facts from a loaded session and binding.
 ///
-/// Mirrors Python `ccbd.services.provider_runtime_facts.build_provider_runtime_facts`.
+/// Mirrors Python `ccbrd.services.provider_runtime_facts.build_provider_runtime_facts`.
 pub fn build_provider_runtime_facts(
     session: &Session,
     binding: &dyn SessionBinding,

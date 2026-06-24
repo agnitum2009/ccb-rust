@@ -1,7 +1,7 @@
 use crate::models::api_models::common::SCHEMA_VERSION;
 
-pub const NAMESPACE_STATE_RECORD_TYPE: &str = "ccbd_project_namespace_state";
-pub const NAMESPACE_EVENT_RECORD_TYPE: &str = "ccbd_project_namespace_event";
+pub const NAMESPACE_STATE_RECORD_TYPE: &str = "ccbrd_project_namespace_state";
+pub const NAMESPACE_EVENT_RECORD_TYPE: &str = "ccbrd_project_namespace_event";
 
 /// Convert a JSON value to a trimmed, non-empty string or `None`.
 pub fn clean_text(value: Option<&serde_json::Value>) -> Option<String> {

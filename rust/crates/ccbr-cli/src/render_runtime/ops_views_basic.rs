@@ -47,7 +47,7 @@ pub fn render_start(summary: &Value) -> Vec<String> {
         "start_status: ok".to_string(),
         format!("project: {}", field(summary, "project_root")),
         format!("project_id: {}", field(summary, "project_id")),
-        format!("ccbd_started: {}", bool_field(summary, "daemon_started")),
+        format!("ccbrd_started: {}", bool_field(summary, "daemon_started")),
         format!("socket_path: {}", field(summary, "socket_path")),
         format!("agents: {}", csv_field(summary, "started")),
     ];
@@ -528,7 +528,7 @@ pub fn render_kill(summary: &Value) -> Vec<String> {
 pub fn render_ps(payload: &Value) -> Vec<String> {
     let mut lines = vec![
         format!("project_id: {}", field(payload, "project_id")),
-        format!("ccbd_state: {}", field(payload, "ccbd_state")),
+        format!("ccbrd_state: {}", field(payload, "ccbrd_state")),
     ];
 
     if let Some(Value::Array(agents)) = payload.get("agents") {
@@ -640,7 +640,7 @@ fn maintenance_summary_lines(prefix: &str, payload: &Value) -> Vec<String> {
 
     for key in [
         "source_kind",
-        "ccbd_state",
+        "ccbrd_state",
         "agent_count",
         "active_agent_count",
         "pending_agent_count",
@@ -685,7 +685,7 @@ fn maintenance_evidence_line(prefix: &str, payload: &Value) -> String {
         "reason",
         "source",
         "status",
-        "ccbd_state",
+        "ccbrd_state",
         "confidence",
     ] {
         if let Some(value) = payload.get(key) {

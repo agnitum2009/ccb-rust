@@ -39,7 +39,7 @@ pub fn ps_summary(context: &CliContext, _command: &ParsedPsCommand) -> Value {
 
     json!({
         "project_id": context.project.project_id,
-        "ccbd_state": local.mount_state,
+        "ccbrd_state": local.mount_state,
         "agents": agents,
     })
 }

@@ -11,7 +11,7 @@ pub fn render_doctor(payload: &Value) -> Vec<String> {
     let installation = payload.get("installation").unwrap_or(&Value::Null);
     let runtime = payload.get("runtime").unwrap_or(&Value::Null);
     let requirements = payload.get("requirements").unwrap_or(&Value::Null);
-    let ccbd = payload.get("ccbd").unwrap_or(&Value::Null);
+    let ccbrd = payload.get("ccbrd").unwrap_or(&Value::Null);
 
     let mut lines = vec![
         format!("project: {}", field(payload, "project")),
@@ -57,448 +57,457 @@ pub fn render_doctor(payload: &Value) -> Vec<String> {
             "requirement_tmux_path: {}",
             field(requirements, "tmux_path")
         ),
-        format!("ccbd_state: {}", field(ccbd, "state")),
-        format!("ccbd_socket_path: {}", field(ccbd, "socket_path")),
+        format!("ccbrd_state: {}", field(ccbrd, "state")),
+        format!("ccbrd_socket_path: {}", field(ccbrd, "socket_path")),
         format!(
-            "ccbd_project_anchor_path: {}",
-            field(ccbd, "project_anchor_path")
+            "ccbrd_project_anchor_path: {}",
+            field(ccbrd, "project_anchor_path")
         ),
         format!(
-            "ccbd_runtime_state_root: {}",
-            field(ccbd, "runtime_state_root")
+            "ccbrd_runtime_state_root: {}",
+            field(ccbrd, "runtime_state_root")
         ),
         format!(
-            "ccbd_runtime_root_kind: {}",
-            field(ccbd, "runtime_root_kind")
+            "ccbrd_runtime_root_kind: {}",
+            field(ccbrd, "runtime_root_kind")
         ),
         format!(
-            "ccbd_runtime_relocation_reason: {}",
-            field(ccbd, "runtime_relocation_reason")
+            "ccbrd_runtime_relocation_reason: {}",
+            field(ccbrd, "runtime_relocation_reason")
         ),
         format!(
-            "ccbd_runtime_filesystem_hint: {}",
-            field(ccbd, "runtime_filesystem_hint")
+            "ccbrd_runtime_filesystem_hint: {}",
+            field(ccbrd, "runtime_filesystem_hint")
         ),
         format!(
-            "ccbd_runtime_marker_status: {}",
-            field(ccbd, "runtime_marker_status")
+            "ccbrd_runtime_marker_status: {}",
+            field(ccbrd, "runtime_marker_status")
         ),
         format!(
-            "ccbd_preferred_socket_path: {}",
-            field(ccbd, "preferred_socket_path")
+            "ccbrd_preferred_socket_path: {}",
+            field(ccbrd, "preferred_socket_path")
         ),
         format!(
-            "ccbd_effective_socket_path: {}",
-            field(ccbd, "effective_socket_path")
+            "ccbrd_effective_socket_path: {}",
+            field(ccbrd, "effective_socket_path")
         ),
         format!(
-            "ccbd_preferred_socket_path_bytes: {}",
-            field(ccbd, "preferred_socket_path_bytes")
+            "ccbrd_preferred_socket_path_bytes: {}",
+            field(ccbrd, "preferred_socket_path_bytes")
         ),
         format!(
-            "ccbd_effective_socket_path_bytes: {}",
-            field(ccbd, "effective_socket_path_bytes")
+            "ccbrd_effective_socket_path_bytes: {}",
+            field(ccbrd, "effective_socket_path_bytes")
         ),
-        format!("ccbd_socket_root_kind: {}", field(ccbd, "socket_root_kind")),
         format!(
-            "ccbd_socket_fallback_reason: {}",
-            field(ccbd, "socket_fallback_reason")
+            "ccbrd_socket_root_kind: {}",
+            field(ccbrd, "socket_root_kind")
         ),
         format!(
-            "ccbd_socket_filesystem_hint: {}",
-            field(ccbd, "socket_filesystem_hint")
+            "ccbrd_socket_fallback_reason: {}",
+            field(ccbrd, "socket_fallback_reason")
         ),
-        format!("ccbd_tmux_socket_path: {}", field(ccbd, "tmux_socket_path")),
         format!(
-            "ccbd_tmux_preferred_socket_path: {}",
-            field(ccbd, "tmux_preferred_socket_path")
+            "ccbrd_socket_filesystem_hint: {}",
+            field(ccbrd, "socket_filesystem_hint")
         ),
         format!(
-            "ccbd_tmux_effective_socket_path: {}",
-            field(ccbd, "tmux_effective_socket_path")
+            "ccbrd_tmux_socket_path: {}",
+            field(ccbrd, "tmux_socket_path")
         ),
         format!(
-            "ccbd_tmux_preferred_socket_path_bytes: {}",
-            field(ccbd, "tmux_preferred_socket_path_bytes")
+            "ccbrd_tmux_preferred_socket_path: {}",
+            field(ccbrd, "tmux_preferred_socket_path")
         ),
         format!(
-            "ccbd_tmux_effective_socket_path_bytes: {}",
-            field(ccbd, "tmux_effective_socket_path_bytes")
+            "ccbrd_tmux_effective_socket_path: {}",
+            field(ccbrd, "tmux_effective_socket_path")
         ),
         format!(
-            "ccbd_tmux_start_server_command: {}",
-            field(ccbd, "tmux_start_server_command")
+            "ccbrd_tmux_preferred_socket_path_bytes: {}",
+            field(ccbrd, "tmux_preferred_socket_path_bytes")
         ),
         format!(
-            "ccbd_tmux_socket_root_kind: {}",
-            field(ccbd, "tmux_socket_root_kind")
+            "ccbrd_tmux_effective_socket_path_bytes: {}",
+            field(ccbrd, "tmux_effective_socket_path_bytes")
         ),
         format!(
-            "ccbd_tmux_socket_fallback_reason: {}",
-            field(ccbd, "tmux_socket_fallback_reason")
+            "ccbrd_tmux_start_server_command: {}",
+            field(ccbrd, "tmux_start_server_command")
         ),
         format!(
-            "ccbd_tmux_socket_filesystem_hint: {}",
-            field(ccbd, "tmux_socket_filesystem_hint")
+            "ccbrd_tmux_socket_root_kind: {}",
+            field(ccbrd, "tmux_socket_root_kind")
         ),
-        format!("ccbd_health: {}", field(ccbd, "health")),
-        format!("ccbd_generation: {}", field(ccbd, "generation")),
         format!(
-            "ccbd_last_heartbeat_at: {}",
-            field(ccbd, "last_heartbeat_at")
+            "ccbrd_tmux_socket_fallback_reason: {}",
+            field(ccbrd, "tmux_socket_fallback_reason")
         ),
-        format!("ccbd_pid_alive: {}", bool_field(ccbd, "pid_alive")),
         format!(
-            "ccbd_socket_connectable: {}",
-            bool_field(ccbd, "socket_connectable")
+            "ccbrd_tmux_socket_filesystem_hint: {}",
+            field(ccbrd, "tmux_socket_filesystem_hint")
         ),
+        format!("ccbrd_health: {}", field(ccbrd, "health")),
+        format!("ccbrd_generation: {}", field(ccbrd, "generation")),
         format!(
-            "ccbd_heartbeat_fresh: {}",
-            bool_field(ccbd, "heartbeat_fresh")
+            "ccbrd_last_heartbeat_at: {}",
+            field(ccbrd, "last_heartbeat_at")
         ),
+        format!("ccbrd_pid_alive: {}", bool_field(ccbrd, "pid_alive")),
         format!(
-            "ccbd_takeover_allowed: {}",
-            bool_field(ccbd, "takeover_allowed")
+            "ccbrd_socket_connectable: {}",
+            bool_field(ccbrd, "socket_connectable")
         ),
-        format!("ccbd_reason: {}", field(ccbd, "reason")),
         format!(
-            "ccbd_last_request_queue_wait_s: {}",
-            field(ccbd, "last_request_queue_wait_s")
+            "ccbrd_heartbeat_fresh: {}",
+            bool_field(ccbrd, "heartbeat_fresh")
         ),
         format!(
-            "ccbd_last_submit_duration_s: {}",
-            field(ccbd, "last_submit_duration_s")
+            "ccbrd_takeover_allowed: {}",
+            bool_field(ccbrd, "takeover_allowed")
         ),
+        format!("ccbrd_reason: {}", field(ccbrd, "reason")),
         format!(
-            "ccbd_last_ping_duration_s: {}",
-            field(ccbd, "last_ping_duration_s")
+            "ccbrd_last_request_queue_wait_s: {}",
+            field(ccbrd, "last_request_queue_wait_s")
         ),
         format!(
-            "ccbd_last_handler_latency_s_by_op: {}",
-            format_mapping(ccbd.get("last_handler_latency_s_by_op"))
+            "ccbrd_last_submit_duration_s: {}",
+            field(ccbrd, "last_submit_duration_s")
         ),
         format!(
-            "ccbd_last_maintenance_duration_s: {}",
-            field(ccbd, "last_maintenance_duration_s")
+            "ccbrd_last_ping_duration_s: {}",
+            field(ccbrd, "last_ping_duration_s")
         ),
         format!(
-            "ccbd_last_heartbeat_duration_s: {}",
-            field(ccbd, "last_heartbeat_duration_s")
+            "ccbrd_last_handler_latency_s_by_op: {}",
+            format_mapping(ccbrd.get("last_handler_latency_s_by_op"))
         ),
         format!(
-            "ccbd_heartbeat_step_duration_s: {}",
-            format_mapping(ccbd.get("heartbeat_step_duration_s"))
+            "ccbrd_last_maintenance_duration_s: {}",
+            field(ccbrd, "last_maintenance_duration_s")
         ),
         format!(
-            "ccbd_last_heartbeat_agents_inspected: {}",
-            field(ccbd, "last_heartbeat_agents_inspected")
+            "ccbrd_last_heartbeat_duration_s: {}",
+            field(ccbrd, "last_heartbeat_duration_s")
         ),
         format!(
-            "ccbd_last_heartbeat_runtime_store_writes: {}",
-            field(ccbd, "last_heartbeat_runtime_store_writes")
+            "ccbrd_heartbeat_step_duration_s: {}",
+            format_mapping(ccbrd.get("heartbeat_step_duration_s"))
         ),
         format!(
-            "ccbd_pending_maintenance_ticks: {}",
-            field(ccbd, "pending_maintenance_ticks")
+            "ccbrd_last_heartbeat_agents_inspected: {}",
+            field(ccbrd, "last_heartbeat_agents_inspected")
         ),
         format!(
-            "ccbd_last_project_view_response_duration_s: {}",
-            field(ccbd, "last_project_view_response_duration_s")
+            "ccbrd_last_heartbeat_runtime_store_writes: {}",
+            field(ccbrd, "last_heartbeat_runtime_store_writes")
         ),
         format!(
-            "ccbd_last_project_view_build_duration_s: {}",
-            field(ccbd, "last_project_view_build_duration_s")
+            "ccbrd_pending_maintenance_ticks: {}",
+            field(ccbrd, "pending_maintenance_ticks")
         ),
         format!(
-            "ccbd_project_view_cache_hits: {}",
-            field(ccbd, "project_view_cache_hits")
+            "ccbrd_last_project_view_response_duration_s: {}",
+            field(ccbrd, "last_project_view_response_duration_s")
         ),
         format!(
-            "ccbd_project_view_cache_misses: {}",
-            field(ccbd, "project_view_cache_misses")
+            "ccbrd_last_project_view_build_duration_s: {}",
+            field(ccbrd, "last_project_view_build_duration_s")
         ),
         format!(
-            "ccbd_last_project_view_tmux_command_count: {}",
-            field(ccbd, "last_project_view_tmux_command_count")
+            "ccbrd_project_view_cache_hits: {}",
+            field(ccbrd, "project_view_cache_hits")
         ),
         format!(
-            "ccbd_last_project_view_capture_pane_count: {}",
-            field(ccbd, "last_project_view_capture_pane_count")
+            "ccbrd_project_view_cache_misses: {}",
+            field(ccbrd, "project_view_cache_misses")
         ),
         format!(
-            "ccbd_last_project_view_store_scan_count: {}",
-            field(ccbd, "last_project_view_store_scan_count")
+            "ccbrd_last_project_view_tmux_command_count: {}",
+            field(ccbrd, "last_project_view_tmux_command_count")
         ),
-        format!("ccbd_rss_bytes: {}", field(ccbd, "rss_bytes")),
         format!(
-            "ccbd_virtual_memory_bytes: {}",
-            field(ccbd, "virtual_memory_bytes")
+            "ccbrd_last_project_view_capture_pane_count: {}",
+            field(ccbrd, "last_project_view_capture_pane_count")
         ),
-        format!("ccbd_fd_count: {}", field(ccbd, "fd_count")),
-        format!("ccbd_thread_count: {}", field(ccbd, "thread_count")),
         format!(
-            "ccbd_service_graph_version: {}",
-            field(ccbd, "service_graph_version")
+            "ccbrd_last_project_view_store_scan_count: {}",
+            field(ccbrd, "last_project_view_store_scan_count")
         ),
+        format!("ccbrd_rss_bytes: {}", field(ccbrd, "rss_bytes")),
         format!(
-            "ccbd_service_graph_created_at: {}",
-            field(ccbd, "service_graph_created_at")
+            "ccbrd_virtual_memory_bytes: {}",
+            field(ccbrd, "virtual_memory_bytes")
         ),
+        format!("ccbrd_fd_count: {}", field(ccbrd, "fd_count")),
+        format!("ccbrd_thread_count: {}", field(ccbrd, "thread_count")),
         format!(
-            "ccbd_service_graph_retained_count: {}",
-            field(ccbd, "service_graph_retained_count")
+            "ccbrd_service_graph_version: {}",
+            field(ccbrd, "service_graph_version")
         ),
         format!(
-            "ccbd_service_graph_retained_count_scope: {}",
-            field(ccbd, "service_graph_retained_count_scope")
+            "ccbrd_service_graph_created_at: {}",
+            field(ccbrd, "service_graph_created_at")
         ),
         format!(
-            "ccbd_last_reload_duration_s: {}",
-            field(ccbd, "last_reload_duration_s")
+            "ccbrd_service_graph_retained_count: {}",
+            field(ccbrd, "service_graph_retained_count")
         ),
         format!(
-            "ccbd_last_reload_plan_class: {}",
-            field(ccbd, "last_reload_plan_class")
+            "ccbrd_service_graph_retained_count_scope: {}",
+            field(ccbrd, "service_graph_retained_count_scope")
         ),
         format!(
-            "ccbd_last_reload_error: {}",
-            field(ccbd, "last_reload_error")
+            "ccbrd_last_reload_duration_s: {}",
+            field(ccbrd, "last_reload_duration_s")
         ),
         format!(
-            "ccbd_active_execution_count: {}",
-            field(ccbd, "active_execution_count")
+            "ccbrd_last_reload_plan_class: {}",
+            field(ccbrd, "last_reload_plan_class")
         ),
         format!(
-            "ccbd_recoverable_execution_count: {}",
-            field(ccbd, "recoverable_execution_count")
+            "ccbrd_last_reload_error: {}",
+            field(ccbrd, "last_reload_error")
         ),
         format!(
-            "ccbd_nonrecoverable_execution_count: {}",
-            field(ccbd, "nonrecoverable_execution_count")
+            "ccbrd_active_execution_count: {}",
+            field(ccbrd, "active_execution_count")
         ),
         format!(
-            "ccbd_pending_items_count: {}",
-            field(ccbd, "pending_items_count")
+            "ccbrd_recoverable_execution_count: {}",
+            field(ccbrd, "recoverable_execution_count")
         ),
         format!(
-            "ccbd_terminal_pending_count: {}",
-            field(ccbd, "terminal_pending_count")
+            "ccbrd_nonrecoverable_execution_count: {}",
+            field(ccbrd, "nonrecoverable_execution_count")
         ),
         format!(
-            "ccbd_recoverable_execution_providers: {}",
-            field(ccbd, "recoverable_execution_providers")
+            "ccbrd_pending_items_count: {}",
+            field(ccbrd, "pending_items_count")
         ),
         format!(
-            "ccbd_nonrecoverable_execution_providers: {}",
-            field(ccbd, "nonrecoverable_execution_providers")
+            "ccbrd_terminal_pending_count: {}",
+            field(ccbrd, "terminal_pending_count")
         ),
-        format!("ccbd_last_restore_at: {}", field(ccbd, "last_restore_at")),
         format!(
-            "ccbd_last_restore_running_job_count: {}",
-            field(ccbd, "last_restore_running_job_count")
+            "ccbrd_recoverable_execution_providers: {}",
+            field(ccbrd, "recoverable_execution_providers")
         ),
         format!(
-            "ccbd_last_restore_restored_execution_count: {}",
-            field(ccbd, "last_restore_restored_execution_count")
+            "ccbrd_nonrecoverable_execution_providers: {}",
+            field(ccbrd, "nonrecoverable_execution_providers")
         ),
+        format!("ccbrd_last_restore_at: {}", field(ccbrd, "last_restore_at")),
         format!(
-            "ccbd_last_restore_replay_pending_count: {}",
-            field(ccbd, "last_restore_replay_pending_count")
+            "ccbrd_last_restore_running_job_count: {}",
+            field(ccbrd, "last_restore_running_job_count")
         ),
         format!(
-            "ccbd_last_restore_terminal_pending_count: {}",
-            field(ccbd, "last_restore_terminal_pending_count")
+            "ccbrd_last_restore_restored_execution_count: {}",
+            field(ccbrd, "last_restore_restored_execution_count")
         ),
         format!(
-            "ccbd_last_restore_abandoned_execution_count: {}",
-            field(ccbd, "last_restore_abandoned_execution_count")
+            "ccbrd_last_restore_replay_pending_count: {}",
+            field(ccbrd, "last_restore_replay_pending_count")
         ),
         format!(
-            "ccbd_last_restore_already_active_count: {}",
-            field(ccbd, "last_restore_already_active_count")
+            "ccbrd_last_restore_terminal_pending_count: {}",
+            field(ccbrd, "last_restore_terminal_pending_count")
         ),
         format!(
-            "ccbd_last_restore_results_text: {}",
-            field(ccbd, "last_restore_results_text")
+            "ccbrd_last_restore_abandoned_execution_count: {}",
+            field(ccbrd, "last_restore_abandoned_execution_count")
         ),
-        format!("ccbd_startup_last_at: {}", field(ccbd, "startup_last_at")),
         format!(
-            "ccbd_startup_last_trigger: {}",
-            field(ccbd, "startup_last_trigger")
+            "ccbrd_last_restore_already_active_count: {}",
+            field(ccbrd, "last_restore_already_active_count")
         ),
         format!(
-            "ccbd_startup_last_status: {}",
-            field(ccbd, "startup_last_status")
+            "ccbrd_last_restore_results_text: {}",
+            field(ccbrd, "last_restore_results_text")
         ),
+        format!("ccbrd_startup_last_at: {}", field(ccbrd, "startup_last_at")),
         format!(
-            "ccbd_startup_last_generation: {}",
-            field(ccbd, "startup_last_generation")
+            "ccbrd_startup_last_trigger: {}",
+            field(ccbrd, "startup_last_trigger")
         ),
         format!(
-            "ccbd_startup_last_daemon_started: {}",
-            bool_field(ccbd, "startup_last_daemon_started")
+            "ccbrd_startup_last_status: {}",
+            field(ccbrd, "startup_last_status")
         ),
         format!(
-            "ccbd_startup_last_requested_agents: {}",
-            field(ccbd, "startup_last_requested_agents")
+            "ccbrd_startup_last_generation: {}",
+            field(ccbrd, "startup_last_generation")
         ),
         format!(
-            "ccbd_startup_last_desired_agents: {}",
-            field(ccbd, "startup_last_desired_agents")
+            "ccbrd_startup_last_daemon_started: {}",
+            bool_field(ccbrd, "startup_last_daemon_started")
         ),
         format!(
-            "ccbd_startup_last_actions: {}",
-            field(ccbd, "startup_last_actions")
+            "ccbrd_startup_last_requested_agents: {}",
+            field(ccbrd, "startup_last_requested_agents")
         ),
         format!(
-            "ccbd_startup_last_cleanup_killed: {}",
-            field(ccbd, "startup_last_cleanup_killed")
+            "ccbrd_startup_last_desired_agents: {}",
+            field(ccbrd, "startup_last_desired_agents")
         ),
         format!(
-            "ccbd_startup_last_failure_reason: {}",
-            field(ccbd, "startup_last_failure_reason")
+            "ccbrd_startup_last_actions: {}",
+            field(ccbrd, "startup_last_actions")
         ),
         format!(
-            "ccbd_startup_last_agent_results_text: {}",
-            field(ccbd, "startup_last_agent_results_text")
+            "ccbrd_startup_last_cleanup_killed: {}",
+            field(ccbrd, "startup_last_cleanup_killed")
         ),
-        format!("ccbd_shutdown_last_at: {}", field(ccbd, "shutdown_last_at")),
         format!(
-            "ccbd_shutdown_last_trigger: {}",
-            field(ccbd, "shutdown_last_trigger")
+            "ccbrd_startup_last_failure_reason: {}",
+            field(ccbrd, "startup_last_failure_reason")
         ),
         format!(
-            "ccbd_shutdown_last_status: {}",
-            field(ccbd, "shutdown_last_status")
+            "ccbrd_startup_last_agent_results_text: {}",
+            field(ccbrd, "startup_last_agent_results_text")
         ),
         format!(
-            "ccbd_shutdown_last_forced: {}",
-            bool_field(ccbd, "shutdown_last_forced")
+            "ccbrd_shutdown_last_at: {}",
+            field(ccbrd, "shutdown_last_at")
         ),
         format!(
-            "ccbd_shutdown_last_generation: {}",
-            field(ccbd, "shutdown_last_generation")
+            "ccbrd_shutdown_last_trigger: {}",
+            field(ccbrd, "shutdown_last_trigger")
         ),
         format!(
-            "ccbd_shutdown_last_reason: {}",
-            field(ccbd, "shutdown_last_reason")
+            "ccbrd_shutdown_last_status: {}",
+            field(ccbrd, "shutdown_last_status")
         ),
         format!(
-            "ccbd_shutdown_last_stopped_agents: {}",
-            field(ccbd, "shutdown_last_stopped_agents")
+            "ccbrd_shutdown_last_forced: {}",
+            bool_field(ccbrd, "shutdown_last_forced")
         ),
         format!(
-            "ccbd_shutdown_last_actions: {}",
-            field(ccbd, "shutdown_last_actions")
+            "ccbrd_shutdown_last_generation: {}",
+            field(ccbrd, "shutdown_last_generation")
         ),
         format!(
-            "ccbd_shutdown_last_cleanup_killed: {}",
-            field(ccbd, "shutdown_last_cleanup_killed")
+            "ccbrd_shutdown_last_reason: {}",
+            field(ccbrd, "shutdown_last_reason")
         ),
         format!(
-            "ccbd_shutdown_last_failure_reason: {}",
-            field(ccbd, "shutdown_last_failure_reason")
+            "ccbrd_shutdown_last_stopped_agents: {}",
+            field(ccbrd, "shutdown_last_stopped_agents")
         ),
         format!(
-            "ccbd_shutdown_last_runtime_states_text: {}",
-            field(ccbd, "shutdown_last_runtime_states_text")
+            "ccbrd_shutdown_last_actions: {}",
+            field(ccbrd, "shutdown_last_actions")
         ),
-        format!("ccbd_namespace_epoch: {}", field(ccbd, "namespace_epoch")),
         format!(
-            "ccbd_namespace_tmux_socket_path: {}",
-            field(ccbd, "namespace_tmux_socket_path")
+            "ccbrd_shutdown_last_cleanup_killed: {}",
+            field(ccbrd, "shutdown_last_cleanup_killed")
         ),
         format!(
-            "ccbd_namespace_tmux_session_name: {}",
-            field(ccbd, "namespace_tmux_session_name")
+            "ccbrd_shutdown_last_failure_reason: {}",
+            field(ccbrd, "shutdown_last_failure_reason")
         ),
         format!(
-            "ccbd_namespace_layout_version: {}",
-            field(ccbd, "namespace_layout_version")
+            "ccbrd_shutdown_last_runtime_states_text: {}",
+            field(ccbrd, "shutdown_last_runtime_states_text")
         ),
+        format!("ccbrd_namespace_epoch: {}", field(ccbrd, "namespace_epoch")),
         format!(
-            "ccbd_namespace_ui_attachable: {}",
-            bool_field(ccbd, "namespace_ui_attachable")
+            "ccbrd_namespace_tmux_socket_path: {}",
+            field(ccbrd, "namespace_tmux_socket_path")
         ),
         format!(
-            "ccbd_namespace_last_started_at: {}",
-            field(ccbd, "namespace_last_started_at")
+            "ccbrd_namespace_tmux_session_name: {}",
+            field(ccbrd, "namespace_tmux_session_name")
         ),
         format!(
-            "ccbd_namespace_last_destroyed_at: {}",
-            field(ccbd, "namespace_last_destroyed_at")
+            "ccbrd_namespace_layout_version: {}",
+            field(ccbrd, "namespace_layout_version")
         ),
         format!(
-            "ccbd_namespace_last_destroy_reason: {}",
-            field(ccbd, "namespace_last_destroy_reason")
+            "ccbrd_namespace_ui_attachable: {}",
+            bool_field(ccbrd, "namespace_ui_attachable")
         ),
         format!(
-            "ccbd_namespace_last_event_kind: {}",
-            field(ccbd, "namespace_last_event_kind")
+            "ccbrd_namespace_last_started_at: {}",
+            field(ccbrd, "namespace_last_started_at")
         ),
         format!(
-            "ccbd_namespace_last_event_at: {}",
-            field(ccbd, "namespace_last_event_at")
+            "ccbrd_namespace_last_destroyed_at: {}",
+            field(ccbrd, "namespace_last_destroyed_at")
         ),
         format!(
-            "ccbd_namespace_last_event_epoch: {}",
-            field(ccbd, "namespace_last_event_epoch")
+            "ccbrd_namespace_last_destroy_reason: {}",
+            field(ccbrd, "namespace_last_destroy_reason")
         ),
         format!(
-            "ccbd_namespace_last_event_socket_path: {}",
-            field(ccbd, "namespace_last_event_socket_path")
+            "ccbrd_namespace_last_event_kind: {}",
+            field(ccbrd, "namespace_last_event_kind")
         ),
         format!(
-            "ccbd_namespace_last_event_session_name: {}",
-            field(ccbd, "namespace_last_event_session_name")
+            "ccbrd_namespace_last_event_at: {}",
+            field(ccbrd, "namespace_last_event_at")
         ),
         format!(
-            "ccbd_start_policy_auto_permission: {}",
-            field(ccbd, "start_policy_auto_permission")
+            "ccbrd_namespace_last_event_epoch: {}",
+            field(ccbrd, "namespace_last_event_epoch")
         ),
         format!(
-            "ccbd_start_policy_recovery_restore: {}",
-            field(ccbd, "start_policy_recovery_restore")
+            "ccbrd_namespace_last_event_socket_path: {}",
+            field(ccbrd, "namespace_last_event_socket_path")
         ),
         format!(
-            "ccbd_start_policy_last_started_at: {}",
-            field(ccbd, "start_policy_last_started_at")
+            "ccbrd_namespace_last_event_session_name: {}",
+            field(ccbrd, "namespace_last_event_session_name")
         ),
         format!(
-            "ccbd_start_policy_source: {}",
-            field(ccbd, "start_policy_source")
+            "ccbrd_start_policy_auto_permission: {}",
+            field(ccbrd, "start_policy_auto_permission")
         ),
         format!(
-            "ccbd_tmux_cleanup_last_kind: {}",
-            field(ccbd, "tmux_cleanup_last_kind")
+            "ccbrd_start_policy_recovery_restore: {}",
+            field(ccbrd, "start_policy_recovery_restore")
         ),
         format!(
-            "ccbd_tmux_cleanup_last_at: {}",
-            field(ccbd, "tmux_cleanup_last_at")
+            "ccbrd_start_policy_last_started_at: {}",
+            field(ccbrd, "start_policy_last_started_at")
         ),
         format!(
-            "ccbd_tmux_cleanup_socket_count: {}",
-            field(ccbd, "tmux_cleanup_socket_count")
+            "ccbrd_start_policy_source: {}",
+            field(ccbrd, "start_policy_source")
         ),
         format!(
-            "ccbd_tmux_cleanup_total_owned: {}",
-            field(ccbd, "tmux_cleanup_total_owned")
+            "ccbrd_tmux_cleanup_last_kind: {}",
+            field(ccbrd, "tmux_cleanup_last_kind")
         ),
         format!(
-            "ccbd_tmux_cleanup_total_active: {}",
-            field(ccbd, "tmux_cleanup_total_active")
+            "ccbrd_tmux_cleanup_last_at: {}",
+            field(ccbrd, "tmux_cleanup_last_at")
         ),
         format!(
-            "ccbd_tmux_cleanup_total_orphaned: {}",
-            field(ccbd, "tmux_cleanup_total_orphaned")
+            "ccbrd_tmux_cleanup_socket_count: {}",
+            field(ccbrd, "tmux_cleanup_socket_count")
         ),
         format!(
-            "ccbd_tmux_cleanup_total_killed: {}",
-            field(ccbd, "tmux_cleanup_total_killed")
+            "ccbrd_tmux_cleanup_total_owned: {}",
+            field(ccbrd, "tmux_cleanup_total_owned")
         ),
         format!(
-            "ccbd_tmux_cleanup_sockets: {}",
-            field(ccbd, "tmux_cleanup_sockets")
+            "ccbrd_tmux_cleanup_total_active: {}",
+            field(ccbrd, "tmux_cleanup_total_active")
+        ),
+        format!(
+            "ccbrd_tmux_cleanup_total_orphaned: {}",
+            field(ccbrd, "tmux_cleanup_total_orphaned")
+        ),
+        format!(
+            "ccbrd_tmux_cleanup_total_killed: {}",
+            field(ccbrd, "tmux_cleanup_total_killed")
+        ),
+        format!(
+            "ccbrd_tmux_cleanup_sockets: {}",
+            field(ccbrd, "tmux_cleanup_sockets")
         ),
     ];
 
@@ -525,10 +534,10 @@ pub fn render_doctor(payload: &Value) -> Vec<String> {
     }
 
     // Diagnostic errors
-    if let Some(Value::Array(errors)) = ccbd.get("diagnostic_errors") {
+    if let Some(Value::Array(errors)) = ccbrd.get("diagnostic_errors") {
         for error in errors {
             if let Some(e) = error.as_str() {
-                lines.push(format!("ccbd_diagnostic_error: {}", e));
+                lines.push(format!("ccbrd_diagnostic_error: {}", e));
             }
         }
     }

@@ -6,14 +6,14 @@ pub fn handle_ping(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> 
     let target = payload
         .get("target")
         .and_then(|v| v.as_str())
-        .unwrap_or("ccbd")
+        .unwrap_or("ccbrd")
         .trim();
 
-    if target == "ccbd" {
+    if target == "ccbrd" {
         let health = app.health_monitor.daemon_health();
         return Ok(json!({
             "pong": true,
-            "target": "ccbd",
+            "target": "ccbrd",
             "status": "ok",
             "health": health.to_record(),
         }));

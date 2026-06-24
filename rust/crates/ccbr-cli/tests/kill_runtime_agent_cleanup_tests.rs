@@ -168,7 +168,7 @@ fn test_prepare_local_shutdown_merges_pid_candidates() {
         .save(&runtime)
         .unwrap();
 
-    let authority_source: PathBuf = paths.project_root.as_std_path().join("ccbd.pid");
+    let authority_source: PathBuf = paths.project_root.as_std_path().join("ccbrd.pid");
     let agent_source: PathBuf = paths.agent_dir("demo").as_std_path().join("runtime.pid");
     let mut control_plane: HashMap<u32, Vec<PathBuf>> = HashMap::new();
     control_plane.insert(100, vec![authority_source.clone()]);

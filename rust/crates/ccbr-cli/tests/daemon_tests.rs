@@ -28,7 +28,7 @@ fn test_record_shutdown_intent_persists_lifecycle_and_shutdown_intent() {
     let context = make_context(tmp.path());
 
     // Seed an existing lifecycle record so we can observe the phase transition.
-    let lifecycle_path = context.paths.ccbd_lifecycle_path();
+    let lifecycle_path = context.paths.ccbrd_lifecycle_path();
     std::fs::create_dir_all(lifecycle_path.parent().unwrap().as_std_path()).unwrap();
     std::fs::write(
         lifecycle_path.as_std_path(),
@@ -45,7 +45,7 @@ fn test_record_shutdown_intent_persists_lifecycle_and_shutdown_intent() {
     assert_eq!(lifecycle["desired_state"], "stopped");
     assert_eq!(lifecycle["shutdown_intent"], "kill");
 
-    let shutdown_path = context.paths.ccbd_shutdown_intent_path();
+    let shutdown_path = context.paths.ccbrd_shutdown_intent_path();
     let shutdown: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(shutdown_path.as_std_path()).unwrap())
             .unwrap();
@@ -60,7 +60,7 @@ fn test_record_shutdown_intent_keeps_unmounted_phase() {
     let tmp = tempfile::tempdir().unwrap();
     let context = make_context(tmp.path());
 
-    let lifecycle_path = context.paths.ccbd_lifecycle_path();
+    let lifecycle_path = context.paths.ccbrd_lifecycle_path();
     std::fs::create_dir_all(lifecycle_path.parent().unwrap().as_std_path()).unwrap();
     std::fs::write(
         lifecycle_path.as_std_path(),

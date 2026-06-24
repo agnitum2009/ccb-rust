@@ -178,14 +178,14 @@ pub fn tool_definitions() -> Vec<Value> {
         }),
         serde_json::json!({
             "name": "ccbr_ping_agent",
-            "description": "Check ccbd or mounted-agent health inside the current project.",
+            "description": "Check ccbrd or mounted-agent health inside the current project.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "target": {
                         "type": "string",
-                        "description": "Agent name, all, or ccbd.",
-                        "default": "ccbd",
+                        "description": "Agent name, all, or ccbrd.",
+                        "default": "ccbrd",
                     },
                     "work_dir": {
                         "type": "string",
@@ -470,7 +470,7 @@ fn pend_agent(args: &Value, client: &dyn DaemonClient) -> Result<Value, String> 
 
 fn ping_agent(args: &Value, client: &dyn DaemonClient) -> Result<Value, String> {
     let target = optional_text(args, "target")
-        .unwrap_or_else(|| "ccbd".into())
+        .unwrap_or_else(|| "ccbrd".into())
         .to_lowercase();
     client.call("ping", serde_json::json!({ "target": target }))
 }
@@ -774,8 +774,8 @@ mod tests {
     }
 
     #[test]
-    fn test_ping_agent_defaults_to_ccbd() {
-        let client = FakeClient::with_response("ping", json!({ "pong": true, "target": "ccbd" }));
+    fn test_ping_agent_defaults_to_ccbrd() {
+        let client = FakeClient::with_response("ping", json!({ "pong": true, "target": "ccbrd" }));
         let req = McpRequest {
             jsonrpc: "2.0".into(),
             id: Some(json!(8)),
@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(payload["pong"], true);
 
         let calls = client.calls.lock().unwrap();
-        assert_eq!(calls[0].1["target"], "ccbd");
+        assert_eq!(calls[0].1["target"], "ccbrd");
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/mount_runtime/events.py`.
+//! Mirrors Python `lib/ccbrd/supervision/mount_runtime/events.py`.
 //!
 //! Records mount lifecycle events to a `MountEventStore`. The event shape mirrors the
 //! Python `SupervisionEvent` dataclass so that persisted records remain compatible.
@@ -38,7 +38,7 @@ impl SupervisionEvent {
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": 1,
-            "record_type": "ccbd_supervision_event",
+            "record_type": "ccbrd_supervision_event",
             "event_kind": self.event_kind,
             "project_id": self.project_id,
             "agent_name": self.agent_name,

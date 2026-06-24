@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_runtime_mount_start.py`.
+//! Mirrors Python `lib/ccbrd/reload_runtime_mount_start.py`.
 
 use crate::app::CcbdApp;
 use crate::services::project_namespace::ProjectNamespace;

@@ -1,4 +1,4 @@
-//! Mirrors Python `test/test_ccbd_client_resolution.py`.
+//! Mirrors Python `test/test_ccbrd_client_resolution.py`.
 
 use ccbr_daemon::client_runtime::resolution::{resolve_work_dir, resolve_work_dir_with_registry};
 use ccbr_provider_core::runtime_specs::{CLAUDE_CLIENT_SPEC, CODEX_CLIENT_SPEC};

@@ -263,7 +263,7 @@ fn test_record_kill_report_persists_report_json() {
     )
     .unwrap();
 
-    let report_path = paths.ccbd_dir().join("kill-report.json");
+    let report_path = paths.ccbrd_dir().join("kill-report.json");
     assert!(report_path.exists());
     let report: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(report_path.as_std_path()).unwrap()).unwrap();

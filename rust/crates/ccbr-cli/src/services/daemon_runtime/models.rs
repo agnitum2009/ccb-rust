@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::services::tmux_project_cleanup_runtime::models::ProjectTmuxCleanupSummary;
 
-/// Mirrors Python `LeaseHealth` enum from `ccbd.models_runtime.mount`.
+/// Mirrors Python `LeaseHealth` enum from `ccbrd.models_runtime.mount`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LeaseHealth {

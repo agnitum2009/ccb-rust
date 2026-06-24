@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/reply_delivery_runtime/`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/reply_delivery_runtime/`.
 
 pub mod claims;
 pub mod decisions;

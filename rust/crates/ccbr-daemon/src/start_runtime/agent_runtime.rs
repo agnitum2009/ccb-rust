@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_runtime/agent_runtime.py`.
+//! Mirrors Python `lib/ccbrd/start_runtime/agent_runtime.py`.
 
 use crate::start_runtime::agent_runtime_binding::resolve_runtime_binding_state;
 use crate::start_runtime::agent_runtime_models::{
@@ -162,7 +162,7 @@ fn build_attach_kwargs(
         window_id: None,
         workspace_epoch: None,
         lifecycle_state: binding_state.lifecycle_state.clone(),
-        managed_by: "ccbd".to_string(),
+        managed_by: "ccbrd".to_string(),
         binding_source: "provider-session".to_string(),
     }
 }

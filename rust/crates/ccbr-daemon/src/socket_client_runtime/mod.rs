@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/socket_client_runtime/`.
+//! Mirrors Python `lib/ccbrd/socket_client_runtime/`.
 
 pub mod endpoints;
 pub mod errors;

@@ -1,2 +1,2 @@
-//! Mirrors Python `lib/ccbd/stop_flow_runtime/`.
+//! Mirrors Python `lib/ccbrd/stop_flow_runtime/`.
 pub mod service;

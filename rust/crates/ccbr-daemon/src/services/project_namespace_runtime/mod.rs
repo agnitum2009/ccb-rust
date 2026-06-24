@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/`.
 pub mod additive_patch_preservation;
 pub mod backend;
 pub mod controller;

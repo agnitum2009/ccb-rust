@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/tmux.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/tmux.py`.
 
 use std::collections::HashMap;
 use std::sync::Arc;

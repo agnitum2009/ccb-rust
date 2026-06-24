@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_transaction_signature.py`.
+//! Mirrors Python `lib/ccbrd/reload_transaction_signature.py`.
 
 use crate::app::CcbdApp;
 use serde_json::Value;

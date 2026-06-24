@@ -20,11 +20,11 @@ pub const REQUIRED_TAG_WORKFLOWS: &[&str] = &["Release Artifacts"];
 pub const RELEASE_RUN_LIMIT: usize = 50;
 pub const BRANCH_VALIDATION_WORKFLOWS: &[&str] = &[
     "Tests",
-    "CCBD Real Platform Smoke",
+    "CCBRD Real Platform Smoke",
     "Cross-Platform Compatibility Test",
 ];
 pub const DEV_STRICT_PHASES: &[&str] = &["dev", "published"];
-pub const DEV_ALWAYS_REQUIRED_WORKFLOWS: &[&str] = &["Tests", "CCBD Real Platform Smoke"];
+pub const DEV_ALWAYS_REQUIRED_WORKFLOWS: &[&str] = &["Tests", "CCBRD Real Platform Smoke"];
 pub const DEV_DEFAULT_BRANCH_WORKFLOWS: &[&str] = &["Cross-Platform Compatibility Test"];
 pub const DEV_RELEASE_TRIGGER_PATHS: &[&str] = &["VERSION", "ccb"];
 pub const DEV_HOMEPAGE_PATHS: &[&str] = &["README.md", "README_zh.md"];

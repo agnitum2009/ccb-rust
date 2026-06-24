@@ -1,3 +1,3 @@
-//! Mirrors Python `lib/ccbd/services/runtime_runtime/`.
+//! Mirrors Python `lib/ccbrd/services/runtime_runtime/`.
 
 pub mod attach;

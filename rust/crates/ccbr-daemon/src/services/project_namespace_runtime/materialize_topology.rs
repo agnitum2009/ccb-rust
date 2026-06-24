@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/materialize_topology.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/materialize_topology.py`.
 //!
 //! Plans, creates, and reconciles tmux windows/panes for a project namespace
 //! topology. Pure planning helpers are unit-tested; operations that need a live
@@ -69,7 +69,7 @@ pub fn refresh_topology_ui_for_project(
     apply_project_tmux_ui(
         &context.backend,
         &context.desired_socket_path,
-        Some(&controller.layout.ccbd_socket_path),
+        Some(&controller.layout.ccbrd_socket_path),
         &context.desired_session_name,
     )?;
     _sync_topology_sidebar_widths(Some(controller), context, Some(topology_plan), timeout_s);
@@ -119,7 +119,7 @@ pub fn materialize_topology(
     apply_project_tmux_ui(
         &context.backend,
         &context.desired_socket_path,
-        Some(&controller.layout.ccbd_socket_path),
+        Some(&controller.layout.ccbrd_socket_path),
         &context.desired_session_name,
     )?;
 
@@ -179,7 +179,7 @@ pub fn existing_topology_agent_panes(
             expected.insert("@ccbr_role".to_string(), "agent".to_string());
             expected.insert("@ccbr_slot".to_string(), agent_name.clone());
             expected.insert("@ccbr_window".to_string(), window.name.clone());
-            expected.insert("@ccbr_managed_by".to_string(), "ccbd".to_string());
+            expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
 
             let matches = _list_panes_by_user_options(&context.backend, expected);
             if matches.len() == 1 {
@@ -210,7 +210,7 @@ pub fn topology_active_panes(
             controller.project_id.clone(),
         );
         expected.insert("@ccbr_role".to_string(), role.to_string());
-        expected.insert("@ccbr_managed_by".to_string(), "ccbd".to_string());
+        expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
 
         for pane_id in _list_panes_by_user_options(&context.backend, expected) {
             let window_name = _pane_option(&context.backend, &pane_id, "@ccbr_window");
@@ -284,7 +284,7 @@ pub fn topology_recreate_reason(
             );
             expected.insert("@ccbr_role".to_string(), "sidebar".to_string());
             expected.insert("@ccbr_sidebar_instance".to_string(), window.name.clone());
-            expected.insert("@ccbr_managed_by".to_string(), "ccbd".to_string());
+            expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
 
             let matches = _list_panes_by_user_options(&context.backend, expected);
             if matches.len() != 1 {
@@ -309,7 +309,7 @@ pub fn topology_recreate_reason(
         expected.insert("@ccbr_role".to_string(), "tool".to_string());
         expected.insert("@ccbr_slot".to_string(), format!("tool:{window_name}"));
         expected.insert("@ccbr_window".to_string(), window_name.clone());
-        expected.insert("@ccbr_managed_by".to_string(), "ccbd".to_string());
+        expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
 
         let matches = _list_panes_by_user_options(&context.backend, expected);
         if matches.len() != 1 {
@@ -332,7 +332,7 @@ fn _rename_legacy_workspace_if_needed(
 ) {
     let mut legacy_name = controller
         .layout
-        .ccbd_tmux_workspace_window_name
+        .ccbrd_tmux_workspace_window_name
         .trim()
         .to_string();
     if let Some(current) = &context.current {
@@ -427,7 +427,7 @@ fn _materialize_sidebar(
         Some(&window.name),
         None,
         Some(epoch),
-        Some("ccbd"),
+        Some("ccbrd"),
     );
 
     Ok(user_root)
@@ -481,7 +481,7 @@ fn _materialize_agent_layout(
             None,
             None,
             Some(epoch),
-            Some("ccbd"),
+            Some("ccbrd"),
         );
     };
 
@@ -539,7 +539,7 @@ fn _materialize_tool_window(
         None,
         None,
         Some(epoch),
-        Some("ccbd"),
+        Some("ccbrd"),
     );
 
     let _ = context.backend._tmux_run(
@@ -749,7 +749,7 @@ fn _list_sidebar_geometry_records(
         let sidebar_instance = parts[6].trim();
         let managed_by = parts[7].trim();
 
-        if pane_session != session_name || role != "sidebar" || managed_by != "ccbd" {
+        if pane_session != session_name || role != "sidebar" || managed_by != "ccbrd" {
             continue;
         }
         if !project_id.is_empty() && pane_project_id != project_id {
@@ -961,7 +961,7 @@ pub(crate) fn shell_quote(s: &str) -> String {
 pub(crate) fn apply_project_tmux_ui(
     backend: &Backend,
     tmux_socket_path: &str,
-    _ccbd_socket_path: Option<&str>,
+    _ccbrd_socket_path: Option<&str>,
     tmux_session_name: &str,
 ) -> Result<()> {
     let theme = render_tmux_session_theme(env!("CARGO_PKG_VERSION"), None, None, None, None);
@@ -1085,12 +1085,12 @@ mod tests {
     fn test_layout() -> crate::services::project_namespace_runtime::ensure_context::LayoutConfig {
         crate::services::project_namespace_runtime::ensure_context::LayoutConfig {
             project_root: "/tmp/ccbr-topo-test".to_string(),
-            ccbd_dir: PathBuf::from("/tmp/ccbr-topo-test/.ccbr"),
-            ccbd_socket_path: "/tmp/ccbr-topo-test/.ccbr/ccbd.sock".to_string(),
-            ccbd_tmux_socket_path: "/tmp/ccbr-topo-test/.ccbr/tmux.sock".to_string(),
-            ccbd_tmux_session_name: "ccbr-topo-test".to_string(),
-            ccbd_tmux_control_window_name: "control".to_string(),
-            ccbd_tmux_workspace_window_name: "workspace".to_string(),
+            ccbrd_dir: PathBuf::from("/tmp/ccbr-topo-test/.ccbr"),
+            ccbrd_socket_path: "/tmp/ccbr-topo-test/.ccbr/ccbrd.sock".to_string(),
+            ccbrd_tmux_socket_path: "/tmp/ccbr-topo-test/.ccbr/tmux.sock".to_string(),
+            ccbrd_tmux_session_name: "ccbr-topo-test".to_string(),
+            ccbrd_tmux_control_window_name: "control".to_string(),
+            ccbrd_tmux_workspace_window_name: "workspace".to_string(),
         }
     }
 

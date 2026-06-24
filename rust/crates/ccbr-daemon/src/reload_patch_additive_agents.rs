@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_patch_additive_agents.py`.
+//! Mirrors Python `lib/ccbrd/reload_patch_additive_agents.py`.
 
 #![allow(dead_code)]
 

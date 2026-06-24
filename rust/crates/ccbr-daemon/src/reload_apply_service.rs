@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_apply_service.py`.
+//! Mirrors Python `lib/ccbrd/reload_apply_service.py`.
 
 use crate::app::CcbdApp;
 use crate::reload_apply_graph::build_reload_service_graph;

@@ -27,7 +27,7 @@ pub fn should_restart_unreachable_daemon(inspection: &Value) -> bool {
 /// Restart unreachable daemon by killing it and waiting for release.
 ///
 /// Mirrors Python `restart_unreachable_daemon(...)`.
-/// Uses closure injection for all ccbd operations.
+/// Uses closure injection for all ccbrd operations.
 pub fn restart_unreachable_daemon<I, M, K>(
     inspection: &Value,
     shutdown_timeout_s: f64,
@@ -79,7 +79,7 @@ where
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
         return Err(CcbdServiceError(format!(
-            "ccbd is unavailable: {}; pid {} did not exit",
+            "ccbrd is unavailable: {}; pid {} did not exit",
             reason, pid
         )));
     }
@@ -91,7 +91,7 @@ where
 ///
 /// Mirrors Python `lease_pid(lease)`.
 pub fn lease_pid(lease: &Value) -> i64 {
-    lease.get("ccbd_pid").and_then(|v| v.as_i64()).unwrap_or(0)
+    lease.get("ccbrd_pid").and_then(|v| v.as_i64()).unwrap_or(0)
 }
 
 /// Wait for daemon to be released (not running).
@@ -141,11 +141,11 @@ where
     !is_pid_alive_fn(pid)
 }
 
-/// Spawn ccbd process.
+/// Spawn ccbrd process.
 ///
-/// Mirrors Python `spawn_ccbd(context, start_timeout_s)`.
-/// Uses closure injection for ccbd spawn operation.
-pub fn spawn_ccbd<S>(spawn_fn: S, start_timeout_s: f64) -> Result<(), CcbdServiceError>
+/// Mirrors Python `spawn_ccbrd(context, start_timeout_s)`.
+/// Uses closure injection for ccbrd spawn operation.
+pub fn spawn_ccbrd<S>(spawn_fn: S, start_timeout_s: f64) -> Result<(), CcbdServiceError>
 where
     S: Fn(f64) -> Result<(), String>,
 {

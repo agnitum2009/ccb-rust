@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_runtime/`.
+//! Mirrors Python `lib/ccbrd/start_runtime/`.
 
 pub mod agent_runtime;
 pub mod agent_runtime_binding;

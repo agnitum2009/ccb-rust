@@ -16,7 +16,7 @@ where
     I: FnOnce(&str) -> Value,
 {
     let expected = config_identity_payload_fn();
-    let payload = client_ping_fn("ccbd");
+    let payload = client_ping_fn("ccbrd");
 
     let actual_signature = payload
         .get("config_signature")
@@ -192,7 +192,7 @@ where
 {
     let _client = client();
     // client.stop_all(force=false) would go here
-    // Placeholder for ccbd client call
+    // Placeholder for ccbrd client call
 
     let deadline = Instant::now() + Duration::from_secs_f64(shutdown_timeout_s);
     while Instant::now() < deadline {
@@ -211,7 +211,7 @@ where
     }
 
     Err(CcbdServiceError(format!(
-        "{}; old ccbd did not shut down in time",
+        "{}; old ccbrd did not shut down in time",
         incompatible_daemon_error
     )))
 }

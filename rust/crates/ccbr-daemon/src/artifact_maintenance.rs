@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/artifact_maintenance.py`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/artifact_maintenance.py`.
 //! Periodic text artifact sweep.
 
 pub const TEXT_ARTIFACT_SWEEP_INTERVAL_S: f64 = 300.0;
@@ -15,7 +15,7 @@ pub fn sweep_text_artifacts_if_due(
             return 0;
         }
     }
-    let completion_dir = layout.ccbd_dir().join("completion");
+    let completion_dir = layout.ccbrd_dir().join("completion");
     let mut removed = 0;
     if completion_dir.is_dir() {
         if let Ok(entries) = std::fs::read_dir(&completion_dir) {

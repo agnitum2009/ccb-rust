@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/system.py`.
+//! Mirrors Python `lib/ccbrd/system.py`.
 
 /// Return the current UTC timestamp as an ISO-8601 string.
 pub fn utc_now() -> String {

@@ -24,8 +24,8 @@ fn test_project_namespace_state_store_round_trip() {
     let state = ProjectNamespaceState::new(
         "proj-1",
         3,
-        layout.ccbd_tmux_socket_path().as_str(),
-        &layout.ccbd_tmux_session_name(),
+        layout.ccbrd_tmux_socket_path().as_str(),
+        &layout.ccbrd_tmux_session_name(),
     )
     .unwrap()
     .with_layout_version(3)
@@ -45,7 +45,7 @@ fn test_project_namespace_state_store_round_trip() {
     assert_eq!(
         summary.get("namespace_tmux_socket_path"),
         Some(&serde_json::Value::String(
-            layout.ccbd_tmux_socket_path().to_string()
+            layout.ccbrd_tmux_socket_path().to_string()
         ))
     );
 }
@@ -57,7 +57,7 @@ fn test_path_layout_normalizes_tmux_session_name_for_tmux_targets() {
     std::fs::create_dir_all(&root).unwrap();
     let layout = PathLayout::new(utf8_path(&root));
 
-    let session_name = layout.ccbd_tmux_session_name();
+    let session_name = layout.ccbrd_tmux_session_name();
     assert!(session_name.starts_with("ccbr-"));
     assert!(!session_name.contains('.'));
 }
@@ -71,8 +71,8 @@ fn test_event_store_append_and_read_all() {
     let e2 = ProjectNamespaceEvent::new("destroyed", "proj-1", "2026-04-03T01:05:00Z")
         .unwrap()
         .with_namespace_epoch(3)
-        .with_socket_path(layout.ccbd_tmux_socket_path().as_str())
-        .with_session_name(&layout.ccbd_tmux_session_name())
+        .with_socket_path(layout.ccbrd_tmux_socket_path().as_str())
+        .with_session_name(&layout.ccbrd_tmux_session_name())
         .with_details({
             let mut m = HashMap::new();
             m.insert("reason".to_string(), serde_json::json!("kill"));

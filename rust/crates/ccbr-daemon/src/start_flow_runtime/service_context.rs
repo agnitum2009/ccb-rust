@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_flow_runtime/service_context.py`.
+//! Mirrors Python `lib/ccbrd/start_flow_runtime/service_context.py`.
 //!
 //! Builds the start-flow CLI context and records namespace-level actions.
 
@@ -77,7 +77,7 @@ pub fn build_start_context(
             project_root: project_root.clone(),
             config_dir: paths.ccbr_dir().as_std_path().to_path_buf(),
             project_id: project_id.to_string(),
-            source: "ccbd".to_string(),
+            source: "ccbrd".to_string(),
         },
         paths: paths.clone(),
     };
@@ -135,7 +135,7 @@ mod tests {
         assert_eq!(context.command, command);
         assert_eq!(context.cwd, PathBuf::from("/tmp/ccbr-test"));
         assert_eq!(context.project.project_id, "ccbr-test-id");
-        assert_eq!(context.project.source, "ccbd");
+        assert_eq!(context.project.source, "ccbrd");
         assert_eq!(
             context.project.config_dir,
             PathBuf::from("/tmp/ccbr-test/.ccbr")

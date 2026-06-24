@@ -20,7 +20,7 @@ pub struct StartPolicyStore {
 impl StartPolicyStore {
     pub fn new(layout: &ccbr_storage::paths::PathLayout) -> Self {
         Self {
-            path: layout.ccbd_dir().join("start-policy.json"),
+            path: layout.ccbrd_dir().join("start-policy.json"),
         }
     }
 

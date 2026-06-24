@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_flow_runtime/service.py`.
+//! Mirrors Python `lib/ccbrd/start_flow_runtime/service.py`.
 //! 1:1 file alignment stub.
 
 use serde::{Deserialize, Serialize};
@@ -266,7 +266,7 @@ pub fn run_start_flow(
         project_root: project_root.to_string_lossy().to_string(),
         project_id: project_id.to_string(),
         started: targets,
-        socket_path: paths.ccbd_socket_path.to_string_lossy().to_string(),
+        socket_path: paths.ccbrd_socket_path.to_string_lossy().to_string(),
         cleanup_summaries,
         actions_taken,
         agent_results,
@@ -377,7 +377,7 @@ fn cleanup_tmux_orphans(
 /// Flow paths
 #[derive(Debug, Clone)]
 pub struct FlowPaths {
-    pub ccbd_socket_path: PathBuf,
+    pub ccbrd_socket_path: PathBuf,
 }
 
 /// Prepared agent
@@ -451,7 +451,7 @@ mod tests {
         let project_root = PathBuf::from("/test");
         let project_id = "test_project";
         let paths = FlowPaths {
-            ccbd_socket_path: PathBuf::from("/socket"),
+            ccbrd_socket_path: PathBuf::from("/socket"),
         };
 
         let config = TestConfig;

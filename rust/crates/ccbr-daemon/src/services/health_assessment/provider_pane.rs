@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/provider_pane.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/provider_pane.py`.
 
 use std::collections::HashMap;
 use std::path::PathBuf;

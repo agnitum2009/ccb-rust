@@ -29,7 +29,7 @@ fn test_maybe_spill_text_keeps_small_text_inline() {
 
     assert_eq!(body, "short body");
     assert!(artifact.is_none());
-    assert!(!layout.ccbd_text_artifacts_dir().exists());
+    assert!(!layout.ccbrd_text_artifacts_dir().exists());
 }
 
 #[test]

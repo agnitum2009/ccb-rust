@@ -1,9 +1,9 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/models.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/models.py`.
 //! 1:1 file alignment stub.
 
 use serde::{Deserialize, Serialize};
 
-/// Mirrors Python `lib/ccbd/services/project_namespace_state_runtime/models.py`.
+/// Mirrors Python `lib/ccbrd/services/project_namespace_state_runtime/models.py`.
 /// Placeholder: minimal fields used by `records.py`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectNamespaceState {
@@ -79,7 +79,7 @@ impl ProjectNamespaceState {
     }
 }
 
-/// Mirrors Python `lib/ccbd/services/project_namespace_state_runtime/models.py`.
+/// Mirrors Python `lib/ccbrd/services/project_namespace_state_runtime/models.py`.
 /// Placeholder: minimal fields used by `records.py`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectNamespaceEvent {

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/ensure_identity.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/ensure_identity.py`.
 
 use ccbr_terminal::identity::apply_ccbr_pane_identity;
 
@@ -92,12 +92,12 @@ pub fn apply_namespace_identity(
         None,
         None,
         Some(namespace_epoch),
-        Some("ccbd"),
+        Some("ccbrd"),
     );
     let _ = apply_project_tmux_ui(
         backend,
         tmux_socket_path,
-        Some(&controller.layout.ccbd_socket_path),
+        Some(&controller.layout.ccbrd_socket_path),
         tmux_session_name,
     );
 }

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_monitor_runtime/updates_runtime/rebind.py`.
+//! Mirrors Python `lib/ccbrd/services/health_monitor_runtime/updates_runtime/rebind.py`.
 
 use ccbr_agents::models::{AgentRuntime, AgentState};
 use ccbr_provider_core::session_binding::{session_ref, Session};

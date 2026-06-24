@@ -119,17 +119,17 @@ where
 
     if phase == "unmounted" {
         return Err(CcbdServiceError(
-            "project ccbd is unmounted; run `ccb` first".to_string(),
+            "project ccbrd is unmounted; run `ccb` first".to_string(),
         ));
     }
     if phase == "starting" {
         return Err(CcbdServiceError(
-            "project ccbd is starting; wait for keeper to finish startup".to_string(),
+            "project ccbrd is starting; wait for keeper to finish startup".to_string(),
         ));
     }
     if phase == "stopping" {
         return Err(CcbdServiceError(
-            "project ccbd is stopping; wait for shutdown to finish".to_string(),
+            "project ccbrd is stopping; wait for shutdown to finish".to_string(),
         ));
     }
     if phase == "mounted"
@@ -155,7 +155,7 @@ where
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
         return Err(CcbdServiceError(format!(
-            "ccbd is unavailable: {}; lifecycle_failure: {}",
+            "ccbrd is unavailable: {}; lifecycle_failure: {}",
             reason, failure_reason
         )));
     }
@@ -164,7 +164,10 @@ where
         .get("reason")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown");
-    Err(CcbdServiceError(format!("ccbd is unavailable: {}", reason)))
+    Err(CcbdServiceError(format!(
+        "ccbrd is unavailable: {}",
+        reason
+    )))
 }
 
 /// Check if should wait for or recover daemon state.
@@ -352,7 +355,7 @@ mod tests {
         };
         let connect = |_current: &Value, _inspection: &Value, _restart: bool| {
             Some(DaemonHandle {
-                client: Some(json!({"client": "ccbd"})),
+                client: Some(json!({"client": "ccbrd"})),
                 inspection: Value::Null,
                 started: false,
             })

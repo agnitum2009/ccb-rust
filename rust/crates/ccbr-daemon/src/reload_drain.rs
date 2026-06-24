@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_drain.py`.
+//! Mirrors Python `lib/ccbrd/reload_drain.py`.
 
 use crate::models::api_models::common::SCHEMA_VERSION;
 use ccbr_storage::json::JsonStore;
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
-const QUEUE_RECORD_TYPE: &str = "ccbd_reload_drain_queue";
+const QUEUE_RECORD_TYPE: &str = "ccbrd_reload_drain_queue";
 const INTENT_KINDS: &[&str] = &["unload", "replace"];
 const PHASES: &[&str] = &[
     "pending_unload",
@@ -569,7 +569,7 @@ impl DrainQueueStore {
     }
 
     pub fn load(&self) -> Result<DrainQueue, crate::DaemonError> {
-        let path = self.layout.ccbd_reload_drain_path();
+        let path = self.layout.ccbrd_reload_drain_path();
         if !path.exists() {
             return Ok(DrainQueue::empty(Some(self.bounds.clone())));
         }
@@ -582,7 +582,7 @@ impl DrainQueueStore {
     }
 
     pub fn save(&self, queue: &DrainQueue) -> Result<(), crate::DaemonError> {
-        let path = self.layout.ccbd_reload_drain_path();
+        let path = self.layout.ccbrd_reload_drain_path();
         self.store.save(&path, &queue.to_record())?;
         Ok(())
     }

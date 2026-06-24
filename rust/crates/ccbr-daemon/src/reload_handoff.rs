@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_handoff.py`.
+//! Mirrors Python `lib/ccbrd/reload_handoff.py`.
 
 use crate::app::CcbdApp;
 use ccbr_storage::json::JsonStore;
@@ -6,7 +6,7 @@ use ccbr_storage::paths::PathLayout;
 use serde::{Deserialize, Serialize};
 
 pub const RELOAD_HANDOFF_TTL_S: f64 = 60.0;
-const RECORD_TYPE: &str = "ccbd_reload_handoff";
+const RECORD_TYPE: &str = "ccbrd_reload_handoff";
 
 /// An in-progress reload handoff record.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,7 +161,7 @@ impl ReloadHandoffStore {
     }
 
     pub fn load(&self) -> Result<Option<ReloadHandoff>, crate::DaemonError> {
-        let path = self.layout.ccbd_reload_handoff_path();
+        let path = self.layout.ccbrd_reload_handoff_path();
         if !path.exists() {
             return Ok(None);
         }
@@ -174,13 +174,13 @@ impl ReloadHandoffStore {
     }
 
     pub fn save(&self, handoff: &ReloadHandoff) -> Result<(), crate::DaemonError> {
-        let path = self.layout.ccbd_reload_handoff_path();
+        let path = self.layout.ccbrd_reload_handoff_path();
         self.store.save(&path, &handoff.to_record())?;
         Ok(())
     }
 
     pub fn clear(&self) -> Result<(), crate::DaemonError> {
-        let path = self.layout.ccbd_reload_handoff_path();
+        let path = self.layout.ccbrd_reload_handoff_path();
         if path.exists() {
             std::fs::remove_file(&path)?;
         }

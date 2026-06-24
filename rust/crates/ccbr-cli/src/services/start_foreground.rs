@@ -63,12 +63,12 @@ pub trait AttachClient: Send + Sync {
     fn with_timeout(&self, timeout_s: f64) -> Box<dyn AttachClient>;
 }
 
-impl AttachClient for crate::ccbd::CcbdClient {
+impl AttachClient for crate::ccbrd::CcbdClient {
     fn ping(&self, target: &str) -> Result<serde_json::Value, String> {
-        crate::ccbd::CcbdClient::ping(self, target).map_err(|e| e.to_string())
+        crate::ccbrd::CcbdClient::ping(self, target).map_err(|e| e.to_string())
     }
     fn with_timeout(&self, timeout_s: f64) -> Box<dyn AttachClient> {
-        Box::new(crate::ccbd::CcbdClient::with_timeout(self, timeout_s))
+        Box::new(crate::ccbrd::CcbdClient::with_timeout(self, timeout_s))
     }
 }
 
@@ -284,9 +284,9 @@ where
 fn build_foreground_attach_client(
     context: &CliContext,
     _runtime: &dyn AttachRuntime,
-) -> Result<crate::ccbd::CcbdClient, ForegroundAttachError> {
+) -> Result<crate::ccbrd::CcbdClient, ForegroundAttachError> {
     Ok(
-        crate::ccbd::CcbdClient::new(context.paths.ccbd_socket_path())
+        crate::ccbrd::CcbdClient::new(context.paths.ccbrd_socket_path())
             .with_timeout(foreground_attach_rpc_timeout_s()),
     )
 }
@@ -325,7 +325,7 @@ fn wait_for_attach_target<C: AttachClient>(
         }
         let attempt_timeout_s = foreground_attach_rpc_timeout_s().min(remaining_s);
         attempts += 1;
-        match client.with_timeout(attempt_timeout_s).ping("ccbd") {
+        match client.with_timeout(attempt_timeout_s).ping("ccbrd") {
             Ok(payload) => {
                 ping_successes += 1;
                 let (ready, error) = attach_target_ready(&payload, env, runtime)?;
@@ -434,7 +434,7 @@ fn attach_ping_timeout_error(
         detail
     };
     format!(
-        "foreground attach timed out: ccbd did not respond to ping within {:.1}s after successful `ccb` start (rpc_timeout={:.1}s, attempts={}, last_error={})",
+        "foreground attach timed out: ccbrd did not respond to ping within {:.1}s after successful `ccb` start (rpc_timeout={:.1}s, attempts={}, last_error={})",
         timeout_s, rpc_timeout_s, attempts, detail
     )
 }
@@ -452,7 +452,7 @@ fn attach_namespace_timeout_error(
         detail
     };
     format!(
-        "foreground attach timed out: ccbd is responsive but project namespace was not attachable within {:.1}s after successful `ccb` start (attempts={}, ping_successes={}, last_error={})",
+        "foreground attach timed out: ccbrd is responsive but project namespace was not attachable within {:.1}s after successful `ccb` start (attempts={}, ping_successes={}, last_error={})",
         timeout_s, attempts, ping_successes, detail
     )
 }
@@ -596,7 +596,7 @@ fn best_effort_stop_backend_after_namespace_exit(
     _runtime: &dyn AttachRuntime,
 ) {
     crate::services::daemon::record_shutdown_intent(context, "foreground_session_exit");
-    let _ = crate::ccbd::CcbdClient::new(context.paths.ccbd_socket_path())
+    let _ = crate::ccbrd::CcbdClient::new(context.paths.ccbrd_socket_path())
         .with_timeout(foreground_attach_rpc_timeout_s())
         .request("stop-all", &serde_json::json!({"force": false}));
 }
@@ -731,7 +731,7 @@ mod tests {
 
     impl AttachClient for FakeClient {
         fn ping(&self, target: &str) -> Result<serde_json::Value, String> {
-            assert_eq!(target, "ccbd");
+            assert_eq!(target, "ccbrd");
             self.responses.lock().unwrap().remove(0)
         }
         fn with_timeout(&self, _timeout_s: f64) -> Box<dyn AttachClient> {
@@ -780,9 +780,9 @@ mod tests {
         let runtime = FakeRuntime::default();
         runtime.advance(0.0);
 
-        let socket_path = context.paths.ccbd_tmux_socket_path().to_string();
-        let session_name = context.paths.ccbd_tmux_session_name();
-        let workspace_window = context.paths.ccbd_tmux_workspace_window_name();
+        let socket_path = context.paths.ccbrd_tmux_socket_path().to_string();
+        let session_name = context.paths.ccbrd_tmux_session_name();
+        let workspace_window = context.paths.ccbrd_tmux_workspace_window_name();
 
         runtime.run_responses.lock().unwrap().insert(
             format!("tmux -S {socket_path} has-session -t {session_name}"),

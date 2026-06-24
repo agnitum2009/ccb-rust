@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/ensure_context.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/ensure_context.py`.
 //! 1:1 file alignment stub.
 
 use std::path::PathBuf;
@@ -53,8 +53,8 @@ pub fn desired_namespace_state(
     layout_signature: Option<&str>,
     topology_plan: Option<&TopologyPlan>,
 ) -> (String, String, Option<String>, String, String) {
-    let desired_socket_path = controller.layout.ccbd_tmux_socket_path.clone();
-    let desired_session_name = controller.layout.ccbd_tmux_session_name.clone();
+    let desired_socket_path = controller.layout.ccbrd_tmux_socket_path.clone();
+    let desired_session_name = controller.layout.ccbrd_tmux_session_name.clone();
 
     let topology_signature = topology_plan
         .and_then(|p| p.signature.as_ref())
@@ -62,7 +62,7 @@ pub fn desired_namespace_state(
     let layout_sig = topology_signature.unwrap_or(layout_signature.unwrap_or(""));
     let desired_layout_signature = normalized_layout_signature(Some(layout_sig));
 
-    let desired_control_window_name = controller.layout.ccbd_tmux_control_window_name.clone();
+    let desired_control_window_name = controller.layout.ccbrd_tmux_control_window_name.clone();
 
     let desired_workspace_window_name = topology_plan
         .and_then(|p| {
@@ -73,7 +73,7 @@ pub fn desired_namespace_state(
                 Some(entry.to_string())
             }
         })
-        .unwrap_or_else(|| controller.layout.ccbd_tmux_workspace_window_name.clone());
+        .unwrap_or_else(|| controller.layout.ccbrd_tmux_workspace_window_name.clone());
 
     (
         desired_socket_path,
@@ -167,12 +167,12 @@ pub struct NamespaceController {
 #[derive(Debug, Clone)]
 pub struct LayoutConfig {
     pub project_root: String,
-    pub ccbd_dir: PathBuf,
-    pub ccbd_socket_path: String,
-    pub ccbd_tmux_socket_path: String,
-    pub ccbd_tmux_session_name: String,
-    pub ccbd_tmux_control_window_name: String,
-    pub ccbd_tmux_workspace_window_name: String,
+    pub ccbrd_dir: PathBuf,
+    pub ccbrd_socket_path: String,
+    pub ccbrd_tmux_socket_path: String,
+    pub ccbrd_tmux_session_name: String,
+    pub ccbrd_tmux_control_window_name: String,
+    pub ccbrd_tmux_workspace_window_name: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -263,12 +263,12 @@ mod tests {
     fn test_layout() -> LayoutConfig {
         LayoutConfig {
             project_root: "/tmp/ccbr-test".to_string(),
-            ccbd_dir: PathBuf::from("/tmp/ccbr-test/.ccbr"),
-            ccbd_socket_path: "/tmp/ccbr-test/.ccbr/ccbd.sock".to_string(),
-            ccbd_tmux_socket_path: "/tmp/ccbr-test/.ccbr/tmux.sock".to_string(),
-            ccbd_tmux_session_name: "ccbr-test".to_string(),
-            ccbd_tmux_control_window_name: "control".to_string(),
-            ccbd_tmux_workspace_window_name: "workspace".to_string(),
+            ccbrd_dir: PathBuf::from("/tmp/ccbr-test/.ccbr"),
+            ccbrd_socket_path: "/tmp/ccbr-test/.ccbr/ccbrd.sock".to_string(),
+            ccbrd_tmux_socket_path: "/tmp/ccbr-test/.ccbr/tmux.sock".to_string(),
+            ccbrd_tmux_session_name: "ccbr-test".to_string(),
+            ccbrd_tmux_control_window_name: "control".to_string(),
+            ccbrd_tmux_workspace_window_name: "workspace".to_string(),
         }
     }
 

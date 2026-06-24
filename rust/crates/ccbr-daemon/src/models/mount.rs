@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CcbdLease {
     pub project_id: String,
-    pub ccbd_pid: u32,
+    pub ccbrd_pid: u32,
     pub socket_path: String,
     pub owner_uid: u32,
     pub boot_id: String,
@@ -43,10 +43,10 @@ impl CcbdLease {
     pub fn to_record(&self) -> serde_json::Value {
         serde_json::json!({
             "schema_version": SCHEMA_VERSION,
-            "record_type": "ccbd_lease",
+            "record_type": "ccbrd_lease",
             "api_version": self.api_version,
             "project_id": self.project_id,
-            "ccbd_pid": self.ccbd_pid,
+            "ccbrd_pid": self.ccbrd_pid,
             "socket_path": self.socket_path,
             "owner_uid": self.owner_uid,
             "boot_id": self.boot_id,

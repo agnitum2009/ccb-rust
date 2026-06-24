@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/submission_service.py`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/submission_service.py`.
 //!
 //! This is a 1:1 alignment stub.  It provides the public planning helpers used
 //! by the `/ask` submission path and keeps all heavy dispatcher dependencies

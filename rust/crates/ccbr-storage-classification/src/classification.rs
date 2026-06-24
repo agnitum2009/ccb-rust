@@ -70,7 +70,7 @@ impl StorageEntry {
     }
 }
 
-const CCBD_AUTHORITY_FILES: &[&str] = &[
+const CCBRD_AUTHORITY_FILES: &[&str] = &[
     "keeper.json",
     "lease.json",
     "lifecycle.json",
@@ -82,7 +82,7 @@ const CCBD_AUTHORITY_FILES: &[&str] = &[
     "state.json",
 ];
 
-const CCBD_RUNTIME_DIRS: &[&str] = &["heartbeats", "leases", "cursors"];
+const CCBRD_RUNTIME_DIRS: &[&str] = &["heartbeats", "leases", "cursors"];
 
 const AGENT_AUTHORITY_FILES: &[&str] = &[
     "agent.json",
@@ -313,8 +313,8 @@ fn classify_relative(
             None,
         ));
     }
-    if parts.len() >= 2 && parts[0] == "ccbd" {
-        return Ok(classify_ccbd(path, relative_path, &parts, size, root_kind));
+    if parts.len() >= 2 && parts[0] == "ccbrd" {
+        return Ok(classify_ccbrd(path, relative_path, &parts, size, root_kind));
     }
     if parts.len() >= 3 && parts[0] == "agents" {
         return Ok(classify_agent(path, relative_path, &parts, size, root_kind));
@@ -450,7 +450,7 @@ fn classify_relative(
     ))
 }
 
-fn classify_ccbd(
+fn classify_ccbrd(
     path: &Utf8Path,
     relative_path: &str,
     parts: &[&str],
@@ -459,7 +459,7 @@ fn classify_ccbd(
 ) -> StorageEntry {
     let name = parts[parts.len() - 1];
     let top = parts[1];
-    if parts.len() == 2 && CCBD_AUTHORITY_FILES.contains(&name) {
+    if parts.len() == 2 && CCBRD_AUTHORITY_FILES.contains(&name) {
         return entry(
             path,
             relative_path,
@@ -475,7 +475,7 @@ fn classify_ccbd(
             None,
         );
     }
-    if CCBD_RUNTIME_DIRS.contains(&top)
+    if CCBRD_RUNTIME_DIRS.contains(&top)
         || name.ends_with(".pid")
         || name.ends_with(".sock")
         || name.ends_with(".lock")
@@ -533,7 +533,7 @@ fn classify_ccbd(
             None,
             None,
             None,
-            Some("ccbd_event_log".into()),
+            Some("ccbrd_event_log".into()),
         );
     }
     if name.ends_with(".json") {

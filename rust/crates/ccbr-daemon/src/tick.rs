@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/job_heartbeat_runtime/tick.py`.
+//! Mirrors Python `lib/ccbrd/services/job_heartbeat_runtime/tick.py`.
 //! 1:1 file alignment stub.
 
 use std::collections::HashMap;

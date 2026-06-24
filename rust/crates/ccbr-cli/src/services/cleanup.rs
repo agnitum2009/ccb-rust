@@ -85,7 +85,7 @@ pub fn cleanup_project_storage_with<I: DaemonInspector>(
     _command: &Value,
     inspector: &I,
 ) -> Result<CleanupSummary> {
-    let lock_path = context.paths.ccbd_dir().join("startup.lock");
+    let lock_path = context.paths.ccbrd_dir().join("startup.lock");
     let _lock = FileLock::acquire(&lock_path)?;
 
     _require_stopped_backend(context, inspector)?;
@@ -116,15 +116,15 @@ pub fn cleanup_project_storage_with<I: DaemonInspector>(
 fn _require_stopped_backend(context: &CliContext, inspector: &impl DaemonInspector) -> Result<()> {
     let inspection = inspector.inspect_daemon(context)?;
     if inspection.pid_alive || inspection.socket_connectable {
-        bail!("ccb cleanup requires stopped ccbd; run `ccb kill` first");
+        bail!("ccb cleanup requires stopped ccbrd; run `ccb kill` first");
     }
     let phase = inspection.phase.trim();
     if !phase.is_empty() && phase != "unmounted" && phase != "failed" {
-        bail!("ccb cleanup requires stopped ccbd; current phase={phase}");
+        bail!("ccb cleanup requires stopped ccbrd; current phase={phase}");
     }
     let desired = inspection.desired_state.trim();
     if !desired.is_empty() && desired != "stopped" {
-        bail!("ccb cleanup requires stopped ccbd; desired_state={desired}");
+        bail!("ccb cleanup requires stopped ccbrd; desired_state={desired}");
     }
     Ok(())
 }
@@ -158,7 +158,7 @@ fn _require_no_pending_jobs(context: &CliContext) -> Result<()> {
 
 fn _pending_job_count(layout: &ccbr_storage::paths::PathLayout) -> Result<u64> {
     let mut count: u64 = 0;
-    let roots = [layout.agents_dir(), layout.ccbd_dir().join("targets")];
+    let roots = [layout.agents_dir(), layout.ccbrd_dir().join("targets")];
     for root in roots {
         if !root.exists() {
             continue;

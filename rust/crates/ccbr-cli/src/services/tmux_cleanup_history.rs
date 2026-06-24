@@ -54,7 +54,7 @@ impl TmuxCleanupHistoryStore {
     pub fn append(&self, event: &TmuxCleanupEvent) -> anyhow::Result<()> {
         self.store
             .append(
-                &self.paths.ccbd_tmux_cleanup_history_path(),
+                &self.paths.ccbrd_tmux_cleanup_history_path(),
                 &event.to_record(),
             )
             .map_err(|e| anyhow::anyhow!("failed to append tmux cleanup event: {e}"))
@@ -63,7 +63,7 @@ impl TmuxCleanupHistoryStore {
     pub fn load_latest(&self) -> anyhow::Result<Option<TmuxCleanupEvent>> {
         let rows: Vec<serde_json::Value> = self
             .store
-            .read_all(&self.paths.ccbd_tmux_cleanup_history_path())
+            .read_all(&self.paths.ccbrd_tmux_cleanup_history_path())
             .map_err(|e| anyhow::anyhow!("failed to read tmux cleanup history: {e}"))?;
         Ok(rows
             .into_iter()

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/socket_client_runtime/errors.py`.
+//! Mirrors Python `lib/ccbrd/socket_client_runtime/errors.py`.
 
 use std::io;
 

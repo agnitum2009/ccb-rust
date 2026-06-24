@@ -10,7 +10,7 @@ pub mod backend;
 pub mod binding_state;
 pub mod bundle;
 pub mod cancel;
-pub mod ccbd;
+pub mod ccbrd;
 pub mod claude_home_cleanup;
 pub mod cleanup;
 pub mod clear;

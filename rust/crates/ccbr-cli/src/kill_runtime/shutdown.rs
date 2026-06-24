@@ -15,7 +15,7 @@ use crate::services::daemon_runtime::shutdown::shutdown_daemon as shutdown_daemo
 /// Shutdown the project's daemon using local state and best-effort process
 /// termination. Mirrors Python `shutdown_daemon(context, *, force)`.
 pub fn shutdown_daemon(context: &CliContext, force: bool) -> anyhow::Result<KillSummary> {
-    let socket_path = context.paths.ccbd_socket_path().into_std_path_buf();
+    let socket_path = context.paths.ccbrd_socket_path().into_std_path_buf();
     let project_id = context.project.project_id.clone();
     let paths = context.paths.clone();
     let paths_for_finalize = paths.clone();
@@ -38,7 +38,7 @@ pub fn shutdown_daemon(context: &CliContext, force: bool) -> anyhow::Result<Kill
             // daemons are handled via `await_remote_shutdown`.
             Value::Null
         },
-        |lease| expected_pid(lease, "ccbd_pid"),
+        |lease| expected_pid(lease, "ccbrd_pid"),
         |lease| expected_pid(lease, "keeper_pid"),
         |pid, timeout| wait_for_pid_exit(pid, timeout, &is_pid_alive),
         |_timeout| true,
@@ -54,8 +54,8 @@ pub fn shutdown_daemon(context: &CliContext, force: bool) -> anyhow::Result<Kill
 
 fn record_shutdown_intent_with_pid(context: &CliContext, reason: &str, requested_by_pid: u32) {
     let store = JsonStore::new();
-    let lifecycle_path = context.paths.ccbd_lifecycle_path();
-    let shutdown_path = context.paths.ccbd_shutdown_intent_path();
+    let lifecycle_path = context.paths.ccbrd_lifecycle_path();
+    let shutdown_path = context.paths.ccbrd_shutdown_intent_path();
     let project_id = context.project.project_id.clone();
 
     crate::services::daemon_runtime::keeper::record_shutdown_intent(
@@ -74,7 +74,7 @@ fn record_shutdown_intent_with_pid(context: &CliContext, reason: &str, requested
 
 fn finalize_shutdown_lifecycle(paths: &ccbr_storage::paths::PathLayout, _socket_path: &Path) {
     let store = JsonStore::new();
-    let lifecycle_path = paths.ccbd_lifecycle_path();
+    let lifecycle_path = paths.ccbrd_lifecycle_path();
     let mut current = match store.load::<Value>(&lifecycle_path) {
         Ok(v) => v,
         Err(_) => Value::Object(Map::new()),
@@ -93,14 +93,14 @@ fn finalize_shutdown_lifecycle(paths: &ccbr_storage::paths::PathLayout, _socket_
 fn inspect_daemon(paths: &ccbr_storage::paths::PathLayout) -> (Value, Value, Value) {
     let store = JsonStore::new();
     let lifecycle: Value = store
-        .load(&paths.ccbd_lifecycle_path())
+        .load(&paths.ccbrd_lifecycle_path())
         .unwrap_or(Value::Null);
-    let lease: Value = store.load(&paths.ccbd_lease_path()).unwrap_or(Value::Null);
+    let lease: Value = store.load(&paths.ccbrd_lease_path()).unwrap_or(Value::Null);
 
-    let socket_path = paths.ccbd_socket_path();
+    let socket_path = paths.ccbrd_socket_path();
     let socket_connectable = socket_path.exists();
 
-    let daemon_pid = expected_pid(&lease, "ccbd_pid");
+    let daemon_pid = expected_pid(&lease, "ccbrd_pid");
     let pid_alive = daemon_pid > 0 && is_pid_alive(daemon_pid);
 
     let phase = lifecycle
@@ -154,7 +154,7 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let paths = make_paths(&tmp);
 
-        let lifecycle_path = paths.ccbd_lifecycle_path();
+        let lifecycle_path = paths.ccbrd_lifecycle_path();
         std::fs::create_dir_all(lifecycle_path.parent().unwrap().as_std_path()).unwrap();
         std::fs::write(
             lifecycle_path.as_std_path(),

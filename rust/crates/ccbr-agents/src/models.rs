@@ -1412,7 +1412,7 @@ fn default_binding_generation() -> u32 {
     1
 }
 fn default_managed_by() -> String {
-    "ccbd".into()
+    "ccbrd".into()
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

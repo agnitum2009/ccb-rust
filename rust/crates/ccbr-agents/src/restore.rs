@@ -1,6 +1,6 @@
 //! Restore-state construction.
 //!
-//! Mirrors `lib/ccbd/start_runtime/restore.py`.
+//! Mirrors `lib/ccbrd/start_runtime/restore.py`.
 
 use crate::models::{AgentRestoreState, RestoreMode, RestoreStatus};
 

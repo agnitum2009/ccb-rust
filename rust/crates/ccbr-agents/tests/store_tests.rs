@@ -143,7 +143,7 @@ fn test_agent_stores_full_field_roundtrip() {
         project_id: "proj-1".into(),
         backend_type: "tmux".into(),
         queue_depth: 0,
-        socket_path: Some("/sock/ccbd.sock".into()),
+        socket_path: Some("/sock/ccbrd.sock".into()),
         health: "healthy".into(),
         tmux_window_name: Some("main".into()),
         tmux_window_id: Some("@1".into()),

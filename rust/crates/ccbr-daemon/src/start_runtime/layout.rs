@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_runtime/layout.py`.
+//! Mirrors Python `lib/ccbrd/start_runtime/layout.py`.
 
 use std::path::Path;
 

@@ -18,7 +18,7 @@ pub fn mark_inspected_lease_unmounted(inspection: &Value) {
 /// Mirrors Python `_expected_pid(lease)`.
 fn _expected_pid(lease: Option<&Value>) -> Option<i64> {
     let lease = lease?;
-    let pid_val = lease.get("ccbd_pid").and_then(|v| v.as_i64()).unwrap_or(0);
+    let pid_val = lease.get("ccbrd_pid").and_then(|v| v.as_i64()).unwrap_or(0);
     if pid_val <= 0 {
         None
     } else {

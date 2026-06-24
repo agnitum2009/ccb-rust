@@ -1,4 +1,4 @@
-//! Mirrors Python `test/test_ccbd_health_assessment_provider_pane.py`.
+//! Mirrors Python `test/test_ccbrd_health_assessment_provider_pane.py`.
 
 use ccbr_daemon::services::health_assessment::models::SessionBinding;
 use ccbr_daemon::services::health_assessment::provider_pane::{
@@ -96,7 +96,7 @@ impl SessionBackend for FakeBackend {
         options.insert("@ccbr_role".to_string(), "agent".to_string());
         options.insert("@ccbr_slot".to_string(), "agent1".to_string());
         options.insert("@ccbr_window".to_string(), "main".to_string());
-        options.insert("@ccbr_managed_by".to_string(), "ccbd".to_string());
+        options.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
         if !self.owned {
             // Make the record not match by changing the project id.
             options.insert("@ccbr_project_id".to_string(), "other-proj".to_string());

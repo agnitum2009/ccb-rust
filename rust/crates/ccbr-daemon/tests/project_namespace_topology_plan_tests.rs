@@ -61,7 +61,7 @@ fn test_build_topology_plan_with_sidebar() {
         sidebar.launch_args,
         vec![
             "ccbr-agent-sidebar",
-            "--ccbd-socket",
+            "--ccbrd-socket",
             "/tmp/ccb.sock",
             "--project-root",
             "/tmp/repo",

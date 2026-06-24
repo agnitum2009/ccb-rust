@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_runtime_mount_models.py`.
+//! Mirrors Python `lib/ccbrd/reload_runtime_mount_models.py`.
 //! 1:1 file alignment stub.
 
 use serde::{Deserialize, Serialize};

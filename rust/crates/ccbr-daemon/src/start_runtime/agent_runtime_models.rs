@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_runtime/agent_runtime_models.py`.
+//! Mirrors Python `lib/ccbrd/start_runtime/agent_runtime_models.py`.
 
 #![allow(clippy::too_many_arguments)]
 

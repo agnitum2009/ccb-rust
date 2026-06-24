@@ -89,7 +89,7 @@ fn proc_pid_state_at_reads_uninterruptible_state() {
 }
 
 #[test]
-fn collect_project_process_candidates_finds_ccbd_project_arg() {
+fn collect_project_process_candidates_finds_ccbrd_project_arg() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-control-plane-scan");
     std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
@@ -102,14 +102,14 @@ fn collect_project_process_candidates_finds_ccbd_project_arg() {
         (
             101,
             format!(
-                "/usr/bin/python /opt/ccb/lib/ccbd/main.py --project {}",
+                "/usr/bin/python /opt/ccb/lib/ccbrd/main.py --project {}",
                 project_root.display()
             ),
         ),
         (
             102,
             format!(
-                "/usr/bin/python /opt/ccb/lib/ccbd/main.py --project {}",
+                "/usr/bin/python /opt/ccb/lib/ccbrd/main.py --project {}",
                 tmp.path().join("other").display()
             ),
         ),
@@ -126,16 +126,16 @@ fn collect_project_process_candidates_finds_ccbd_project_arg() {
 
     assert_eq!(candidates.len(), 1);
     assert!(candidates.contains_key(&101));
-    assert!(candidates[&101].contains(&project_root.join(".ccbr").join("ccbd")));
+    assert!(candidates[&101].contains(&project_root.join(".ccbr").join("ccbrd")));
 }
 
 #[test]
 fn collect_project_authority_pid_candidates_reads_lifecycle() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp.path().join("repo-authority-lifecycle");
-    let ccbd_dir = project_root.join(".ccbr").join("ccbd");
-    std::fs::create_dir_all(&ccbd_dir).unwrap();
-    let lifecycle_path = ccbd_dir.join("lifecycle.json");
+    let ccbrd_dir = project_root.join(".ccbr").join("ccbrd");
+    std::fs::create_dir_all(&ccbrd_dir).unwrap();
+    let lifecycle_path = ccbrd_dir.join("lifecycle.json");
     std::fs::write(
         &lifecycle_path,
         serde_json::json!({"owner_pid": 321, "keeper_pid": 654}).to_string(),

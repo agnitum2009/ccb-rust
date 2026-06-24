@@ -82,7 +82,7 @@ impl PathLayout {
     // --- Agent mailbox paths ---
 
     pub fn agent_mailbox_dir(&self, agent_name: &str) -> Utf8PathBuf {
-        self.ccbd_mailboxes_dir().join(
+        self.ccbrd_mailboxes_dir().join(
             normalize_mailbox_owner_name(agent_name).unwrap_or_else(|_| agent_name.to_lowercase()),
         )
     }
@@ -100,7 +100,7 @@ impl PathLayout {
     }
 
     pub fn mailbox_lease_path(&self, agent_name: &str) -> Utf8PathBuf {
-        self.ccbd_leases_dir().join(format!(
+        self.ccbrd_leases_dir().join(format!(
             "{}.json",
             normalize_mailbox_owner_name(agent_name).unwrap_or_else(|_| agent_name.to_lowercase())
         ))
@@ -154,7 +154,7 @@ mod tests {
         let layout = PathLayout::new("/project");
         assert_eq!(
             layout.agent_mailbox_path("Agent1"),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/mailboxes/agent1/mailbox.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/mailboxes/agent1/mailbox.json")
         );
     }
 }

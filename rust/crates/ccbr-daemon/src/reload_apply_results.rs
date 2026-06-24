@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_apply_results.py`.
+//! Mirrors Python `lib/ccbrd/reload_apply_results.py`.
 
 use crate::reload_apply_models::AdditiveReloadApplyResult;
 use serde_json::Value;

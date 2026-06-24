@@ -57,8 +57,8 @@ fn test_cli_ping_daemon() {
     let dir = TempDir::new().unwrap();
     let (server, handle, _socket) = spawn_daemon(&dir);
 
-    let code = run(&["--project", dir.path().to_str().unwrap(), "ping", "ccbd"]);
-    assert_eq!(code, 0, "ping ccbd should succeed");
+    let code = run(&["--project", dir.path().to_str().unwrap(), "ping", "ccbrd"]);
+    assert_eq!(code, 0, "ping ccbrd should succeed");
 
     server.shutdown();
     handle.join().unwrap();
@@ -113,7 +113,7 @@ fn test_cli_ask_submission() {
     assert_eq!(ask_code, 0, "ask should succeed");
 
     // Clean up the real tmux server created by the daemon.
-    let tmux_sock = dir.path().join(".ccbr").join("ccbd").join("tmux.sock");
+    let tmux_sock = dir.path().join(".ccbr").join("ccbrd").join("tmux.sock");
     if tmux_sock.exists() {
         let _ = std::process::Command::new("tmux")
             .args(["-S", tmux_sock.to_str().unwrap(), "kill-server"])
@@ -240,9 +240,9 @@ fn test_cli_watch_wait_maintenance() {
         "watch should succeed"
     );
     assert_eq!(
-        run(&["--project", project, "wait", "ccbd"]),
+        run(&["--project", project, "wait", "ccbrd"]),
         0,
-        "wait ccbd should succeed"
+        "wait ccbrd should succeed"
     );
     assert_eq!(
         run(&["--project", project, "maintenance", "status"]),
@@ -348,7 +348,7 @@ main = "codex:codex"
     );
 
     // Clean up the real tmux server created by the daemon.
-    let tmux_sock = dir.path().join(".ccbr").join("ccbd").join("tmux.sock");
+    let tmux_sock = dir.path().join(".ccbr").join("ccbrd").join("tmux.sock");
     if tmux_sock.exists() {
         let _ = std::process::Command::new("tmux")
             .args(["-S", tmux_sock.to_str().unwrap(), "kill-server"])

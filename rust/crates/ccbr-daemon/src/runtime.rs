@@ -1,22 +1,22 @@
-//! Mirrors Python `lib/ccbd/runtime.py`.
+//! Mirrors Python `lib/ccbrd/runtime.py`.
 //! Daemon runtime utilities (work dir, log path, tokens).
 
 use std::path::PathBuf;
 
 pub fn get_daemon_work_dir(layout: &ccbr_storage::paths::PathLayout) -> PathBuf {
-    layout.ccbd_dir().to_path_buf()
+    layout.ccbrd_dir().to_path_buf()
 }
 
 pub fn log_path(layout: &ccbr_storage::paths::PathLayout) -> PathBuf {
-    layout.ccbd_dir().join("ccbd.log")
+    layout.ccbrd_dir().join("ccbrd.log")
 }
 
 pub fn state_file_path(layout: &ccbr_storage::paths::PathLayout) -> PathBuf {
-    layout.ccbd_dir().join("state.json")
+    layout.ccbrd_dir().join("state.json")
 }
 
 pub fn run_dir(layout: &ccbr_storage::paths::PathLayout) -> PathBuf {
-    layout.ccbd_dir().join("run")
+    layout.ccbrd_dir().join("run")
 }
 
 pub fn normalize_connect_host(host: &str) -> String {

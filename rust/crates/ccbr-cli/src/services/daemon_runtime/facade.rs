@@ -1,7 +1,7 @@
 //! Mirrors Python `lib/cli/services/daemon_runtime/facade.py`.
 //!
 //! Thin facade that re-exports functions from other modules with policy defaults.
-//! All ccbd-specific operations are injected via closures.
+//! All ccbrd-specific operations are injected via closures.
 
 use crate::services::daemon_runtime::keeper;
 use crate::services::daemon_runtime::policy;
@@ -17,7 +17,7 @@ pub const START_TIMEOUT_S: f64 = 0.0; // Placeholder, calls policy at runtime
 ///
 /// Mirrors Python `incompatible_daemon_error()`.
 pub fn incompatible_daemon_error() -> String {
-    "mounted ccbd config does not match current .ccbr/ccbr.config".to_string()
+    "mounted ccbrd config does not match current .ccbr/ccbr.config".to_string()
 }
 
 /// Ensure keeper is started with default timeouts.
@@ -76,15 +76,15 @@ pub fn should_restart_unreachable_daemon(inspection: &serde_json::Value) -> bool
     processes::should_restart_unreachable_daemon(inspection)
 }
 
-/// Spawn ccbd process with default startup timeout.
+/// Spawn ccbrd process with default startup timeout.
 ///
-/// Mirrors Python `spawn_ccbd_process(context)`.
+/// Mirrors Python `spawn_ccbrd_process(context)`.
 /// Uses closure injection for spawn operation.
-pub fn spawn_ccbd_process<S>(
+pub fn spawn_ccbrd_process<S>(
     spawn_fn: S,
 ) -> Result<(), crate::services::daemon_runtime::models::CcbdServiceError>
 where
     S: Fn(f64) -> Result<(), String>,
 {
-    processes::spawn_ccbd(spawn_fn, policy::startup_transaction_timeout_s())
+    processes::spawn_ccbrd(spawn_fn, policy::startup_transaction_timeout_s())
 }

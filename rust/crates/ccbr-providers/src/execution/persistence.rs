@@ -175,9 +175,9 @@ fn execution_restore_capability(
         Some("provider_resume_unsupported")
     };
     let restore_detail = if resume_supported {
-        "provider execution can be resumed after ccbd restart"
+        "provider execution can be resumed after ccbrd restart"
     } else {
-        "provider execution cannot be resumed after ccbd restart and requires resubmission"
+        "provider execution cannot be resumed after ccbrd restart and requires resubmission"
     };
     serde_json::json!({
         "resume_supported": resume_supported,

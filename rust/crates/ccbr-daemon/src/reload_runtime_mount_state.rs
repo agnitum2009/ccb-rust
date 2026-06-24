@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_runtime_mount_state.py`.
+//! Mirrors Python `lib/ccbrd/reload_runtime_mount_state.py`.
 
 use crate::reload_runtime_mount_validation::AgentRecord;
 use std::collections::HashMap;

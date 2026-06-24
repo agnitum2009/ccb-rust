@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/runtime_runtime/attach.py`.
+//! Mirrors Python `lib/ccbrd/services/runtime_runtime/attach.py`.
 //! 1:1 file alignment stub.
 
 use ccbr_agents::models::{AgentRuntime, RuntimeBindingSource};
@@ -27,7 +27,7 @@ pub fn attach_runtime(
         binding_source: RuntimeBindingSource::ProviderSession,
         binding_generation: 1,
         runtime_generation: Some(1),
-        managed_by: "ccbd".to_string(),
+        managed_by: "ccbrd".to_string(),
         started_at: Some(timestamp.to_string()),
         last_seen_at: Some(timestamp.to_string()),
         queue_depth: 0,

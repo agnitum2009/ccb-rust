@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/mount_runtime/service.py`.
+//! Mirrors Python `lib/ccbrd/supervision/mount_runtime/service.py`.
 //!
 //! Main entry point: `ensure_mounted` orchestrates a single mount attempt for an
 //! agent, including backoff checks, state transitions, transient/fatal error

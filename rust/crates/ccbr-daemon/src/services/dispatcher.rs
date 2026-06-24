@@ -1582,7 +1582,7 @@ impl JobDispatcher {
     }
 
     /// Communications recovery entrypoint. Mirrors Python
-    /// `lib/ccbd/services/dispatcher_runtime/comms_recover.py::comms_recover`.
+    /// `lib/ccbrd/services/dispatcher_runtime/comms_recover.py::comms_recover`.
     ///
     /// **Slice 1 (noop paths).** Determines recoverability and returns `noop`
     /// for non-recoverable jobs: a RUNNING job whose agent runtime is healthy

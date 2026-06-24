@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/mount_runtime/`.
+//! Mirrors Python `lib/ccbrd/supervision/mount_runtime/`.
 
 pub mod events;
 pub mod failure;

@@ -293,7 +293,7 @@ fn test_record_reply_delivery_skips_non_mailbox_caller() {
     let decision = CompletionDecision::completed("done");
     facade.record_reply(&completed_job, &decision, &clock(), true);
 
-    assert!(!layout.ccbd_mailboxes_dir().join("user").exists());
+    assert!(!layout.ccbrd_mailboxes_dir().join("user").exists());
 }
 
 /// Mirrors Python `test_message_bureau_submission_fastpath.py::test_record_submission_does_not_refresh_mailbox`.

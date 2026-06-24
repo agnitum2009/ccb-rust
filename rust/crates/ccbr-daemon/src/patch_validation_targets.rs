@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/patch_validation_targets.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/patch_validation_targets.py`.
 //! Compute which (window, agent) pairs were removed during a reload.
 
 #![allow(dead_code)]

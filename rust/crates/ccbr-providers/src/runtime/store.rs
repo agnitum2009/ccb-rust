@@ -40,7 +40,7 @@ impl ProviderHealthSnapshotStore {
     }
 
     pub fn list_all(&self) -> Vec<ProviderHealthSnapshot> {
-        let directory = self.layout.ccbd_provider_health_dir();
+        let directory = self.layout.ccbrd_provider_health_dir();
         if !directory.exists() {
             return Vec::new();
         }

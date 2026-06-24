@@ -1,4 +1,4 @@
-//! Mirrors Python `test/test_ccbd_socket_client.py`.
+//! Mirrors Python `test/test_ccbrd_socket_client.py`.
 
 use std::cell::RefCell;
 use std::io::{self, BufRead, BufReader, ErrorKind, Read, Write};
@@ -19,37 +19,37 @@ use ccbr_daemon::socket_client_runtime::transport::{connect_socket, Socket};
 
 fn temp_socket_path() -> PathBuf {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("ccbd.sock");
+    let path = dir.path().join("ccbrd.sock");
     // Leak the tempdir handle so the directory stays alive for the test.
     Box::leak(Box::new(dir));
     path
 }
 
 #[test]
-fn test_ccbd_client_uses_stable_default_timeout() {
+fn test_ccbrd_client_uses_stable_default_timeout() {
     let client = CcbdClient::new(temp_socket_path());
     assert!((client.timeout_s() - 3.0).abs() < f64::EPSILON);
 }
 
 #[test]
-fn test_ccbd_client_reads_timeout_from_env() {
-    std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "4.5");
+fn test_ccbrd_client_reads_timeout_from_env() {
+    std::env::set_var("CCBR_CCBRD_CLIENT_TIMEOUT_S", "4.5");
     let client = CcbdClient::new(temp_socket_path());
     assert!((client.timeout_s() - 4.5).abs() < f64::EPSILON);
-    std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
+    std::env::remove_var("CCBR_CCBRD_CLIENT_TIMEOUT_S");
 }
 
 #[test]
-fn test_ccbd_client_explicit_timeout_overrides_env() {
-    std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "4.5");
+fn test_ccbrd_client_explicit_timeout_overrides_env() {
+    std::env::set_var("CCBR_CCBRD_CLIENT_TIMEOUT_S", "4.5");
     let client = CcbdClient::new(temp_socket_path()).with_timeout(0.2);
     assert!((client.timeout_s() - 0.2).abs() < f64::EPSILON);
-    std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
+    std::env::remove_var("CCBR_CCBRD_CLIENT_TIMEOUT_S");
 }
 
 #[test]
-fn test_ccbd_client_with_timeout_preserves_socket_path() {
-    std::env::set_var("CCBR_CCBD_CLIENT_TIMEOUT_S", "4.5");
+fn test_ccbrd_client_with_timeout_preserves_socket_path() {
+    std::env::set_var("CCBR_CCBRD_CLIENT_TIMEOUT_S", "4.5");
     let path = temp_socket_path();
     let client = CcbdClient::new(&path);
     let cloned = client.with_timeout(12.0);
@@ -58,7 +58,7 @@ fn test_ccbd_client_with_timeout_preserves_socket_path() {
     assert_eq!(cloned.socket_path(), path);
     assert!((cloned.timeout_s() - 12.0).abs() < f64::EPSILON);
     assert!((client.timeout_s() - 4.5).abs() < f64::EPSILON);
-    std::env::remove_var("CCBR_CCBD_CLIENT_TIMEOUT_S");
+    std::env::remove_var("CCBR_CCBRD_CLIENT_TIMEOUT_S");
 }
 
 struct TestEnvelope {
@@ -76,7 +76,7 @@ impl MessageEnvelope for TestEnvelope {
 }
 
 #[test]
-fn test_ccbd_client_dynamic_submit_endpoint_uses_request() {
+fn test_ccbrd_client_dynamic_submit_endpoint_uses_request() {
     let (path, _join, recorded) = echo_server(r#"{"ok": true, "payload": {"ok": true}}"#);
     let client = CcbdClient::new(&path);
 
@@ -93,7 +93,7 @@ fn test_ccbd_client_dynamic_submit_endpoint_uses_request() {
 }
 
 #[test]
-fn test_ccbd_client_dynamic_attach_endpoint_builds_payload() {
+fn test_ccbrd_client_dynamic_attach_endpoint_builds_payload() {
     let (path, _join, recorded) = echo_server(r#"{"ok": true, "payload": {"ok": true}}"#);
     let client = CcbdClient::new(&path);
 
@@ -139,7 +139,7 @@ fn test_ccbd_client_dynamic_attach_endpoint_builds_payload() {
 }
 
 #[test]
-fn test_ccbd_client_dynamic_shutdown_endpoint_uses_empty_payload() {
+fn test_ccbrd_client_dynamic_shutdown_endpoint_uses_empty_payload() {
     let (path, _join, recorded) = echo_server(r#"{"ok": true, "payload": {"ok": true}}"#);
     let client = CcbdClient::new(&path);
 
@@ -151,7 +151,7 @@ fn test_ccbd_client_dynamic_shutdown_endpoint_uses_empty_payload() {
 }
 
 #[test]
-fn test_ccbd_client_project_restart_panes_endpoint_uses_empty_payload() {
+fn test_ccbrd_client_project_restart_panes_endpoint_uses_empty_payload() {
     let (path, _join, recorded) = echo_server(r#"{"ok": true, "payload": {"ok": true}}"#);
     let client = CcbdClient::new(&path);
 
@@ -163,7 +163,7 @@ fn test_ccbd_client_project_restart_panes_endpoint_uses_empty_payload() {
 }
 
 #[test]
-fn test_ccbd_client_project_clear_context_endpoint_builds_payload() {
+fn test_ccbrd_client_project_clear_context_endpoint_builds_payload() {
     let (path, _join, recorded) = echo_server(r#"{"ok": true, "payload": {"ok": true}}"#);
     let client = CcbdClient::new(&path);
 
@@ -180,7 +180,7 @@ fn test_ccbd_client_project_clear_context_endpoint_builds_payload() {
 }
 
 #[test]
-fn test_ccbd_client_request_wraps_socket_connect_errors() {
+fn test_ccbrd_client_request_wraps_socket_connect_errors() {
     // Create a listener, capture its path, then drop it so the next connect
     // receives ECONNREFUSED.
     let path = temp_socket_path();

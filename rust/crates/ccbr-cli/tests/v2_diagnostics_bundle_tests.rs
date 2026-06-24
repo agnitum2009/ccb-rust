@@ -65,20 +65,20 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
 
     let context = build_context(project_root.clone());
 
-    fs::create_dir_all(context.paths.ccbd_dir().as_std_path()).unwrap();
+    fs::create_dir_all(context.paths.ccbrd_dir().as_std_path()).unwrap();
     fs::write(
-        context.paths.ccbd_state_path().as_std_path(),
-        "{\"record_type\":\"ccbd_project_namespace_state\"}\n",
+        context.paths.ccbrd_state_path().as_std_path(),
+        "{\"record_type\":\"ccbrd_project_namespace_state\"}\n",
     )
     .unwrap();
     fs::write(
-        context.paths.ccbd_start_policy_path().as_std_path(),
-        "{\"record_type\":\"ccbd_start_policy\"}\n",
+        context.paths.ccbrd_start_policy_path().as_std_path(),
+        "{\"record_type\":\"ccbrd_start_policy\"}\n",
     )
     .unwrap();
     fs::write(
-        context.paths.ccbd_lifecycle_log_path().as_std_path(),
-        "{\"record_type\":\"ccbd_project_namespace_event\"}\n",
+        context.paths.ccbrd_lifecycle_log_path().as_std_path(),
+        "{\"record_type\":\"ccbrd_project_namespace_event\"}\n",
     )
     .unwrap();
 
@@ -93,7 +93,7 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     )
     .unwrap();
 
-    let maintenance_status_path = context.paths.ccbd_maintenance_heartbeat_status_path();
+    let maintenance_status_path = context.paths.ccbrd_maintenance_heartbeat_status_path();
     fs::create_dir_all(maintenance_status_path.parent().unwrap()).unwrap();
     fs::write(
         maintenance_status_path.as_std_path(),
@@ -103,7 +103,7 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     fs::write(
         context
             .paths
-            .ccbd_maintenance_heartbeat_activations_path()
+            .ccbrd_maintenance_heartbeat_activations_path()
             .as_std_path(),
         "{\"record_type\":\"maintenance_heartbeat_activation\"}\n",
     )
@@ -111,14 +111,14 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
 
     let text_artifact_path = context
         .paths
-        .ccbd_text_artifacts_dir()
+        .ccbrd_text_artifacts_dir()
         .join("ask-request")
         .join("large.txt");
     fs::create_dir_all(text_artifact_path.parent().unwrap().as_std_path()).unwrap();
     fs::write(text_artifact_path.as_std_path(), "large ask body\n").unwrap();
 
     fs::write(
-        context.paths.ccbd_startup_report_path().as_std_path(),
+        context.paths.ccbrd_startup_report_path().as_std_path(),
         "{\"broken\":false}\n",
     )
     .unwrap();
@@ -130,8 +130,8 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     fs::write(
         context
             .paths
-            .ccbd_dir()
-            .join("ccbd.stdout.log")
+            .ccbrd_dir()
+            .join("ccbrd.stdout.log")
             .as_std_path(),
         log_lines,
     )
@@ -182,34 +182,31 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     assert!(summary.truncated_count >= 1);
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/state.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/state.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/start-policy.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/start-policy.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/lifecycle.jsonl"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/lifecycle.jsonl"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/heartbeats/job_progress/job_1.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/heartbeats/job_progress/job_1.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/maintenance-heartbeat/status.json"));
-    assert!(
-        entries
-            .iter()
-            .any(|e| e["archive_path"]
-                == "project/.ccbr/ccbd/maintenance-heartbeat/activations.jsonl")
-    );
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/maintenance-heartbeat/status.json"));
+    assert!(entries.iter().any(
+        |e| e["archive_path"] == "project/.ccbr/ccbrd/maintenance-heartbeat/activations.jsonl"
+    ));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/artifacts/text/ask-request/large.txt"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/artifacts/text/ask-request/large.txt"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/startup-report.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/startup-report.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/ccbd.stdout.log"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/ccbrd.stdout.log"));
     assert!(entries
         .iter()
         .any(|e| e["archive_path"] == "project/.ccbr/agents/demo/runtime.json"));
@@ -243,20 +240,20 @@ fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
     fs::create_dir_all(
         context
             .paths
-            .ccbd_state_path()
+            .ccbrd_state_path()
             .parent()
             .unwrap()
             .as_std_path(),
     )
     .unwrap();
     fs::write(
-        context.paths.ccbd_state_path().as_std_path(),
-        "{\"record_type\":\"ccbd_project_namespace_state\"}\n",
+        context.paths.ccbrd_state_path().as_std_path(),
+        "{\"record_type\":\"ccbrd_project_namespace_state\"}\n",
     )
     .unwrap();
     fs::write(
-        context.paths.ccbd_start_policy_path().as_std_path(),
-        "{\"record_type\":\"ccbd_start_policy\"}\n",
+        context.paths.ccbrd_start_policy_path().as_std_path(),
+        "{\"record_type\":\"ccbrd_start_policy\"}\n",
     )
     .unwrap();
 
@@ -282,10 +279,10 @@ fn test_export_diagnostic_bundle_includes_relocated_runtime_state_files() {
         .any(|e| e["archive_path"] == "project/.ccbr/runtime-root.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/state.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/state.json"));
     assert!(entries
         .iter()
-        .any(|e| e["archive_path"] == "project/.ccbr/ccbd/start-policy.json"));
+        .any(|e| e["archive_path"] == "project/.ccbr/ccbrd/start-policy.json"));
     let marker_source = context.paths.runtime_root_marker_path().to_string();
     assert!(entries.iter().any(|e| e["source_path"] == marker_source));
 }
@@ -303,14 +300,14 @@ fn test_export_diagnostic_bundle_survives_corrupt_runtime_and_report_files() {
     fs::create_dir_all(
         context
             .paths
-            .ccbd_startup_report_path()
+            .ccbrd_startup_report_path()
             .parent()
             .unwrap()
             .as_std_path(),
     )
     .unwrap();
     fs::write(
-        context.paths.ccbd_startup_report_path().as_std_path(),
+        context.paths.ccbrd_startup_report_path().as_std_path(),
         "{this is not json}\n",
     )
     .unwrap();
@@ -345,7 +342,7 @@ fn test_export_diagnostic_bundle_survives_corrupt_runtime_and_report_files() {
 
     assert!(bundle_path.exists());
     assert!(entries.iter().any(|e| {
-        e["archive_path"] == "project/.ccbr/ccbd/startup-report.json" && e["status"] == "included"
+        e["archive_path"] == "project/.ccbr/ccbrd/startup-report.json" && e["status"] == "included"
     }));
     assert!(entries.iter().any(|e| {
         e["archive_path"] == "project/.ccbr/agents/demo/runtime.json" && e["status"] == "included"

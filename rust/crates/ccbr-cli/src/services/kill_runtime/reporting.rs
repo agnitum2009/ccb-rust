@@ -111,7 +111,7 @@ pub fn record_kill_report(
             "killed_panes": s.killed_panes,
         })).collect::<Vec<_>>(),
     });
-    let path = paths.ccbd_dir().join("kill-report.json");
+    let path = paths.ccbrd_dir().join("kill-report.json");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }

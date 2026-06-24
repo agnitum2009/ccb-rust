@@ -35,17 +35,17 @@ impl MaintenanceHeartbeatEvaluation {
 
 pub fn evaluate_project_view(payload: &Value) -> MaintenanceHeartbeatEvaluation {
     let view = mapping(payload.get("view")).unwrap_or_else(|| mapping(Some(payload)).unwrap());
-    let ccbd = mapping(view.get("ccbd"));
+    let ccbrd = mapping(view.get("ccbrd"));
     let agents = records(view.get("agents"));
     let comms = records(view.get("comms"));
-    let ccbd_state = clean(ccbd.and_then(|m| m.get("state")));
+    let ccbrd_state = clean(ccbrd.and_then(|m| m.get("state")));
     let observed_at = project_view_observed_at(payload, view);
 
     let mut health = HEALTH_HEALTHY.to_string();
     let mut evidence: Vec<Value> = Vec::new();
     let mut summary = serde_json::json!({
         "source_kind": "project_view",
-        "ccbd_state": ccbd_state.as_deref(),
+        "ccbrd_state": ccbrd_state.as_deref(),
         "agent_count": agents.len() as i64,
         "active_agent_count": 0,
         "pending_agent_count": 0,
@@ -61,14 +61,14 @@ pub fn evaluate_project_view(payload: &Value) -> MaintenanceHeartbeatEvaluation 
         "suspicion_count": 0,
     });
 
-    if let Some(state) = &ccbd_state {
+    if let Some(state) = &ccbrd_state {
         if state != "mounted" {
             health = max_health(&health, HEALTH_UNKNOWN);
             evidence.push(issue(
                 HEALTH_UNKNOWN,
-                "ccbd",
-                &[("reason", &Value::String("ccbd_not_mounted".into()))],
-                Some(&[("ccbd_state", &Value::String(state.clone()))]),
+                "ccbrd",
+                &[("reason", &Value::String("ccbrd_not_mounted".into()))],
+                Some(&[("ccbrd_state", &Value::String(state.clone()))]),
             ));
         }
     }
@@ -79,7 +79,7 @@ pub fn evaluate_project_view(payload: &Value) -> MaintenanceHeartbeatEvaluation 
         let state = clean(agent.get("activity_state"));
         increment_summary(&mut summary, &state, "_agent_count");
 
-        if let Some(issue_value) = agent_issue(agent, ccbd_state.as_deref()) {
+        if let Some(issue_value) = agent_issue(agent, ccbrd_state.as_deref()) {
             let issue_health = clean(issue_value.get("health")).unwrap_or_default();
             health = max_health(&health, &issue_health);
             if issue_health == HEALTH_CONCERN {
@@ -128,13 +128,13 @@ pub fn evaluate_project_view(payload: &Value) -> MaintenanceHeartbeatEvaluation 
 }
 
 pub fn evaluate_ps_summary(payload: &Value, error: Option<&str>) -> MaintenanceHeartbeatEvaluation {
-    let ccbd_state = clean(payload.get("ccbd_state"));
+    let ccbrd_state = clean(payload.get("ccbrd_state"));
     let agents = records(payload.get("agents"));
     let mut health = HEALTH_HEALTHY.to_string();
     let mut evidence: Vec<Value> = Vec::new();
     let mut summary = serde_json::json!({
         "source_kind": "local_ps",
-        "ccbd_state": ccbd_state.as_deref(),
+        "ccbrd_state": ccbrd_state.as_deref(),
         "agent_count": agents.len() as i64,
         "failed_agent_count": 0,
         "concern_agent_count": 0,
@@ -152,14 +152,14 @@ pub fn evaluate_ps_summary(payload: &Value, error: Option<&str>) -> MaintenanceH
         ));
     }
 
-    if let Some(state) = &ccbd_state {
+    if let Some(state) = &ccbrd_state {
         if state != "mounted" {
             health = max_health(&health, HEALTH_UNKNOWN);
             evidence.push(issue(
                 HEALTH_UNKNOWN,
-                "ccbd",
-                &[("reason", &Value::String("ccbd_not_mounted".into()))],
-                Some(&[("ccbd_state", &Value::String(state.clone()))]),
+                "ccbrd",
+                &[("reason", &Value::String("ccbrd_not_mounted".into()))],
+                Some(&[("ccbrd_state", &Value::String(state.clone()))]),
             ));
         }
     }
@@ -185,7 +185,7 @@ pub fn evaluate_ps_summary(payload: &Value, error: Option<&str>) -> MaintenanceH
                 ],
                 None,
             ));
-        } else if ccbd_state.as_deref() == Some("mounted")
+        } else if ccbrd_state.as_deref() == Some("mounted")
             && matches!(
                 state.as_deref(),
                 Some("degraded") | Some("stopped") | Some("stopping")
@@ -207,7 +207,7 @@ pub fn evaluate_ps_summary(payload: &Value, error: Option<&str>) -> MaintenanceH
                 ],
                 None,
             ));
-        } else if ccbd_state.as_deref() == Some("mounted")
+        } else if ccbrd_state.as_deref() == Some("mounted")
             && matches!(state.as_deref(), Some("") | Some("unknown"))
         {
             increment_summary_int(&mut summary, "unknown_agent_count");
@@ -223,7 +223,7 @@ pub fn evaluate_ps_summary(payload: &Value, error: Option<&str>) -> MaintenanceH
             ));
         }
 
-        if ccbd_state.as_deref() == Some("mounted")
+        if ccbrd_state.as_deref() == Some("mounted")
             && binding_status
                 .as_deref()
                 .map(|s| !s.is_empty())
@@ -258,7 +258,7 @@ pub fn evaluate_ps_summary(payload: &Value, error: Option<&str>) -> MaintenanceH
     }
 }
 
-fn agent_issue(agent: &Map<String, Value>, ccbd_state: Option<&str>) -> Option<Value> {
+fn agent_issue(agent: &Map<String, Value>, ccbrd_state: Option<&str>) -> Option<Value> {
     let name = agent_name(agent);
     let state = clean(agent.get("activity_state"));
     let reason = clean(agent.get("activity_reason"));
@@ -280,7 +280,7 @@ fn agent_issue(agent: &Map<String, Value>, ccbd_state: Option<&str>) -> Option<V
         ));
     }
 
-    if state.as_deref() == Some("offline") && ccbd_state == Some("mounted") {
+    if state.as_deref() == Some("offline") && ccbrd_state == Some("mounted") {
         return Some(issue(
             HEALTH_CONCERN,
             "agent_activity",

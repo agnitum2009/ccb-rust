@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/ensure.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/ensure.py`.
 //! 1:1 file alignment stub.
 
 use std::collections::HashMap;
@@ -34,7 +34,7 @@ pub fn ensure_project_namespace(
     session_probe_timeout_s: Option<f64>,
     terminal_size: Option<(i32, i32)>,
 ) -> Result<ProjectNamespace> {
-    std::fs::create_dir_all(&controller.layout.ccbd_dir)?;
+    std::fs::create_dir_all(&controller.layout.ccbrd_dir)?;
 
     let mut context =
         load_namespace_context(controller, layout_signature, topology_plan, recreate_reason)?;
@@ -275,12 +275,12 @@ mod tests {
     fn test_layout() -> LayoutConfig {
         LayoutConfig {
             project_root: "/tmp/ccbr-ensure-test".to_string(),
-            ccbd_dir: PathBuf::from("/tmp/ccbr-ensure-test/.ccbr"),
-            ccbd_socket_path: "/tmp/ccbr-ensure-test/.ccbr/ccbd.sock".to_string(),
-            ccbd_tmux_socket_path: "/tmp/ccbr-ensure-test/.ccbr/tmux.sock".to_string(),
-            ccbd_tmux_session_name: "ccbr-ensure-test".to_string(),
-            ccbd_tmux_control_window_name: "control".to_string(),
-            ccbd_tmux_workspace_window_name: "workspace".to_string(),
+            ccbrd_dir: PathBuf::from("/tmp/ccbr-ensure-test/.ccbr"),
+            ccbrd_socket_path: "/tmp/ccbr-ensure-test/.ccbr/ccbrd.sock".to_string(),
+            ccbrd_tmux_socket_path: "/tmp/ccbr-ensure-test/.ccbr/tmux.sock".to_string(),
+            ccbrd_tmux_session_name: "ccbr-ensure-test".to_string(),
+            ccbrd_tmux_control_window_name: "control".to_string(),
+            ccbrd_tmux_workspace_window_name: "workspace".to_string(),
         }
     }
 

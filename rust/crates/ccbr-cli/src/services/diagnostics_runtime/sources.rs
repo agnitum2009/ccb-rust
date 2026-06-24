@@ -51,88 +51,88 @@ pub fn project_root_sources(
             as_path(&context.paths.config_path()),
         ),
         (
-            "ccbd-authority".into(),
-            as_path(&context.paths.ccbd_lifecycle_path()),
+            "ccbrd-authority".into(),
+            as_path(&context.paths.ccbrd_lifecycle_path()),
         ),
         (
-            "ccbd-authority".into(),
-            as_path(&context.paths.ccbd_lease_path()),
+            "ccbrd-authority".into(),
+            as_path(&context.paths.ccbrd_lease_path()),
         ),
         (
-            "ccbd-authority".into(),
-            as_path(&context.paths.ccbd_keeper_path()),
+            "ccbrd-authority".into(),
+            as_path(&context.paths.ccbrd_keeper_path()),
         ),
         (
-            "ccbd-authority".into(),
-            as_path(&context.paths.ccbd_shutdown_intent_path()),
+            "ccbrd-authority".into(),
+            as_path(&context.paths.ccbrd_shutdown_intent_path()),
         ),
         (
-            "ccbd-authority".into(),
-            as_path(&context.paths.ccbd_state_path()),
+            "ccbrd-authority".into(),
+            as_path(&context.paths.ccbrd_state_path()),
         ),
         (
-            "ccbd-authority".into(),
-            as_path(&context.paths.ccbd_start_policy_path()),
+            "ccbrd-authority".into(),
+            as_path(&context.paths.ccbrd_start_policy_path()),
         ),
         (
-            "ccbd-report".into(),
-            as_path(&context.paths.ccbd_startup_report_path()),
+            "ccbrd-report".into(),
+            as_path(&context.paths.ccbrd_startup_report_path()),
         ),
         (
-            "ccbd-report".into(),
-            as_path(&context.paths.ccbd_shutdown_report_path()),
+            "ccbrd-report".into(),
+            as_path(&context.paths.ccbrd_shutdown_report_path()),
         ),
         (
-            "ccbd-report".into(),
-            as_path(&context.paths.ccbd_restore_report_path()),
+            "ccbrd-report".into(),
+            as_path(&context.paths.ccbrd_restore_report_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_submissions_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_submissions_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_messages_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_messages_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_attempts_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_attempts_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_replies_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_replies_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_dead_letters_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_dead_letters_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_supervision_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_supervision_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_lifecycle_log_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_lifecycle_log_path()),
         ),
         (
-            "ccbd-events".into(),
-            as_path(&context.paths.ccbd_tmux_cleanup_history_path()),
+            "ccbrd-events".into(),
+            as_path(&context.paths.ccbrd_tmux_cleanup_history_path()),
         ),
         (
-            "ccbd-log".into(),
-            as_path(&context.paths.ccbd_dir().join("ccbd.stdout.log")),
+            "ccbrd-log".into(),
+            as_path(&context.paths.ccbrd_dir().join("ccbrd.stdout.log")),
         ),
         (
-            "ccbd-log".into(),
-            as_path(&context.paths.ccbd_dir().join("ccbd.stderr.log")),
+            "ccbrd-log".into(),
+            as_path(&context.paths.ccbrd_dir().join("ccbrd.stderr.log")),
         ),
         (
-            "ccbd-log".into(),
-            as_path(&context.paths.ccbd_dir().join("keeper.stdout.log")),
+            "ccbrd-log".into(),
+            as_path(&context.paths.ccbrd_dir().join("keeper.stdout.log")),
         ),
         (
-            "ccbd-log".into(),
-            as_path(&context.paths.ccbd_dir().join("keeper.stderr.log")),
+            "ccbrd-log".into(),
+            as_path(&context.paths.ccbrd_dir().join("keeper.stderr.log")),
         ),
     ];
 
@@ -153,48 +153,48 @@ pub fn project_root_sources(
     }
 
     items.extend(iter_dir_files(
-        "ccbd-execution",
-        &context.paths.ccbd_executions_dir(),
+        "ccbrd-execution",
+        &context.paths.ccbrd_executions_dir(),
         &[".json"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-snapshot",
-        &context.paths.ccbd_snapshots_dir(),
+        "ccbrd-snapshot",
+        &context.paths.ccbrd_snapshots_dir(),
         &[".json"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-cursor",
-        &context.paths.ccbd_cursors_dir(),
+        "ccbrd-cursor",
+        &context.paths.ccbrd_cursors_dir(),
         &[".json"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-heartbeat",
-        &context.paths.ccbd_heartbeats_dir(),
+        "ccbrd-heartbeat",
+        &context.paths.ccbrd_heartbeats_dir(),
         &[".json"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-maintenance-heartbeat",
-        &context.paths.ccbd_maintenance_heartbeat_dir(),
+        "ccbrd-maintenance-heartbeat",
+        &context.paths.ccbrd_maintenance_heartbeat_dir(),
         &[".json", ".jsonl"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-text-artifact",
-        &context.paths.ccbd_text_artifacts_dir(),
+        "ccbrd-text-artifact",
+        &context.paths.ccbrd_text_artifacts_dir(),
         &[".txt"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-health",
-        &context.paths.ccbd_provider_health_dir(),
+        "ccbrd-health",
+        &context.paths.ccbrd_provider_health_dir(),
         &[".jsonl"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-mailbox",
-        &context.paths.ccbd_mailboxes_dir(),
+        "ccbrd-mailbox",
+        &context.paths.ccbrd_mailboxes_dir(),
         &[".json", ".jsonl"],
     ));
     items.extend(iter_dir_files(
-        "ccbd-lease",
-        &context.paths.ccbd_leases_dir(),
+        "ccbrd-lease",
+        &context.paths.ccbrd_leases_dir(),
         &[".json"],
     ));
 

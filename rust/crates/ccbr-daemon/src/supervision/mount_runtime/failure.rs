@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/mount_runtime/failure.py`.
+//! Mirrors Python `lib/ccbrd/supervision/mount_runtime/failure.py`.
 //!
 //! Persists a mount failure by updating the runtime record and emitting a
 //! `mount_failed` supervision event.

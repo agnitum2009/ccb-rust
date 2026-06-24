@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/mount_runtime/starting.py`.
+//! Mirrors Python `lib/ccbrd/supervision/mount_runtime/starting.py`.
 //!
 //! Builds the "starting" runtime record that is used for a mount attempt.
 
@@ -86,7 +86,7 @@ pub fn build_starting_runtime(
             "starting",
             &spec.provider,
             "starting",
-            "ccbd",
+            "ccbrd",
             "provider-session",
         )?
     };

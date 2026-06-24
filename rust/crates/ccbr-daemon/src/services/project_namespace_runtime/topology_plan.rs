@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/topology_plan.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/topology_plan.py`.
 
 use ccbr_agents::models::{ProjectConfig, SidebarSpec, ToolWindowSpec, WindowSpec};
 use serde::{Deserialize, Serialize};
@@ -60,8 +60,8 @@ pub struct NamespaceTopologyPlan {
     pub entry_window: String,
     pub sidebar_enabled: bool,
     pub windows: Vec<NamespaceWindowPlan>,
-    /// CCBD socket path used for sidebar launch args (not part of the Python record).
-    pub ccbd_socket_path: Option<String>,
+    /// CCBRD socket path used for sidebar launch args (not part of the Python record).
+    pub ccbrd_socket_path: Option<String>,
     /// Project root used for sidebar launch args (not part of the Python record).
     pub project_root: Option<String>,
 }
@@ -80,7 +80,7 @@ impl NamespaceTopologyPlan {
 /// Build a namespace topology plan from a project config.
 pub fn build_namespace_topology_plan(
     config: &ProjectConfig,
-    ccbd_socket_path: Option<String>,
+    ccbrd_socket_path: Option<String>,
     project_root: Option<String>,
 ) -> NamespaceTopologyPlan {
     let sidebar = config.sidebar.as_ref();
@@ -98,7 +98,7 @@ pub fn build_namespace_topology_plan(
             window_plan(
                 window,
                 sidebar_for_window,
-                ccbd_socket_path.as_deref(),
+                ccbrd_socket_path.as_deref(),
                 project_root.as_deref(),
             )
         })
@@ -110,7 +110,7 @@ pub fn build_namespace_topology_plan(
             tool,
             order_offset,
             sidebar_for_window,
-            ccbd_socket_path.as_deref(),
+            ccbrd_socket_path.as_deref(),
             project_root.as_deref(),
         )
     }));
@@ -124,7 +124,7 @@ pub fn build_namespace_topology_plan(
             .unwrap_or_else(|| "main".to_string()),
         sidebar_enabled,
         windows,
-        ccbd_socket_path,
+        ccbrd_socket_path,
         project_root,
     }
 }
@@ -132,10 +132,10 @@ pub fn build_namespace_topology_plan(
 fn window_plan(
     window: &WindowSpec,
     sidebar: Option<&SidebarSpec>,
-    ccbd_socket_path: Option<&str>,
+    ccbrd_socket_path: Option<&str>,
     project_root: Option<&str>,
 ) -> NamespaceWindowPlan {
-    let sidebar_plan = sidebar_plan(sidebar, &window.name, ccbd_socket_path, project_root);
+    let sidebar_plan = sidebar_plan(sidebar, &window.name, ccbrd_socket_path, project_root);
     NamespaceWindowPlan {
         name: window.name.clone(),
         order: window.order,
@@ -153,10 +153,10 @@ fn tool_window_plan(
     tool: &ToolWindowSpec,
     order_offset: u32,
     sidebar: Option<&SidebarSpec>,
-    ccbd_socket_path: Option<&str>,
+    ccbrd_socket_path: Option<&str>,
     project_root: Option<&str>,
 ) -> NamespaceWindowPlan {
-    let sidebar_plan = sidebar_plan(sidebar, &tool.name, ccbd_socket_path, project_root);
+    let sidebar_plan = sidebar_plan(sidebar, &tool.name, ccbrd_socket_path, project_root);
     NamespaceWindowPlan {
         name: tool.name.clone(),
         order: order_offset + tool.order,
@@ -177,14 +177,14 @@ fn tool_window_plan(
 fn sidebar_plan(
     sidebar: Option<&SidebarSpec>,
     window_name: &str,
-    ccbd_socket_path: Option<&str>,
+    ccbrd_socket_path: Option<&str>,
     project_root: Option<&str>,
 ) -> Option<SidebarPanePlan> {
     sidebar.map(|s| SidebarPanePlan {
         mode: s.mode.clone(),
         width: s.width.as_string(),
         bottom_height: s.bottom_height,
-        launch_args: sidebar_launch_args(ccbd_socket_path, project_root, window_name),
+        launch_args: sidebar_launch_args(ccbrd_socket_path, project_root, window_name),
     })
 }
 
@@ -197,13 +197,13 @@ fn realized_layout(user_layout: &str, sidebar_enabled: bool) -> String {
 }
 
 fn sidebar_launch_args(
-    ccbd_socket_path: Option<&str>,
+    ccbrd_socket_path: Option<&str>,
     project_root: Option<&str>,
     window_name: &str,
 ) -> Vec<String> {
     let mut args = vec!["ccbr-agent-sidebar".to_string()];
-    if let Some(path) = ccbd_socket_path {
-        args.push("--ccbd-socket".to_string());
+    if let Some(path) = ccbrd_socket_path {
+        args.push("--ccbrd-socket".to_string());
         args.push(path.to_string());
     }
     if let Some(root) = project_root {

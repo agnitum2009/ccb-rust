@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/stop_flow_runtime/service.py`.
+//! Mirrors Python `lib/ccbrd/stop_flow_runtime/service.py`.
 //! 1:1 file alignment stub.
 
 use crate::Result;
@@ -101,7 +101,7 @@ pub fn stop_all_project(
     let summary = StopAllSummary {
         project_id: project_id.to_string(),
         state: "unmounted".to_string(),
-        socket_path: paths.ccbd_socket_path().display().to_string(),
+        socket_path: paths.ccbrd_socket_path().display().to_string(),
         forced: force,
         stopped_agents: stopped_atoms.clone().into_iter().collect(),
         cleanup_summaries: cleanup_summaries.clone(),
@@ -179,8 +179,8 @@ impl ProjectPaths {
         std::path::PathBuf::from(format!("/tmp/helpers/{}.json", agent_name))
     }
 
-    pub fn ccbd_socket_path(&self) -> std::path::PathBuf {
-        std::path::PathBuf::from("/tmp/ccbd.sock")
+    pub fn ccbrd_socket_path(&self) -> std::path::PathBuf {
+        std::path::PathBuf::from("/tmp/ccbrd.sock")
     }
 }
 

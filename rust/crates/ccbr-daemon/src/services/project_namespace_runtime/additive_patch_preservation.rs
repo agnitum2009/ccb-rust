@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/additive_patch_preservation.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/additive_patch_preservation.py`.
 
 use std::collections::HashMap;
 
@@ -79,7 +79,7 @@ pub fn existing_topology_agent_panes(
             expected.insert("@ccbr_role", "agent");
             expected.insert("@ccbr_slot", agent_name);
             expected.insert("@ccbr_window", &window.name);
-            expected.insert("@ccbr_managed_by", "ccbd");
+            expected.insert("@ccbr_managed_by", "ccbrd");
             let matches = list_panes_by_user_options(backend, &expected);
             if matches.len() == 1 {
                 agent_panes.insert(agent_name.clone(), matches[0].clone());
@@ -220,7 +220,7 @@ mod tests {
             options.insert("@ccbr_role".to_string(), "agent".to_string());
             options.insert("@ccbr_slot".to_string(), agent.to_string());
             options.insert("@ccbr_window".to_string(), window.to_string());
-            options.insert("@ccbr_managed_by".to_string(), "ccbd".to_string());
+            options.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
             state.pane_options.insert(pane_id.to_string(), options);
         });
     }

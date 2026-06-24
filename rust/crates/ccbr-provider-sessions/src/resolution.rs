@@ -40,7 +40,7 @@ impl SessionResolver {
 
 /// Resolve the working directory from an explicit session file selection.
 ///
-/// Mirrors Python `ccbd.client_runtime.resolution.resolve_work_dir`.
+/// Mirrors Python `ccbrd.client_runtime.resolution.resolve_work_dir`.
 pub fn resolve_work_dir(
     spec: &ProviderClientSpec,
     cli_session_file: Option<&str>,
@@ -65,7 +65,7 @@ pub fn resolve_work_dir(
 /// Resolve the working directory, falling back to project discovery and the
 /// legacy registry-only environment variable guard.
 ///
-/// Mirrors Python `ccbd.client_runtime.resolution.resolve_work_dir_with_registry`.
+/// Mirrors Python `ccbrd.client_runtime.resolution.resolve_work_dir_with_registry`.
 pub fn resolve_work_dir_with_registry(
     spec: &ProviderClientSpec,
     provider: &str,

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/client_runtime/resolution.py`.
+//! Mirrors Python `lib/ccbrd/client_runtime/resolution.py`.
 //!
 //! Delegates to `ccbr_provider_sessions::resolution` while accepting the
 //! `ccbr_provider_core::runtime_specs::ProviderClientSpec` used by the rest of
@@ -21,7 +21,7 @@ fn to_session_spec(
 
 /// Resolve the working directory from an explicit session file selection.
 ///
-/// Mirrors Python `ccbd.client_runtime.resolution.resolve_work_dir`.
+/// Mirrors Python `ccbrd.client_runtime.resolution.resolve_work_dir`.
 pub fn resolve_work_dir(
     spec: &ccbr_provider_core::runtime_specs::ProviderClientSpec,
     cli_session_file: Option<&str>,
@@ -40,7 +40,7 @@ pub fn resolve_work_dir(
 /// Resolve the working directory, falling back to project discovery and the
 /// legacy registry-only environment variable guard.
 ///
-/// Mirrors Python `ccbd.client_runtime.resolution.resolve_work_dir_with_registry`.
+/// Mirrors Python `ccbrd.client_runtime.resolution.resolve_work_dir_with_registry`.
 pub fn resolve_work_dir_with_registry(
     spec: &ccbr_provider_core::runtime_specs::ProviderClientSpec,
     provider: &str,

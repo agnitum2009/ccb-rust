@@ -38,7 +38,7 @@ pub const EXCLUDES: &[&str] = &[
 ];
 
 /// Rust binaries that must be built, packaged, and installed from the release artifact.
-pub const REQUIRED_BINARIES: &[&str] = &["ccbr", "ccbd", "ask", "autonew", "ctx-transfer"];
+pub const REQUIRED_BINARIES: &[&str] = &["ccbr", "ccbrd", "ask", "autonew", "ctx-transfer"];
 
 const HOST_SYSTEMS: &[(&str, &str)] = &[("linux", "Linux"), ("macos", "Darwin")];
 

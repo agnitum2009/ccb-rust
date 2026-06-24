@@ -8,7 +8,7 @@ use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use ccbr_cli::ccbd::CcbdClient;
+use ccbr_cli::ccbrd::CcbdClient;
 use ccbr_cli::context::{CliContext, CliContextBuilder};
 use ccbr_cli::models::{
     ParsedCommand, ParsedKillCommand, ParsedLogsCommand, ParsedMaintenanceCommand,
@@ -83,7 +83,7 @@ fn run_phase2(
     command: Value,
     responses: HashMap<String, Value>,
 ) -> (i32, String) {
-    let socket_path = project_root.join("ccbd.sock");
+    let socket_path = project_root.join("ccbrd.sock");
     let (server, server_done) = fake_daemon_server(&socket_path, responses);
 
     let client = CcbdClient::new(&socket_path);
@@ -95,7 +95,7 @@ fn run_phase2(
             command
                 .get("target")
                 .and_then(|v| v.as_str())
-                .unwrap_or("ccbd")
+                .unwrap_or("ccbrd")
                 .into(),
         )),
         "kill" => ParsedCommand::Kill(ParsedKillCommand {
@@ -122,7 +122,7 @@ fn run_phase2(
             dry_run: false,
             kind: "reload".into(),
         }),
-        "wait" => ParsedCommand::Wait(ParsedWaitCommand::new(None, "wait".into(), "ccbd".into())),
+        "wait" => ParsedCommand::Wait(ParsedWaitCommand::new(None, "wait".into(), "ccbrd".into())),
         _ => ParsedCommand::Ps(ParsedPsCommand::new(None)),
     };
     let context = build_context(project_root, parsed);
@@ -141,11 +141,11 @@ fn test_phase2_ping_via_daemon_services() {
     let mut responses = HashMap::new();
     responses.insert(
         "ping".to_string(),
-        json!({"pong": true, "target": "ccbd", "status": "ok"}),
+        json!({"pong": true, "target": "ccbrd", "status": "ok"}),
     );
     let (code, output) = run_phase2(
         project_root,
-        json!({"kind": "ping", "target": "ccbd"}),
+        json!({"kind": "ping", "target": "ccbrd"}),
         responses,
     );
     assert_eq!(code, 0, "exit code should be 0, output: {}", output);
@@ -305,11 +305,11 @@ fn test_phase2_wait_forwards_watch_rpc() {
     let mut responses = HashMap::new();
     responses.insert(
         "watch".to_string(),
-        json!({"target": "ccbd", "cursor": 1, "terminal": true, "lines": []}),
+        json!({"target": "ccbrd", "cursor": 1, "terminal": true, "lines": []}),
     );
     let (code, output) = run_phase2(
         project_root,
-        json!({"kind": "wait", "target": "ccbd"}),
+        json!({"kind": "wait", "target": "ccbrd"}),
         responses,
     );
     assert_eq!(code, 0, "exit code should be 0, output: {}", output);

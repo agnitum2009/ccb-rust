@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/socket_client_runtime/endpoints.py`.
+//! Mirrors Python `lib/ccbrd/socket_client_runtime/endpoints.py`.
 
 use serde_json::{json, Value};
 

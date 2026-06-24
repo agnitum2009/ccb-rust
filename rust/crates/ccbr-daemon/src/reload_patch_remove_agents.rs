@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_patch_remove_agents.py`.
+//! Mirrors Python `lib/ccbrd/reload_patch_remove_agents.py`.
 //!
 //! Remove namespace steps: kill panes/windows for agents/tool-windows removed
 //! during a reload.

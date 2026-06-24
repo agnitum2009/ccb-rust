@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/start_preparation.py`.
+//! Mirrors Python `lib/ccbrd/start_preparation.py`.
 //!
 //! Prepares a set of agents for launch: persists specs, plans/materializes
 //! workspaces, prepares provider homes/hooks, resolves bindings, and seeds

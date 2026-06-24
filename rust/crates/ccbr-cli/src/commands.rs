@@ -91,7 +91,7 @@ pub fn ask(client: &dyn DaemonClient, cmd: &ParsedAsk, project_id: &str) -> Resu
     Ok(render_ask_receipt(&result))
 }
 
-/// Ping a target (agent or `ccbd`).
+/// Ping a target (agent or `ccbrd`).
 pub fn ping(client: &dyn DaemonClient, target: &str) -> Result<String, String> {
     let params = serde_json::json!({"target": target});
     let result = client.call("ping", params)?;
@@ -122,8 +122,8 @@ pub fn wait(client: &dyn DaemonClient, cmd: &ParsedWait) -> Result<String, Strin
 }
 
 fn target_ready(client: &dyn DaemonClient, target: &str) -> Result<bool, String> {
-    if target == "ccbd" {
-        let result = client.call("ping", serde_json::json!({"target": "ccbd"}))?;
+    if target == "ccbrd" {
+        let result = client.call("ping", serde_json::json!({"target": "ccbrd"}))?;
         return Ok(result
             .get("pong")
             .and_then(|v| v.as_bool())
@@ -418,7 +418,7 @@ pub fn doctor(
 
     let mut daemon_ok = false;
     let mut daemon_error = None;
-    match client.call("ping", serde_json::json!({"target": "ccbd"})) {
+    match client.call("ping", serde_json::json!({"target": "ccbrd"})) {
         Ok(result) => {
             daemon_ok = result
                 .get("pong")
@@ -428,7 +428,7 @@ pub fn doctor(
         Err(err) => daemon_error = Some(err),
     }
 
-    let tmux_socket_path = layout.ccbd_tmux_socket_path();
+    let tmux_socket_path = layout.ccbrd_tmux_socket_path();
     let tmux_present = tmux_socket_path.exists();
 
     let config_result = ccbr_agents::config::load_project_config(&layout);

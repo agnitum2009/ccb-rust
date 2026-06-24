@@ -78,7 +78,7 @@ pub fn ensure_daemon_started(
         });
     }
     Err(crate::services::daemon_runtime::models::CcbdServiceError(
-        "ccbd is not running; run `ccb` in this project first".to_string(),
+        "ccbrd is not running; run `ccb` in this project first".to_string(),
     ))
 }
 
@@ -116,7 +116,7 @@ pub fn connect_mounted_daemon(
 /// when no lifecycle record exists.
 pub fn inspect_daemon_phase(context: &CliContext) -> String {
     let store = JsonStore::new();
-    let lifecycle_path = context.paths.ccbd_lifecycle_path();
+    let lifecycle_path = context.paths.ccbrd_lifecycle_path();
     match store.load::<Value>(&lifecycle_path) {
         Ok(value) => value
             .get("phase")
@@ -220,8 +220,8 @@ fn config_identity_payload(context: &CliContext) -> Value {
 /// runtime and later diagnostics can observe it.
 pub fn record_shutdown_intent(context: &CliContext, reason: &str) {
     let store = JsonStore::new();
-    let lifecycle_path = context.paths.ccbd_lifecycle_path();
-    let shutdown_path = context.paths.ccbd_shutdown_intent_path();
+    let lifecycle_path = context.paths.ccbrd_lifecycle_path();
+    let shutdown_path = context.paths.ccbrd_shutdown_intent_path();
     let project_id = context.project.project_id.clone();
 
     crate::services::daemon_runtime::keeper::record_shutdown_intent(
@@ -274,13 +274,13 @@ mod tests {
 
     #[test]
     fn control_plane_client_has_no_timeout() {
-        let client = build_control_plane_client("/tmp/ccbd.sock");
+        let client = build_control_plane_client("/tmp/ccbrd.sock");
         assert_eq!(client.timeout_s(), None);
     }
 
     #[test]
     fn probe_control_plane_client_uses_short_timeout() {
-        let client = build_probe_control_plane_client("/tmp/ccbd.sock");
+        let client = build_probe_control_plane_client("/tmp/ccbrd.sock");
         assert_eq!(client.timeout_s(), Some(CONTROL_PLANE_RPC_TIMEOUT_S));
     }
 
@@ -297,7 +297,7 @@ mod tests {
     fn connect_compatible_daemon_probes_then_connects_with_runtime_timeout() {
         let tmp = tempfile::tempdir().unwrap();
         let context = make_context(&tmp);
-        let socket_path = context.paths.ccbd_socket_path().to_string();
+        let socket_path = context.paths.ccbrd_socket_path().to_string();
         if let Some(parent) = std::path::Path::new(&socket_path).parent() {
             std::fs::create_dir_all(parent).unwrap();
         }

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/mount_runtime/transitions.py`.
+//! Mirrors Python `lib/ccbrd/supervision/mount_runtime/transitions.py`.
 //!
 //! Pure helpers that decide what to do before/after a mount attempt and how to
 //! persist the resulting runtime state.

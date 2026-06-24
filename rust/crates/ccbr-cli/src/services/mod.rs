@@ -90,7 +90,7 @@ pub fn socket_path_for_project(project_root: &Path) -> String {
     let layout = ccbr_storage::paths::PathLayout::new(
         camino::Utf8Path::from_path(project_root).unwrap_or(camino::Utf8Path::new("/")),
     );
-    layout.ccbd_socket_path().to_string()
+    layout.ccbrd_socket_path().to_string()
 }
 
 /// Resolve the project root from the current directory and optional `--project` flag.

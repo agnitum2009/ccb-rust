@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/reply_delivery_runtime/claims.py`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/reply_delivery_runtime/claims.py`.
 //!
 //! Claims a reply-delivery job by matching it to the agent's current mailbox
 //! head and attempting to claim the underlying inbound event.

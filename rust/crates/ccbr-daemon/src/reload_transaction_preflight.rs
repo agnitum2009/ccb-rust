@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_transaction_preflight.py`.
+//! Mirrors Python `lib/ccbrd/reload_transaction_preflight.py`.
 
 use crate::app::CcbdApp;
 use crate::reload_transaction_context::TransactionContext;

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_transaction_models.py`.
+//! Mirrors Python `lib/ccbrd/reload_transaction_models.py`.
 
 use serde::{Deserialize, Serialize};
 

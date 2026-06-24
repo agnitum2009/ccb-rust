@@ -49,7 +49,7 @@ impl MailboxStore {
     }
 
     pub fn list_all(&self) -> Vec<MailboxRecord> {
-        let directory = self.layout.ccbd_mailboxes_dir();
+        let directory = self.layout.ccbrd_mailboxes_dir();
         if !directory.exists() {
             return Vec::new();
         }
@@ -176,7 +176,7 @@ impl DeliveryLeaseStore {
     }
 
     pub fn list_all(&self) -> Vec<DeliveryLease> {
-        let directory = self.layout.ccbd_leases_dir();
+        let directory = self.layout.ccbrd_leases_dir();
         if !directory.exists() {
             return Vec::new();
         }
@@ -218,17 +218,17 @@ impl MessageStore {
     }
 
     pub fn append(&self, record: &MessageRecord) -> crate::Result<()> {
-        let path = self.layout.ccbd_messages_path();
+        let path = self.layout.ccbrd_messages_path();
         self.jsonl.append(&path, record).map_err(Into::into)
     }
 
     pub fn list_all(&self) -> Vec<MessageRecord> {
-        let path = self.layout.ccbd_messages_path();
+        let path = self.layout.ccbrd_messages_path();
         self.jsonl.read_all(&path).unwrap_or_default()
     }
 
     pub fn get_latest(&self, message_id: &str) -> Option<MessageRecord> {
-        let path = self.layout.ccbd_messages_path();
+        let path = self.layout.ccbrd_messages_path();
         self.jsonl
             .find_last(&path, |payload: &MessageRecord| {
                 payload.message_id == message_id
@@ -260,17 +260,17 @@ impl AttemptStore {
     }
 
     pub fn append(&self, record: &AttemptRecord) -> crate::Result<()> {
-        let path = self.layout.ccbd_attempts_path();
+        let path = self.layout.ccbrd_attempts_path();
         self.jsonl.append(&path, record).map_err(Into::into)
     }
 
     pub fn list_all(&self) -> Vec<AttemptRecord> {
-        let path = self.layout.ccbd_attempts_path();
+        let path = self.layout.ccbrd_attempts_path();
         self.jsonl.read_all(&path).unwrap_or_default()
     }
 
     pub fn get_latest(&self, attempt_id: &str) -> Option<AttemptRecord> {
-        let path = self.layout.ccbd_attempts_path();
+        let path = self.layout.ccbrd_attempts_path();
         self.jsonl
             .find_last(&path, |payload: &AttemptRecord| {
                 payload.attempt_id == attempt_id
@@ -279,7 +279,7 @@ impl AttemptStore {
     }
 
     pub fn get_latest_by_job_id(&self, job_id: &str) -> Option<AttemptRecord> {
-        let path = self.layout.ccbd_attempts_path();
+        let path = self.layout.ccbrd_attempts_path();
         self.jsonl
             .find_last(&path, |payload: &AttemptRecord| payload.job_id == job_id)
             .unwrap_or_default()
@@ -290,7 +290,7 @@ impl AttemptStore {
         message_id: &str,
         exclude_job_id: Option<&str>,
     ) -> Option<AttemptRecord> {
-        let path = self.layout.ccbd_attempts_path();
+        let path = self.layout.ccbrd_attempts_path();
         self.jsonl
             .find_last(&path, |payload: &AttemptRecord| {
                 payload.message_id == message_id
@@ -304,7 +304,7 @@ impl AttemptStore {
         message_id: &str,
         agent_name: &str,
     ) -> Option<AttemptRecord> {
-        let path = self.layout.ccbd_attempts_path();
+        let path = self.layout.ccbrd_attempts_path();
         self.jsonl
             .find_last(&path, |payload: &AttemptRecord| {
                 payload.message_id == message_id && payload.agent_name == agent_name
@@ -343,17 +343,17 @@ impl ReplyStore {
     }
 
     pub fn append(&self, record: &ReplyRecord) -> crate::Result<()> {
-        let path = self.layout.ccbd_replies_path();
+        let path = self.layout.ccbrd_replies_path();
         self.jsonl.append(&path, record).map_err(Into::into)
     }
 
     pub fn list_all(&self) -> Vec<ReplyRecord> {
-        let path = self.layout.ccbd_replies_path();
+        let path = self.layout.ccbrd_replies_path();
         self.jsonl.read_all(&path).unwrap_or_default()
     }
 
     pub fn get_latest(&self, reply_id: &str) -> Option<ReplyRecord> {
-        let path = self.layout.ccbd_replies_path();
+        let path = self.layout.ccbrd_replies_path();
         self.jsonl
             .find_last(&path, |payload: &ReplyRecord| payload.reply_id == reply_id)
             .unwrap_or_default()
@@ -383,17 +383,17 @@ impl CallbackEdgeStore {
     }
 
     pub fn append(&self, record: &CallbackEdgeRecord) -> crate::Result<()> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl.append(&path, record).map_err(Into::into)
     }
 
     pub fn list_all(&self) -> Vec<CallbackEdgeRecord> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl.read_all(&path).unwrap_or_default()
     }
 
     pub fn get_latest(&self, edge_id: &str) -> Option<CallbackEdgeRecord> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl
             .find_last(&path, |payload: &CallbackEdgeRecord| {
                 payload.edge_id == edge_id
@@ -402,7 +402,7 @@ impl CallbackEdgeStore {
     }
 
     pub fn get_latest_for_child_job(&self, child_job_id: &str) -> Option<CallbackEdgeRecord> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl
             .find_last(&path, |payload: &CallbackEdgeRecord| {
                 payload.child_job_id == child_job_id
@@ -414,7 +414,7 @@ impl CallbackEdgeStore {
         &self,
         child_message_id: &str,
     ) -> Option<CallbackEdgeRecord> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl
             .find_last(&path, |payload: &CallbackEdgeRecord| {
                 payload.child_message_id == child_message_id
@@ -423,7 +423,7 @@ impl CallbackEdgeStore {
     }
 
     pub fn get_latest_for_parent_job(&self, parent_job_id: &str) -> Option<CallbackEdgeRecord> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl
             .find_last(&path, |payload: &CallbackEdgeRecord| {
                 payload.parent_job_id == parent_job_id
@@ -432,7 +432,7 @@ impl CallbackEdgeStore {
     }
 
     pub fn get_latest_continuation_for_edge(&self, edge_id: &str) -> Option<CallbackEdgeRecord> {
-        let path = self.layout.ccbd_callback_edges_path();
+        let path = self.layout.ccbrd_callback_edges_path();
         self.jsonl
             .find_last(&path, |payload: &CallbackEdgeRecord| {
                 payload.edge_id == edge_id

@@ -48,7 +48,7 @@ where
     let (storage_payload, storage_error) = storage_payload(context, storage_fn);
     let mut entries: Vec<DiagnosticBundleEntry> = Vec::new();
 
-    let support_dir = context.paths.ccbd_support_dir();
+    let support_dir = context.paths.ccbrd_support_dir();
     std::fs::create_dir_all(support_dir.as_std_path())?;
     let tmpdir = tempfile::tempdir_in(support_dir.as_std_path())
         .with_context(|| "create bundle staging directory")?;
@@ -211,7 +211,7 @@ fn bundle_manifest(
         .collect();
     serde_json::json!({
         "schema_version": 1,
-        "record_type": "ccbd_diagnostic_bundle",
+        "record_type": "ccbrd_diagnostic_bundle",
         "generated_at": generated_at,
         "project_root": context.project.project_root.to_string_lossy().to_string(),
         "project_id": context.project.project_id,

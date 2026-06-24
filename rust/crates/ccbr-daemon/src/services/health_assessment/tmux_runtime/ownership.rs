@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/tmux_runtime/ownership.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/tmux_runtime/ownership.py`.
 
 use super::backend::{OwnershipResult, TmuxBackend};
 

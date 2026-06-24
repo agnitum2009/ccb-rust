@@ -1,4 +1,4 @@
-//! Mirrors Python `test/test_ccbd_tmux_state.py`.
+//! Mirrors Python `test/test_ccbrd_tmux_state.py`.
 
 use ccbr_daemon::services::health_assessment::tmux_runtime::backend::{
     OwnershipResult, TmuxBackend,

@@ -9,8 +9,8 @@ use ccbr_daemon::socket_server::SocketServer;
 const HEARTBEAT_INTERVAL_MS: u64 = 1000;
 
 fn print_usage() {
-    eprintln!("Usage: ccbd <project-root>");
-    eprintln!("   or: ccbd --project <project-root>");
+    eprintln!("Usage: ccbrd <project-root>");
+    eprintln!("   or: ccbrd --project <project-root>");
 }
 
 fn main() {
@@ -55,7 +55,7 @@ fn main() {
         .expect("failed to bind daemon socket");
 
     println!(
-        "ccbd started for project {} at {}",
+        "ccbrd started for project {} at {}",
         app.lock().unwrap().project_id(),
         socket_path
     );
@@ -71,7 +71,7 @@ fn main() {
         std::thread::sleep(Duration::from_millis(100));
     }
 
-    println!("ccbd shutting down...");
+    println!("ccbrd shutting down...");
     server.shutdown();
     let _ = server_handle.join();
     let _ = heartbeat_handle.join();
@@ -82,7 +82,7 @@ fn main() {
         }
     }
 
-    println!("ccbd stopped.");
+    println!("ccbrd stopped.");
 }
 
 fn resolve_project_root(args: &[String]) -> Option<PathBuf> {

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/tmux_runtime/state.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/tmux_runtime/state.py`.
 
 use super::backend::TmuxBackend;
 use super::ownership::inspect_tmux_pane_ownership;

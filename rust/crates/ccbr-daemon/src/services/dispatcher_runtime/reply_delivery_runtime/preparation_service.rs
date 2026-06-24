@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/reply_delivery_runtime/preparation_service.py`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/reply_delivery_runtime/preparation_service.py`.
 //!
 //! Walks each configured agent, finds pending reply events at the head of the
 //! mailbox, and prepares a reply-delivery job for each one.

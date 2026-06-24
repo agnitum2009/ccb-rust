@@ -162,7 +162,7 @@ fn submission_store_record_has_header() {
     };
     store.append(&record).unwrap();
 
-    let path = layout.ccbd_submissions_path();
+    let path = layout.ccbrd_submissions_path();
     let line = read_first_jsonl_line(path.as_std_path());
     let record: serde_json::Value = serde_json::from_str(&line).unwrap();
     assert_eq!(record.get("schema_version").unwrap().as_i64().unwrap(), 2);

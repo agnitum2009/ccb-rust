@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_apply_namespace.py`.
+//! Mirrors Python `lib/ccbrd/reload_apply_namespace.py`.
 
 use crate::app::CcbdApp;
 use crate::reload_apply_results::not_published_diagnostics;

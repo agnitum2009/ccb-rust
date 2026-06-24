@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/health_assessment/models.py`.
+//! Mirrors Python `lib/ccbrd/services/health_assessment/models.py`.
 
 use std::path::Path;
 

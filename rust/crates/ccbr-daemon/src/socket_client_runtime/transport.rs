@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/socket_client_runtime/transport.py`.
+//! Mirrors Python `lib/ccbrd/socket_client_runtime/transport.py`.
 
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
@@ -116,7 +116,7 @@ pub fn recv_response_line<S: Read>(sock: &mut S) -> Result<String, CcbdClientErr
     let mut line = String::new();
     let n = reader.read_line(&mut line)?;
     if n == 0 {
-        return Err(CcbdClientError::new("empty response from ccbd"));
+        return Err(CcbdClientError::new("empty response from ccbrd"));
     }
     Ok(line)
 }

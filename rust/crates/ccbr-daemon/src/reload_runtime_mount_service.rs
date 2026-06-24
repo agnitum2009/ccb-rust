@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_runtime_mount_service.py`.
+//! Mirrors Python `lib/ccbrd/reload_runtime_mount_service.py`.
 
 use crate::app::CcbdApp;
 use crate::reload_apply_models::ServiceGraph;

@@ -35,7 +35,7 @@ pub fn request_remote_stop<F, G, C>(
     force: bool,
     connect_mounted_daemon_fn: F,
     record_shutdown_intent_fn: G,
-    ccbd_client_factory_fn: C,
+    ccbrd_client_factory_fn: C,
     stop_all_timeout_s: f64,
 ) -> anyhow::Result<Option<KillSummary>>
 where
@@ -48,8 +48,8 @@ where
         Err(_) => return Ok(None),
     };
     record_shutdown_intent_fn(context, "kill");
-    let socket_path = context.paths.ccbd_socket_path();
-    let client = match ccbd_client_factory_fn(socket_path.as_std_path(), stop_all_timeout_s) {
+    let socket_path = context.paths.ccbrd_socket_path();
+    let client = match ccbrd_client_factory_fn(socket_path.as_std_path(), stop_all_timeout_s) {
         Ok(client) => client,
         Err(_) if force => return Ok(None),
         Err(e) => return Err(e),
@@ -84,7 +84,7 @@ where
         Err(_e) if force => Ok(KillSummary {
             project_id: context.project.project_id.clone(),
             state: "unmounted".into(),
-            socket_path: context.paths.ccbd_socket_path().to_string(),
+            socket_path: context.paths.ccbrd_socket_path().to_string(),
             forced: force,
             cleanup_summaries: Vec::new(),
             worktree_warnings: Vec::new(),
@@ -141,7 +141,7 @@ where
     Ok(KillSummary {
         project_id: context.project.project_id.clone(),
         state: last_phase,
-        socket_path: context.paths.ccbd_socket_path().to_string(),
+        socket_path: context.paths.ccbrd_socket_path().to_string(),
         forced: force,
         cleanup_summaries: Vec::new(),
         worktree_warnings: Vec::new(),

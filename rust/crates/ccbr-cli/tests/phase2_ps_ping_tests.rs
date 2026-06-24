@@ -3,7 +3,7 @@ use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::thread;
 
-use ccbr_cli::ccbd::CcbdClient;
+use ccbr_cli::ccbrd::CcbdClient;
 use ccbr_cli::context::{CliContext, CliContextBuilder};
 use ccbr_cli::models::{ParsedCommand, ParsedPingCommand, ParsedPsCommand};
 use ccbr_cli::phase2_runtime::dispatch::dispatch;
@@ -30,7 +30,7 @@ fn make_project() -> (TempDir, PathBuf) {
 #[test]
 fn test_phase2_ping_via_daemon_services() {
     let (_tmp, project_root) = make_project();
-    let socket_path = project_root.join("ccbd.sock");
+    let socket_path = project_root.join("ccbrd.sock");
 
     // Start a tiny Unix socket server that returns a canned ping response.
     let listener = UnixListener::bind(&socket_path).unwrap();
@@ -39,7 +39,7 @@ fn test_phase2_ping_via_daemon_services() {
             let mut reader = BufReader::new(&stream);
             let mut line = String::new();
             reader.read_line(&mut line).unwrap();
-            let response = r#"{"ok":true,"payload":{"pong":true,"target":"ccbd","status":"ok"}}"#;
+            let response = r#"{"ok":true,"payload":{"pong":true,"target":"ccbrd","status":"ok"}}"#;
             stream.write_all(response.as_bytes()).unwrap();
             stream.write_all(b"\n").unwrap();
         }
@@ -49,9 +49,9 @@ fn test_phase2_ping_via_daemon_services() {
     let services = DaemonPhase2Services::with_client(client);
     let context = build_context(
         project_root,
-        ParsedCommand::Ping(ParsedPingCommand::new(None, "ccbd".into())),
+        ParsedCommand::Ping(ParsedPingCommand::new(None, "ccbrd".into())),
     );
-    let command = json!({ "kind": "ping", "target": "ccbd" });
+    let command = json!({ "kind": "ping", "target": "ccbrd" });
     let mut out = Vec::new();
     let code = dispatch(&context, &command, &mut out, &services);
     let output = String::from_utf8(out).unwrap();

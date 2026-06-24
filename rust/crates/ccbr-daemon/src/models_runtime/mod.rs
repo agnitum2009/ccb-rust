@@ -1,1 +1,1 @@
-//! Mirrors Python `lib/ccbd/models_runtime/`.
+//! Mirrors Python `lib/ccbrd/models_runtime/`.

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/dispatcher_runtime/reply_delivery_runtime/preparation_message.py`.
+//! Mirrors Python `lib/ccbrd/services/dispatcher_runtime/reply_delivery_runtime/preparation_message.py`.
 //!
 //! Builds the reply-delivery job, message, and attempt records that carry a
 //! provider reply back to the target agent.

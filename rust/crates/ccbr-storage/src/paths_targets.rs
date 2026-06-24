@@ -11,7 +11,7 @@ impl PathLayout {
         if target_kind.trim().to_lowercase() == "agent" {
             Ok(self.agent_dir(&segment))
         } else {
-            Ok(self.ccbd_dir().join("targets").join(segment))
+            Ok(self.ccbrd_dir().join("targets").join(segment))
         }
     }
 
@@ -36,20 +36,20 @@ impl PathLayout {
     }
 
     pub fn snapshot_path(&self, job_id: &str) -> Utf8PathBuf {
-        self.ccbd_snapshots_dir().join(format!("{}.json", job_id))
+        self.ccbrd_snapshots_dir().join(format!("{}.json", job_id))
     }
 
     pub fn cursor_path(&self, job_id: &str) -> Utf8PathBuf {
-        self.ccbd_cursors_dir().join(format!("{}.json", job_id))
+        self.ccbrd_cursors_dir().join(format!("{}.json", job_id))
     }
 
     pub fn execution_state_path(&self, job_id: &str) -> Utf8PathBuf {
-        self.ccbd_executions_dir().join(format!("{}.json", job_id))
+        self.ccbrd_executions_dir().join(format!("{}.json", job_id))
     }
 
     pub fn heartbeat_subject_dir(&self, subject_kind: &str) -> crate::Result<Utf8PathBuf> {
         Ok(self
-            .ccbd_heartbeats_dir()
+            .ccbrd_heartbeats_dir()
             .join(normalized_segment(subject_kind, "subject_kind")?))
     }
 
@@ -65,14 +65,14 @@ impl PathLayout {
     }
 
     pub fn provider_health_path(&self, job_id: &str) -> Utf8PathBuf {
-        self.ccbd_provider_health_dir()
+        self.ccbrd_provider_health_dir()
             .join(format!("{}.jsonl", job_id.trim()))
     }
 
     pub fn support_bundle_path(&self, bundle_id: &str) -> crate::Result<Utf8PathBuf> {
         let normalized = normalized_segment(bundle_id, "bundle_id")?;
         Ok(self
-            .ccbd_support_dir()
+            .ccbrd_support_dir()
             .join(format!("{}.tar.gz", normalized)))
     }
 }
@@ -90,23 +90,23 @@ mod tests {
         );
         assert_eq!(
             layout.target_dir("service", "svc-1").unwrap(),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/targets/svc-1")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/targets/svc-1")
         );
         assert_eq!(
             layout.snapshot_path("job-1"),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/snapshots/job-1.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/snapshots/job-1.json")
         );
         assert_eq!(
             layout.cursor_path("job-1"),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/cursors/job-1.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/cursors/job-1.json")
         );
         assert_eq!(
             layout.provider_health_path("job-1"),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/provider-health/job-1.jsonl")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/provider-health/job-1.jsonl")
         );
         assert_eq!(
             layout.support_bundle_path("bundle-1").unwrap(),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/support/bundle-1.tar.gz")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/support/bundle-1.tar.gz")
         );
     }
 
@@ -115,7 +115,7 @@ mod tests {
         let layout = PathLayout::new("/project");
         assert_eq!(
             layout.heartbeat_subject_path("provider", "sub-1").unwrap(),
-            Utf8PathBuf::from("/project/.ccbr/ccbd/heartbeats/provider/sub-1.json")
+            Utf8PathBuf::from("/project/.ccbr/ccbrd/heartbeats/provider/sub-1.json")
         );
     }
 }

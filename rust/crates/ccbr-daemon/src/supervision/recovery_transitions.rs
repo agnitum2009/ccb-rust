@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervision/recovery_transitions.py`.
+//! Mirrors Python `lib/ccbrd/supervision/recovery_transitions.py`.
 //! 1:1 file alignment stub.
 
 use std::collections::HashMap;

@@ -183,7 +183,7 @@ pub fn maintenance_schedule(context: &CliContext, after_s: u32, reason: &str, no
         }
     };
 
-    let lock_path = context.paths.ccbd_maintenance_heartbeat_lock_path();
+    let lock_path = context.paths.ccbrd_maintenance_heartbeat_lock_path();
     let lock_payload = json!({
         "schema_version": 1,
         "record_type": "maintenance_heartbeat_lock",
@@ -317,7 +317,7 @@ pub fn maintenance_tick(
         });
     }
 
-    let lock_path = context.paths.ccbd_maintenance_heartbeat_lock_path();
+    let lock_path = context.paths.ccbrd_maintenance_heartbeat_lock_path();
     let lock_payload = json!({
         "schema_version": 1,
         "record_type": "maintenance_heartbeat_lock",

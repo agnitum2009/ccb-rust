@@ -23,7 +23,7 @@ pub use identity::{
 };
 pub use resolver::{bootstrap_project, ProjectContext, ProjectResolver};
 pub use runtime_paths::{
-    project_anchor_dir, project_anchor_exists, project_ccbd_dir, project_lock_dir,
+    project_anchor_dir, project_anchor_exists, project_ccbrd_dir, project_lock_dir,
     project_registry_dir,
 };
 

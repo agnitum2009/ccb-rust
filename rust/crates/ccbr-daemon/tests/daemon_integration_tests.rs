@@ -55,17 +55,17 @@ fn call(app: &mut CcbdApp, method: &str, params: serde_json::Value) -> serde_jso
 fn test_ping_handler() {
     let dir = TempDir::new().unwrap();
     let mut app = stub_app(&dir);
-    let resp = call(&mut app, "ping", json!({"target": "ccbd"}));
+    let resp = call(&mut app, "ping", json!({"target": "ccbrd"}));
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     assert!(resp.get("result").is_some());
-    assert_eq!(resp["result"]["target"].as_str(), Some("ccbd"));
+    assert_eq!(resp["result"]["target"].as_str(), Some("ccbrd"));
 }
 
 #[test]
 fn test_python_shape_ping() {
     let dir = TempDir::new().unwrap();
     let mut app = stub_app(&dir);
-    let raw = r#"{"op":"ping","request":{"target":"ccbd"}}"#;
+    let raw = r#"{"op":"ping","request":{"target":"ccbrd"}}"#;
     let response = app.handle_rpc(raw);
     let resp: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
@@ -147,7 +147,7 @@ fn test_socket_server_round_trip() {
     // Give the server a moment to bind.
     thread::sleep(Duration::from_millis(50));
 
-    let request = json!({"method": "ping", "params": {"target": "ccbd"}});
+    let request = json!({"method": "ping", "params": {"target": "ccbrd"}});
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     stream
         .write_all((serde_json::to_string(&request).unwrap() + "\n").as_bytes())

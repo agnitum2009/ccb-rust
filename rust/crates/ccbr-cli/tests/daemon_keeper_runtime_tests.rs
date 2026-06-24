@@ -19,13 +19,13 @@ impl OwnershipGuard for TestGuard {
 }
 
 fn save_keeper_state(context: &KeeperContext, keeper_pid: u32, state: &str) {
-    let path = context.paths.ccbd_dir().as_std_path().join("keeper.json");
+    let path = context.paths.ccbrd_dir().as_std_path().join("keeper.json");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(
         &path,
         serde_json::json!({
             "schema_version": 1,
-            "record_type": "ccbd_keeper",
+            "record_type": "ccbrd_keeper",
             "project_id": context.project_id,
             "keeper_pid": keeper_pid,
             "started_at": "2026-05-23T00:00:00Z",
@@ -52,7 +52,7 @@ fn spawn_keeper_process_uses_lib_root_keeper_main() {
 
     let spawn = captured.lock().unwrap().take().unwrap();
     let lib_root = ccbr_cli::services::daemon_runtime::keeper::keeper_lib_root();
-    let expected_script = lib_root.join("ccbd").join("keeper_main.py");
+    let expected_script = lib_root.join("ccbrd").join("keeper_main.py");
 
     assert_eq!(spawn.program, Path::new("python"));
     assert_eq!(spawn.args[0], expected_script.to_string_lossy().to_string());
@@ -94,7 +94,7 @@ fn ensure_keeper_started_replaces_state_for_unrelated_live_pid() {
             } else if pid == 777 {
                 vec![
                     "python3".to_string(),
-                    "/repo/lib/ccbd/keeper_main.py".to_string(),
+                    "/repo/lib/ccbrd/keeper_main.py".to_string(),
                     "--project".to_string(),
                     context.project_root.to_string_lossy().to_string(),
                 ]
@@ -137,7 +137,7 @@ fn ensure_keeper_started_reuses_matching_keeper_state() {
         |_pid| {
             vec![
                 "python3".to_string(),
-                "/repo/lib/ccbd/keeper_main.py".to_string(),
+                "/repo/lib/ccbrd/keeper_main.py".to_string(),
                 "--project".to_string(),
                 context.project_root.to_string_lossy().to_string(),
             ]

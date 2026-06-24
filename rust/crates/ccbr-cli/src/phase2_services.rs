@@ -1,7 +1,7 @@
 //! Mirrors Python `lib/cli/phase2_services.py`.
 //!
 //! Provides a concrete `Phase2Services` implementation backed by the daemon
-//! socket client (`crate::ccbd::CcbdClient`). Most service methods forward to a
+//! socket client (`crate::ccbrd::CcbdClient`). Most service methods forward to a
 //! matching daemon RPC; a few read local state where the Rust implementation is
 //! already complete (e.g. `ps_summary`).
 
@@ -9,7 +9,7 @@ use std::io::Write;
 
 use serde_json::{json, Value};
 
-use crate::ccbd::CcbdClient;
+use crate::ccbrd::CcbdClient;
 use crate::context::CliContext;
 use crate::models::ParsedPsCommand;
 use crate::phase2_runtime::handlers_ops::Phase2Services;
@@ -116,7 +116,7 @@ impl Phase2Services for DaemonPhase2Services {
     }
 
     fn doctor_summary(&self, context: &CliContext) -> Value {
-        let ping = self.rpc("ping", &json!({"target": "ccbd"}));
+        let ping = self.rpc("ping", &json!({"target": "ccbrd"}));
         let daemon_ok = ping.get("pong").and_then(|v| v.as_bool()).unwrap_or(false);
         let state = if daemon_ok {
             "reachable"
@@ -155,9 +155,9 @@ impl Phase2Services for DaemonPhase2Services {
                 "tmux_available": false,
                 "tmux_path": "",
             },
-            "ccbd": {
+            "ccbrd": {
                 "state": state,
-                "socket_path": context.paths.ccbd_socket_path().to_string(),
+                "socket_path": context.paths.ccbrd_socket_path().to_string(),
                 "pong": daemon_ok,
             },
             "status": if daemon_ok { "ok" } else { "degraded" },

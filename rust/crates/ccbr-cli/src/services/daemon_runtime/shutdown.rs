@@ -28,7 +28,7 @@ where
     if socket_connectable {
         let _client = client_factory();
         // client.shutdown() call would go here
-        // For now, placeholder - actual ccbd client call injected via closure
+        // For now, placeholder - actual ccbrd client call injected via closure
         Ok(())
     } else {
         mark_inspected_lease_unmounted(inspection);
@@ -110,7 +110,7 @@ fn _unlink_socket_if_forced(socket_path: &Path, force: bool) {
 /// Shutdown daemon with cleanup.
 ///
 /// Mirrors Python `shutdown_daemon(...)`.
-/// Uses closure injection for all ccbd and process operations.
+/// Uses closure injection for all ccbrd and process operations.
 #[allow(clippy::too_many_arguments)]
 pub fn shutdown_daemon<R, F, I, C, L, K, W, E, T, A>(
     record_shutdown_intent_fn: R,

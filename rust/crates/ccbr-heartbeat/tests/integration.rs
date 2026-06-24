@@ -297,7 +297,7 @@ fn maintenance_store_reports_corrupt_files() {
     let (_dir, layout) = temp_layout();
     let project_id = layout.project_id().to_string();
     let store = MaintenanceHeartbeatStore::new(layout.clone(), &project_id).unwrap();
-    let path = layout.ccbd_maintenance_heartbeat_schedule_path();
+    let path = layout.ccbrd_maintenance_heartbeat_schedule_path();
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, "{not json}\n").unwrap();
 
@@ -313,7 +313,7 @@ fn project_view_payload(
 ) -> serde_json::Value {
     serde_json::json!({
         "view": {
-            "ccbd": {"state": "mounted", "health": "healthy", "generation": 1},
+            "ccbrd": {"state": "mounted", "health": "healthy", "generation": 1},
             "agents": [agent],
             "comms": comms,
         },
@@ -519,7 +519,7 @@ fn maintenance_classifier_flags_provider_runtime_without_control_job() {
 #[test]
 fn maintenance_ps_summary_detects_failed_and_binding_concern() {
     let payload = serde_json::json!({
-        "ccbd_state": "mounted",
+        "ccbrd_state": "mounted",
         "agents": [
             {"agent_name": "demo", "state": "failed", "binding_status": "bound"},
             {"agent_name": "other", "state": "idle", "binding_status": "unbound"},
@@ -534,16 +534,16 @@ fn maintenance_ps_summary_detects_failed_and_binding_concern() {
 
 #[test]
 fn maintenance_ps_summary_falls_back_with_error() {
-    let payload = serde_json::json!({"ccbd_state": "mounted", "agents": []});
-    let evaluation = evaluate_ps_summary(&payload, Some("ccbd unavailable"));
+    let payload = serde_json::json!({"ccbrd_state": "mounted", "agents": []});
+    let evaluation = evaluate_ps_summary(&payload, Some("ccbrd unavailable"));
     assert_eq!(evaluation.health, "unknown");
-    assert_eq!(evaluation.summary["fallback_error"], "ccbd unavailable");
+    assert_eq!(evaluation.summary["fallback_error"], "ccbrd unavailable");
 }
 
 #[test]
 fn maintenance_lock_acquire_and_release() {
     let (_dir, layout) = temp_layout();
-    let path = layout.ccbd_maintenance_heartbeat_lock_path();
+    let path = layout.ccbrd_maintenance_heartbeat_lock_path();
     let payload = serde_json::json!({
         "schema_version": 1,
         "record_type": "maintenance_heartbeat_lock",
@@ -565,7 +565,7 @@ fn maintenance_lock_acquire_and_release() {
 #[test]
 fn maintenance_lock_reports_busy() {
     let (_dir, layout) = temp_layout();
-    let path = layout.ccbd_maintenance_heartbeat_lock_path();
+    let path = layout.ccbrd_maintenance_heartbeat_lock_path();
     let payload = serde_json::json!({"pid": 123});
 
     let _first = MaintenanceHeartbeatLock::try_acquire(&path, payload.clone()).unwrap();
@@ -576,7 +576,7 @@ fn maintenance_lock_reports_busy() {
 #[test]
 fn maintenance_lock_release_is_idempotent() {
     let (_dir, layout) = temp_layout();
-    let path = layout.ccbd_maintenance_heartbeat_lock_path();
+    let path = layout.ccbrd_maintenance_heartbeat_lock_path();
     let mut lock = MaintenanceHeartbeatLock::try_acquire(&path, serde_json::json!({})).unwrap();
     lock.release().unwrap();
     lock.release().unwrap();

@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/services/project_namespace_runtime/destroy.py`.
+//! Mirrors Python `lib/ccbrd/services/project_namespace_runtime/destroy.py`.
 
 use super::backend::{build_backend, kill_server};
 use super::ensure_context::NamespaceController;
@@ -19,18 +19,18 @@ pub fn destroy_project_namespace(
         normalized_reason
     };
 
-    std::fs::create_dir_all(&controller.layout.ccbd_dir)?;
+    std::fs::create_dir_all(&controller.layout.ccbrd_dir)?;
 
     let current = controller.state_store.load()?;
     let occurred_at = (controller.clock)();
     let tmux_socket_path = current
         .as_ref()
         .map(|s| s.tmux_socket_path.clone())
-        .unwrap_or_else(|| controller.layout.ccbd_tmux_socket_path.clone());
+        .unwrap_or_else(|| controller.layout.ccbrd_tmux_socket_path.clone());
     let tmux_session_name = current
         .as_ref()
         .map(|s| s.tmux_session_name.clone())
-        .unwrap_or_else(|| controller.layout.ccbd_tmux_session_name.clone());
+        .unwrap_or_else(|| controller.layout.ccbrd_tmux_session_name.clone());
 
     let backend = build_backend(&controller.backend_factory, &tmux_socket_path)?;
     let destroyed = kill_server(&backend);
@@ -38,11 +38,11 @@ pub fn destroy_project_namespace(
     let control_window_name = current
         .as_ref()
         .and_then(|s| s.control_window_name.clone())
-        .unwrap_or_else(|| controller.layout.ccbd_tmux_control_window_name.clone());
+        .unwrap_or_else(|| controller.layout.ccbrd_tmux_control_window_name.clone());
     let workspace_window_name = current
         .as_ref()
         .and_then(|s| s.workspace_window_name.clone())
-        .unwrap_or_else(|| controller.layout.ccbd_tmux_workspace_window_name.clone());
+        .unwrap_or_else(|| controller.layout.ccbrd_tmux_workspace_window_name.clone());
 
     let next_state = build_destroyed_state(
         current.as_ref(),

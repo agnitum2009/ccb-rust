@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/reload_additive_agents.py`.
+//! Mirrors Python `lib/ccbrd/reload_additive_agents.py`.
 //!
 //! Additive namespace steps: create windows/panes for agents that exist only
 //! in the new config during a reload.

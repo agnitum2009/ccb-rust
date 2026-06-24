@@ -1,4 +1,4 @@
-//! Mirrors Python `lib/ccbd/supervisor_runtime/namespace.py`.
+//! Mirrors Python `lib/ccbrd/supervisor_runtime/namespace.py`.
 //! 1:1 file alignment stub.
 
 use std::collections::HashMap;
