@@ -1,0 +1,24 @@
+[package]
+name = "ccbr-provider-profiles"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+toml = { workspace = true }
+camino = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+url = "2"
+shell-escape = "0.1"
+ccbr-provider-core = { workspace = true }
+ccbr-storage = { workspace = true }
+ccbr-types = { workspace = true }
+ccbr-memory = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

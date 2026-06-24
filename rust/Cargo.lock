@@ -162,15 +162,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-agents"
+name = "ccbr-agents"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-provider-core",
- "ccb-provider-profiles",
- "ccb-storage",
- "ccb-types",
+ "ccbr-provider-core",
+ "ccbr-provider-profiles",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "hex",
  "regex",
@@ -187,31 +187,31 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-cleanup"
+name = "ccbr-cleanup"
 version = "7.5.2"
 
 [[package]]
-name = "ccb-cli"
+name = "ccbr-cli"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-agents",
- "ccb-daemon",
- "ccb-heartbeat",
- "ccb-mailbox",
- "ccb-memory",
- "ccb-provider-core",
- "ccb-provider-hooks",
- "ccb-provider-profiles",
- "ccb-provider-sessions",
- "ccb-providers",
- "ccb-runtime-pid-cleanup",
- "ccb-storage",
- "ccb-storage-classification",
- "ccb-terminal",
- "ccb-types",
- "ccb-workspace",
+ "ccbr-agents",
+ "ccbr-daemon",
+ "ccbr-heartbeat",
+ "ccbr-mailbox",
+ "ccbr-memory",
+ "ccbr-provider-core",
+ "ccbr-provider-hooks",
+ "ccbr-provider-profiles",
+ "ccbr-provider-sessions",
+ "ccbr-providers",
+ "ccbr-runtime-pid-cleanup",
+ "ccbr-storage",
+ "ccbr-storage-classification",
+ "ccbr-terminal",
+ "ccbr-types",
+ "ccbr-workspace",
  "chrono",
  "clap",
  "flate2",
@@ -226,14 +226,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-completion"
+name = "ccbr-completion"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-agents",
- "ccb-provider-core",
- "ccb-storage",
- "ccb-types",
+ "ccbr-agents",
+ "ccbr-provider-core",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "hex",
  "serde",
@@ -244,24 +244,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-daemon"
+name = "ccbr-daemon"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-agents",
- "ccb-completion",
- "ccb-jobs",
- "ccb-mailbox",
- "ccb-project",
- "ccb-provider-core",
- "ccb-provider-profiles",
- "ccb-provider-sessions",
- "ccb-providers",
- "ccb-storage",
- "ccb-terminal",
- "ccb-types",
- "ccb-workspace",
+ "ccbr-agents",
+ "ccbr-completion",
+ "ccbr-jobs",
+ "ccbr-mailbox",
+ "ccbr-project",
+ "ccbr-provider-core",
+ "ccbr-provider-profiles",
+ "ccbr-provider-sessions",
+ "ccbr-providers",
+ "ccbr-storage",
+ "ccbr-terminal",
+ "ccbr-types",
+ "ccbr-workspace",
  "chrono",
  "ctrlc",
  "hex",
@@ -278,11 +278,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-heartbeat"
+name = "ccbr-heartbeat"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-storage",
+ "ccbr-storage",
  "chrono",
  "fs2",
  "serde",
@@ -292,11 +292,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-jobs"
+name = "ccbr-jobs"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-storage",
+ "ccbr-storage",
  "chrono",
  "serde",
  "serde_json",
@@ -305,14 +305,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-mailbox"
+name = "ccbr-mailbox"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-jobs",
- "ccb-storage",
- "ccb-types",
+ "ccbr-jobs",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "serde",
  "serde_json",
@@ -323,29 +323,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-mcp-server"
+name = "ccbr-mcp-server"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-cli",
- "ccb-storage",
+ "ccbr-cli",
+ "ccbr-storage",
  "serde",
  "serde_json",
  "tempfile",
 ]
 
 [[package]]
-name = "ccb-memory"
+name = "ccbr-memory"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-provider-core",
- "ccb-provider-profiles",
- "ccb-provider-sessions",
- "ccb-providers",
- "ccb-storage",
- "ccb-types",
+ "ccbr-provider-core",
+ "ccbr-provider-profiles",
+ "ccbr-provider-sessions",
+ "ccbr-providers",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "filetime",
  "hex",
@@ -358,11 +358,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-message-bureau"
+name = "ccbr-message-bureau"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-mailbox",
+ "ccbr-mailbox",
  "serde",
  "serde_json",
  "tempfile",
@@ -370,21 +370,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-pane-registry"
+name = "ccbr-pane-registry"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-project",
- "ccb-provider-core",
- "ccb-storage",
- "ccb-terminal",
+ "ccbr-project",
+ "ccbr-provider-core",
+ "ccbr-storage",
+ "ccbr-terminal",
  "serde",
  "serde_json",
  "tempfile",
 ]
 
 [[package]]
-name = "ccb-project"
+name = "ccbr-project"
 version = "7.5.2"
 dependencies = [
  "camino",
@@ -397,23 +397,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-provider-activity-hook"
+name = "ccbr-provider-activity-hook"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-provider-hooks",
+ "ccbr-provider-hooks",
  "serde_json",
  "tempfile",
 ]
 
 [[package]]
-name = "ccb-provider-core"
+name = "ccbr-provider-core"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-storage",
- "ccb-types",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "fs2",
  "hex",
@@ -428,23 +428,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-provider-finish-hook"
+name = "ccbr-provider-finish-hook"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-provider-hooks",
+ "ccbr-provider-hooks",
  "serde_json",
  "tempfile",
 ]
 
 [[package]]
-name = "ccb-provider-hooks"
+name = "ccbr-provider-hooks"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-provider-core",
- "ccb-storage",
- "ccb-types",
+ "ccbr-provider-core",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "regex",
  "serde",
@@ -454,14 +454,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-provider-profiles"
+name = "ccbr-provider-profiles"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-memory",
- "ccb-provider-core",
- "ccb-storage",
- "ccb-types",
+ "ccbr-memory",
+ "ccbr-provider-core",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "hex",
  "regex",
@@ -476,12 +476,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-provider-sessions"
+name = "ccbr-provider-sessions"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-storage",
- "ccb-types",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "libc",
  "serde",
@@ -491,22 +491,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-providers"
+name = "ccbr-providers"
 version = "7.5.2"
 dependencies = [
  "anyhow",
  "camino",
- "ccb-agents",
- "ccb-completion",
- "ccb-mailbox",
- "ccb-memory",
- "ccb-provider-core",
- "ccb-provider-hooks",
- "ccb-provider-profiles",
- "ccb-provider-sessions",
- "ccb-storage",
- "ccb-terminal",
- "ccb-types",
+ "ccbr-agents",
+ "ccbr-completion",
+ "ccbr-mailbox",
+ "ccbr-memory",
+ "ccbr-provider-core",
+ "ccbr-provider-hooks",
+ "ccbr-provider-profiles",
+ "ccbr-provider-sessions",
+ "ccbr-storage",
+ "ccbr-terminal",
+ "ccbr-types",
  "chrono",
  "filetime",
  "libc",
@@ -525,7 +525,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-release-builder"
+name = "ccbr-release-builder"
 version = "7.5.2"
 dependencies = [
  "anyhow",
@@ -543,7 +543,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-release-checker"
+name = "ccbr-release-checker"
 version = "7.5.2"
 dependencies = [
  "anyhow",
@@ -561,16 +561,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-runtime-env"
+name = "ccbr-runtime-env"
 version = "7.5.2"
 
 [[package]]
-name = "ccb-runtime-pid-cleanup"
+name = "ccbr-runtime-pid-cleanup"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-providers",
- "ccb-storage",
+ "ccbr-providers",
+ "ccbr-storage",
  "serde",
  "serde_json",
  "tempfile",
@@ -578,7 +578,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-stdio-runtime"
+name = "ccbr-stdio-runtime"
 version = "7.5.2"
 dependencies = [
  "encoding_rs",
@@ -586,12 +586,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-storage"
+name = "ccbr-storage"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-project",
- "ccb-storage-classification",
+ "ccbr-project",
+ "ccbr-storage-classification",
  "chrono",
  "filetime",
  "fs2",
@@ -605,11 +605,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-storage-classification"
+name = "ccbr-storage-classification"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-storage",
+ "ccbr-storage",
  "chrono",
  "serde",
  "serde_json",
@@ -617,13 +617,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-terminal"
+name = "ccbr-terminal"
 version = "7.5.2"
 dependencies = [
  "anyhow",
- "ccb-stdio-runtime",
- "ccb-storage",
- "ccb-types",
+ "ccbr-stdio-runtime",
+ "ccbr-storage",
+ "ccbr-types",
  "chrono",
  "libc",
  "rand",
@@ -638,11 +638,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-types"
+name = "ccbr-types"
 version = "7.5.2"
 dependencies = [
- "ccb-runtime-env",
- "ccb-ui-text",
+ "ccbr-runtime-env",
+ "ccbr-ui-text",
  "chrono",
  "serde",
  "serde_json",
@@ -651,7 +651,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-ui-text"
+name = "ccbr-ui-text"
 version = "7.5.2"
 dependencies = [
  "serde",
@@ -663,13 +663,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "ccb-workspace"
+name = "ccbr-workspace"
 version = "7.5.2"
 dependencies = [
  "camino",
- "ccb-agents",
- "ccb-project",
- "ccb-storage",
+ "ccbr-agents",
+ "ccbr-project",
+ "ccbr-storage",
  "chrono",
  "regex",
  "serde",

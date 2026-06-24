@@ -1,0 +1,27 @@
+[package]
+name = "ccbr-release-builder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CCB release artifact builder (replacement for scripts/build_release.py)"
+
+[[bin]]
+name = "ccbr-release-builder"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+tempfile = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
+walkdir = { workspace = true }
+chrono = { workspace = true }
+camino = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

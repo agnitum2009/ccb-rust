@@ -1,37 +1,37 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/ccb-storage",
-    "crates/ccb-types",
-    "crates/ccb-provider-core",
-    "crates/ccb-terminal",
-    "crates/ccb-mailbox",
-    "crates/ccb-agents",
-    "crates/ccb-cli",
-    "crates/ccb-daemon",
-    "crates/ccb-providers",
-    "crates/ccb-completion",
-    "crates/ccb-memory",
-    "crates/ccb-heartbeat",
-    "crates/ccb-provider-hooks",
-    "crates/ccb-provider-profiles",
-    "crates/ccb-provider-sessions",
-    "crates/ccb-jobs",
-    "crates/ccb-message-bureau",
-    "crates/ccb-pane-registry",
-    "crates/ccb-project",
-    "crates/ccb-runtime-env",
-    "crates/ccb-runtime-pid-cleanup",
-    "crates/ccb-stdio-runtime",
-    "crates/ccb-storage-classification",
-    "crates/ccb-ui-text",
-    "crates/ccb-workspace",
-    "tools/ccb-release-checker",
-    "tools/ccb-mcp-server",
-    "tools/ccb-release-builder",
-    "tools/ccb-provider-finish-hook",
-    "tools/ccb-provider-activity-hook",
-    "tools/ccb-cleanup",
+    "crates/ccbr-storage",
+    "crates/ccbr-types",
+    "crates/ccbr-provider-core",
+    "crates/ccbr-terminal",
+    "crates/ccbr-mailbox",
+    "crates/ccbr-agents",
+    "crates/ccbr-cli",
+    "crates/ccbr-daemon",
+    "crates/ccbr-providers",
+    "crates/ccbr-completion",
+    "crates/ccbr-memory",
+    "crates/ccbr-heartbeat",
+    "crates/ccbr-provider-hooks",
+    "crates/ccbr-provider-profiles",
+    "crates/ccbr-provider-sessions",
+    "crates/ccbr-jobs",
+    "crates/ccbr-message-bureau",
+    "crates/ccbr-pane-registry",
+    "crates/ccbr-project",
+    "crates/ccbr-runtime-env",
+    "crates/ccbr-runtime-pid-cleanup",
+    "crates/ccbr-stdio-runtime",
+    "crates/ccbr-storage-classification",
+    "crates/ccbr-ui-text",
+    "crates/ccbr-workspace",
+    "tools/ccbr-release-checker",
+    "tools/ccbr-mcp-server",
+    "tools/ccbr-release-builder",
+    "tools/ccbr-provider-finish-hook",
+    "tools/ccbr-provider-activity-hook",
+    "tools/ccbr-cleanup",
 ]
 
 [workspace.package]
@@ -66,31 +66,31 @@ encoding_rs = "0.8"
 shell-words = "1"
 
 # Internal crates
-ccb-storage = { path = "crates/ccb-storage" }
-ccb-types = { path = "crates/ccb-types" }
-ccb-provider-core = { path = "crates/ccb-provider-core" }
-ccb-terminal = { path = "crates/ccb-terminal" }
-ccb-mailbox = { path = "crates/ccb-mailbox" }
-ccb-agents = { path = "crates/ccb-agents" }
-ccb-cli = { path = "crates/ccb-cli" }
-ccb-daemon = { path = "crates/ccb-daemon" }
-ccb-providers = { path = "crates/ccb-providers" }
-ccb-completion = { path = "crates/ccb-completion" }
-ccb-memory = { path = "crates/ccb-memory" }
-ccb-heartbeat = { path = "crates/ccb-heartbeat" }
-ccb-provider-hooks = { path = "crates/ccb-provider-hooks" }
-ccb-provider-profiles = { path = "crates/ccb-provider-profiles" }
-ccb-provider-sessions = { path = "crates/ccb-provider-sessions" }
-ccb-jobs = { path = "crates/ccb-jobs" }
-ccb-message-bureau = { path = "crates/ccb-message-bureau" }
-ccb-pane-registry = { path = "crates/ccb-pane-registry" }
-ccb-project = { path = "crates/ccb-project" }
-ccb-runtime-env = { path = "crates/ccb-runtime-env" }
-ccb-runtime-pid-cleanup = { path = "crates/ccb-runtime-pid-cleanup" }
-ccb-stdio-runtime = { path = "crates/ccb-stdio-runtime" }
-ccb-storage-classification = { path = "crates/ccb-storage-classification" }
-ccb-ui-text = { path = "crates/ccb-ui-text" }
-ccb-workspace = { path = "crates/ccb-workspace" }
+ccbr-storage = { path = "crates/ccbr-storage" }
+ccbr-types = { path = "crates/ccbr-types" }
+ccbr-provider-core = { path = "crates/ccbr-provider-core" }
+ccbr-terminal = { path = "crates/ccbr-terminal" }
+ccbr-mailbox = { path = "crates/ccbr-mailbox" }
+ccbr-agents = { path = "crates/ccbr-agents" }
+ccbr-cli = { path = "crates/ccbr-cli" }
+ccbr-daemon = { path = "crates/ccbr-daemon" }
+ccbr-providers = { path = "crates/ccbr-providers" }
+ccbr-completion = { path = "crates/ccbr-completion" }
+ccbr-memory = { path = "crates/ccbr-memory" }
+ccbr-heartbeat = { path = "crates/ccbr-heartbeat" }
+ccbr-provider-hooks = { path = "crates/ccbr-provider-hooks" }
+ccbr-provider-profiles = { path = "crates/ccbr-provider-profiles" }
+ccbr-provider-sessions = { path = "crates/ccbr-provider-sessions" }
+ccbr-jobs = { path = "crates/ccbr-jobs" }
+ccbr-message-bureau = { path = "crates/ccbr-message-bureau" }
+ccbr-pane-registry = { path = "crates/ccbr-pane-registry" }
+ccbr-project = { path = "crates/ccbr-project" }
+ccbr-runtime-env = { path = "crates/ccbr-runtime-env" }
+ccbr-runtime-pid-cleanup = { path = "crates/ccbr-runtime-pid-cleanup" }
+ccbr-stdio-runtime = { path = "crates/ccbr-stdio-runtime" }
+ccbr-storage-classification = { path = "crates/ccbr-storage-classification" }
+ccbr-ui-text = { path = "crates/ccbr-ui-text" }
+ccbr-workspace = { path = "crates/ccbr-workspace" }
 
 [profile.release]
 strip = true

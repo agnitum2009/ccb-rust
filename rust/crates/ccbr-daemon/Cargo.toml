@@ -1,0 +1,47 @@
+[package]
+name = "ccbr-daemon"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+ccbr-storage = { workspace = true }
+ccbr-types = { workspace = true }
+ccbr-provider-core = { workspace = true }
+ccbr-terminal = { workspace = true }
+ccbr-mailbox = { workspace = true }
+ccbr-jobs = { workspace = true }
+ccbr-agents = { workspace = true }
+ccbr-providers = { workspace = true }
+ccbr-completion = { workspace = true }
+ccbr-provider-profiles = { workspace = true }
+ccbr-provider-sessions = { workspace = true }
+ccbr-workspace = { workspace = true }
+ccbr-project = { workspace = true }
+camino = { workspace = true }
+libc = "0.2"
+sha2 = { workspace = true }
+hex = { workspace = true }
+ctrlc = { version = "3", features = ["termination"] }
+
+[[bin]]
+name = "ccbd"
+path = "src/main.rs"
+
+[features]
+test-support = []
+
+[[test]]
+name = "runtime_launch_ensure_agent_runtime_tests"
+required-features = ["test-support"]
+
+[dev-dependencies]
+tempfile = "3"

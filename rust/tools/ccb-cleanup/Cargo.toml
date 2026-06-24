@@ -1,8 +1,0 @@
-[package]
-name = "ccb-cleanup"
-version.workspace = true
-edition.workspace = true
-
-[[bin]]
-name = "ccb-cleanup"
-path = "src/main.rs"

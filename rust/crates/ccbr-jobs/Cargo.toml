@@ -1,0 +1,16 @@
+[package]
+name = "ccbr-jobs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+camino = { workspace = true }
+ccbr-storage = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

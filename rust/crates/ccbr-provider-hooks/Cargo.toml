@@ -1,0 +1,18 @@
+[package]
+name = "ccbr-provider-hooks"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+camino = { workspace = true }
+ccbr-storage = { workspace = true }
+ccbr-types = { workspace = true }
+ccbr-provider-core = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

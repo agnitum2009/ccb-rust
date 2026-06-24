@@ -1,0 +1,24 @@
+[package]
+name = "ccbr-mailbox"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+ccbr-storage = { workspace = true }
+ccbr-types = { workspace = true }
+ccbr-jobs = { workspace = true }
+camino = { workspace = true }
+
+[features]
+default = []
+integration-tests = []
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,16 @@
+[package]
+name = "ccbr-provider-finish-hook"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ccbr-provider-finish-hook"
+path = "src/main.rs"
+
+[dependencies]
+camino = { workspace = true }
+ccbr-provider-hooks = { path = "../../crates/ccbr-provider-hooks" }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
