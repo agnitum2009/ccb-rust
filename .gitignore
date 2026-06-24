@@ -34,3 +34,9 @@ GEMINI.md
 openspec
 *.log
 .hippocampus
+
+# agent/harness runtime state — must not enter git
+.omc/
+.loop/
+.agents/
+.omx/

@@ -1,7 +1,0 @@
-{
-  "tool_name": "Read",
-  "tool_input_preview": "{\"file_path\":\"/home/agnitum/ccb/rust/crates/ccb-daemon/src/services.rs\"}",
-  "error": "File does not exist. Note: your current working directory is /home/agnitum/ccb. Did you mean services?",
-  "timestamp": "2026-06-15T02:10:50.799Z",
-  "retry_count": 1
-}
