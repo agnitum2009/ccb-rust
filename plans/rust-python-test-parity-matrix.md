@@ -8,6 +8,7 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 - Rust migration tests: **60**
 - Coverage: heuristic groupings below; many Python tests cover provider/runtime behavior that is now exercised by focused Rust integration tests.
 - Intentionally out of scope: provider-specific UI/CLI wrappers that are replaced by native Rust binaries (`ask`, `autonew`, `ctx-transfer`, `ccb` itself).
+- Empty `TODO: align with Python` stub mirrors in `ccb-providers` and `ccb-daemon` have been removed (see commits `761f4d70` and `f38543f4`). The Python source tree (`lib/ccbd/`, `lib/provider_backends/`, etc.) remains the compile/run-time reference for locating original behavior.
 
 ## Cluster Mapping
 
