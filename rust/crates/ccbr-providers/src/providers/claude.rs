@@ -409,6 +409,14 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
         return Some(result);
     }
 
+    // Live-mode fallback: detect turn completion from pane text when no
+    // structured hook/event data is available (no completion_dir events,
+    // no session log batches). If the pane shows a ready prompt (❯) after
+    // the prompt was sent, the turn is complete.
+    if let Some(result) = poll_pane_text_completion(submission, now) {
+        return Some(result);
+    }
+
     None
 }
 
@@ -588,6 +596,57 @@ fn reply_delivery_terminal_result(
     updated.reply =
         request_anchor_from_runtime_state(&submission.runtime_state, &submission.job_id);
     ProviderPollResult::new(updated, Vec::new(), Some(decision))
+}
+
+/// Detect turn completion from pane text when no structured hook/event data
+/// exists. If the pane shows a ready prompt (❯) after the prompt was sent,
+/// Claude has finished responding → terminal completion.
+fn poll_pane_text_completion(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let buffer = runtime_str(&submission.runtime_state, "reply_buffer");
+    if buffer.is_empty() {
+        return None;
+    }
+    if !looks_ready(&buffer) {
+        return None;
+    }
+
+    let provider_turn_ref = runtime_str(&submission.runtime_state, "request_anchor");
+    let provider_turn_ref = if provider_turn_ref.is_empty() {
+        submission.job_id.clone()
+    } else {
+        provider_turn_ref
+    };
+
+    let mut diagnostics = serde_json::Map::new();
+    diagnostics.insert("pane_text_completion".to_string(), Value::Bool(true));
+    diagnostics.insert(
+        "provider".to_string(),
+        Value::String(PROVIDER_NAME.to_string()),
+    );
+
+    let decision = CompletionDecision {
+        terminal: true,
+        status: CompletionStatus::Completed,
+        reason: Some("pane_text_turn_boundary".to_string()),
+        confidence: Some(CompletionConfidence::Observed),
+        reply: buffer.trim().to_string(),
+        anchor_seen: true,
+        reply_started: true,
+        reply_stable: true,
+        provider_turn_ref: Some(provider_turn_ref),
+        source_cursor: None,
+        finished_at: Some(now.to_string()),
+        diagnostics,
+    };
+
+    let mut updated = submission.clone();
+    updated
+        .runtime_state
+        .insert("turn_boundary_detected".to_string(), Value::Bool(true));
+    Some(ProviderPollResult::new(updated, Vec::new(), Some(decision)))
 }
 
 fn poll_exact_hook(submission: &ProviderSubmission, now: &str) -> Option<ProviderPollResult> {
