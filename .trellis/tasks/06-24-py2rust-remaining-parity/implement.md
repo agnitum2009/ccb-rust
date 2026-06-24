@@ -26,20 +26,22 @@
   - `cargo fmt --check` 干净。
 - `plans/rust-python-test-parity-matrix.md` 已更新 `cli_entrypoint` 行，记录 `Phase2Services` 实现与测试映射。
 
-### Step 2: Wave 2 — 核心 parity（进行中）
+### Step 2: Wave 2 — 核心 parity（已完成）
 
-- 任务状态：`06-24-py2rust-core-parity` 已启动，尚未归档。
+- 任务状态：`06-24-py2rust-core-parity` 已完成并提交（commit `9be27c74`）。
 - 已完成：
   - `ccb-heartbeat/src/classifier.rs` 空 stub 清理：改为 re-export `maintenance.rs` 的公开分类函数。
   - `ccb-jobs/src/store.rs` `JobEventStore::read_since_target` 增加 `record_type != "job_event"` 跳过逻辑；新增回归测试 `event_store_skips_non_job_event_records`。
-- 待完成：
-  - runtime launch 编排（detached fallback / stale / foreign / namespace 限制）。
-  - completion `SessionRotate` selector reset 端到端断言。
-  - CLI maintenance `status/tick/schedule/runner` 完整编排。
+  - runtime launch 编排：`EnsureAgentRuntimeImpl` 支持 detached fallback、pane 最小尺寸、foreign binding 检测与拒绝；新增 6 个集成测试。
+  - completion `SessionRotate` selector reset 端到端断言：`tracker_resets_selector_on_session_rotate` 通过。
+  - CLI maintenance `status/tick/schedule/runner` 完整编排已落地并覆盖。
 - 当前验收：
+  - `cargo test -p ccb-daemon -- --test-threads=1` 全绿。
+  - `cargo test -p ccb-completion -- --test-threads=1` 全绿。
   - `cargo test -p ccb-heartbeat -- --test-threads=1` 全绿。
   - `cargo test -p ccb-jobs -- --test-threads=1` 全绿（新增 1 个测试）。
-  - `cargo check --workspace` 通过。
+  - `cargo test -p ccb-cli -- --test-threads=1` 全绿。
+  - `cargo check --workspace`、`cargo clippy --workspace --all-targets`、`cargo fmt --check` 通过（仅既有 warning）。
 
 ### Step 3: Wave 3 — stub 削减
 
