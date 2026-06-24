@@ -193,6 +193,15 @@ impl StartFlowService {
                     }
                 }
 
+                // Ensure panes remain alive until provider respawn.
+                // Panes created by the layout may close before the provider
+                // command is respawned into them (default shell exits).
+                let _ = backend.tmux_run(
+                    &["set-option", "-t", tmux_session_name, "remain-on-exit", "on"],
+                    false,
+                    false,
+                );
+
                 let launcher = ProviderLauncher::new();
                 for agent_name in agent_names {
                     let pane_id = all_panes.get(agent_name).cloned();
