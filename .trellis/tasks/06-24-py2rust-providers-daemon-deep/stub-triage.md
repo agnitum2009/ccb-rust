@@ -97,7 +97,9 @@ Expected outcome: providers 368 → ≤50 via ~355 deletes + ≤13 B-set; daemon
 
 ## 6. Escalation (decision needed before bulk delete)
 
-`prd.md` does not contemplate this state. Before deleting ~600 files (hard to reverse), confirm:
+> **DECISION (2026-06-24, per user):** The goal is **complete functional 1:1 alignment** with Python. **Do NOT delete or restructure the 1:1 file-alignment scaffolding until functional parity is achieved.** Consequently the deletion-heavy option below is **rejected for now**; `implement.md` steps that delete files (P1 `src/agy/`, `src/mod.rs`, and any "remove orphan mirror" actions in D7) are **deferred**. Execution = follow `implement.md` in order, filling each stub with parity logic that mirrors its Python reference's behavior; keep the scaffolding as the alignment roadmap. Daemon dispatcher (D1–D3) and supervision (D6) — the genuinely-empty functional cores — are the primary remaining implementation work and are in-scope for Wave 3.
+
+`prd.md` does not contemplate this state. The options originally considered (retained for context):
 
 1. **Strategy A (recommended):** bulk-DELETE redundant mirrors (set A) to hit stub-count ≤50, and IMPLEMENT only the genuine empty cores (daemon D1–D3 dispatcher, D6 supervision, plus D4/D5 tails and any provider B-set proven necessary). Treat providers adapters as done (tests green).
 2. **Strategy B:** keep all stubs as future scaffolding; implement per `implement.md` literally (fill every stub). Slower; stub-count goal not met without later deletes.

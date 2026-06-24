@@ -134,3 +134,20 @@ fn test_cleanup_stale_runtime_helper_no_manifest() {
     };
     assert!(!cleanup_stale_runtime_helper(utf8_path, &runtime));
 }
+
+/// Wave 3 P1 contract lock: every targeted execution adapter is registered
+/// with a non-`None` adapter whose `provider()` matches its canonical name.
+/// Mirrors Python `lib/provider_execution/registry.py::build_default_execution_registry`.
+#[test]
+fn test_execution_registry_has_all_wave3_adapters() {
+    let registry = ccb_providers::build_default_execution_registry();
+    for provider in ["codex", "claude", "gemini", "droid", "agy", "opencode"] {
+        let adapter = registry.get(provider);
+        assert!(
+            adapter.is_some(),
+            "missing execution adapter for {}",
+            provider
+        );
+        assert_eq!(adapter.unwrap().provider(), provider);
+    }
+}
