@@ -80,7 +80,7 @@ fn test_local_checks_on_temp_repo() {
 
     // Write release files.
     std::fs::write(root.join("VERSION"), "1.0.0\n").unwrap();
-    std::fs::write(root.join("ccb"), r#"VERSION = "1.0.0""#).unwrap();
+    std::fs::write(root.join("ccbr"), r#"VERSION = "1.0.0""#).unwrap();
     std::fs::write(
         root.join("CHANGELOG.md"),
         "# Changelog\n\n## v1.0.0 (2024-01-01)\n\n- Fixed bug\n",

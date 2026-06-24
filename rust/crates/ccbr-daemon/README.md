@@ -1,6 +1,6 @@
 # ccbr-daemon
 
-Rust implementation of the CCB daemon control plane, migrated from `lib/ccbrd/`
+Rust implementation of the CCBR daemon control plane, migrated from `lib/ccbrd/`
 and `lib/fault_injection/`.
 
 ## Scope of this pass

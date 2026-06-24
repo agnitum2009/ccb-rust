@@ -9,7 +9,7 @@ use std::time::Duration;
 use crate::app::CcbdApp;
 use crate::socket_server::protocol;
 
-/// Simple blocking Unix-domain-socket RPC server for the CCB daemon.
+/// Simple blocking Unix-domain-socket RPC server for the CCBR daemon.
 pub struct SocketServer {
     socket_path: PathBuf,
     shutdown: Arc<AtomicBool>,

@@ -289,7 +289,7 @@ mod tests {
             "ccbr_session_id": "test-session",
             "terminal": "tmux",
             "pane_id": "%1",
-            "pane_title_marker": "CCB-opencode-test",
+            "pane_title_marker": "CCBR-opencode-test",
             "runtime_dir": work_dir.to_string_lossy().to_string(),
             "work_dir": work_dir.to_string_lossy().to_string(),
             "active": true,

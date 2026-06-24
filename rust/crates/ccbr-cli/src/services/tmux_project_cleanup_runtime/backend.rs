@@ -73,14 +73,17 @@ mod tests {
 
     #[test]
     fn test_resolve_socket_ref_name() {
-        assert_eq!(resolve_socket_ref(Some("ccb")), (Some("ccb".into()), None));
+        assert_eq!(
+            resolve_socket_ref(Some("ccbr")),
+            (Some("ccbr".into()), None)
+        );
     }
 
     #[test]
     fn test_resolve_socket_ref_path() {
-        let (name, path) = resolve_socket_ref(Some("/tmp/ccb.sock"));
+        let (name, path) = resolve_socket_ref(Some("/tmp/ccbr.sock"));
         assert_eq!(name, None);
-        assert_eq!(path, Some("/tmp/ccb.sock".into()));
+        assert_eq!(path, Some("/tmp/ccbr.sock".into()));
     }
 
     #[test]

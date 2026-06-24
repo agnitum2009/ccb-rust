@@ -642,7 +642,7 @@ impl JobDispatcher {
             let parent = self.active_parent_job(&envelope.from_actor);
             if parent.is_some() {
                 return Err(
-                    "plain ask from an active CCB task requires --callback when the child result is needed, or --silence for independent fire-and-forget work".into(),
+                    "plain ask from an active CCBR task requires --callback when the child result is needed, or --silence for independent fire-and-forget work".into(),
                 );
             }
         }
@@ -892,7 +892,7 @@ impl JobDispatcher {
     ) -> Result<MessageEnvelope, String> {
         let body = self.continuation_body(edge, child_job, decision);
         let prefix = format!(
-            "CCB callback continuation {} is larger than 4 KiB and was stored as an artifact.",
+            "CCBR callback continuation {} is larger than 4 KiB and was stored as an artifact.",
             edge.edge_id
         );
         let artifact_reply = edge
@@ -965,7 +965,7 @@ impl JobDispatcher {
             .trim_end();
         let child_reply = self.reply_summary(decision);
         let mut parts = vec![
-            "CCB callback continuation.".to_string(),
+            "CCBR callback continuation.".to_string(),
             String::new(),
             format!("Original caller: {}", edge.original_caller),
             format!("Parent job: {}", edge.parent_job_id),
@@ -1204,7 +1204,7 @@ impl JobDispatcher {
             format!(": {detail}")
         };
         format!(
-            "CCB callback failed for delegated task {} while continuing parent job {}. Reason: {}{}",
+            "CCBR callback failed for delegated task {} while continuing parent job {}. Reason: {}{}",
             edge.child_job_id, edge.parent_job_id, reason, suffix
         )
     }
@@ -1565,7 +1565,7 @@ impl JobDispatcher {
     }
 
     fn strip_ccbr_guidance(body: &str) -> String {
-        let marker = "\n\nCCB reply guidance:";
+        let marker = "\n\nCCBR reply guidance:";
         if let Some(idx) = body.find(marker) {
             return body[..idx].trim_end().to_string();
         }
@@ -2193,7 +2193,7 @@ impl JobDispatcher {
             Some(TEXT_ARTIFACT_SPILL_BYTES)
         };
         let prefix = format!(
-            "CCB callback reply for job {} is larger than 4 KiB and was stored as an artifact.",
+            "CCBR callback reply for job {} is larger than 4 KiB and was stored as an artifact.",
             job.job_id
         );
         match maybe_spill_text(

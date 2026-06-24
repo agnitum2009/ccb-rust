@@ -262,7 +262,7 @@ fn test_submit_ask_spills_large_body_before_daemon_submit() {
     assert!(artifact_path.exists());
     let artifact_text = std::fs::read_to_string(&artifact_path).unwrap();
     assert!(artifact_text.starts_with("alpha-"));
-    assert!(artifact_text.contains("CCB reply guidance:"));
+    assert!(artifact_text.contains("CCBR reply guidance:"));
 }
 
 #[test]
@@ -305,13 +305,13 @@ fn test_submit_ask_forces_small_body_artifact() {
     assert!(artifact_path.exists());
     let artifact_text = std::fs::read_to_string(&artifact_path).unwrap();
     assert!(artifact_text.starts_with("short task"));
-    assert!(artifact_text.contains("CCB reply guidance:"));
+    assert!(artifact_text.contains("CCBR reply guidance:"));
 }
 
 #[test]
 fn test_message_with_reply_guidance_appends_compact_default() {
     let body = message_with_reply_guidance("review the diff", "ask", false, false);
-    assert!(body.starts_with("review the diff\n\nCCB reply guidance:"));
+    assert!(body.starts_with("review the diff\n\nCCBR reply guidance:"));
     assert!(body.contains("Answer directly and concisely."));
 }
 
@@ -434,7 +434,7 @@ fn test_submit_ask_resolves_legacy_role_id_alias() {
         &tmp,
         "version = 2\ndefault_agents = [\"agent1\", \"archi\"]\n[agents]\nagent1 = { provider = \"codex\" }\narchi = { provider = \"codex\", role = \"agentroles.archi\" }\n",
     );
-    let command = make_command("ccb.archi", "review");
+    let command = make_command("ccbr.archi", "review");
     let captured = Arc::new(Mutex::new(HashMap::new()));
     let captured_clone = captured.clone();
 

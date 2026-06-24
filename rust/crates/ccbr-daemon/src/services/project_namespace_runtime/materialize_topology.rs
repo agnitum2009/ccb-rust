@@ -1012,7 +1012,7 @@ pub(crate) fn apply_project_tmux_ui(
     let socket = shell_quote(tmux_socket_path);
     let session = shell_quote(tmux_session_name);
     let resize_hook = format!(
-        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccbr_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccb __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-pane \"#{{pane_id}}\" --project-id \"#{{@ccbr_project_id}}\" >/dev/null 2>&1 || true'"
+        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccbr_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccbr __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-pane \"#{{pane_id}}\" --project-id \"#{{@ccbr_project_id}}\" >/dev/null 2>&1 || true'"
     );
     let _ = backend._tmux_run(
         &[
@@ -1027,7 +1027,7 @@ pub(crate) fn apply_project_tmux_ui(
     );
 
     let select_hook = format!(
-        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; ccb __active-pane-border-sync --tmux-socket {socket} --session {session} --pane \"#{{pane_id}}\" >/dev/null 2>&1 || true'"
+        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; ccbr __active-pane-border-sync --tmux-socket {socket} --session {session} --pane \"#{{pane_id}}\" >/dev/null 2>&1 || true'"
     );
     let _ = backend._tmux_run(
         &[
@@ -1042,7 +1042,7 @@ pub(crate) fn apply_project_tmux_ui(
     );
 
     let window_hook = format!(
-        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccbr_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccb __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-window \"#{{window_id}}\" --project-id \"#{{@ccbr_project_id}}\" --from-stored-width >/dev/null 2>&1 || true'"
+        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccbr_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccbr __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-window \"#{{window_id}}\" --project-id \"#{{@ccbr_project_id}}\" --from-stored-width >/dev/null 2>&1 || true'"
     );
     let _ = backend._tmux_run(
         &["set-hook", "-g", "window-resized", &window_hook],

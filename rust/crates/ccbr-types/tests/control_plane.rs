@@ -119,7 +119,7 @@ fn test_control_plane_env_drops_outer_tmux_authority() {
 #[test]
 #[serial]
 fn test_control_plane_env_drops_outer_pythonpath() {
-    std::env::set_var("PYTHONPATH", "/stable/ccb/lib:/other");
+    std::env::set_var("PYTHONPATH", "/stable/ccbr/lib:/other");
     std::env::set_var("PYTHONUNBUFFERED", "1");
 
     let env = control_plane_env(None);

@@ -1,7 +1,7 @@
 //! Neovim/LazyVim tool provisioning — doctor (status) path.
 //!
 //! Mirrors the status/doctor portion of Python `cli.tools_runtime.neovim`.
-//! Resolves the CCB-managed Neovim install layout (XDG-based), detects the
+//! Resolves the CCBR-managed Neovim install layout (XDG-based), detects the
 //! active nvim binary, reads the manifest, and reports status. The heavy
 //! download/extract/LazyVim-sync installer path is intentionally not ported
 //! here (it requires HTTP + tarball + git orchestration); `install` stays
@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-/// Resolved CCB-managed Neovim layout.
+/// Resolved CCBR-managed Neovim layout.
 ///
 /// Mirrors `neovim._paths`.
 #[derive(Debug, Clone)]
@@ -30,14 +30,14 @@ pub struct NvimPaths {
     pub managed_nvim: PathBuf,
 }
 
-/// Resolve the CCB-managed Neovim paths from XDG/home env.
+/// Resolve the CCBR-managed Neovim paths from XDG/home env.
 ///
 /// Mirrors `neovim._paths`.
 pub fn paths() -> NvimPaths {
     let data_home = xdg_or("XDG_DATA_HOME", ".local/share");
     let state_home = xdg_or("XDG_STATE_HOME", ".local/state");
     let cache_home = xdg_or("XDG_CACHE_HOME", ".cache");
-    let root = data_home.join("ccb").join("tools").join("neovim");
+    let root = data_home.join("ccbr").join("tools").join("neovim");
     let profile = root.join("lazyvim").join("profile");
     let bin_link = std::env::var("CODEX_BIN_DIR")
         .ok()
@@ -52,12 +52,12 @@ pub fn paths() -> NvimPaths {
         config_nvim: profile.join("config").join("nvim"),
         data: profile.join("share"),
         state: state_home
-            .join("ccb")
+            .join("ccbr")
             .join("tools")
             .join("neovim")
             .join("xdg-state"),
         cache: cache_home
-            .join("ccb")
+            .join("ccbr")
             .join("tools")
             .join("neovim")
             .join("xdg-cache"),
@@ -79,7 +79,7 @@ pub fn resolve_nvim(paths: &NvimPaths) -> Option<PathBuf> {
     which("nvim")
 }
 
-/// Read the CCB tools manifest (JSON object), or an empty map if absent/invalid.
+/// Read the CCBR tools manifest (JSON object), or an empty map if absent/invalid.
 ///
 /// Mirrors `neovim._read_manifest`.
 pub fn read_manifest(paths: &NvimPaths) -> serde_json::Map<String, Value> {
@@ -93,7 +93,7 @@ pub fn read_manifest(paths: &NvimPaths) -> serde_json::Map<String, Value> {
     }
 }
 
-/// Aggregated Neovim status for `ccb tools doctor neovim`.
+/// Aggregated Neovim status for `ccbr tools doctor neovim`.
 ///
 /// Mirrors `neovim.neovim_status` (status/reason/binary/wrapper fields). The
 /// LazyVim health deep-check (headless nvim) is approximated by marker presence.
@@ -155,7 +155,7 @@ pub struct NeovimStatus {
     pub lazyvim_enabled: bool,
 }
 
-/// Render the status as the `ccb tools doctor neovim` output.
+/// Render the status as the `ccbr tools doctor neovim` output.
 pub fn render_neovim_status(status: &NeovimStatus) -> String {
     let mut out = format!("neovim_status: {}\n", status.status);
     if let Some(reason) = &status.reason {
@@ -239,7 +239,7 @@ mod tests {
         let _env_lock = ENV_TEST_LOCK.lock().unwrap();
         std::env::set_var("XDG_DATA_HOME", "/tmp/ccbr-test-data");
         let p = paths();
-        assert!(p.root.starts_with("/tmp/ccbr-test-data/ccb/tools/neovim"));
+        assert!(p.root.starts_with("/tmp/ccbr-test-data/ccbr/tools/neovim"));
         assert_eq!(p.wrapper.file_name().unwrap(), "ccbr-nvim");
         assert_eq!(p.managed_nvim.file_name().unwrap(), "nvim");
         std::env::remove_var("XDG_DATA_HOME");

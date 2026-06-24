@@ -1,4 +1,4 @@
-//! CCB runtime environment helpers.
+//! CCBR runtime environment helpers.
 //!
 //! Mirrors `lib/runtime_env/` from Python v7.5.2 and is the canonical home for
 //! control-plane / user-session environment filtering and env parsing helpers.

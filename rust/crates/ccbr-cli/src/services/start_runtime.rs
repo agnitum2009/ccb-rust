@@ -74,7 +74,7 @@ where
     let guard_summary = before_client_start_fn(context)?;
     if !guard_summary.blockers.is_empty() {
         return Err(ccbr_workspace::reconcile::format_workspace_blockers(
-            "ccb start",
+            "ccbr start",
             &guard_summary.blockers,
         ));
     }

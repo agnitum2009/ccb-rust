@@ -125,9 +125,9 @@ fn test_safe_write_session_fails_on_symlink() {
 fn test_find_project_session_file_via_anchor() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
-    let ccb = project.join(".ccbr");
-    fs::create_dir_all(&ccb).unwrap();
-    let session = ccb.join(".claude-session");
+    let ccbr = project.join(".ccbr");
+    fs::create_dir_all(&ccbr).unwrap();
+    let session = ccbr.join(".claude-session");
     fs::write(&session, "").unwrap();
 
     let found = find_project_session_file(&project, ".claude-session");
@@ -138,9 +138,9 @@ fn test_find_project_session_file_via_anchor() {
 fn test_find_project_session_file_via_workspace_binding() {
     let dir = TempDir::new().unwrap();
     let target = dir.path().join("target");
-    let target_ccb = target.join(".ccbr");
-    fs::create_dir_all(&target_ccb).unwrap();
-    let session = target_ccb.join(".codex-session");
+    let target_ccbr = target.join(".ccbr");
+    fs::create_dir_all(&target_ccbr).unwrap();
+    let session = target_ccbr.join(".codex-session");
     fs::write(&session, "").unwrap();
 
     let workspace = dir.path().join("workspace");
@@ -160,9 +160,9 @@ fn test_find_project_session_file_via_workspace_binding() {
 fn test_resolve_work_dir_with_explicit_session_file() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
-    let ccb = project.join(".ccbr");
-    fs::create_dir_all(&ccb).unwrap();
-    let session = ccb.join(".claude-session");
+    let ccbr = project.join(".ccbr");
+    fs::create_dir_all(&ccbr).unwrap();
+    let session = ccbr.join(".claude-session");
     fs::write(&session, "").unwrap();
 
     let spec = ProviderClientSpec::new("claude", ".claude-session");
@@ -191,9 +191,9 @@ fn test_resolve_work_dir_without_session_file() {
 fn test_resolve_work_dir_with_registry_finds_project_file() {
     let dir = TempDir::new().unwrap();
     let project = dir.path().join("project");
-    let ccb = project.join(".ccbr");
-    fs::create_dir_all(&ccb).unwrap();
-    let session = ccb.join(".droid-session");
+    let ccbr = project.join(".ccbr");
+    fs::create_dir_all(&ccbr).unwrap();
+    let session = ccbr.join(".droid-session");
     fs::write(&session, "").unwrap();
 
     let spec = ProviderClientSpec::new("droid", ".droid-session");

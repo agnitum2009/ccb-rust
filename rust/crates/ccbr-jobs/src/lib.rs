@@ -1,4 +1,4 @@
-//! CCB job store abstraction.
+//! CCBR job store abstraction.
 //!
 //! Canonical home for job records, submission records, job events, and the
 //! persistent JSONL stores that back them. Mirrors `lib/jobs/` from Python

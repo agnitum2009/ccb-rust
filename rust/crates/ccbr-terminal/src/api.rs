@@ -165,12 +165,12 @@ mod tests {
     #[test]
     fn test_get_backend_for_session() {
         let session = serde_json::json!({
-            "tmux_socket_name": "ccb",
-            "tmux_socket_path": "/tmp/ccb.sock",
+            "tmux_socket_name": "ccbr",
+            "tmux_socket_path": "/tmp/ccbr.sock",
         });
         let backend = get_backend_for_session(&session).unwrap();
-        assert_eq!(backend.socket_name(), Some("ccb"));
-        assert_eq!(backend.socket_path(), Some("/tmp/ccb.sock"));
+        assert_eq!(backend.socket_name(), Some("ccbr"));
+        assert_eq!(backend.socket_path(), Some("/tmp/ccbr.sock"));
     }
 
     #[test]
@@ -190,14 +190,14 @@ mod tests {
 
     #[test]
     fn test_create_auto_layout_errors_on_empty_providers() {
-        let result = create_auto_layout(&[], "/tmp", None, None, 50, true, "CCB");
+        let result = create_auto_layout(&[], "/tmp", None, None, 50, true, "CCBR");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_create_auto_layout_errors_on_too_many_providers() {
         let providers: Vec<String> = (0..5).map(|i| format!("agent{i}")).collect();
-        let result = create_auto_layout(&providers, "/tmp", None, None, 50, true, "CCB");
+        let result = create_auto_layout(&providers, "/tmp", None, None, 50, true, "CCBR");
         assert!(result.is_err());
     }
 }

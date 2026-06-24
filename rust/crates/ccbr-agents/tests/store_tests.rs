@@ -127,7 +127,7 @@ fn test_agent_stores_full_field_roundtrip() {
             key: Some("sk-store".into()),
             url: Some("https://api.store.example.test/v1".into()),
         },
-        branch_template: Some("ccb/{agent_name}".into()),
+        branch_template: Some("ccbr/{agent_name}".into()),
         ..sample_spec("agent1")
     };
 

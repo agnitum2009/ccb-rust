@@ -267,7 +267,7 @@ fn validated_artifact_path(layout: &PathLayout, value: &str) -> crate::Result<Pa
         .map_err(|_| crate::StorageError::Corrupt("text artifact path does not exist".into()))?;
     if !resolved.starts_with(&root) {
         return Err(crate::StorageError::Corrupt(
-            "text artifact path escapes CCB artifact directory".into(),
+            "text artifact path escapes CCBR artifact directory".into(),
         ));
     }
     Ok(resolved)

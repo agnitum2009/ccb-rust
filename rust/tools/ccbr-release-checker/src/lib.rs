@@ -26,7 +26,7 @@ pub const BRANCH_VALIDATION_WORKFLOWS: &[&str] = &[
 pub const DEV_STRICT_PHASES: &[&str] = &["dev", "published"];
 pub const DEV_ALWAYS_REQUIRED_WORKFLOWS: &[&str] = &["Tests", "CCBRD Real Platform Smoke"];
 pub const DEV_DEFAULT_BRANCH_WORKFLOWS: &[&str] = &["Cross-Platform Compatibility Test"];
-pub const DEV_RELEASE_TRIGGER_PATHS: &[&str] = &["VERSION", "ccb"];
+pub const DEV_RELEASE_TRIGGER_PATHS: &[&str] = &["VERSION", "ccbr"];
 pub const DEV_HOMEPAGE_PATHS: &[&str] = &["README.md", "README_zh.md"];
 
 pub const DEFAULT_REPO: &str = "SeemSeam/claude_codex_bridge";

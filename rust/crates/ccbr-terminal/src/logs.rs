@@ -102,12 +102,12 @@ fn prepare_log_path(log_path: &Path) {
 /// Root directory for pane logs.
 pub fn pane_log_root() -> PathBuf {
     if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".cache").join("ccb")
+        PathBuf::from(home).join(".cache").join("ccbr")
     } else {
         std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(".cache")
-            .join("ccb")
+            .join("ccbr")
     }
 }
 

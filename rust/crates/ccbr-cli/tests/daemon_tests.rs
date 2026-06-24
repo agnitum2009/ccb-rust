@@ -6,9 +6,9 @@ use ccbr_cli::models_start::ParsedDoctorCommand;
 use ccbr_cli::services::daemon::record_shutdown_intent;
 
 fn make_context(project_root: &std::path::Path) -> CliContext {
-    let ccb = project_root.join(".ccbr");
-    std::fs::create_dir_all(&ccb).unwrap();
-    std::fs::write(ccb.join("ccbr.config"), "demo:codex\n").unwrap();
+    let ccbr = project_root.join(".ccbr");
+    std::fs::create_dir_all(&ccbr).unwrap();
+    std::fs::write(ccbr.join("ccbr.config"), "demo:codex\n").unwrap();
     CliContextBuilder::new(ParsedCommand::Doctor(ParsedDoctorCommand {
         project: None,
         bundle: false,

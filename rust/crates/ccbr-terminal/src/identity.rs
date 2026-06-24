@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-/// Visual styling for a CCB pane.
+/// Visual styling for a CCBR pane.
 #[derive(Debug, Clone)]
 pub struct TmuxPaneVisual {
     pub label_style: String,
@@ -30,7 +30,7 @@ pub fn pane_visual(
     )
 }
 
-/// Apply CCB identity metadata to a tmux pane.
+/// Apply CCBR identity metadata to a tmux pane.
 pub fn apply_ccbr_pane_identity<B>(
     backend: &B,
     pane_id: &str,

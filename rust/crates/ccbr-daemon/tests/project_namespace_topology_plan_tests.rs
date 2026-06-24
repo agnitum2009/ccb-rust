@@ -34,7 +34,7 @@ fn test_build_topology_plan_with_sidebar() {
     let config = test_config_with_sidebar();
     let plan = build_namespace_topology_plan(
         &config,
-        Some("/tmp/ccb.sock".to_string()),
+        Some("/tmp/ccbr.sock".to_string()),
         Some("/tmp/repo".to_string()),
     );
 
@@ -62,7 +62,7 @@ fn test_build_topology_plan_with_sidebar() {
         vec![
             "ccbr-agent-sidebar",
             "--ccbrd-socket",
-            "/tmp/ccb.sock",
+            "/tmp/ccbr.sock",
             "--project-root",
             "/tmp/repo",
             "--pane-window",

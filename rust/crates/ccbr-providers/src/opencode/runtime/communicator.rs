@@ -22,7 +22,7 @@ pub fn initialize_state<C>(
     C: OpenCodeCommunicatorState,
 {
     let session_info = comm.load_session_info().expect(
-        "No active OpenCode session found. Add opencode to ccbr.config and run `ccb` first",
+        "No active OpenCode session found. Add opencode to ccbr.config and run `ccbr` first",
     );
     comm.set_session_info(session_info.clone());
 

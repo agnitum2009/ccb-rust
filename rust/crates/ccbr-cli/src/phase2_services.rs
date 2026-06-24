@@ -17,7 +17,7 @@ use crate::render_runtime::common::write_lines;
 use crate::services::diagnostics_runtime::bundle::export_diagnostic_bundle;
 use crate::services::socket_path_for_project;
 
-/// `Phase2Services` implementation that issues RPCs to the local CCB daemon.
+/// `Phase2Services` implementation that issues RPCs to the local CCBR daemon.
 #[derive(Debug, Clone)]
 pub struct DaemonPhase2Services {
     client: CcbdClient,

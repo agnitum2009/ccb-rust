@@ -14,20 +14,20 @@ fn main() -> ExitCode {
             &mut stdout,
             "ask",
             None,
-            Some("`ask` is a compatibility alias for `ccb ask`."),
+            Some("`ask` is a compatibility alias for `ccbr ask`."),
         );
         return ExitCode::from(0);
     }
 
-    delegate_to_ccb("ask")
+    delegate_to_ccbr("ask")
 }
 
-fn delegate_to_ccb(subcommand: &str) -> ExitCode {
+fn delegate_to_ccbr(subcommand: &str) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let ccbr_path = find_ccbr_binary().unwrap_or_else(|| PathBuf::from("ccb"));
+    let ccbr_path = find_ccbr_binary().unwrap_or_else(|| PathBuf::from("ccbr"));
 
     // `--version` is treated as a top-level introspection flag so the helper
-    // binaries report the same version as `ccb` itself.
+    // binaries report the same version as `ccbr` itself.
     let mut cmd = Command::new(&ccbr_path);
     if args.iter().any(|a| a == "--version") {
         cmd.args(&args);
@@ -50,14 +50,14 @@ fn find_ccbr_binary() -> Option<PathBuf> {
         exe = resolved;
     }
     let dir = exe.parent()?;
-    // The canonical Rust binary is named `ccbr`; fall back to legacy `ccb`.
+    // The canonical Rust binary is named `ccbr`; fall back to legacy `ccbr`.
     let ccbr = dir.join("ccbr");
     if ccbr.is_file() {
         return Some(ccbr);
     }
-    let ccb = dir.join("ccb");
-    if ccb.is_file() {
-        return Some(ccb);
+    let ccbr = dir.join("ccbr");
+    if ccbr.is_file() {
+        return Some(ccbr);
     }
     None
 }

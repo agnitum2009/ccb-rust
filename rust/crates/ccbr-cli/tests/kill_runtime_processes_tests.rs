@@ -102,14 +102,14 @@ fn collect_project_process_candidates_finds_ccbrd_project_arg() {
         (
             101,
             format!(
-                "/usr/bin/python /opt/ccb/lib/ccbrd/main.py --project {}",
+                "/usr/bin/python /opt/ccbr/lib/ccbrd/main.py --project {}",
                 project_root.display()
             ),
         ),
         (
             102,
             format!(
-                "/usr/bin/python /opt/ccb/lib/ccbrd/main.py --project {}",
+                "/usr/bin/python /opt/ccbr/lib/ccbrd/main.py --project {}",
                 tmp.path().join("other").display()
             ),
         ),

@@ -116,15 +116,15 @@ pub fn cleanup_project_storage_with<I: DaemonInspector>(
 fn _require_stopped_backend(context: &CliContext, inspector: &impl DaemonInspector) -> Result<()> {
     let inspection = inspector.inspect_daemon(context)?;
     if inspection.pid_alive || inspection.socket_connectable {
-        bail!("ccb cleanup requires stopped ccbrd; run `ccb kill` first");
+        bail!("ccbr cleanup requires stopped ccbrd; run `ccbr kill` first");
     }
     let phase = inspection.phase.trim();
     if !phase.is_empty() && phase != "unmounted" && phase != "failed" {
-        bail!("ccb cleanup requires stopped ccbrd; current phase={phase}");
+        bail!("ccbr cleanup requires stopped ccbrd; current phase={phase}");
     }
     let desired = inspection.desired_state.trim();
     if !desired.is_empty() && desired != "stopped" {
-        bail!("ccb cleanup requires stopped ccbrd; desired_state={desired}");
+        bail!("ccbr cleanup requires stopped ccbrd; desired_state={desired}");
     }
     Ok(())
 }
@@ -151,7 +151,7 @@ fn _require_no_pending_jobs(context: &CliContext) -> Result<()> {
         || terminal_pending_count > 0
         || pending_job_count > 0
     {
-        bail!("ccb cleanup refused: pending ask jobs exist; wait for completion or run `ccb kill` after terminalization");
+        bail!("ccbr cleanup refused: pending ask jobs exist; wait for completion or run `ccbr kill` after terminalization");
     }
     Ok(())
 }

@@ -66,7 +66,7 @@ use crate::start_flow::service::{StartFlowResult, StartFlowService};
 use crate::stop_flow::service::{StopCleanupSummary, StopFlowResult, StopFlowService};
 use crate::supervision::loop_runner::SupervisionLoop;
 
-/// The main CCB daemon application.
+/// The main CCBR daemon application.
 pub struct CcbdApp {
     pub project_root: PathBuf,
     pub layout: ccbr_storage::paths::PathLayout,

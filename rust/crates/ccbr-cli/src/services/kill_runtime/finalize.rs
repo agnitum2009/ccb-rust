@@ -133,7 +133,7 @@ mod tests {
         KillPreparation {
             configured_agent_names: vec!["demo".into()],
             extra_agent_names: vec!["extra".into()],
-            tmux_sockets: vec![Some("/tmp/ccb.sock".into())],
+            tmux_sockets: vec![Some("/tmp/ccbr.sock".into())],
             pid_candidates,
             control_plane_pids: vec![100],
         }

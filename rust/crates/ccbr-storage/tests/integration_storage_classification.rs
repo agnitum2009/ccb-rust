@@ -61,27 +61,27 @@ fn test_provider_home_classifier_preserves_secret_precedence_and_unknowns() {
 fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
     let tmp = tempfile::TempDir::new().unwrap();
     let project_root = tmp_path(&tmp, "repo");
-    let ccb = project_root.join(".ccbr");
-    let codex_home = ccb.join("agents/agent1/provider-state/codex/home");
-    let claude_home = ccb.join("agents/agent2/provider-state/claude/home");
-    let gemini_home = ccb.join("agents/agent3/provider-state/gemini/home");
-    let opencode_state = ccb.join("agents/agent4/provider-state/opencode");
+    let ccbr = project_root.join(".ccbr");
+    let codex_home = ccbr.join("agents/agent1/provider-state/codex/home");
+    let claude_home = ccbr.join("agents/agent2/provider-state/claude/home");
+    let gemini_home = ccbr.join("agents/agent3/provider-state/gemini/home");
+    let opencode_state = ccbr.join("agents/agent4/provider-state/opencode");
 
-    write(&ccb.join("ccbr.config"), "agent1:codex\n");
-    write(&ccb.join("ccbr_memory.md"), "# shared memory\n");
-    write(&ccb.join("history/handoff.md"), "# handoff\n");
+    write(&ccbr.join("ccbr.config"), "agent1:codex\n");
+    write(&ccbr.join("ccbr_memory.md"), "# shared memory\n");
+    write(&ccbr.join("history/handoff.md"), "# handoff\n");
     write(
-        &ccb.join("workspaces/agent1/notes.txt"),
+        &ccbr.join("workspaces/agent1/notes.txt"),
         "workspace change\n",
     );
     write(
-        &ccb.join("shared-cache/claude/versions/2.1.137/claude"),
+        &ccbr.join("shared-cache/claude/versions/2.1.137/claude"),
         "shared bin\n",
     );
-    write(&ccb.join("agents/agent1/runtime.json"), "{}\n");
-    write(&ccb.join("agents/agent1/memory.md"), "# private memory\n");
-    write(&ccb.join("state/memory.seed.json"), "{}\n");
-    write(&ccb.join("runtime/memory/agent1.md"), "# memory\n");
+    write(&ccbr.join("agents/agent1/runtime.json"), "{}\n");
+    write(&ccbr.join("agents/agent1/memory.md"), "# private memory\n");
+    write(&ccbr.join("state/memory.seed.json"), "{}\n");
+    write(&ccbr.join("runtime/memory/agent1.md"), "# memory\n");
     write(&codex_home.join("sessions/2026/session.jsonl"), "x");
     write(&codex_home.join(".ccbr-session-namespace.json"), "{}\n");
     write(&codex_home.join("auth.json"), "{}\n");
@@ -145,7 +145,7 @@ fn test_storage_classification_keeps_provider_authority_and_cache_separate() {
 
     assert_eq!(
         payload.get("shared_cache_root").unwrap().as_str().unwrap(),
-        ccb.join("shared-cache").as_str()
+        ccbr.join("shared-cache").as_str()
     );
     assert_eq!(
         payload.get("shared_cache_root_usable").unwrap().as_bool(),
@@ -436,7 +436,7 @@ fn test_path_layout_ensures_provider_external_cache_manifest() {
     assert_eq!(
         cache_dir,
         xdg_cache
-            .join("ccb/projects")
+            .join("ccbr/projects")
             .join(&layout.project_id()[..16])
             .join("provider-cache/claude")
     );

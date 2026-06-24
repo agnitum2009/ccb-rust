@@ -51,7 +51,7 @@ fn stopped_runtime(agent_name: &str, paths: &PathLayout) -> AgentRuntime {
         agent_name: agent_name.into(),
         state: AgentState::Idle,
         runtime_ref: Some("tmux:%1".into()),
-        tmux_socket_path: Some("/tmp/ccb project/tmux.sock".into()),
+        tmux_socket_path: Some("/tmp/ccbr project/tmux.sock".into()),
         project_id: paths.project_id().into(),
         backend_type: "pane-backed".into(),
         ..Default::default()
@@ -76,13 +76,13 @@ fn test_collect_candidate_tmux_sockets_preserves_tmux_socket_path() {
         &[
             ("CCBR_TMUX_SOCKET", None),
             ("CCBR_TMUX_SOCKET_PATH", None),
-            ("TMUX", Some("/tmp/ccb project/tmux.sock,123,0")),
+            ("TMUX", Some("/tmp/ccbr project/tmux.sock,123,0")),
         ],
         || {
             let sockets = collect_candidate_tmux_sockets();
             assert_eq!(
                 sockets,
-                HashSet::from([Some("/tmp/ccb project/tmux.sock".into())])
+                HashSet::from([Some("/tmp/ccbr project/tmux.sock".into())])
             );
         },
     );
@@ -125,7 +125,7 @@ fn test_prepare_local_shutdown_captures_runtime_tmux_socket_path() {
 
             assert!(preparation
                 .tmux_sockets
-                .contains(&Some("/tmp/ccb project/tmux.sock".into())));
+                .contains(&Some("/tmp/ccbr project/tmux.sock".into())));
             let stored = AgentRuntimeStore::new(paths.clone())
                 .load("demo")
                 .unwrap()
@@ -296,7 +296,7 @@ fn test_prepare_local_shutdown_falls_back_to_env_tmux_socket_when_no_runtime() {
         &[
             ("TMUX", None),
             ("CCBR_TMUX_SOCKET", None),
-            ("CCBR_TMUX_SOCKET_PATH", Some("/env/ccb.sock")),
+            ("CCBR_TMUX_SOCKET_PATH", Some("/env/ccbr.sock")),
         ],
         || {
             let preparation =
@@ -304,7 +304,7 @@ fn test_prepare_local_shutdown_falls_back_to_env_tmux_socket_when_no_runtime() {
                     .unwrap();
             assert!(preparation
                 .tmux_sockets
-                .contains(&Some("/env/ccb.sock".into())));
+                .contains(&Some("/env/ccbr.sock".into())));
         },
     );
 }

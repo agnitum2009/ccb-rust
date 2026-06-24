@@ -46,14 +46,14 @@ fn test_backend_selection_uses_session_terminal_field() {
     let session2 = UserSession {
         terminal: Some("tmux".to_string()),
         tmux_socket_name: None,
-        tmux_socket_path: Some("/tmp/ccb.sock".to_string()),
+        tmux_socket_path: Some("/tmp/ccbr.sock".to_string()),
         pane_id: None,
         tmux_session: None,
     };
     let backend2 = selection.get_backend_for_session(&session2);
     let base2 = backend2.tmux_base();
     assert!(base2.contains(&"-S".to_string()));
-    assert!(base2.contains(&"/tmp/ccb.sock".to_string()));
+    assert!(base2.contains(&"/tmp/ccbr.sock".to_string()));
 
     assert_eq!(
         selection.get_pane_id_from_session(&UserSession {

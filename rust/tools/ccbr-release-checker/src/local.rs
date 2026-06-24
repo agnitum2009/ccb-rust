@@ -253,14 +253,14 @@ pub fn check_git_tag(root: &Utf8Path, version: &str, phase: &str, report: &mut R
 pub fn check_local_files(root: &Utf8Path, version: &str, repo: &str, report: &mut Report) {
     let bare_version = version.strip_prefix('v').unwrap_or(version);
     let version_path = root.join("VERSION");
-    let ccbr_path = root.join("ccb");
+    let ccbr_path = root.join("ccbr");
     let changelog_path = root.join("CHANGELOG.md");
     let readme_path = root.join("README.md");
     let readme_zh_path = root.join("README_zh.md");
 
     let files = [
         ("VERSION", read(&version_path)),
-        ("ccb", read(&ccbr_path)),
+        ("ccbr", read(&ccbr_path)),
         ("CHANGELOG.md", read(&changelog_path)),
         ("README.md", read(&readme_path)),
         ("README_zh.md", read(&readme_zh_path)),
@@ -276,10 +276,10 @@ pub fn check_local_files(root: &Utf8Path, version: &str, repo: &str, report: &mu
             Some(&format!("write exactly {bare_version} to VERSION")),
         );
     }
-    if !file_map["ccb"].contains(&format!(r#"VERSION = "{bare_version}""#)) {
+    if !file_map["ccbr"].contains(&format!(r#"VERSION = "{bare_version}""#)) {
         report.fail(
-            format!("ccb does not contain VERSION = {bare_version:?}"),
-            Some(&format!(r#"update ccb to VERSION = "{bare_version}""#)),
+            format!("ccbr does not contain VERSION = {bare_version:?}"),
+            Some(&format!(r#"update ccbr to VERSION = "{bare_version}""#)),
         );
     }
 

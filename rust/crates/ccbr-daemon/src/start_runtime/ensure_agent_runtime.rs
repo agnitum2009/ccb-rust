@@ -2,7 +2,7 @@
 //!
 //! Mirrors Python `lib/cli/services/runtime_launch_runtime/ensure.py` +
 //! `tmux_runtime.py` by composing `ProviderLauncher::build_plan` with tmux
-//! pane lifecycle and CCB pane identity.
+//! pane lifecycle and CCBR pane identity.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -226,7 +226,7 @@ impl EnsureAgentRuntimeFn for EnsureAgentRuntimeImpl {
                 .map_err(|e| format!("failed to update session file with pane id: {e}"))?;
         }
 
-        // 6. Apply CCB pane identity metadata.
+        // 6. Apply CCBR pane identity metadata.
         apply_identity(
             &*backend,
             &pane_id,

@@ -6,8 +6,8 @@
 
 fn main() -> std::process::ExitCode {
     eprintln!(
-        "error: standalone ccbr-cleanup was removed; use `ccb kill --zombies` for \
-         global cleanup or `ccb kill` inside a project"
+        "error: standalone ccbr-cleanup was removed; use `ccbr kill --zombies` for \
+         global cleanup or `ccbr kill` inside a project"
     );
     std::process::ExitCode::from(1)
 }

@@ -541,14 +541,14 @@ mod tests {
                     return Ok(cp("%1\n", 0));
                 }
                 if args == ["list-panes", "-a", "-F", "#{pane_id}\t#{pane_title}"] {
-                    return Ok(cp("%1\tCCB-one\n%2\tOTHER\n", 0));
+                    return Ok(cp("%1\tCCBR-one\n%2\tOTHER\n", 0));
                 }
                 Ok(cp("%1\n", 0))
             },
         );
 
         assert_eq!(service.get_current_pane_id("%1").unwrap(), "%1");
-        assert_eq!(service.find_pane_by_title_marker("CCB").unwrap(), "%1");
+        assert_eq!(service.find_pane_by_title_marker("CCBR").unwrap(), "%1");
     }
 
     #[test]

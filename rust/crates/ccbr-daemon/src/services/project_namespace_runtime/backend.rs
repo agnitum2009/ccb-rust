@@ -321,7 +321,7 @@ pub fn prepare_server(backend: &Backend, timeout_s: Option<f64>) -> Result<()> {
     .map_err(DaemonError::from)
 }
 
-/// Apply CCB's default server/window/key policy to the tmux server.
+/// Apply CCBR's default server/window/key policy to the tmux server.
 ///
 /// Individual option failures are swallowed so that a conservative tmux build does not
 /// abort namespace creation.

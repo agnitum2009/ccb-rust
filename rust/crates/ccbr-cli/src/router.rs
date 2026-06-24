@@ -117,7 +117,7 @@ pub struct StartParserSpec {
 
 pub fn build_start_parser() -> StartParserSpec {
     StartParserSpec {
-        prog: "ccb".to_string(),
+        prog: "ccbr".to_string(),
         description: "Claude AI unified launcher".to_string(),
     }
 }
@@ -130,74 +130,74 @@ pub fn print_start_help<W: Write>(out: &mut W) -> std::io::Result<()> {
     write!(
         out,
         "\
-usage: ccb [-s] [-n]
+usage: ccbr [-s] [-n]
 
 Primary workflow:
-  ccb                  Start project agents from `.ccbr/ccbr.config`.
-  ccb -s               Safe start. Disable CLI auto-permission override.
-  ccb -n               Rebuild runtime state while preserving config and managed agent history.
-  ccb clear [agent...]  Send provider-native /clear to managed agent panes.
-  ccb restart <agent> Restart one idle configured agent pane through ccbrd.
-  ccb reload            Apply a safe additive config reload, or reject with diagnostics.
-  ccb reload --dry-run  Validate and plan config reload without mutation.
-  ccb maintenance status Show maintenance heartbeat config and stored status.
-  ccb maintenance tick   Run one maintenance heartbeat diagnosis tick.
-  ccb kill             Stop the current project's background runtime.
-  ccb kill -f          Force cleanup project-owned runtime residue.
-  ccb cleanup          Prune safe provider rebuildable caches after ccbrd is stopped.
+  ccbr                  Start project agents from `.ccbr/ccbr.config`.
+  ccbr -s               Safe start. Disable CLI auto-permission override.
+  ccbr -n               Rebuild runtime state while preserving config and managed agent history.
+  ccbr clear [agent...]  Send provider-native /clear to managed agent panes.
+  ccbr restart <agent> Restart one idle configured agent pane through ccbrd.
+  ccbr reload            Apply a safe additive config reload, or reject with diagnostics.
+  ccbr reload --dry-run  Validate and plan config reload without mutation.
+  ccbr maintenance status Show maintenance heartbeat config and stored status.
+  ccbr maintenance tick   Run one maintenance heartbeat diagnosis tick.
+  ccbr kill             Stop the current project's background runtime.
+  ccbr kill -f          Force cleanup project-owned runtime residue.
+  ccbr cleanup          Prune safe provider rebuildable caches after ccbrd is stopped.
 
 Core commands:
-  ccb ask <agent> [from <sender>] <message>
-  ccb doctor
+  ccbr ask <agent> [from <sender>] <message>
+  ccbr doctor
 
 Diagnostics-only control-plane status:
-  ccb ping <agent|ccbrd>
+  ccbr ping <agent|ccbrd>
 
 Diagnostics-only observer:
-  ccb pend <agent|job_id> [N]
-  ccb pend --watch <agent|job_id>
-  ccb pend --inbox [--detail] <agent>
-  ccb pend --queue [--detail] <agent|all>
+  ccbr pend <agent|job_id> [N]
+  ccbr pend --watch <agent|job_id>
+  ccbr pend --inbox [--detail] <agent>
+  ccbr pend --queue [--detail] <agent|all>
 
 Advanced views:
-  ccb queue [--detail] <agent|all>
-  ccb trace <id>
+  ccbr queue [--detail] <agent|all>
+  ccbr trace <id>
 
 Advanced recovery:
-  ccb repair <ack|retry|resubmit> ...
+  ccbr repair <ack|retry|resubmit> ...
 
 Management:
-  ccb version | ccb update | ccb uninstall | ccb reinstall
+  ccbr version | ccbr update | ccbr uninstall | ccbr reinstall
 
 Tools:
-  ccb tools doctor neovim
-  ccb tools install neovim
+  ccbr tools doctor neovim
+  ccbr tools install neovim
 
 Roles:
-  ccb roles list
-  ccb roles install agentroles.ccbr_self
-  ccb roles update agentroles.ccbr_self
-  ccb roles add agentroles.ccbr_self:codex
-  ccb roles install agentroles.archi
-  ccb roles update agentroles.archi
-  ccb roles sync [path]
-  ccb roles add agentroles.archi:codex
-  ccb roles doctor agentroles.archi\n"
+  ccbr roles list
+  ccbr roles install agentroles.ccbr_self
+  ccbr roles update agentroles.ccbr_self
+  ccbr roles add agentroles.ccbr_self:codex
+  ccbr roles install agentroles.archi
+  ccbr roles update agentroles.archi
+  ccbr roles sync [path]
+  ccbr roles add agentroles.archi:codex
+  ccbr roles doctor agentroles.archi\n"
     )
 }
 
 pub fn print_kill_help<W: Write>(out: &mut W) -> std::io::Result<()> {
     write!(out, "\
-usage: ccb kill [-f]
+usage: ccbr kill [-f]
 
 Project runtime cleanup:
-  ccb kill     Stop the current project's ccbrd, agents, and tmux namespace.
-  ccb kill -f  Force cleanup project-owned runtime residue before `ccb -n`.
+  ccbr kill     Stop the current project's ccbrd, agents, and tmux namespace.
+  ccbr kill -f  Force cleanup project-owned runtime residue before `ccbr -n`.
 
 Notes:
   - `kill` is project-scoped. It does not bootstrap a missing `.ccbr`.
   - `kill` still works when `.ccbr` exists but `ccbr.config` is missing or stale.
-  - Use `ccb -n` after `ccb kill` when you want to rebuild runtime state but keep config and managed agent history.\n")
+  - Use `ccbr -n` after `ccbr kill` when you want to rebuild runtime state but keep config and managed agent history.\n")
 }
 
 pub fn print_command_help<W: Write>(out: &mut W, command_name: &str) -> std::io::Result<bool> {
@@ -218,131 +218,131 @@ pub fn command_help_text(command_name: &str) -> Option<&'static str> {
 
 static COMMAND_HELP: &[(&str, &str)] = &[
     ("ping", "\
-usage: ccb ping <agent|all|ccbrd>
+usage: ccbr ping <agent|all|ccbrd>
 
 Diagnostics-only control-plane status:
-  ccb ping <agent>   Show cached runtime status for one named agent.
-  ccb ping all       Show cached mounted-agent status across the project.
-  ccb ping ccbrd      Show cached project daemon status.
+  ccbr ping <agent>   Show cached runtime status for one named agent.
+  ccbr ping all       Show cached mounted-agent status across the project.
+  ccbr ping ccbrd      Show cached project daemon status.
 "),
     ("pend", "\
-usage: ccb pend [--watch|--inbox|--queue] [--detail] <agent|job_id|all> [N]
+usage: ccbr pend [--watch|--inbox|--queue] [--detail] <agent|job_id|all> [N]
 
 Diagnostics-only weak observer surface:
   These commands are not part of normal ask workflows.
   Primary weak observer entrypoint:
-    ccb pend <agent>                    Show a non-authoritative observer snapshot for one agent.
-    ccb pend <job_id>                   Show a non-authoritative observer snapshot for one submitted job.
-    ccb pend --watch <agent|job_id>     Stream non-authoritative observer events via the converged observer entrypoint.
-    ccb pend --inbox <agent>            Show a non-authoritative inbox summary via the converged observer entrypoint.
-    ccb pend --inbox --detail <agent>   Expand inbox-item detail via the converged observer entrypoint.
-    ccb pend --queue <agent|all>        Show the same non-authoritative backlog summary exposed by `ccb queue`.
-    ccb pend --queue --detail <agent>   Expand queued-event detail through the observer entrypoint.
-    ccb pend <target> N                 Show the latest N observer snapshot items.
-  Use `ccb trace <id>` for lineage when needed.
+    ccbr pend <agent>                    Show a non-authoritative observer snapshot for one agent.
+    ccbr pend <job_id>                   Show a non-authoritative observer snapshot for one submitted job.
+    ccbr pend --watch <agent|job_id>     Stream non-authoritative observer events via the converged observer entrypoint.
+    ccbr pend --inbox <agent>            Show a non-authoritative inbox summary via the converged observer entrypoint.
+    ccbr pend --inbox --detail <agent>   Expand inbox-item detail via the converged observer entrypoint.
+    ccbr pend --queue <agent|all>        Show the same non-authoritative backlog summary exposed by `ccbr queue`.
+    ccbr pend --queue --detail <agent>   Expand queued-event detail through the observer entrypoint.
+    ccbr pend <target> N                 Show the latest N observer snapshot items.
+  Use `ccbr trace <id>` for lineage when needed.
 "),
     ("watch", "\
-usage: ccb watch <agent|job_id>
+usage: ccbr watch <agent|job_id>
 
 Diagnostics-only weak observer compatibility entrypoint:
-  ccb watch <agent>   Stream non-authoritative observer events for one agent.
-  ccb watch <job_id>  Stream non-authoritative observer events for one job until terminal completion or timeout.
+  ccbr watch <agent>   Stream non-authoritative observer events for one agent.
+  ccbr watch <job_id>  Stream non-authoritative observer events for one job until terminal completion or timeout.
   This is not part of normal ask workflows.
-  Prefer `ccb pend --watch <agent|job_id>` as the converged observer entrypoint.
+  Prefer `ccbr pend --watch <agent|job_id>` as the converged observer entrypoint.
   Do not treat non-terminal watch output as authoritative completion.
-  Use `ccb trace <id>` for lineage when needed.
+  Use `ccbr trace <id>` for lineage when needed.
 "),
     ("queue", "\
-usage: ccb queue [--detail] <agent_name|all>
+usage: ccbr queue [--detail] <agent_name|all>
 
 Advanced backlog view:
-  ccb queue <agent_name>            Show a non-authoritative observer summary for one agent.
-  ccb queue --detail <agent_name>   Expand queued-event details for one agent.
-  ccb queue all                     Show non-authoritative observer backlog state across the project.
-  `ccb pend --queue [--detail] <agent|all>` remains the equivalent weak-observer form.
-  Use `ccb trace <id>` for lineage when needed.
+  ccbr queue <agent_name>            Show a non-authoritative observer summary for one agent.
+  ccbr queue --detail <agent_name>   Expand queued-event details for one agent.
+  ccbr queue all                     Show non-authoritative observer backlog state across the project.
+  `ccbr pend --queue [--detail] <agent|all>` remains the equivalent weak-observer form.
+  Use `ccbr trace <id>` for lineage when needed.
 "),
     ("trace", "\
-usage: ccb trace <submission_id|message_id|attempt_id|reply_id|job_id>
+usage: ccbr trace <submission_id|message_id|attempt_id|reply_id|job_id>
 
 Advanced lineage view:
-  ccb trace <id>   Show the full job/message/reply lineage for one id.
+  ccbr trace <id>   Show the full job/message/reply lineage for one id.
 "),
     ("inbox", "\
-usage: ccb inbox [--detail] <agent_name>
+usage: ccbr inbox [--detail] <agent_name>
 
 Weak observer compatibility entrypoint:
-  ccb inbox <agent_name>            Show a non-authoritative observer summary for one agent.
-  ccb inbox --detail <agent_name>   Expand inbox-item detail for one agent.
-  Prefer `ccb pend --inbox [--detail] <agent>` as the converged observer entrypoint.
-  Use `ccb trace <id>` for lineage when needed.
+  ccbr inbox <agent_name>            Show a non-authoritative observer summary for one agent.
+  ccbr inbox --detail <agent_name>   Expand inbox-item detail for one agent.
+  Prefer `ccbr pend --inbox [--detail] <agent>` as the converged observer entrypoint.
+  Use `ccbr trace <id>` for lineage when needed.
 "),
     ("logs", "\
-usage: ccb logs <agent>
+usage: ccbr logs <agent>
 
 Runtime diagnostics compatibility view:
-  ccb logs <agent>   Tail the current runtime/session log for one agent.
-  Prefer `ccb doctor logs <agent>` as the converged diagnostics entrypoint.
+  ccbr logs <agent>   Tail the current runtime/session log for one agent.
+  Prefer `ccbr doctor logs <agent>` as the converged diagnostics entrypoint.
 "),
     ("doctor-logs", "\
-usage: ccb doctor logs <agent>
+usage: ccbr doctor logs <agent>
 
 Runtime log diagnostics subview:
-  ccb doctor logs <agent>   Tail the current runtime/session log for one agent through the primary diagnostics entrypoint.
-  `ccb logs <agent>` remains a compatibility alias.
+  ccbr doctor logs <agent>   Tail the current runtime/session log for one agent through the primary diagnostics entrypoint.
+  `ccbr logs <agent>` remains a compatibility alias.
 "),
     ("ps", "\
-usage: ccb ps
+usage: ccbr ps
 
 Runtime diagnostics compatibility view:
-  ccb ps   Show known runtime/session/workspace bindings.
-  Prefer `ccb doctor ps` as the converged diagnostics entrypoint.
+  ccbr ps   Show known runtime/session/workspace bindings.
+  Prefer `ccbr doctor ps` as the converged diagnostics entrypoint.
 "),
     ("doctor-ps", "\
-usage: ccb doctor ps
+usage: ccbr doctor ps
 
 Runtime diagnostics subview:
-  ccb doctor ps   Show known runtime/session/workspace bindings through the primary diagnostics entrypoint.
-  `ccb ps` remains a compatibility alias.
+  ccbr doctor ps   Show known runtime/session/workspace bindings through the primary diagnostics entrypoint.
+  `ccbr ps` remains a compatibility alias.
 "),
     ("doctor-storage", "\
-usage: ccb doctor storage [--json]
+usage: ccbr doctor storage [--json]
 
 Storage diagnostics subview:
-  ccb doctor storage        Show .ccbr storage class totals and largest entries.
-  ccb doctor storage --json Emit full storage classification payload.
+  ccbr doctor storage        Show .ccbr storage class totals and largest entries.
+  ccbr doctor storage --json Emit full storage classification payload.
 "),
     ("cleanup", "\
-usage: ccb cleanup
+usage: ccbr cleanup
 
 Storage cleanup:
-  ccb cleanup   Prune safe provider rebuildable caches after ccbrd is stopped.
+  ccbr cleanup   Prune safe provider rebuildable caches after ccbrd is stopped.
 
 Safety:
   - Refuses to run while ccbrd is active or ask jobs are pending/running.
   - Keeps Claude versions currently referenced by managed homes.
   - Does not remove provider sessions, auth, plugin bundles, mailbox data, or runtime authority.
-  - Use `ccb doctor storage` before cleanup to inspect storage classes.
+  - Use `ccbr doctor storage` before cleanup to inspect storage classes.
 "),
     ("clear", "\
-usage: ccb clear [agent_name|all]...
+usage: ccbr clear [agent_name|all]...
 
 Agent context reset:
-  ccb clear             Send /clear to every configured mounted agent pane.
-  ccb clear agent1      Send /clear to one agent pane.
-  ccb clear agent1 agent2
+  ccbr clear             Send /clear to every configured mounted agent pane.
+  ccbr clear agent1      Send /clear to one agent pane.
+  ccbr clear agent1 agent2
                         Send /clear to multiple agent panes.
 
 Notes:
   - This sends the provider-native /clear command into each pane.
   - It does not delete .ccbr state, workspaces, auth, sessions, or logs.
-  - Use `ccb kill` or the sidebar restart control when you need process restart.
+  - Use `ccbr kill` or the sidebar restart control when you need process restart.
 "),
     ("restart", "\
-usage: ccb restart <agent_name>
+usage: ccbr restart <agent_name>
 
 Guarded single-agent runtime restart:
-  ccb restart agent1   Restart one configured mounted agent pane through ccbrd.
+  ccbr restart agent1   Restart one configured mounted agent pane through ccbrd.
 
 Safety:
   - Target authority comes from the current mounted daemon graph.
@@ -350,12 +350,12 @@ Safety:
   - Does not support `restart all`, window-level restart, or raw tmux mutation.
 "),
     ("maintenance", "\
-usage: ccb maintenance <status|tick|schedule>
+usage: ccbr maintenance <status|tick|schedule>
 
 Maintenance heartbeat diagnostics:
-  ccb maintenance status   Show configured heartbeat policy plus stored schedule/status state.
-  ccb maintenance tick     Run one diagnosis tick, update heartbeat status/schedule when enabled.
-  ccb maintenance schedule --after 5m [--reason TEXT]
+  ccbr maintenance status   Show configured heartbeat policy plus stored schedule/status state.
+  ccbr maintenance tick     Run one diagnosis tick, update heartbeat status/schedule when enabled.
+  ccbr maintenance schedule --after 5m [--reason TEXT]
                            Schedule the next heartbeat follow-up.
 
 Safety:
@@ -367,86 +367,86 @@ Safety:
   - Status reads `.ccbr/ccbrd/maintenance-heartbeat/`, not `.ccbr/ccbrd/heartbeats/`.
 "),
     ("doctor", "\
-usage: ccb doctor [ps|logs <agent>|storage] [--output [PATH]]
+usage: ccbr doctor [ps|logs <agent>|storage] [--output [PATH]]
 
 Deep diagnostics:
-  ccb doctor               Print project diagnostic summary.
-  ccb doctor ps            Show the runtime/session/workspace diagnostics subview.
-  ccb doctor logs <agent>  Tail the runtime/session log diagnostics subview for one agent.
-  ccb doctor storage       Show .ccbr storage class totals.
-  ccb doctor --output      Export a support bundle to the default path.
-  ccb doctor --output PATH Export a support bundle to PATH.
-  `ccb ps` and `ccb logs <agent>` remain compatibility entrypoints.
+  ccbr doctor               Print project diagnostic summary.
+  ccbr doctor ps            Show the runtime/session/workspace diagnostics subview.
+  ccbr doctor logs <agent>  Tail the runtime/session log diagnostics subview for one agent.
+  ccbr doctor storage       Show .ccbr storage class totals.
+  ccbr doctor --output      Export a support bundle to the default path.
+  ccbr doctor --output PATH Export a support bundle to PATH.
+  `ccbr ps` and `ccbr logs <agent>` remain compatibility entrypoints.
 "),
     ("cancel", "\
-usage: ccb cancel <job_id>
+usage: ccbr cancel <job_id>
 
 Job control view:
-  ccb cancel <job_id>   Request cancellation for one submitted job.
+  ccbr cancel <job_id>   Request cancellation for one submitted job.
 "),
     ("ack", "\
-usage: ccb ack <agent_name> [inbound_event_id]
+usage: ccbr ack <agent_name> [inbound_event_id]
 
 Advanced recovery compatibility entrypoint:
-  ccb ack <agent_name> [inbound_event_id]   Acknowledge reply/inbox progress for one agent.
-  Prefer `ccb repair ack <agent_name> [inbound_event_id]` as the converged recovery entrypoint.
+  ccbr ack <agent_name> [inbound_event_id]   Acknowledge reply/inbox progress for one agent.
+  Prefer `ccbr repair ack <agent_name> [inbound_event_id]` as the converged recovery entrypoint.
 "),
     ("repair-ack", "\
-usage: ccb repair ack <agent_name> [inbound_event_id]
+usage: ccbr repair ack <agent_name> [inbound_event_id]
 
 Advanced recovery subcommand:
-  ccb repair ack <agent_name> [inbound_event_id]   Acknowledge reply/inbox progress for one agent.
-  `ccb ack <agent_name> [inbound_event_id]` remains a compatibility alias.
+  ccbr repair ack <agent_name> [inbound_event_id]   Acknowledge reply/inbox progress for one agent.
+  `ccbr ack <agent_name> [inbound_event_id]` remains a compatibility alias.
 "),
     ("retry", "\
-usage: ccb retry <job_id|attempt_id>
+usage: ccbr retry <job_id|attempt_id>
 
 Advanced recovery compatibility entrypoint:
-  ccb retry <job_id|attempt_id>   Retry one failed or incomplete job/attempt lineage.
-  Prefer `ccb repair retry <job_id|attempt_id>` as the converged recovery entrypoint.
+  ccbr retry <job_id|attempt_id>   Retry one failed or incomplete job/attempt lineage.
+  Prefer `ccbr repair retry <job_id|attempt_id>` as the converged recovery entrypoint.
 "),
     ("repair-retry", "\
-usage: ccb repair retry <job_id|attempt_id>
+usage: ccbr repair retry <job_id|attempt_id>
 
 Advanced recovery subcommand:
-  ccb repair retry <job_id|attempt_id>   Retry one failed or incomplete job/attempt lineage.
-  `ccb retry <job_id|attempt_id>` remains a compatibility alias.
+  ccbr repair retry <job_id|attempt_id>   Retry one failed or incomplete job/attempt lineage.
+  `ccbr retry <job_id|attempt_id>` remains a compatibility alias.
 "),
     ("resubmit", "\
-usage: ccb resubmit <message_id>
+usage: ccbr resubmit <message_id>
 
 Advanced recovery compatibility entrypoint:
-  ccb resubmit <message_id>   Create a fresh submission from one prior message lineage.
-  Prefer `ccb repair resubmit <message_id>` as the converged recovery entrypoint.
+  ccbr resubmit <message_id>   Create a fresh submission from one prior message lineage.
+  Prefer `ccbr repair resubmit <message_id>` as the converged recovery entrypoint.
 "),
     ("repair-resubmit", "\
-usage: ccb repair resubmit <message_id>
+usage: ccbr repair resubmit <message_id>
 
 Advanced recovery subcommand:
-  ccb repair resubmit <message_id>   Create a fresh submission from one prior message lineage.
-  `ccb resubmit <message_id>` remains a compatibility alias.
+  ccbr repair resubmit <message_id>   Create a fresh submission from one prior message lineage.
+  `ccbr resubmit <message_id>` remains a compatibility alias.
 "),
     ("repair", "\
-usage: ccb repair <ack|retry|resubmit> ...
+usage: ccbr repair <ack|retry|resubmit> ...
 
 Advanced recovery:
-  ccb repair ack <agent_name> [inbound_event_id]   Acknowledge reply/inbox progress for one agent.
-  ccb repair retry <job_id|attempt_id>             Retry one failed or incomplete job/attempt lineage.
-  ccb repair resubmit <message_id>                 Create a fresh submission from one prior message lineage.
+  ccbr repair ack <agent_name> [inbound_event_id]   Acknowledge reply/inbox progress for one agent.
+  ccbr repair retry <job_id|attempt_id>             Retry one failed or incomplete job/attempt lineage.
+  ccbr repair resubmit <message_id>                 Create a fresh submission from one prior message lineage.
   Legacy `ack` / `retry` / `resubmit` commands remain compatibility entrypoints.
 "),
     ("config", "\
-usage: ccb config validate
+usage: ccbr config validate
 
 Config validation:
-  ccb config validate   Validate `.ccbr/ccbr.config` for the current project.
+  ccbr config validate   Validate `.ccbr/ccbr.config` for the current project.
 "),
     ("reload", "\
-usage: ccb reload [--dry-run]
+usage: ccbr reload [--dry-run]
 
 Reload:
-  ccb reload             Apply safe explicit changes: view-only, append-only add_agent/add_window, or idle remove_agent.
-  ccb reload --dry-run   Ask the mounted daemon to validate `.ccbr/ccbr.config` and return a no-mutation reload plan.
+  ccbr reload             Apply safe explicit changes: view-only, append-only add_agent/add_window, or idle remove_agent.
+  ccbr reload --dry-run   Ask the mounted daemon to validate `.ccbr/ccbr.config` and return a no-mutation reload plan.
 
 Explicit reload boundary:
   - Busy remove_agent, replace_agent, move_agent, and arbitrary layout changes are rejected.
@@ -454,27 +454,27 @@ Explicit reload boundary:
   - Non-dry-run output includes stage, plan_class, graph version, diagnostics, and any residue.
 "),
     ("tools", "\
-usage: ccb tools <doctor|install|update> neovim
+usage: ccbr tools <doctor|install|update> neovim
 
 Managed tool provisioning:
-  ccb tools doctor neovim   Inspect the CCB-managed Neovim/LazyVim profile.
-  ccb tools install neovim  Prepare isolated ccbr-nvim wrapper/profile.
-  ccb tools update neovim   Refresh the managed profile wrapper.
+  ccbr tools doctor neovim   Inspect the CCBR-managed Neovim/LazyVim profile.
+  ccbr tools install neovim  Prepare isolated ccbr-nvim wrapper/profile.
+  ccbr tools update neovim   Refresh the managed profile wrapper.
 "),
     ("roles", "\
-usage: ccb roles <list|show|install|update|sync|add|doctor> ...
+usage: ccbr roles <list|show|install|update|sync|add|doctor> ...
 
 Role Pack management:
-  ccb roles list
-  ccb roles show agentroles.ccbr_self
-  ccb roles install agentroles.ccbr_self
-  ccb roles update agentroles.ccbr_self
-  ccb roles add agentroles.ccbr_self:codex
-  ccb roles show agentroles.archi
-  ccb roles install agentroles.archi
-  ccb roles update agentroles.archi
-  ccb roles sync [path]
-  ccb roles add agentroles.archi:codex
-  ccb roles doctor agentroles.archi
+  ccbr roles list
+  ccbr roles show agentroles.ccbr_self
+  ccbr roles install agentroles.ccbr_self
+  ccbr roles update agentroles.ccbr_self
+  ccbr roles add agentroles.ccbr_self:codex
+  ccbr roles show agentroles.archi
+  ccbr roles install agentroles.archi
+  ccbr roles update agentroles.archi
+  ccbr roles sync [path]
+  ccbr roles add agentroles.archi:codex
+  ccbr roles doctor agentroles.archi
 "),
 ];

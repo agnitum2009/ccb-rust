@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
-#[command(name = "ccb", version, about = "CCB multi-agent CLI workspace")]
+#[command(name = "ccbr", version, about = "CCBR multi-agent CLI workspace")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,

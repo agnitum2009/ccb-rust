@@ -84,7 +84,7 @@ impl WorkspacePlan {
             .unwrap_or_else(|| "agent".to_string())
             .trim()
             .to_lowercase();
-        let branch_template = branch_template.unwrap_or_else(|| "ccb/{agent_name}".to_string());
+        let branch_template = branch_template.unwrap_or_else(|| "ccbr/{agent_name}".to_string());
         Ok(Self {
             project_id,
             project_root,

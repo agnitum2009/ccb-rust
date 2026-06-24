@@ -77,10 +77,10 @@ pub fn render_inbox(payload: &Value) -> Vec<String> {
     }
     match str_field(payload, "summary_status").as_str() {
         "missing" => lines.push(
-            "summary_notice: persisted mailbox summary is missing; routine observer view is degraded; use `ccb doctor` or wait for maintenance refresh".to_string(),
+            "summary_notice: persisted mailbox summary is missing; routine observer view is degraded; use `ccbr doctor` or wait for maintenance refresh".to_string(),
         ),
         "error" => lines.push(
-            "summary_notice: persisted mailbox summary is unreadable; routine observer view is degraded; use `ccb doctor` for diagnostics".to_string(),
+            "summary_notice: persisted mailbox summary is unreadable; routine observer view is degraded; use `ccbr doctor` for diagnostics".to_string(),
         ),
         _ => {}
     }
@@ -158,7 +158,7 @@ pub fn render_inbox(payload: &Value) -> Vec<String> {
         && item_count.is_some()
         && item_count != Some(0)
     {
-        lines.push("inbox_details: omitted; rerun with `ccb pend --inbox --detail <agent>` or `ccb inbox --detail <agent>` for inbox-item detail".to_string());
+        lines.push("inbox_details: omitted; rerun with `ccbr pend --inbox --detail <agent>` or `ccbr inbox --detail <agent>` for inbox-item detail".to_string());
         return lines;
     }
     if let Some(Value::Array(arr)) = items {

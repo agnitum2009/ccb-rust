@@ -204,7 +204,7 @@ fn gemini_cache_root(project_root: Option<&Utf8Path>, runtime_dir: &Utf8Path) ->
         .map(|p| {
             let id = project_hash(p);
             cache_home()
-                .join("ccb")
+                .join("ccbr")
                 .join("projects")
                 .join(&id[..id.len().min(16)])
                 .join("provider-cache")

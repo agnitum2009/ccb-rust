@@ -14,7 +14,7 @@ pub struct TmuxPaneOwnership {
 }
 
 impl TmuxPaneOwnership {
-    /// Return true when the pane is considered owned by CCB.
+    /// Return true when the pane is considered owned by CCBR.
     pub fn is_owned(&self) -> bool {
         self.state == "owned"
     }
@@ -34,7 +34,7 @@ pub fn apply_session_tmux_identity(session: &Session, backend: &dyn SessionBacke
     }
 }
 
-/// Inspect whether a tmux pane is owned by CCB.
+/// Inspect whether a tmux pane is owned by CCBR.
 pub fn inspect_tmux_pane_ownership(
     session: &Session,
     backend: &dyn SessionBackend,

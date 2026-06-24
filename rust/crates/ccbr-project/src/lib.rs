@@ -1,4 +1,4 @@
-//! CCB project discovery, identity, resolver, and runtime paths.
+//! CCBR project discovery, identity, resolver, and runtime paths.
 //!
 //! Mirrors the corresponding Python v7.5.2 package. This crate is the canonical
 //! home for project id/slug computation and worktree scope resolution.

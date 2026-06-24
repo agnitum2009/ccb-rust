@@ -10,7 +10,7 @@ const ASSISTANT_UI_PREFIX_RE: &str = r"^•\s+";
 pub fn wrap_native_prompt(message: &str, req_id: &str) -> String {
     let rendered = message.trim_end();
     format!(
-        "{} {}\n\n{}\n\nCCB reply guidance:\n\
+        "{} {}\n\n{}\n\nCCBR reply guidance:\n\
          - Answer directly and concisely.\n\
          - Include only relevant conclusions, blockers, risks, evidence, and next actions.\n\
          - Avoid raw logs and background unless explicitly requested.\n",
@@ -66,7 +66,7 @@ mod tests {
         let wrapped = wrap_native_prompt("do the thing", "req-12345678");
         assert!(wrapped.contains("req-12345678"));
         assert!(wrapped.contains("do the thing"));
-        assert!(wrapped.contains("CCB reply guidance:"));
+        assert!(wrapped.contains("CCBR reply guidance:"));
     }
 
     #[test]

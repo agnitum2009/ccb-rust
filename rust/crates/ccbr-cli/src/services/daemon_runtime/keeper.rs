@@ -642,7 +642,7 @@ mod tests {
     fn keeper_cmdline_matches_project_detects_project_arg() {
         let cmdline = vec![
             "python".to_string(),
-            "/opt/ccb/lib/ccbrd/keeper_main.py".to_string(),
+            "/opt/ccbr/lib/ccbrd/keeper_main.py".to_string(),
             "--project".to_string(),
             "/tmp/repo".to_string(),
         ];
@@ -656,7 +656,7 @@ mod tests {
     fn keeper_cmdline_matches_project_rejects_wrong_project() {
         let cmdline = vec![
             "python".to_string(),
-            "/opt/ccb/lib/ccbrd/keeper_main.py".to_string(),
+            "/opt/ccbr/lib/ccbrd/keeper_main.py".to_string(),
             "--project".to_string(),
             "/other/repo".to_string(),
         ];

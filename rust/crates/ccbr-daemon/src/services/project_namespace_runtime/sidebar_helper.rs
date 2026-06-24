@@ -99,7 +99,7 @@ pub fn sidebar_respawn_args(
 
 /// Fallback argv shown when the sidebar helper cannot be resolved.
 pub fn missing_sidebar_respawn_args(reason: Option<&str>) -> Vec<String> {
-    let message = "CCB sidebar helper unavailable";
+    let message = "CCBR sidebar helper unavailable";
     let detail = reason.unwrap_or("ccbr-agent-sidebar not found");
     let body = format!(
         "printf '%s\\n' '{}'; printf '%s\\n' '{}'; printf '%s\\n' 'Build or install bin/ccbr-agent-sidebar, or set CCBR_AGENT_SIDEBAR_BIN.'; while :; do sleep 3600; done",
@@ -215,7 +215,7 @@ mod tests {
         let args = missing_sidebar_respawn_args(Some("not found"));
         assert_eq!(args[0], "sh");
         assert_eq!(args[1], "-lc");
-        assert!(args[2].contains("CCB sidebar helper unavailable"));
+        assert!(args[2].contains("CCBR sidebar helper unavailable"));
         assert!(args[2].contains("not found"));
     }
 

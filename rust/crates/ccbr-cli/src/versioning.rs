@@ -220,7 +220,7 @@ fn which(program: &str) -> Option<std::path::PathBuf> {
 // Local version info — mirrors `versioning_runtime.local`.
 // ---------------------------------------------------------------------------
 
-/// Resolved installation/version metadata for a CCB install directory.
+/// Resolved installation/version metadata for a CCBR install directory.
 ///
 /// Mirrors the dict returned by `local.get_version_info`.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -293,7 +293,7 @@ pub fn get_version_info(dir_path: &Path) -> VersionInfo {
     if let Some(version) = read_version_file(&dir_path.join("VERSION")) {
         info.version = Some(version);
     }
-    info.merge(read_embedded_version_info(&dir_path.join("ccb")));
+    info.merge(read_embedded_version_info(&dir_path.join("ccbr")));
     if let Some(git) = git_version_info(dir_path) {
         info.commit = Some(git.0);
         info.date = Some(git.1);
@@ -348,7 +348,7 @@ fn version_assignment(line: &str) -> (Option<&'static str>, Option<String>) {
     (key, if value.is_empty() { None } else { Some(value) })
 }
 
-/// Read embedded version assignments from the first 60 lines of `ccb`.
+/// Read embedded version assignments from the first 60 lines of `ccbr`.
 ///
 /// Mirrors `local.read_embedded_version_info`.
 fn read_embedded_version_info(ccbr_file: &Path) -> VersionInfo {
@@ -672,7 +672,7 @@ jkl012\trefs/heads/main
     #[test]
     fn test_read_embedded_version_info() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("ccb");
+        let path = dir.path().join("ccbr");
         std::fs::write(
             &path,
             "shebang line\nVERSION=\"2.0.0\"\nGIT_COMMIT=deadbee\nGIT_DATE=2026-01-01\nother\n",

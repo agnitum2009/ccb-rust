@@ -78,7 +78,7 @@ pub fn ensure_daemon_started(
         });
     }
     Err(crate::services::daemon_runtime::models::CcbdServiceError(
-        "ccbrd is not running; run `ccb` in this project first".to_string(),
+        "ccbrd is not running; run `ccbr` in this project first".to_string(),
     ))
 }
 

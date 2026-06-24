@@ -3,7 +3,7 @@ name = "ccbr-release-builder"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "CCB release artifact builder (replacement for scripts/build_release.py)"
+description = "CCBR release artifact builder (replacement for scripts/build_release.py)"
 
 [[bin]]
 name = "ccbr-release-builder"

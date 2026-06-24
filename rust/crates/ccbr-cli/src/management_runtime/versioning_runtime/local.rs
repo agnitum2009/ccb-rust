@@ -61,7 +61,10 @@ pub fn get_version_info(dir_path: &Path) -> Map<String, Value> {
         read_build_info(&dir_path.join("BUILD_INFO.json")),
     );
     merge(&mut info, read_version_file(&dir_path.join("VERSION")));
-    merge(&mut info, read_embedded_version_info(&dir_path.join("ccb")));
+    merge(
+        &mut info,
+        read_embedded_version_info(&dir_path.join("ccbr")),
+    );
     if let Some(git) = git_version_info(dir_path) {
         merge(&mut info, git);
     }
@@ -69,7 +72,7 @@ pub fn get_version_info(dir_path: &Path) -> Map<String, Value> {
     info
 }
 
-/// Parse embedded version assignments from the `ccb` launcher script.
+/// Parse embedded version assignments from the `ccbr` launcher script.
 ///
 /// Mirrors Python `read_embedded_version_info(ccbr_file)`.
 pub fn read_embedded_version_info(ccbr_file: &Path) -> Map<String, Value> {

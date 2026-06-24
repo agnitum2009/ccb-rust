@@ -27,7 +27,7 @@ pub fn strip_ansi(text: &str) -> String {
     ansi_escape_re().replace_all(text, "").into_owned()
 }
 
-/// Return true if the text contains CCB protocol markers.
+/// Return true if the text contains CCBR protocol markers.
 pub fn has_protocol_markers(text: &str) -> bool {
     ccbr_req_id_re().is_match(text) || ccbr_done_re().is_match(text)
 }

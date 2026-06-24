@@ -504,7 +504,7 @@ mod tests {
             None,
             50,
             true,
-            "CCB",
+            "CCBR",
             Some("ccbr-demo-1"),
             false,
         )
@@ -566,7 +566,7 @@ mod tests {
             Some("ccbr-demo-2"),
             50,
             true,
-            "CCB",
+            "CCBR",
             None,
             true,
         )

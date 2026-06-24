@@ -178,9 +178,9 @@ mod tests {
     #[test]
     fn test_load_project_session_inactive() {
         let dir = TempDir::new().unwrap();
-        let ccb = dir.path().join(".ccbr");
-        std::fs::create_dir(&ccb).unwrap();
-        let session_file = ccb.join(".droid-session");
+        let ccbr = dir.path().join(".ccbr");
+        std::fs::create_dir(&ccbr).unwrap();
+        let session_file = ccbr.join(".droid-session");
         let mut file = std::fs::File::create(&session_file).unwrap();
         file.write_all(br#"{"active": false}"#).unwrap();
 
@@ -190,9 +190,9 @@ mod tests {
     #[test]
     fn test_load_project_session_active() {
         let dir = TempDir::new().unwrap();
-        let ccb = dir.path().join(".ccbr");
-        std::fs::create_dir(&ccb).unwrap();
-        let session_file = ccb.join(".droid-session");
+        let ccbr = dir.path().join(".ccbr");
+        std::fs::create_dir(&ccbr).unwrap();
+        let session_file = ccbr.join(".droid-session");
         let mut file = std::fs::File::create(&session_file).unwrap();
         file.write_all(br#"{"active": true, "droid_session_id": "s1"}"#)
             .unwrap();
@@ -206,9 +206,9 @@ mod tests {
     fn test_find_project_session_file_workspace_binding() {
         let dir = TempDir::new().unwrap();
         let target = TempDir::new().unwrap();
-        let ccb = target.path().join(".ccbr");
-        std::fs::create_dir(&ccb).unwrap();
-        std::fs::File::create(ccb.join(".droid-session")).unwrap();
+        let ccbr = target.path().join(".ccbr");
+        std::fs::create_dir(&ccbr).unwrap();
+        std::fs::File::create(ccbr.join(".droid-session")).unwrap();
 
         std::fs::write(
             dir.path().join(".ccbr-workspace.json"),

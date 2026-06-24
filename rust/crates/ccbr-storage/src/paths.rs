@@ -14,7 +14,7 @@ use crate::project_identity::{compute_project_id, project_slug};
 const SHARED_CACHE_PROVIDERS: &[&str] = &["claude", "codex", "gemini"];
 const EXTERNAL_CACHE_PROVIDERS: &[&str] = &["claude", "gemini"];
 
-/// Project-level path layout for a CCB project.
+/// Project-level path layout for a CCBR project.
 /// Mirrors Python `storage.paths.PathLayout`.
 #[derive(Debug, Clone)]
 pub struct PathLayout {
@@ -152,7 +152,7 @@ impl PathLayout {
 
     pub fn external_provider_cache_root(&self) -> Utf8PathBuf {
         let root = user_cache_home();
-        root.join("ccb/projects")
+        root.join("ccbr/projects")
             .join(&self.project_id[..16])
             .join("provider-cache")
     }

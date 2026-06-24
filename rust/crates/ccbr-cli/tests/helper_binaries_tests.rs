@@ -63,7 +63,7 @@ fn ask_help_introspection() {
     assert!(output.status.success(), "ask --help should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("Usage:") && stdout.contains("ask ") && stdout.contains("ccb ask"),
+        stdout.contains("Usage:") && stdout.contains("ask ") && stdout.contains("ccbr ask"),
         "unexpected help output: {stdout}"
     );
 }

@@ -190,7 +190,7 @@ pub fn session_id(session: &Session, session_id_attr: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-/// Extract the CCB session id from a session.
+/// Extract the CCBR session id from a session.
 pub fn session_ccbr_session_id(session: &Session) -> Option<String> {
     session
         .ccbr_session_id
@@ -1072,8 +1072,8 @@ mod tests {
             calls: calls.clone(),
         };
         let binding = AgentBinding {
-            runtime_ref: Some("tmux:title:CCB-agent1-demo".to_string()),
-            pane_title_marker: Some("CCB-agent1-demo".to_string()),
+            runtime_ref: Some("tmux:title:CCBR-agent1-demo".to_string()),
+            pane_title_marker: Some("CCBR-agent1-demo".to_string()),
             pane_id: Some("%41".to_string()),
             ..Default::default()
         };

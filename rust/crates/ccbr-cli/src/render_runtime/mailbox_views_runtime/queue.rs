@@ -101,10 +101,10 @@ pub fn render_queue(payload: &Value) -> Vec<String> {
         .and_then(|v| v.as_str())
     {
         Some("missing") => lines.push(
-            "summary_notice: persisted mailbox summary is missing; routine observer view is degraded; use `ccb doctor` or wait for maintenance refresh".to_string(),
+            "summary_notice: persisted mailbox summary is missing; routine observer view is degraded; use `ccbr doctor` or wait for maintenance refresh".to_string(),
         ),
         Some("error") => lines.push(
-            "summary_notice: persisted mailbox summary is unreadable; routine observer view is degraded; use `ccb doctor` for diagnostics".to_string(),
+            "summary_notice: persisted mailbox summary is unreadable; routine observer view is degraded; use `ccbr doctor` for diagnostics".to_string(),
         ),
         _ => {}
     }
@@ -126,7 +126,7 @@ pub fn render_queue(payload: &Value) -> Vec<String> {
 
     let queued_events = agent.and_then(|a| a.get("queued_events"));
     if queued_events.map(|v| v.is_null()).unwrap_or(true) {
-        lines.push("queue_details: omitted; rerun with `ccb pend --queue --detail <agent>` or `ccb queue --detail <agent>` for queued-event detail".to_string());
+        lines.push("queue_details: omitted; rerun with `ccbr pend --queue --detail <agent>` or `ccbr queue --detail <agent>` for queued-event detail".to_string());
         return lines;
     }
     if let Some(Value::Array(events)) = queued_events {

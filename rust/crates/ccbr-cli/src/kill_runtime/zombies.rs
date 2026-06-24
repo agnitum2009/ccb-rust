@@ -3,7 +3,7 @@
 use std::io::{self, Write};
 use std::process::Command;
 
-/// Providers that appear in CCB tmux session names with an embedded parent PID.
+/// Providers that appear in CCBR tmux session names with an embedded parent PID.
 const ZOMBIE_PROVIDERS: &[&str] = &[
     "codex", "gemini", "opencode", "claude", "droid", "agy", "kimi", "deepseek",
 ];
@@ -23,7 +23,7 @@ pub struct ZombieSession {
     pub parent_pid: u32,
 }
 
-/// Find CCB tmux sessions whose parent PID is no longer alive.
+/// Find CCBR tmux sessions whose parent PID is no longer alive.
 ///
 /// Mirrors Python `find_all_zombie_sessions(is_pid_alive, list_tmux_sessions_fn)`.
 pub fn find_all_zombie_sessions(
@@ -85,7 +85,7 @@ fn parse_zombie_session(
     })
 }
 
-/// Best-effort cleanup of zombie CCB tmux sessions.
+/// Best-effort cleanup of zombie CCBR tmux sessions.
 ///
 /// Mirrors Python `kill_global_zombies(yes, is_pid_alive, find_all_zombie_sessions_fn, input_fn, kill_tmux_session_fn)`.
 pub fn kill_global_zombies(

@@ -125,7 +125,7 @@ fn test_launch_context_and_payload() {
         &runtime_dir,
         Path::new("/run"),
         "%1",
-        "CCB-agent1-proj",
+        "CCBR-agent1-proj",
         &start_cmd,
         "launch-1",
         Path::new("/workspace/.mimo-session"),

@@ -119,7 +119,7 @@ where
 
     if phase == "unmounted" {
         return Err(CcbdServiceError(
-            "project ccbrd is unmounted; run `ccb` first".to_string(),
+            "project ccbrd is unmounted; run `ccbr` first".to_string(),
         ));
     }
     if phase == "starting" {

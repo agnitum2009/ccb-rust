@@ -48,7 +48,7 @@ pub fn load_memory_sources(
 
     sources.push(read_source(
         SOURCE_CCBR_SHARED,
-        "CCB Shared Project Memory",
+        "CCBR Shared Project Memory",
         &crate::project_memory::seed::project_memory_path(layout),
         true,
     ));

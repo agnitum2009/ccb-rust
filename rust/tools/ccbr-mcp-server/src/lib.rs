@@ -1,8 +1,8 @@
-//! MCP stdio server for CCB agent-first delegation.
+//! MCP stdio server for CCBR agent-first delegation.
 //!
 //! This crate implements the Model Context Protocol (MCP) stdio transport for
-//! CCB. It exposes three tools (`ccbr_ask_agent`, `ccbr_pend_agent`,
-//! `ccbr_ping_agent`) that delegate to the CCB daemon via its Unix socket RPC
+//! CCBR. It exposes three tools (`ccbr_ask_agent`, `ccbr_pend_agent`,
+//! `ccbr_ping_agent`) that delegate to the CCBR daemon via its Unix socket RPC
 //! interface.
 //!
 //! # Differences from the Python MCP server
@@ -130,7 +130,7 @@ pub fn tool_definitions() -> Vec<Value> {
     vec![
         serde_json::json!({
             "name": "ccbr_ask_agent",
-            "description": "Submit a request to a named CCB agent.",
+            "description": "Submit a request to a named CCBR agent.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

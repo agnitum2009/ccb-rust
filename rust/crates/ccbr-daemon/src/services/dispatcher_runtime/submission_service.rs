@@ -458,7 +458,7 @@ fn validate_request_body_artifact<D: Dispatcher>(
     }
     if request.body.len() > BODY_ARTIFACT_SPILL_BYTES {
         return Err(dispatcher.dispatch_error(
-            "ask body exceeds 4 KiB and must be submitted with a CCB body artifact",
+            "ask body exceeds 4 KiB and must be submitted with a CCBR body artifact",
         ));
     }
     Ok(())
@@ -648,7 +648,7 @@ mod tests {
             .expect_err("should fail without artifact");
         assert!(err
             .to_string()
-            .contains("must be submitted with a CCB body artifact"));
+            .contains("must be submitted with a CCBR body artifact"));
 
         let mut with_artifact = req.clone();
         with_artifact.body_artifact = Some(serde_json::json!({"path": "/tmp/body"}));

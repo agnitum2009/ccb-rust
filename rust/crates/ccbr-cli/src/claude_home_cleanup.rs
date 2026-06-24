@@ -19,8 +19,8 @@ pub const RETIRED_PING_COMMANDS: &[&str] = &[
 
 /// Permission allow literals that should be removed from Claude settings.
 pub const RETIRED_PERMISSION_ALLOW_LITERALS: &[&str] = &[
-    "Bash(ccb provider ping *)",
-    "Bash(ccb provider pend *)",
+    "Bash(ccbr provider ping *)",
+    "Bash(ccbr provider pend *)",
     "Bash(ccbr-ping *)",
     "Bash(pend *)",
 ];

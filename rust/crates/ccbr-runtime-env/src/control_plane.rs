@@ -105,7 +105,7 @@ pub const CONTROL_PLANE_BLOCKED_EXACT: &[&str] = &[
     "TMUX_PANE",
 ];
 
-/// Build the environment for the CCB control plane.
+/// Build the environment for the CCBR control plane.
 ///
 /// `extra` may be used to add, override, or remove (`None`) variables after the
 /// base filtering is applied.
@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn test_control_plane_env_drops_outer_pythonpath() {
         clear_test_env();
-        std::env::set_var("PYTHONPATH", "/stable/ccb/lib:/other");
+        std::env::set_var("PYTHONPATH", "/stable/ccbr/lib:/other");
         std::env::set_var("PYTHONUNBUFFERED", "1");
 
         let env = control_plane_env(None);

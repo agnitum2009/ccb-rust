@@ -1,8 +1,8 @@
-//! CCB runtime PID cleanup helpers.
+//! CCBR runtime PID cleanup helpers.
 //!
-//! Mirrors the Python `runtime_pid_cleanup` package from CCB v7.5.2.
+//! Mirrors the Python `runtime_pid_cleanup` package from CCBR v7.5.2.
 //! Provides lightweight helpers for discovering running processes from `/proc`
-//! and cleaning up stale CCB runtime PIDs on Linux.
+//! and cleaning up stale CCBR runtime PIDs on Linux.
 
 pub mod collection;
 pub mod matching;
@@ -100,7 +100,7 @@ pub fn find_matching_pids(predicate: impl Fn(&str) -> bool) -> Vec<PidCleanupRes
 ///
 /// This uses the standard `kill` utility and returns whether the command
 /// succeeded. It is intentionally conservative: callers are expected to
-/// verify the PID belongs to a stale CCB runtime before invoking it.
+/// verify the PID belongs to a stale CCBR runtime before invoking it.
 pub fn terminate_pid(pid: Pid) -> std::io::Result<()> {
     let status = std::process::Command::new("kill")
         .arg(pid.to_string())
@@ -112,7 +112,7 @@ pub fn terminate_pid(pid: Pid) -> std::io::Result<()> {
     }
 }
 
-/// Remove stale CCB runtime PIDs whose command line contains `needle` and are
+/// Remove stale CCBR runtime PIDs whose command line contains `needle` and are
 /// not the current process.
 pub fn cleanup_stale_runtime_pids(needle: &str) -> Vec<PidCleanupResult> {
     let current = std::process::id();

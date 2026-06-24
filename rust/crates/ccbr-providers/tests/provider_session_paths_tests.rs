@@ -92,18 +92,21 @@ fn test_session_file_for_runtime_dir_rejects_invalid_runtime_marker() {
 fn test_session_file_for_runtime_dir_finds_local_ccbr_first() {
     let tmp = TempDir::new().unwrap();
     let project_root = tmp.path().join("repo");
-    let local_ccb = project_root.join(".ccbr");
-    std::fs::create_dir_all(&local_ccb).unwrap();
-    let runtime_dir = local_ccb
+    let local_ccbr = project_root.join(".ccbr");
+    std::fs::create_dir_all(&local_ccbr).unwrap();
+    let runtime_dir = local_ccbr
         .join("agents")
         .join("reviewer")
         .join("provider-runtime")
         .join("claude");
     std::fs::create_dir_all(&runtime_dir).unwrap();
 
-    assert_eq!(find_project_ccbr_dir(&runtime_dir), Some(local_ccb.clone()));
+    assert_eq!(
+        find_project_ccbr_dir(&runtime_dir),
+        Some(local_ccbr.clone())
+    );
     assert_eq!(
         session_file_for_runtime_dir("claude", &runtime_dir),
-        Some(local_ccb.join(".claude-reviewer-session"))
+        Some(local_ccbr.join(".claude-reviewer-session"))
     );
 }

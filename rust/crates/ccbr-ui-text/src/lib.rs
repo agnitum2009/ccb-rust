@@ -1,4 +1,4 @@
-//! CCB UI text / help strings.
+//! CCBR UI text / help strings.
 //!
 //! Mirrors `lib/ui_text/` from Python v7.5.2. This crate is the canonical home
 //! for status labels and translated user-facing messages.

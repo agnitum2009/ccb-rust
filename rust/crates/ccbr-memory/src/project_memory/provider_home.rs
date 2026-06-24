@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 /// Render the managed memory bundle for a provider home directory.
 ///
-/// The bundle contains the standard CCB runtime memory sections (shared project
+/// The bundle contains the standard CCBR runtime memory sections (shared project
 /// memory, runtime coordination rules, agent private memory) and, if present,
 /// the filtered source-home provider user memory file.
 pub fn render_provider_home_memory(

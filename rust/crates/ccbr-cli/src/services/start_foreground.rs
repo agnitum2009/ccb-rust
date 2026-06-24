@@ -207,7 +207,7 @@ where
 {
     if runtime.which_tmux().is_none() {
         return Err(ForegroundAttachError(
-            "tmux is required for interactive `ccb`".into(),
+            "tmux is required for interactive `ccbr`".into(),
         ));
     }
 
@@ -277,7 +277,7 @@ where
     }
 
     Err(ForegroundAttachError(
-        "failed to attach project namespace after successful `ccb` start".into(),
+        "failed to attach project namespace after successful `ccbr` start".into(),
     ))
 }
 
@@ -389,13 +389,13 @@ fn attach_target_ready(
     if tmux_socket_path.is_empty() || tmux_session_name.is_empty() || !ui_attachable {
         return Ok((
             false,
-            "project namespace is not attachable after successful `ccb` start".into(),
+            "project namespace is not attachable after successful `ccbr` start".into(),
         ));
     }
     if !tmux_has_session(&tmux_socket_path, &tmux_session_name, env, runtime) {
         return Ok((
             false,
-            "project namespace session is missing after successful `ccb` start".into(),
+            "project namespace session is missing after successful `ccbr` start".into(),
         ));
     }
     if !workspace_window_name.is_empty()
@@ -408,7 +408,7 @@ fn attach_target_ready(
     {
         return Ok((
             false,
-            "project namespace workspace window is missing after successful `ccb` start".into(),
+            "project namespace workspace window is missing after successful `ccbr` start".into(),
         ));
     }
     Ok((true, String::new()))
@@ -416,7 +416,7 @@ fn attach_target_ready(
 
 fn attach_target_unavailable_error(attempts: i32, timeout_s: f64) -> String {
     format!(
-        "foreground attach timed out: project namespace did not become attachable within {:.1}s after successful `ccb` start (attempts={})",
+        "foreground attach timed out: project namespace did not become attachable within {:.1}s after successful `ccbr` start (attempts={})",
         timeout_s, attempts
     )
 }
@@ -434,7 +434,7 @@ fn attach_ping_timeout_error(
         detail
     };
     format!(
-        "foreground attach timed out: ccbrd did not respond to ping within {:.1}s after successful `ccb` start (rpc_timeout={:.1}s, attempts={}, last_error={})",
+        "foreground attach timed out: ccbrd did not respond to ping within {:.1}s after successful `ccbr` start (rpc_timeout={:.1}s, attempts={}, last_error={})",
         timeout_s, rpc_timeout_s, attempts, detail
     )
 }
@@ -452,7 +452,7 @@ fn attach_namespace_timeout_error(
         detail
     };
     format!(
-        "foreground attach timed out: ccbrd is responsive but project namespace was not attachable within {:.1}s after successful `ccb` start (attempts={}, ping_successes={}, last_error={})",
+        "foreground attach timed out: ccbrd is responsive but project namespace was not attachable within {:.1}s after successful `ccbr` start (attempts={}, ping_successes={}, last_error={})",
         timeout_s, attempts, ping_successes, detail
     )
 }

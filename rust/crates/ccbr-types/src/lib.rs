@@ -1,4 +1,4 @@
-//! Shared CCB types and lightweight helpers.
+//! Shared CCBR types and lightweight helpers.
 //!
 //! Canonical implementations for environment filtering, UI text, and other
 //! cross-cutting concerns now live in dedicated crates and are re-exported

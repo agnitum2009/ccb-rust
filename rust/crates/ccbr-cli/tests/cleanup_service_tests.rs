@@ -37,9 +37,9 @@ fn active() -> impl DaemonInspector {
 }
 
 fn make_context(project_root: &std::path::Path) -> CliContext {
-    let ccb = project_root.join(".ccbr");
-    fs::create_dir_all(&ccb).unwrap();
-    fs::write(ccb.join("ccbr.config"), "demo:codex\n").unwrap();
+    let ccbr = project_root.join(".ccbr");
+    fs::create_dir_all(&ccbr).unwrap();
+    fs::write(ccbr.join("ccbr.config"), "demo:codex\n").unwrap();
     CliContextBuilder::new(ParsedCommand::Doctor(ParsedDoctorCommand {
         project: None,
         bundle: false,

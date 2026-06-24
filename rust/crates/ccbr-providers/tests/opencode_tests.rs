@@ -26,9 +26,9 @@ fn test_extract_text_reasoning_fallback() {
 #[test]
 fn test_extract_req_id_from_text() {
     let re = req_id_re();
-    let invalid = "Request [ccb:req] abcdef1234567890abcdef12345678 details";
+    let invalid = "Request [ccbr:req] abcdef1234567890abcdef12345678 details";
     // The regex expects 32 hex chars or a date pattern.
-    let valid = "Request [ccb:req] 1234567890abcdef1234567890abcdef details";
+    let valid = "Request [ccbr:req] 1234567890abcdef1234567890abcdef details";
     assert_eq!(
         extract_req_id_from_text(valid, &re),
         Some("1234567890abcdef1234567890abcdef".to_string())
@@ -364,7 +364,7 @@ mod provider_backend_tests {
             &runtime_dir,
             Path::new("/run"),
             "%1",
-            "CCB-agent1-proj",
+            "CCBR-agent1-proj",
             &start_cmd,
             "launch-1",
         );

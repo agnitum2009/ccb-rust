@@ -80,7 +80,7 @@ pub fn pane_title_marker(project_id: &str, agent_name: &str) -> String {
     } else {
         format!("-{}", &suffix[..suffix.len().min(8)])
     };
-    format!("CCB-{}{}", agent_name, suffix)
+    format!("CCBR-{}{}", agent_name, suffix)
 }
 
 fn shell_split(raw: &str) -> Vec<String> {
@@ -202,11 +202,14 @@ mod tests {
 
     #[test]
     fn test_pane_title_marker() {
-        assert_eq!(pane_title_marker("proj123", "claude"), "CCB-claude-proj123");
-        assert_eq!(pane_title_marker("", "claude"), "CCB-claude");
+        assert_eq!(
+            pane_title_marker("proj123", "claude"),
+            "CCBR-claude-proj123"
+        );
+        assert_eq!(pane_title_marker("", "claude"), "CCBR-claude");
         assert_eq!(
             pane_title_marker("verylongid", "claude"),
-            "CCB-claude-verylong"
+            "CCBR-claude-verylong"
         );
     }
 

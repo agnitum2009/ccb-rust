@@ -438,15 +438,15 @@ fn test_render_memory_bundle() {
     let tmp = tempfile::tempdir().unwrap();
     let source = ProjectMemorySource::new(
         "ccbr_shared",
-        "CCB Shared Project Memory",
+        "CCBR Shared Project Memory",
         tmp.path().join("ccbr_memory.md"),
         "Shared content",
         true,
     );
     let rendered =
         ccbr_memory::render_memory_bundle(tmp.path(), "agent1", "claude", &[source], None);
-    assert!(rendered.contains("# CCB Managed Agent Memory"));
-    assert!(rendered.contains("## CCB Shared Project Memory"));
+    assert!(rendered.contains("# CCBR Managed Agent Memory"));
+    assert!(rendered.contains("## CCBR Shared Project Memory"));
     assert!(rendered.contains("Shared content"));
 }
 
@@ -641,7 +641,7 @@ fn filter_preserves_isolated_marker() {
 
 #[test]
 fn filter_preserves_unrelated_user_text() {
-    let text = "Use ask carefully, but this is user-authored and has no CCB marker pair.\n";
+    let text = "Use ask carefully, but this is user-authored and has no CCBR marker pair.\n";
     let result = filter_source(text, "provider_user_memory");
     assert_eq!(result.content, text);
     assert!(!result.filtered);
@@ -728,12 +728,12 @@ fn ensure_project_memory_creates_template_and_seed() {
     let memory_path = project_memory_path(&layout);
     assert!(memory_path.is_file());
     let text = std::fs::read_to_string(&memory_path).unwrap();
-    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
-    assert!(text.contains("Use CCB `ask` for project-level collaboration with configured agents."));
+    assert!(text.contains("This project uses CCBR for visible multi-agent collaboration."));
+    assert!(text.contains("Use CCBR `ask` for project-level collaboration with configured agents."));
     assert!(!text.contains("Plain nested `ask` from an active task is"));
     assert!(!text.contains("command ask \"$TARGET\""));
     assert!(!text.contains("Do not wait, poll, or run `pend`/`watch`/`ping`"));
-    assert!(!text.contains("ccb -h"));
+    assert!(!text.contains("ccbr -h"));
 
     let seed = std::fs::read_to_string(seed_metadata_path(&layout)).unwrap();
     let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
@@ -782,7 +782,7 @@ fn ensure_project_memory_ignores_legacy_root_memory() {
     assert!(result.created);
     assert!(result.seed_written);
     let text = std::fs::read_to_string(&memory_path).unwrap();
-    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    assert!(text.contains("This project uses CCBR for visible multi-agent collaboration."));
     assert!(!text.contains("legacy shared memory"));
     assert_eq!(
         std::fs::read_to_string(&legacy_path).unwrap(),
@@ -842,7 +842,7 @@ fn ensure_project_memory_upgrades_unedited_seeded_old_template() {
     assert!(result.seed_written);
     assert!(result.warning.is_empty());
     let text = std::fs::read_to_string(&memory_path).unwrap();
-    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    assert!(text.contains("This project uses CCBR for visible multi-agent collaboration."));
     assert!(!text.contains("command ask \"$TARGET\""));
     let seed = std::fs::read_to_string(&seed_path).unwrap();
     let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
@@ -866,7 +866,7 @@ fn ensure_project_memory_upgrades_unedited_legacy_template_without_seed() {
     assert!(!result.created);
     assert!(result.seed_written);
     let text = std::fs::read_to_string(&memory_path).unwrap();
-    assert!(text.contains("This project uses CCB for visible multi-agent collaboration."));
+    assert!(text.contains("This project uses CCBR for visible multi-agent collaboration."));
     let seed = std::fs::read_to_string(seed_metadata_path(&layout)).unwrap();
     let seed: serde_json::Value = serde_json::from_str(&seed).unwrap();
     assert_eq!(seed["template_version"], 5);
@@ -1007,20 +1007,20 @@ fn materialize_runtime_memory_bundle_writes_generated_bundle_with_workspace() {
     let bundle_path = runtime_memory_bundle_path(&layout, "agent1");
     assert_eq!(result.path, bundle_path);
     let text = std::fs::read_to_string(&bundle_path).unwrap();
-    assert!(text.contains("# CCB Managed Agent Memory"));
+    assert!(text.contains("# CCBR Managed Agent Memory"));
     assert!(text.contains("<!-- ccbr-memory-bundle schema_version=1"));
     assert!(text.contains("provider: claude"));
     assert!(text.contains(&format!(
         "workspace_path: {}",
         workspace.canonicalize().unwrap().display()
     )));
-    assert!(text.contains("## CCB Runtime Coordination Rules"));
-    assert!(text.contains("CCB `ask` is submit-only"));
+    assert!(text.contains("## CCBR Runtime Coordination Rules"));
+    assert!(text.contains("CCBR `ask` is submit-only"));
     assert!(text.contains("Do not wait, poll, or run `pend`/`watch`/`ping`"));
-    assert!(text.contains("## CCB Shared Project Memory"));
+    assert!(text.contains("## CCBR Shared Project Memory"));
     assert!(text.contains("shared ask rules"));
-    let coord_pos = text.find("## CCB Runtime Coordination Rules").unwrap();
-    let shared_pos = text.find("## CCB Shared Project Memory").unwrap();
+    let coord_pos = text.find("## CCBR Runtime Coordination Rules").unwrap();
+    let shared_pos = text.find("## CCBR Shared Project Memory").unwrap();
     assert!(coord_pos < shared_pos);
     assert!(!text.contains("## Provider-Native Project Memory"));
     assert!(!text.contains("claude project rules"));
@@ -1295,7 +1295,10 @@ fn write_test_file(path: &Path, text: &str) {
 }
 
 fn assert_single_runtime_coordination(text: &str) {
-    assert_eq!(text.matches("## CCB Runtime Coordination Rules").count(), 1);
+    assert_eq!(
+        text.matches("## CCBR Runtime Coordination Rules").count(),
+        1
+    );
     assert_eq!(text.matches("command ask \"$TARGET\"").count(), 1);
 }
 
@@ -1311,7 +1314,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
 
     write_test_file(
         &project_root.join(".ccbr").join("ccbr_memory.md"),
-        "# CCB Project Memory\n\nSHARED-MEMORY-SENTINEL\n",
+        "# CCBR Project Memory\n\nSHARED-MEMORY-SENTINEL\n",
     );
     write_test_file(&project_root.join("CLAUDE.md"), "PROJECT-CLAUDE-SENTINEL\n");
     write_test_file(&project_root.join("AGENTS.md"), "PROJECT-AGENTS-SENTINEL\n");
@@ -1452,7 +1455,7 @@ fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
     let gemini_text = std::fs::read_to_string(&gemini_materialization.path).unwrap();
 
     for text in [&claude_text, &codex_text, &opencode_text, &gemini_text] {
-        assert!(text.contains("# CCB Managed Agent Memory"));
+        assert!(text.contains("# CCBR Managed Agent Memory"));
         assert!(text.contains("SHARED-MEMORY-SENTINEL"));
         assert_single_runtime_coordination(text);
     }

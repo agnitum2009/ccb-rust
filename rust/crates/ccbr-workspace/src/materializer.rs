@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn copy_ignores_git_and_ccb() {
+    fn copy_ignores_git_and_ccbr() {
         let tmp = tempfile::tempdir().unwrap();
         let src = tmp.path().join("src");
         std::fs::create_dir(&src).unwrap();

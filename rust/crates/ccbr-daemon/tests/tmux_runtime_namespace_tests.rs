@@ -85,14 +85,14 @@ fn runtime() -> RuntimeInfo {
         project_id: "proj-1".into(),
         agent_name: "agent1".into(),
         slot_key: None,
-        tmux_socket_path: Some("/tmp/ccb.sock".into()),
+        tmux_socket_path: Some("/tmp/ccbr.sock".into()),
         tmux_window_name: None,
     }
 }
 
 fn namespace_state() -> NamespaceStateInfo {
     NamespaceStateInfo {
-        tmux_socket_path: Some("/tmp/ccb.sock".into()),
+        tmux_socket_path: Some("/tmp/ccbr.sock".into()),
         tmux_session_name: "sess-1".into(),
         workspace_window_id: None,
     }

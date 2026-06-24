@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-/// Build the bootstrap command used for the CCB command pane.
+/// Build the bootstrap command used for the CCBR command pane.
 ///
 /// Mirrors Python `cmd_bootstrap_command()`.
 pub fn cmd_bootstrap_command() -> String {

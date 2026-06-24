@@ -87,7 +87,7 @@ fn assessor_present(context: &CliContext, assessor: &str) -> bool {
 /// Stop the maintenance heartbeat runner. Currently a no-op stub.
 pub fn stop_maintenance_heartbeat_runner(_context: &CliContext, _reason: &str) {}
 
-/// Ensure the maintenance heartbeat runner is started after `ccb start`.
+/// Ensure the maintenance heartbeat runner is started after `ccbr start`.
 pub fn startup_ensure_maintenance_heartbeat(context: &CliContext) -> Option<Value> {
     let config_result = ccbr_agents::config::load_project_config(&context.paths).ok()?;
     let heartbeat = config_result.config.maintenance_heartbeat.as_ref()?;
@@ -393,7 +393,7 @@ pub fn maintenance_tick(
                 "tick_activation_job_id": Value::Null,
                 "tick_summary": json!({"source_kind": "schedule"}),
                 "tick_evidence": Value::Array(Vec::new()),
-                "reason": "heartbeat schedule is not due; use `ccb maintenance tick --force` to run now",
+                "reason": "heartbeat schedule is not due; use `ccbr maintenance tick --force` to run now",
             });
         }
     }
@@ -960,7 +960,7 @@ fn dispatch_activation(
         "evidence": evaluation.evidence.iter().take(5).collect::<Vec<_>>(),
     });
     let body = format!(
-        "CCB maintenance heartbeat detected a runtime condition that needs semantic supervision.\n\nDiagnostic package:\n```json\n{}\n```",
+        "CCBR maintenance heartbeat detected a runtime condition that needs semantic supervision.\n\nDiagnostic package:\n```json\n{}\n```",
         serde_json::to_string_pretty(&diagnostic).unwrap_or_else(|_| "{}".to_string())
     );
 

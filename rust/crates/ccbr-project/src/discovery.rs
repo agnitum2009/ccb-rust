@@ -225,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn test_project_ccbr_dir_appends_ccb() {
+    fn test_project_ccbr_dir_appends_ccbr() {
         let dir = project_ccbr_dir(Utf8Path::new("/home/user/project"));
         assert!(dir.as_str().ends_with("/.ccbr"));
     }

@@ -172,7 +172,7 @@ impl PathLayout {
     }
 
     pub fn ccbrd_tmux_workspace_window_name(&self) -> &'static str {
-        "ccb"
+        "ccbr"
     }
 
     // --- CCBRD ops paths ---

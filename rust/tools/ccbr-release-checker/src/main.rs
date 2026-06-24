@@ -17,7 +17,7 @@ use ccbr_release_checker::{
 #[derive(Parser)]
 #[command(
     name = "ccbr-release-checker",
-    about = "Check CCB release-facing local and GitHub state."
+    about = "Check CCBR release-facing local and GitHub state."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -111,7 +111,7 @@ fn print_report(
     root: &camino::Utf8Path,
     repo: &str,
 ) -> i32 {
-    println!("CCB release check: {version} ({phase})");
+    println!("CCBR release check: {version} ({phase})");
     println!("repo root: {root}");
     println!("github repo: {repo}");
 

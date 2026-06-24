@@ -264,11 +264,11 @@ fn test_tmux_find_pane_by_title_marker_parses_list_panes() {
     let backend =
         test_backend().with_runner(move |args, _check, capture, _input, _timeout, _env| {
             *cap.lock().unwrap() = Some((args.clone(), capture));
-            Ok(ok_output("%1\tCCB-opencode-abc\n%2\tOTHER\n"))
+            Ok(ok_output("%1\tCCBR-opencode-abc\n%2\tOTHER\n"))
         });
 
     assert_eq!(
-        backend.find_pane_by_title_marker("CCB-opencode"),
+        backend.find_pane_by_title_marker("CCBR-opencode"),
         Some("%1".to_string())
     );
     assert_eq!(backend.find_pane_by_title_marker("NOPE"), None);
@@ -286,10 +286,10 @@ fn test_tmux_find_pane_by_title_marker_parses_list_panes() {
 fn test_tmux_find_pane_by_title_marker_rejects_ambiguous_prefix() {
     let backend =
         test_backend().with_runner(move |_args, _check, _capture, _input, _timeout, _env| {
-            Ok(ok_output("%1\tCCB-codex-abc\n%2\tCCB-codex-def\n"))
+            Ok(ok_output("%1\tCCBR-codex-abc\n%2\tCCBR-codex-def\n"))
         });
 
-    assert_eq!(backend.find_pane_by_title_marker("CCB-codex"), None);
+    assert_eq!(backend.find_pane_by_title_marker("CCBR-codex"), None);
 }
 
 #[test]

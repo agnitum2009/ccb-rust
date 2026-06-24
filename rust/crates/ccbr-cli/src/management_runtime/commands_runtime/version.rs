@@ -22,7 +22,7 @@ pub fn cmd_version(_args: &Value, script_root: &Path) -> i32 {
         str_field(&local_info, "source_kind").unwrap_or_else(|| "unknown".to_string());
     let channel = str_field(&local_info, "channel").unwrap_or_else(|| "unknown".to_string());
 
-    println!("ccb (Claude Code Bridge) {}", local_str);
+    println!("ccbr (Claude Code Bridge) {}", local_str);
     println!("Install path: {}", install_dir.display());
     println!("Install mode: {}", install_mode);
     println!("Install source: {}", source_kind);
@@ -71,7 +71,7 @@ fn print_source_update_status(local_info: &Map<String, Value>) {
         Some(info) => info,
         None => {
             println!("⚠️  Unable to check source updates (network error)");
-            println!("   Run: ccb update  to install the latest stable release");
+            println!("   Run: ccbr update  to install the latest stable release");
             return;
         }
     };
@@ -80,7 +80,7 @@ fn print_source_update_status(local_info: &Map<String, Value>) {
     if let (Some(local), Some(remote)) = (local_commit.as_deref(), remote_sha) {
         if local == remote {
             println!("✅ Up to date");
-            println!("   Run: ccb update  to switch this install to the latest stable release");
+            println!("   Run: ccbr update  to switch this install to the latest stable release");
             return;
         }
         let date = remote_info
@@ -93,11 +93,11 @@ fn print_source_update_status(local_info: &Map<String, Value>) {
         println!(
             "   Rerun: ./install.sh install  if you want the global install to stay in source/dev mode"
         );
-        println!("   Run: ccb update  to switch the global install to the latest stable release");
+        println!("   Run: ccbr update  to switch the global install to the latest stable release");
         return;
     }
     println!("⚠️  Unable to compare source revisions");
-    println!("   Run: ccb update  to install the latest stable release");
+    println!("   Run: ccbr update  to install the latest stable release");
 }
 
 fn print_git_update_status(local_info: &Map<String, Value>) {
@@ -121,7 +121,7 @@ fn print_git_update_status(local_info: &Map<String, Value>) {
             .unwrap_or("");
         let remote_str = format!("{} {}", remote, date).trim().to_string();
         println!("📦 Update available: {}", remote_str);
-        println!("   Run: ccb update");
+        println!("   Run: ccbr update");
         return;
     }
     println!("⚠️  Unable to compare versions");
@@ -143,11 +143,11 @@ fn print_release_update_status(local_info: &Map<String, Value>) {
     }
     if !current.is_empty() {
         println!("📦 Release update available: v{}", latest);
-        println!("   Run: ccb update");
+        println!("   Run: ccbr update");
         return;
     }
     println!("📦 Latest release: v{}", latest);
-    println!("   Run: ccb update");
+    println!("   Run: ccbr update");
 }
 
 fn str_field(map: &Map<String, Value>, key: &str) -> Option<String> {

@@ -1,4 +1,4 @@
-//! `ccbr-provider-activity-hook` — writes CCB provider activity status artifacts.
+//! `ccbr-provider-activity-hook` — writes CCBR provider activity status artifacts.
 //!
 //! 1:1 port of `bin/ccbr-provider-activity-hook` (Python). Invoked as a standalone
 //! binary with `--provider/--project-id [--agent-name --runtime-dir --workspace

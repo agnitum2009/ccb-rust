@@ -258,9 +258,9 @@ pub fn runtime_state_root_candidates() -> Vec<Utf8PathBuf> {
     if let Some(xdg_state) =
         absolute_path_from_value(&env::var("XDG_STATE_HOME").unwrap_or_default())
     {
-        candidates.push(xdg_state.join("ccb/projects"));
+        candidates.push(xdg_state.join("ccbr/projects"));
     }
-    candidates.push(account_home_dir().join(".local/state/ccb/projects"));
+    candidates.push(account_home_dir().join(".local/state/ccbr/projects"));
 
     let mut unique: Vec<Utf8PathBuf> = Vec::new();
     for candidate in candidates {
@@ -277,7 +277,7 @@ pub fn runtime_state_base_root() -> Utf8PathBuf {
             return candidate;
         }
     }
-    account_home_dir().join(".local/state/ccb/projects")
+    account_home_dir().join(".local/state/ccbr/projects")
 }
 
 pub fn runtime_state_root_for_project(project_id: &str) -> Utf8PathBuf {

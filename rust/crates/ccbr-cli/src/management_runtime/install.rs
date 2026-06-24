@@ -255,7 +255,7 @@ fn normalize_text_files_recursive(dir: &Path, root: &Path) -> std::io::Result<()
 
 fn should_normalize_unix_text(rel: &Path) -> bool {
     if let Some(name) = rel.file_name().and_then(|n| n.to_str()) {
-        if name == "install.sh" || name == "ccb" {
+        if name == "install.sh" || name == "ccbr" {
             return true;
         }
     }
@@ -354,7 +354,7 @@ fn pick_temp_base_dir(install_dir: &Path) -> PathBuf {
         PathBuf::from("/tmp"),
         PathBuf::from("/var/tmp"),
         PathBuf::from("/usr/tmp"),
-        home_dir().join(".cache/ccb/tmp"),
+        home_dir().join(".cache/ccbr/tmp"),
         install_dir.join(".tmp"),
         std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
@@ -434,7 +434,7 @@ fn windows_install_dir_candidates() -> Vec<PathBuf> {
 }
 
 fn installed_candidate(candidate: &Path) -> bool {
-    !candidate.as_os_str().is_empty() && candidate.join("ccb").exists()
+    !candidate.as_os_str().is_empty() && candidate.join("ccbr").exists()
 }
 
 fn home_dir() -> PathBuf {

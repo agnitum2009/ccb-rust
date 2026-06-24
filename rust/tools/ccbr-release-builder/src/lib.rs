@@ -332,7 +332,7 @@ fn find_repo_root() -> Result<PathBuf> {
         }
     }
 
-    bail!("unable to locate CCB repository root (looked for rust/Cargo.toml + VERSION)")
+    bail!("unable to locate CCBR repository root (looked for rust/Cargo.toml + VERSION)")
 }
 
 fn current_system() -> Result<String> {

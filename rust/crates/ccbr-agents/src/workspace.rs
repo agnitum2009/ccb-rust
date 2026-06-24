@@ -89,7 +89,7 @@ pub struct ValidationResult {
 
 pub struct WorkspacePlanner;
 
-const DEFAULT_BRANCH_TEMPLATE: &str = "ccb/{agent_name}";
+const DEFAULT_BRANCH_TEMPLATE: &str = "ccbr/{agent_name}";
 const ALLOWED_BRANCH_VARS: &[&str] = &["agent_name", "project_slug", "date"];
 
 impl WorkspacePlanner {
@@ -128,7 +128,7 @@ impl WorkspacePlanner {
                     path,
                     Some(binding),
                     false,
-                    Some(format!("ccb/group/{group}")),
+                    Some(format!("ccbr/group/{group}")),
                     "group".into(),
                 )
             }

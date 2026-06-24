@@ -1,4 +1,4 @@
-//! CCB stdio setup and encoding helpers.
+//! CCBR stdio setup and encoding helpers.
 //!
 //! Mirrors `lib/stdio_runtime/` from Python v7.5.2. This crate provides the
 //! canonical stdin decoding implementation used by the terminal runtime.

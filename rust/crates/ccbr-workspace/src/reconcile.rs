@@ -514,7 +514,7 @@ mod tests {
     fn format_blockers_includes_action_and_item() {
         let alert = WorktreeAlert {
             agent_name: "agent1".to_string(),
-            branch_name: Some("ccb/agent1".to_string()),
+            branch_name: Some("ccbr/agent1".to_string()),
             workspace_path: "/tmp/project/.ccbr/workspaces/agent1".to_string(),
             dirty: Some(true),
             merged: Some(false),

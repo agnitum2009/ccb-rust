@@ -236,7 +236,7 @@ fn materialize_claude_settings(
             .entry("allowedTools".to_string())
             .or_insert_with(|| serde_json::Value::Array(Vec::new()));
         if let Some(arr) = allowed.as_array_mut() {
-            let marker = serde_json::Value::String("Bash(ccb ".into());
+            let marker = serde_json::Value::String("Bash(ccbr ".into());
             if !arr.contains(&marker) {
                 arr.push(marker);
             }

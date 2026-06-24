@@ -1,4 +1,4 @@
-//! Internationalization support for CCB.
+//! Internationalization support for CCBR.
 //!
 //! Mirrors `ui_text/i18n.py` from Python v7.5.2.
 //!
@@ -50,7 +50,7 @@ fn english_messages() -> HashMap<&'static str, &'static str> {
         ),
         (
             "tmux_installed_not_inside",
-            "tmux is installed, but you're not inside a tmux session (run `tmux` first, then run `ccb` inside tmux)",
+            "tmux is installed, but you're not inside a tmux session (run `tmux` first, then run `ccbr` inside tmux)",
         ),
         ("tmux_not_installed", "tmux is not installed"),
         ("creating_tmux_session", "Creating tmux session: {session}"),
@@ -135,7 +135,7 @@ fn chinese_messages() -> HashMap<&'static str, &'static str> {
         ),
         (
             "tmux_installed_not_inside",
-            "已安装 tmux，但当前不在 tmux 会话中（请先运行 `tmux`，再在 tmux 内执行 `ccb`）",
+            "已安装 tmux，但当前不在 tmux 会话中（请先运行 `tmux`，再在 tmux 内执行 `ccbr`）",
         ),
         ("tmux_not_installed", "tmux 未安装"),
         ("creating_tmux_session", "正在创建 tmux 会话: {session}"),

@@ -56,7 +56,7 @@ fn test_runtime_identity_summary_reports_root_project_owner_warning() {
     assert_eq!(warnings.len(), 1);
     assert_eq!(
         warnings[0],
-        "Running CCB as root in a non-root-owned project can create root-owned .ccbr files."
+        "Running CCBR as root in a non-root-owned project can create root-owned .ccbr files."
     );
 }
 
@@ -88,7 +88,7 @@ fn test_render_doctor_includes_root_runtime_identity_lines() {
             "ccbr_dir_owner": "1000:demo",
             "install_owner": "0:root",
             "warnings": [
-                "Running CCB as root in a non-root-owned project can create root-owned .ccbr files.",
+                "Running CCBR as root in a non-root-owned project can create root-owned .ccbr files.",
             ],
         },
         "requirements": {
@@ -131,6 +131,6 @@ fn test_render_doctor_includes_root_runtime_identity_lines() {
     assert!(lines.contains(&"project_owner: 1000:demo".to_string()));
     assert!(lines.contains(&"ccbr_dir_owner: 1000:demo".to_string()));
     assert!(lines.contains(
-        &"runtime_warning: Running CCB as root in a non-root-owned project can create root-owned .ccbr files.".to_string()
+        &"runtime_warning: Running CCBR as root in a non-root-owned project can create root-owned .ccbr files.".to_string()
     ));
 }

@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 
-/// Generic RPC client interface for the CCB daemon.
+/// Generic RPC client interface for the CCBR daemon.
 pub trait DaemonClient: Send + Sync {
     /// Invoke a daemon RPC and return the `result` payload on success.
     fn call(&self, method: &str, params: Value) -> Result<Value, String>;
@@ -115,7 +115,7 @@ pub fn resolve_project_root(cwd: &Path, project_flag: Option<&str>) -> Result<Pa
             Some(parent) => current = parent.to_path_buf(),
             None => {
                 return Err(
-                    "not inside a CCB project (no .ccbr directory found); use --project"
+                    "not inside a CCBR project (no .ccbr directory found); use --project"
                         .to_string(),
                 )
             }

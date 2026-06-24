@@ -160,7 +160,7 @@ pub trait LaunchBindingHintFn {
     ) -> Result<Option<RuntimeBinding>, String>;
 }
 
-/// Injected dependency that applies CCB pane identity metadata to a tmux pane.
+/// Injected dependency that applies CCBR pane identity metadata to a tmux pane.
 pub trait RelabelProjectNamespacePaneFn {
     fn call(
         &self,

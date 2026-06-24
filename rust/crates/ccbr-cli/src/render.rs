@@ -550,7 +550,7 @@ pub fn render_doctor(result: &Value) -> String {
     } else {
         "invalid"
     };
-    let mut out = format!("CCB Doctor for {}\n", project);
+    let mut out = format!("CCBR Doctor for {}\n", project);
     out.push_str(&format!("  daemon: {}\n", daemon));
     out.push_str(&format!("  tmux socket: {}\n", tmux));
     out.push_str(&format!("  config: {}\n", config));
@@ -887,7 +887,7 @@ mod tests {
             "issues": ["tmux socket missing"]
         });
         let out = render_doctor(&value);
-        assert!(out.contains("CCB Doctor"));
+        assert!(out.contains("CCBR Doctor"));
         assert!(out.contains("daemon: ok"));
         assert!(out.contains("tmux socket: missing"));
         assert!(out.contains("tmux socket missing"));

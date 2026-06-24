@@ -28,7 +28,7 @@ fn sample_preparation() -> KillPreparation {
     KillPreparation {
         configured_agent_names: vec!["demo".into()],
         extra_agent_names: Vec::new(),
-        tmux_sockets: vec![Some("/tmp/ccb.sock".into())],
+        tmux_sockets: vec![Some("/tmp/ccbr.sock".into())],
         pid_candidates: HashMap::new(),
         control_plane_pids: Vec::new(),
     }
@@ -246,7 +246,7 @@ fn test_record_kill_report_persists_report_json() {
             .to_path_buf(),
     );
     let summary = ProjectTmuxCleanupSummary {
-        socket_name: Some("/tmp/ccb.sock".into()),
+        socket_name: Some("/tmp/ccbr.sock".into()),
         owned_panes: vec!["%1".into()],
         active_panes: vec!["%2".into()],
         orphaned_panes: vec![],

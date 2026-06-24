@@ -134,9 +134,9 @@ pub fn is_wsl() -> bool {
 
 /// REQ_ID regex pattern used to extract request ids from OpenCode text.
 /// Mirrors the Python `opencode_runtime.paths_runtime.project_id_runtime.patterns.REQ_ID_RE`
-/// while also keeping the `[ccb:req]` alias used by the ported helper tests.
+/// while also keeping the `[ccbr:req]` alias used by the ported helper tests.
 pub fn req_id_re() -> Regex {
-    Regex::new(r"(?:\[?ccb:?req\]?|req-)\s*([0-9a-fA-F]{32}|\d{8}-\d{6}-\d{3}-\d+-\d+)").unwrap()
+    Regex::new(r"(?:\[?ccbr:?req\]?|req-)\s*([0-9a-fA-F]{32}|\d{8}-\d{6}-\d{3}-\d+-\d+)").unwrap()
 }
 
 /// Compute the OpenCode project id for a work directory.

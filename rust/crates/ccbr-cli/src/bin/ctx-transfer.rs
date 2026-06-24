@@ -14,13 +14,13 @@ fn main() -> ExitCode {
         return ExitCode::from(0);
     }
 
-    delegate_to_ccb("ctx-transfer")
+    delegate_to_ccbr("ctx-transfer")
 }
 
 fn write_ctx_transfer_usage<W: Write>(out: &mut W) -> std::io::Result<()> {
     writeln!(out, "Usage: ctx-transfer [OPTIONS]")?;
     writeln!(out)?;
-    writeln!(out, "Transfer conversation context between CCB agents.")?;
+    writeln!(out, "Transfer conversation context between CCBR agents.")?;
     writeln!(out)?;
     writeln!(out, "Options:")?;
     writeln!(
@@ -72,9 +72,9 @@ fn write_ctx_transfer_usage<W: Write>(out: &mut W) -> std::io::Result<()> {
     Ok(())
 }
 
-fn delegate_to_ccb(subcommand: &str) -> ExitCode {
+fn delegate_to_ccbr(subcommand: &str) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let ccbr_path = find_ccbr_binary().unwrap_or_else(|| PathBuf::from("ccb"));
+    let ccbr_path = find_ccbr_binary().unwrap_or_else(|| PathBuf::from("ccbr"));
 
     let mut cmd = Command::new(&ccbr_path);
     if args.iter().any(|a| a == "--version") {
@@ -102,9 +102,9 @@ fn find_ccbr_binary() -> Option<PathBuf> {
     if ccbr.is_file() {
         return Some(ccbr);
     }
-    let ccb = dir.join("ccb");
-    if ccb.is_file() {
-        return Some(ccb);
+    let ccbr = dir.join("ccbr");
+    if ccbr.is_file() {
+        return Some(ccbr);
     }
     None
 }

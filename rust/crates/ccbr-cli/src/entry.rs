@@ -712,14 +712,14 @@ fn parse_start(tokens: &[&String], project: Option<String>) -> Result<ParsedComm
 }
 
 fn print_help() {
-    println!("ccbr {} - CCB multi-agent CLI workspace", VERSION);
+    println!("ccbr {} - CCBR multi-agent CLI workspace", VERSION);
     println!();
     println!("Usage: ccbr [OPTIONS] [COMMAND] [ARGS...]");
     println!();
     println!("Options:");
     println!("  -h, --help                 Print this help message");
     println!("  -v, --version              Print version information");
-    println!("      --project <PATH>       Use the CCB project at <PATH>");
+    println!("      --project <PATH>       Use the CCBR project at <PATH>");
     println!();
     println!("Commands:");
     println!("  start [agents...]          Start the workspace and/or agents (default)");
@@ -730,7 +730,7 @@ fn print_help() {
     println!("  stop [--force]             Stop the workspace");
     println!("  stop-all [--force]         Stop all workspaces");
     println!("  kill [--force]             Force-kill the workspace");
-    println!("  shutdown                   Shut down the CCB daemon");
+    println!("  shutdown                   Shut down the CCBR daemon");
     println!("  ping <target>              Ping an agent or service");
     println!("  wait <target>              Wait for a condition");
     println!("  watch <target>             Watch a target");
@@ -757,9 +757,9 @@ fn print_help() {
     println!("  autonew <provider>         Send /new to a provider pane");
     println!("  ctx-transfer [OPTIONS]     Transfer conversation context");
     println!("  version                    Show version");
-    println!("  update                     Update CCB");
-    println!("  uninstall                  Uninstall CCB");
-    println!("  reinstall                  Reinstall CCB");
+    println!("  update                     Update CCBR");
+    println!("  uninstall                  Uninstall CCBR");
+    println!("  reinstall                  Reinstall CCBR");
 }
 
 #[cfg(test)]

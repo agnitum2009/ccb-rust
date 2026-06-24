@@ -17,7 +17,7 @@ const WINDOW_STATUS_SEPARATOR: &str = "";
 const PANE_BORDER_STATUS: &str = "top";
 const CONTRAST_TERMINAL_FAMILIES: &[&str] = &["apple_terminal"];
 
-/// Visual styling for a CCB pane.
+/// Visual styling for a CCBR pane.
 pub use crate::identity::TmuxPaneVisual;
 
 /// A named tmux theme profile.
@@ -278,7 +278,7 @@ pub fn render_tmux_session_theme(
     session_options.insert(
         "status-right".to_string(),
         format!(
-            "#[fg=#f38ba8,bg=#1e1e2e]#[fg=#1e1e2e,bg=#f38ba8,bold] {focus_agent} #[fg=#cba6f7,bg=#f38ba8]#[fg=#1e1e2e,bg=#cba6f7,bold] CCB:{normalized_version} #[fg=#89b4fa,bg=#cba6f7]#[fg=#cdd6f4,bg=#89b4fa] {status_indicator} #[fg=#fab387,bg=#89b4fa]#[fg=#1e1e2e,bg=#fab387,bold] %m/%d %a %H:%M #[default]"
+            "#[fg=#f38ba8,bg=#1e1e2e]#[fg=#1e1e2e,bg=#f38ba8,bold] {focus_agent} #[fg=#cba6f7,bg=#f38ba8]#[fg=#1e1e2e,bg=#cba6f7,bold] CCBR:{normalized_version} #[fg=#89b4fa,bg=#cba6f7]#[fg=#cdd6f4,bg=#89b4fa] {status_indicator} #[fg=#fab387,bg=#89b4fa]#[fg=#1e1e2e,bg=#fab387,bold] %m/%d %a %H:%M #[default]"
         ),
     );
     session_options.insert(

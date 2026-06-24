@@ -149,7 +149,7 @@ fn test_create_tmux_auto_layout_allocates_detached_session_when_outside_tmux() {
         None,
         50,
         true,
-        "CCB",
+        "CCBR",
         Some("ccbr-demo-1"),
         false,
     )
@@ -373,7 +373,7 @@ fn test_create_tmux_auto_layout_reuses_existing_session() {
         Some("ccbr-demo-2"),
         50,
         true,
-        "CCB",
+        "CCBR",
         None,
         true,
     )

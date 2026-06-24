@@ -1,6 +1,6 @@
-//! Source-runtime guard for the CCB CLI binary.
+//! Source-runtime guard for the CCBR CLI binary.
 //!
-//! Mirrors the Python guard in the top-level `ccb` wrapper so that the Rust
+//! Mirrors the Python guard in the top-level `ccbr` wrapper so that the Rust
 //! binary can be exec'd directly without relying on Python for the check.
 
 use std::path::{Path, PathBuf};
@@ -27,7 +27,7 @@ impl GuardResult {
     }
 }
 
-/// Decide whether it is safe for the CCB binary to run from a source checkout.
+/// Decide whether it is safe for the CCBR binary to run from a source checkout.
 pub fn source_runtime_allowed(argv: &[String], cwd: &Path) -> GuardResult {
     let Some(source_root) = resolve_source_root() else {
         return GuardResult::allow();
@@ -78,11 +78,11 @@ pub fn source_runtime_allowed(argv: &[String], cwd: &Path) -> GuardResult {
             source_root
                 .parent()
                 .unwrap_or(&source_root)
-                .join("test_ccb2")
+                .join("test_ccbr2")
         });
     let example_test_binary = source_root.join("ccbr_test");
     GuardResult::deny(format!(
-        "Refusing to run the CCB source checkout outside an allowed test project.\n\
+        "Refusing to run the CCBR source checkout outside an allowed test project.\n\
          Use the installed release `ccbr` for normal project/work-environment commands.\n\
          Use `{}` from \
          `{}` for source-change validation.\n\
@@ -149,7 +149,7 @@ fn split_roots(value: &str) -> Vec<PathBuf> {
 
 fn default_source_allowed_roots(root: &Path) -> Vec<PathBuf> {
     let parent = root.parent().unwrap_or(root);
-    vec![parent.join("test_ccb2")]
+    vec![parent.join("test_ccbr2")]
 }
 
 fn source_allowed_roots(root: &Path) -> Vec<PathBuf> {
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn guard_allows_help_and_version() {
         let (_dir, root) = tmpdir_with_git();
-        let cwd = root.join("test_ccb2");
+        let cwd = root.join("test_ccbr2");
         std::fs::create_dir_all(&cwd).unwrap();
 
         // Even outside allowed roots, introspection is safe.
@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn guard_allows_inside_default_test_root() {
         let (_dir, root) = tmpdir_with_git();
-        let cwd = root.parent().unwrap().join("test_ccb2");
+        let cwd = root.parent().unwrap().join("test_ccbr2");
         std::fs::create_dir_all(&cwd).unwrap();
 
         let argv = vec!["start".to_string()];
@@ -302,7 +302,7 @@ mod tests {
     fn guard_allows_project_arg_under_allowed_root() {
         let (_dir, root) = tmpdir_with_git();
         let cwd = root.parent().unwrap().join("random");
-        let project = root.parent().unwrap().join("test_ccb2");
+        let project = root.parent().unwrap().join("test_ccbr2");
         std::fs::create_dir_all(&cwd).unwrap();
         std::fs::create_dir_all(&project).unwrap();
 

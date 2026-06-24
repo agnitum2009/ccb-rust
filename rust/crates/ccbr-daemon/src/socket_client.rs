@@ -9,7 +9,7 @@ use crate::socket_client_runtime::endpoints;
 use crate::socket_client_runtime::errors::CcbdClientError;
 use crate::socket_client_runtime::transport;
 
-/// RPC client for the local CCB daemon.
+/// RPC client for the local CCBR daemon.
 #[derive(Debug, Clone)]
 pub struct CcbdClient {
     socket_path: PathBuf,

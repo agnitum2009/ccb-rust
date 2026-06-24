@@ -1,4 +1,4 @@
-//! CCB message bureau facade and control/trace queues.
+//! CCBR message bureau facade and control/trace queues.
 //!
 //! Mirrors the corresponding Python v7.5.2 package. The canonical
 //! implementation lives in `ccbr_mailbox::bureau`; this crate re-exports it as

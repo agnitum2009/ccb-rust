@@ -31,7 +31,7 @@ fn test_project_namespace_state_store_round_trip() {
     .with_layout_version(3)
     .with_layout_signature("cmd; agent1:codex")
     .with_control_window("__ccbr_ctl", "@1")
-    .with_workspace_window("ccb", "@2")
+    .with_workspace_window("ccbr", "@2")
     .with_workspace_epoch(4)
     .with_started("2026-04-03T01:00:00Z", true)
     .with_destroyed("2026-04-03T00:55:00Z", "kill");

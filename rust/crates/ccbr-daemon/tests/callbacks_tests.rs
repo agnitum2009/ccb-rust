@@ -208,7 +208,7 @@ fn callback_rejects_without_active_parent() {
 }
 
 #[test]
-#[should_panic(expected = "plain ask from an active CCB task requires --callback")]
+#[should_panic(expected = "plain ask from an active CCBR task requires --callback")]
 fn plain_nested_ask_from_active_parent_is_rejected() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_mailbox();
     dispatcher.submit(&ask_envelope("codex", "user", "root task"), "codex", None);

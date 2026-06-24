@@ -8,14 +8,14 @@ use serde_json::json;
 
 use crate::error::{ProviderCoreError, Result};
 
-const DEFAULT_PROJECT_MEMORY: &str = r"# CCB Project Memory
+const DEFAULT_PROJECT_MEMORY: &str = r"# CCBR Project Memory
 
-This project uses CCB for visible multi-agent collaboration.
+This project uses CCBR for visible multi-agent collaboration.
 
 ## Collaboration
 
-- You are one agent in a CCB-managed project team.
-- Use CCB `ask` for project-level collaboration with configured agents.
+- You are one agent in a CCBR-managed project team.
+- Use CCBR `ask` for project-level collaboration with configured agents.
 - Delegate with the goal, scope/files, assumptions, expected output, and verification needs.
 - Reply concisely with findings, changes, verification, blockers, and risks when relevant.
 ";
@@ -296,10 +296,10 @@ fn render_memory_bundle(
     workspace_path: Option<&Path>,
 ) -> String {
     let mut lines: Vec<String> = vec![
-        "# CCB Managed Agent Memory".to_string(),
+        "# CCBR Managed Agent Memory".to_string(),
         String::new(),
         "<!-- ccbr-memory-bundle schema_version=1".to_string(),
-        "generated_by: ccb".to_string(),
+        "generated_by: ccbr".to_string(),
         "do_not_edit: true".to_string(),
         format!("agent: {agent_name}"),
         format!("provider: {provider}"),
@@ -311,9 +311,9 @@ fn render_memory_bundle(
     lines.extend([
         "-->".to_string(),
         String::new(),
-        "## CCB Runtime Coordination Rules".to_string(),
+        "## CCBR Runtime Coordination Rules".to_string(),
         String::new(),
-        "- CCB `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.".to_string(),
+        "- CCBR `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.".to_string(),
         "- Prefer `/ask <agent> <message>` when available.".to_string(),
         String::new(),
     ]);
@@ -359,7 +359,7 @@ pub fn materialize_provider_memory_file(
 
     let sources: Vec<MemorySource> = vec![
         read_source(
-            "CCB Shared Project Memory",
+            "CCBR Shared Project Memory",
             root.project_memory_path().as_ref(),
             true,
         ),

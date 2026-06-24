@@ -38,11 +38,11 @@ pub fn write_ask_usage<W: Write>(
     )?;
     writeln!(
         out,
-        "      --artifact-request force the request body into a CCB text artifact"
+        "      --artifact-request force the request body into a CCBR text artifact"
     )?;
     writeln!(
         out,
-        "      --artifact-reply force the final reply into a CCB text artifact"
+        "      --artifact-reply force the final reply into a CCBR text artifact"
     )?;
     writeln!(
         out,

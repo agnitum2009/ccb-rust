@@ -126,7 +126,7 @@ fn test_create_tarball_and_sha256_and_verify() {
     let bin_dir = artifact_root.join("bin");
     fs::create_dir_all(&bin_dir).unwrap();
     for name in ccbr_release_builder::REQUIRED_BINARIES {
-        let dest = if *name == "ccb" {
+        let dest = if *name == "ccbr" {
             artifact_root.join(name)
         } else {
             bin_dir.join(name)

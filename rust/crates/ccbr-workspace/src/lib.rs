@@ -1,4 +1,4 @@
-//! CCB workspace actors, git worktree handling, planner, reconcile, validator.
+//! CCBR workspace actors, git worktree handling, planner, reconcile, validator.
 //!
 //! Mirrors `lib/workspace/` from Python v7.5.2.
 

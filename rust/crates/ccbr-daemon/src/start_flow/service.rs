@@ -134,7 +134,7 @@ impl StartFlowService {
                         Some(tmux_session_name),
                         50,
                         true,
-                        "CCB",
+                        "CCBR",
                         Some(tmux_session_name),
                         false,
                     )
@@ -157,7 +157,7 @@ impl StartFlowService {
                             Some(&session),
                             50,
                             true,
-                            "CCB",
+                            "CCBR",
                             Some(&session),
                             false,
                         )
@@ -289,7 +289,7 @@ impl StartFlowService {
         } else {
             // Create default single-window topology
             vec![NamespaceWindow {
-                name: "ccb".to_string(),
+                name: "ccbr".to_string(),
                 window_id: None,
                 agents: agent_names.to_vec(),
             }]

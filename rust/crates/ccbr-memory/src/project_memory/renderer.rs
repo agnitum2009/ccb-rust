@@ -1,9 +1,9 @@
 use crate::types::ProjectMemorySource;
 use std::path::{Path, PathBuf};
 
-const CCBR_RUNTIME_COORDINATION_RULES: &str = r#"## CCB Runtime Coordination Rules
+const CCBR_RUNTIME_COORDINATION_RULES: &str = r#"## CCBR Runtime Coordination Rules
 
-- CCB `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
+- CCBR `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
 - Prefer `/ask <agent> <message>` when available. Shell fallback:
 
 ```bash
@@ -12,7 +12,7 @@ $MESSAGE
 EOF
 ```
 
-- During an active CCB ask task, use `ask --callback` when a child result is needed to finish; use `ask --silence` only for independent no-result-needed work.
+- During an active CCBR ask task, use `ask --callback` when a child result is needed to finish; use `ask --silence` only for independent no-result-needed work.
 "#;
 
 /// Render a memory bundle from sources.
@@ -24,10 +24,10 @@ pub fn render_memory_bundle(
     workspace_path: Option<&Path>,
 ) -> String {
     let mut lines: Vec<String> = vec![
-        "# CCB Managed Agent Memory".to_string(),
+        "# CCBR Managed Agent Memory".to_string(),
         String::new(),
         "<!-- ccbr-memory-bundle schema_version=1".to_string(),
-        "generated_by: ccb".to_string(),
+        "generated_by: ccbr".to_string(),
         "do_not_edit: true".to_string(),
         format!("agent: {agent_name}"),
         format!("provider: {provider}"),

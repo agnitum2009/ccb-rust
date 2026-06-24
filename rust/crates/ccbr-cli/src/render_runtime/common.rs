@@ -5,7 +5,7 @@ use std::io::Write;
 
 const TERMINAL_OBSERVER_STATUSES: &[&str] = &["completed", "cancelled", "failed", "incomplete"];
 
-/// Strip CCB protocol lines and collapse runs of blank lines.
+/// Strip CCBR protocol lines and collapse runs of blank lines.
 ///
 /// Mirrors Python `display_text(value)`. Replaces the two Python regexes
 /// (`CCBR_(REQ_ID|BEGIN|DONE):` line removal and `\n{3,}` → `\n\n`) with
@@ -75,12 +75,12 @@ pub fn render_observer_notice(view: &str, terminal: bool, authority: &str) -> Ve
     ];
     if terminal {
         lines.push(
-            "observer_notice: weak observer surface; terminal snapshot shown; use ccb trace <id> for authoritative lineage"
+            "observer_notice: weak observer surface; terminal snapshot shown; use ccbr trace <id> for authoritative lineage"
                 .to_string(),
         );
     } else {
         lines.push(
-            "observer_notice: weak observer surface; non-terminal state may change; use ccb trace <id> for lineage when needed"
+            "observer_notice: weak observer surface; non-terminal state may change; use ccbr trace <id> for lineage when needed"
                 .to_string(),
         );
     }

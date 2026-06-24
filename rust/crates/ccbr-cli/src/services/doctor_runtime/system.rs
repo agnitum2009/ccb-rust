@@ -5,7 +5,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 const ROOT_RUNTIME_WARNING: &str =
-    "Running CCB as root in a non-root-owned project can create root-owned .ccbr files.";
+    "Running CCBR as root in a non-root-owned project can create root-owned .ccbr files.";
 
 /// Build a runtime identity summary for the doctor command.
 ///

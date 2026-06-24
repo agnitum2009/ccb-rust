@@ -50,7 +50,7 @@ impl ConversationDeduper {
         }
     }
 
-    /// Remove CCB protocol markers from text.
+    /// Remove CCBR protocol markers from text.
     pub fn strip_protocol_markers(&self, text: &str) -> String {
         text.lines()
             .filter(|line| !self.matches_protocol_marker(line))

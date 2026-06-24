@@ -19,11 +19,11 @@ fn test_tmux_base_includes_socket_when_present() {
 
 #[test]
 fn test_tmux_base_allows_managed_config_override() {
-    std::env::set_var("CCBR_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
+    std::env::set_var("CCBR_TMUX_CONFIG", "~/.config/ccbr/tmux.conf");
     let base = tmux_base(None, None);
     assert_eq!(base[0], "tmux");
     assert_eq!(base[1], "-f");
-    assert!(base[2].ends_with(".config/ccb/tmux.conf"));
+    assert!(base[2].ends_with(".config/ccbr/tmux.conf"));
     std::env::remove_var("CCBR_TMUX_CONFIG");
 }
 
@@ -41,7 +41,10 @@ fn test_tmux_socket_name_helpers() {
     assert_eq!(normalize_socket_name(None), None);
     assert_eq!(normalize_socket_name(Some("")), None);
     assert_eq!(normalize_socket_name(Some("default")), None);
-    assert_eq!(normalize_socket_name(Some("ccb")), Some("ccb".to_string()));
+    assert_eq!(
+        normalize_socket_name(Some("ccbr")),
+        Some("ccbr".to_string())
+    );
     assert_eq!(socket_name_from_tmux_env(None), None);
     assert_eq!(socket_name_from_tmux_env(Some("")), None);
     assert_eq!(
@@ -49,8 +52,8 @@ fn test_tmux_socket_name_helpers() {
         None
     );
     assert_eq!(
-        socket_name_from_tmux_env(Some("/tmp/tmux-1000/ccb,123,0")),
-        Some("ccb".to_string())
+        socket_name_from_tmux_env(Some("/tmp/tmux-1000/ccbr,123,0")),
+        Some("ccbr".to_string())
     );
 }
 
@@ -68,19 +71,22 @@ fn test_normalize_split_direction_left_panics() {
 
 #[test]
 fn test_pane_id_by_title_marker_output() {
-    let stdout = "%1\tCCB-a\n%2\tOTHER\n";
+    let stdout = "%1\tCCBR-a\n%2\tOTHER\n";
     assert_eq!(
-        pane_id_by_title_marker_output(stdout, "CCB"),
+        pane_id_by_title_marker_output(stdout, "CCBR"),
         Some("%1".to_string())
     );
     assert_eq!(pane_id_by_title_marker_output(stdout, "missing"), None);
 
-    let ambiguous = "%1\tCCB-codex-a1b2c3d4\n%2\tCCB-codex-e5f6g7h8\n";
-    assert_eq!(pane_id_by_title_marker_output(ambiguous, "CCB-codex"), None);
-
-    let exact = "%1\tCCB-codex\n%2\tCCB-codex-a1b2c3d4\n";
+    let ambiguous = "%1\tCCBR-codex-a1b2c3d4\n%2\tCCBR-codex-e5f6g7h8\n";
     assert_eq!(
-        pane_id_by_title_marker_output(exact, "CCB-codex"),
+        pane_id_by_title_marker_output(ambiguous, "CCBR-codex"),
+        None
+    );
+
+    let exact = "%1\tCCBR-codex\n%2\tCCBR-codex-a1b2c3d4\n";
+    assert_eq!(
+        pane_id_by_title_marker_output(exact, "CCBR-codex"),
         Some("%1".to_string())
     );
 }

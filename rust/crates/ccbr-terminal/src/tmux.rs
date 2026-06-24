@@ -157,7 +157,7 @@ pub fn default_detached_session_name(cwd: &str, pid: u32, now_ts: f64) -> String
     let dir_name = Path::new(cwd)
         .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or("ccb");
+        .unwrap_or("ccbr");
     format!("ccbr-{dir_name}-{}-{pid}", (now_ts as i64) % 100000)
 }
 
@@ -360,8 +360,8 @@ mod tests {
 
     #[test]
     fn test_tmux_base_allows_managed_config_override() {
-        std::env::set_var("CCBR_TMUX_CONFIG", "~/.config/ccb/tmux.conf");
-        let expanded = expanduser("~/.config/ccb/tmux.conf");
+        std::env::set_var("CCBR_TMUX_CONFIG", "~/.config/ccbr/tmux.conf");
+        let expanded = expanduser("~/.config/ccbr/tmux.conf");
         assert_eq!(
             tmux_base(Some("ccbr-demo"), None),
             vec!["tmux", "-f", expanded.as_str(), "-L", "ccbr-demo"]
@@ -383,7 +383,10 @@ mod tests {
         assert_eq!(normalize_socket_name(None), None);
         assert_eq!(normalize_socket_name(Some("")), None);
         assert_eq!(normalize_socket_name(Some("default")), None);
-        assert_eq!(normalize_socket_name(Some("ccb")), Some("ccb".to_string()));
+        assert_eq!(
+            normalize_socket_name(Some("ccbr")),
+            Some("ccbr".to_string())
+        );
         assert_eq!(socket_name_from_tmux_env(None), None);
         assert_eq!(socket_name_from_tmux_env(Some("")), None);
         assert_eq!(
@@ -391,8 +394,8 @@ mod tests {
             None
         );
         assert_eq!(
-            socket_name_from_tmux_env(Some("/tmp/tmux-1000/ccb,123,0")),
-            Some("ccb".to_string())
+            socket_name_from_tmux_env(Some("/tmp/tmux-1000/ccbr,123,0")),
+            Some("ccbr".to_string())
         );
     }
 
@@ -410,9 +413,9 @@ mod tests {
 
     #[test]
     fn test_pane_id_by_title_marker_output_parses_list_panes() {
-        let stdout = "%1\tCCB-a\n%2\tOTHER\n";
+        let stdout = "%1\tCCBR-a\n%2\tOTHER\n";
         assert_eq!(
-            pane_id_by_title_marker_output(stdout, "CCB"),
+            pane_id_by_title_marker_output(stdout, "CCBR"),
             Some("%1".to_string())
         );
         assert_eq!(pane_id_by_title_marker_output(stdout, "missing"), None);
@@ -420,15 +423,15 @@ mod tests {
 
     #[test]
     fn test_pane_id_by_title_marker_output_rejects_ambiguous_prefix_matches() {
-        let stdout = "%1\tCCB-codex-a1b2c3d4\n%2\tCCB-codex-e5f6g7h8\n";
-        assert_eq!(pane_id_by_title_marker_output(stdout, "CCB-codex"), None);
+        let stdout = "%1\tCCBR-codex-a1b2c3d4\n%2\tCCBR-codex-e5f6g7h8\n";
+        assert_eq!(pane_id_by_title_marker_output(stdout, "CCBR-codex"), None);
     }
 
     #[test]
     fn test_pane_id_by_title_marker_output_prefers_unique_exact_match() {
-        let stdout = "%1\tCCB-codex\n%2\tCCB-codex-a1b2c3d4\n";
+        let stdout = "%1\tCCBR-codex\n%2\tCCBR-codex-a1b2c3d4\n";
         assert_eq!(
-            pane_id_by_title_marker_output(stdout, "CCB-codex"),
+            pane_id_by_title_marker_output(stdout, "CCBR-codex"),
             Some("%1".to_string())
         );
     }
@@ -488,8 +491,8 @@ mod tests {
 
     #[test]
     fn test_collect_pane_title_matches() {
-        let stdout = "%1\tCCB-a\n%2\tCCB-b\n%3\tCCB\n";
-        let (exact, prefix) = collect_pane_title_matches(stdout, "CCB");
+        let stdout = "%1\tCCBR-a\n%2\tCCBR-b\n%3\tCCBR\n";
+        let (exact, prefix) = collect_pane_title_matches(stdout, "CCBR");
         assert_eq!(exact, vec!["%3"]);
         assert_eq!(prefix, vec!["%1", "%2"]);
     }
@@ -498,8 +501,8 @@ mod tests {
     fn test_record_pane_title_match_buckets() {
         let mut exact = Vec::new();
         let mut prefix = Vec::new();
-        record_pane_title_match("%1", "CCB", "CCB", &mut exact, &mut prefix);
-        record_pane_title_match("%2", "CCB-codex", "CCB", &mut exact, &mut prefix);
+        record_pane_title_match("%1", "CCBR", "CCBR", &mut exact, &mut prefix);
+        record_pane_title_match("%2", "CCBR-codex", "CCBR", &mut exact, &mut prefix);
         assert_eq!(exact, vec!["%1"]);
         assert_eq!(prefix, vec!["%2"]);
     }
@@ -523,28 +526,28 @@ mod tests {
 
     #[test]
     fn test_normalized_marker_trims() {
-        assert_eq!(normalized_marker("  CCB  "), "CCB");
+        assert_eq!(normalized_marker("  CCBR  "), "CCBR");
         assert_eq!(normalized_marker(""), "");
     }
 
     #[test]
     fn test_parse_pane_title_line() {
         assert_eq!(
-            parse_pane_title_line("%1\tCCB-a"),
-            Some(("%1".to_string(), "CCB-a".to_string()))
+            parse_pane_title_line("%1\tCCBR-a"),
+            Some(("%1".to_string(), "CCBR-a".to_string()))
         );
         assert_eq!(
-            parse_pane_title_line("%1 CCB-a"),
-            Some(("%1".to_string(), "CCB-a".to_string()))
+            parse_pane_title_line("%1 CCBR-a"),
+            Some(("%1".to_string(), "CCBR-a".to_string()))
         );
-        assert_eq!(parse_pane_title_line("notapane CCB-a"), None);
+        assert_eq!(parse_pane_title_line("notapane CCBR-a"), None);
         assert_eq!(parse_pane_title_line(""), None);
     }
 
     #[test]
     fn test_split_pane_title_line() {
-        assert_eq!(split_pane_title_line("%1\tCCB-a"), ("%1", "CCB-a"));
-        assert_eq!(split_pane_title_line("%1 CCB-a"), ("%1", "CCB-a"));
+        assert_eq!(split_pane_title_line("%1\tCCBR-a"), ("%1", "CCBR-a"));
+        assert_eq!(split_pane_title_line("%1 CCBR-a"), ("%1", "CCBR-a"));
         assert_eq!(split_pane_title_line("%1"), ("%1", ""));
     }
 }

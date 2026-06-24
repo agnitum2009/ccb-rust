@@ -1,4 +1,4 @@
-//! CCB pane registry for tmux pane identity and lifecycle.
+//! CCBR pane registry for tmux pane identity and lifecycle.
 //!
 //! Mirrors `lib/pane_registry_runtime/` from Python v7.5.2.
 

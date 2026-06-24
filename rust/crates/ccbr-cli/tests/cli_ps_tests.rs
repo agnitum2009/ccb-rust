@@ -46,12 +46,12 @@ fn test_ps_summary_includes_tmux_socket_and_pane_observation() {
         project_id: context.project.project_id.clone(),
         terminal_backend: Some("tmux".into()),
         tmux_socket_name: Some("sock-a".into()),
-        tmux_socket_path: Some("/tmp/ccb.sock".into()),
+        tmux_socket_path: Some("/tmp/ccbr.sock".into()),
         tmux_window_name: Some("main".into()),
         tmux_window_id: Some("@1".into()),
         pane_id: Some("%41".into()),
         active_pane_id: Some("%52".into()),
-        pane_title_marker: Some("CCB-agent1-demo".into()),
+        pane_title_marker: Some("CCBR-agent1-demo".into()),
         pane_state: Some("alive".into()),
         ..Default::default()
     };
@@ -69,11 +69,11 @@ fn test_ps_summary_includes_tmux_socket_and_pane_observation() {
     assert_eq!(agent["runtime_ref"], "tmux:%52");
     assert_eq!(agent["session_ref"], "session-2");
     assert_eq!(agent["tmux_socket_name"], "sock-a");
-    assert_eq!(agent["tmux_socket_path"], "/tmp/ccb.sock");
+    assert_eq!(agent["tmux_socket_path"], "/tmp/ccbr.sock");
     assert_eq!(agent["tmux_window_name"], "main");
     assert_eq!(agent["tmux_window_id"], "@1");
     assert_eq!(agent["pane_id"], "%41");
     assert_eq!(agent["active_pane_id"], "%52");
-    assert_eq!(agent["pane_title_marker"], "CCB-agent1-demo");
+    assert_eq!(agent["pane_title_marker"], "CCBR-agent1-demo");
     assert_eq!(agent["pane_state"], "alive");
 }

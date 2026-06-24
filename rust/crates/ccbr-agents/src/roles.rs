@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub const LEGACY_ROLE_ALIASES: &[(&str, &str)] = &[
-    ("ccb.archi", "agentroles.archi"),
+    ("ccbr.archi", "agentroles.archi"),
     ("agentrole.ccbr_self", "agentroles.ccbr_self"),
 ];
 
@@ -69,13 +69,13 @@ mod tests {
     #[test]
     fn test_canonical_role_id() {
         assert_eq!(canonical_role_id("dev"), "dev");
-        assert_eq!(canonical_role_id("ccb.archi"), "agentroles.archi");
+        assert_eq!(canonical_role_id("ccbr.archi"), "agentroles.archi");
     }
 
     #[test]
     fn test_role_id_candidates() {
         let candidates = role_id_candidates("agentroles.archi");
-        assert!(candidates.contains(&"ccb.archi".to_string()));
+        assert!(candidates.contains(&"ccbr.archi".to_string()));
     }
 
     #[test]

@@ -151,10 +151,10 @@ fn test_load_locked_installed_role_by_digest() {
 fn test_project_role_lock_read_write() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccbr");
-        std::fs::create_dir_all(&ccb).unwrap();
+        let ccbr = project.path().join(".ccbr");
+        std::fs::create_dir_all(&ccbr).unwrap();
         std::fs::write(
-            ccb.join("ccbr.config"),
+            ccbr.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -192,10 +192,10 @@ role = "agentroles.test"
 fn test_resolve_project_agent_role() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccbr");
-        std::fs::create_dir_all(&ccb).unwrap();
+        let ccbr = project.path().join(".ccbr");
+        std::fs::create_dir_all(&ccbr).unwrap();
         std::fs::write(
-            ccb.join("ccbr.config"),
+            ccbr.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -230,10 +230,10 @@ role = "agentroles.test"
 fn test_project_role_lock_warning_on_mismatch() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccbr");
-        std::fs::create_dir_all(&ccb).unwrap();
+        let ccbr = project.path().join(".ccbr");
+        std::fs::create_dir_all(&ccbr).unwrap();
         std::fs::write(
-            ccb.join("ccbr.config"),
+            ccbr.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -251,7 +251,7 @@ role = "agentroles.test"
         write_role(&installed, "agentroles.test", "1.0.0");
 
         std::fs::write(
-            ccb.join("role-lock.json"),
+            ccbr.join("role-lock.json"),
             r#"{"schema":"rolepack-lock/v1","roles":{"agentroles.test":{"version":"1.0.0","digest":"sha256:bad","source":"installed","default_agent_name":"test"}}}"#,
         )
         .unwrap();
@@ -272,10 +272,10 @@ role = "agentroles.test"
 fn test_project_role_memory_and_skill_sources() {
     with_isolated_env(|| {
         let project = TempDir::new().unwrap();
-        let ccb = project.path().join(".ccbr");
-        std::fs::create_dir_all(&ccb).unwrap();
+        let ccbr = project.path().join(".ccbr");
+        std::fs::create_dir_all(&ccbr).unwrap();
         std::fs::write(
-            ccb.join("ccbr.config"),
+            ccbr.join("ccbr.config"),
             r#"default_agents = ["agent1"]
 
 [windows]
@@ -449,10 +449,10 @@ fn write_locked_project(
     locked_version: &str,
     locked_digest: &str,
 ) {
-    let ccb = project.join(".ccbr");
-    std::fs::create_dir_all(&ccb).unwrap();
+    let ccbr = project.join(".ccbr");
+    std::fs::create_dir_all(&ccbr).unwrap();
     std::fs::write(
-        ccb.join("ccbr.config"),
+        ccbr.join("ccbr.config"),
         format!(
             r#"version = 2
 entry_window = "main"
@@ -468,7 +468,7 @@ role = "{role_id}"
     )
     .unwrap();
     std::fs::write(
-        ccb.join("role-lock.json"),
+        ccbr.join("role-lock.json"),
         format!(
             r#"{{"schema":"rolepack-lock/v1","roles":{{"{role_id}":{{"version":"{locked_version}","digest":"{locked_digest}","source":"installed","default_agent_name":"locked"}}}}}}"#
         ),

@@ -180,10 +180,10 @@ mod tests {
             "tmux command failed",
             Some(&["list-panes".to_string()]),
             Some("no server running"),
-            Some("/tmp/ccb.sock"),
+            Some("/tmp/ccbr.sock"),
             None,
         );
-        assert!(msg.contains("tmux_socket_path=/tmp/ccb.sock"));
+        assert!(msg.contains("tmux_socket_path=/tmp/ccbr.sock"));
         assert!(msg.contains("tmux_command="));
         assert!(msg.contains("no server running"));
     }

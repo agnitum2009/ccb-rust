@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 ///
 /// Resolution order:
 /// 1. `CCBR_SOURCE_HOME` environment variable.
-/// 2. `HOME` environment variable, unless it looks like a CCB provider home.
+/// 2. `HOME` environment variable, unless it looks like a CCBR provider home.
 /// 3. `USERPROFILE` environment variable (Windows fallback).
 /// 4. `HOME` as a last resort.
 pub fn current_provider_source_home() -> PathBuf {

@@ -1,6 +1,6 @@
 use std::env;
 
-/// Return whether CCB debug logging is enabled.
+/// Return whether CCBR debug logging is enabled.
 pub fn debug_enabled() -> bool {
     matches!(
         env::var("CCBR_DEBUG").as_deref(),

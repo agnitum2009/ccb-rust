@@ -8,7 +8,7 @@ use ccbr_release_builder::{BuildOptions, PackageOptions, VerifyOptions};
 
 #[derive(Parser)]
 #[command(name = "ccbr-release-builder")]
-#[command(about = "Build CCB release artifacts")]
+#[command(about = "Build CCBR release artifacts")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

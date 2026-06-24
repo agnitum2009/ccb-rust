@@ -13,7 +13,7 @@ use ccbr_storage::paths::PathLayout;
 use crate::models::{expand_user_path_str, WorkspacePlan};
 use crate::Result;
 
-const DEFAULT_BRANCH_TEMPLATE: &str = "ccb/{agent_name}";
+const DEFAULT_BRANCH_TEMPLATE: &str = "ccbr/{agent_name}";
 const ALLOWED_BRANCH_VARS: &[&str] = &["agent_name", "project_slug", "date"];
 
 pub struct WorkspacePlanner;
@@ -59,7 +59,7 @@ impl WorkspacePlanner {
                             layout.workspace_group_binding_path(group).as_str(),
                         )),
                         false,
-                        Some(format!("ccb/group/{group}")),
+                        Some(format!("ccbr/group/{group}")),
                         "group".to_string(),
                     )
                 }
@@ -223,7 +223,11 @@ mod tests {
         let spec = spec("agent1", WorkspaceMode::GitWorktree);
         let ctx = ctx("/tmp/project", "pid");
         let plan = WorkspacePlanner::new().plan(&spec, &ctx).unwrap();
-        assert!(plan.branch_name.as_ref().unwrap().starts_with("ccb/agent1"));
+        assert!(plan
+            .branch_name
+            .as_ref()
+            .unwrap()
+            .starts_with("ccbr/agent1"));
     }
 
     #[test]
@@ -238,14 +242,14 @@ mod tests {
     #[test]
     fn planner_rejects_unknown_branch_variable() {
         let mut spec = spec("agent1", WorkspaceMode::GitWorktree);
-        spec.branch_template = Some("ccb/{unknown}".to_string());
+        spec.branch_template = Some("ccbr/{unknown}".to_string());
         let ctx = ctx("/tmp/project", "pid");
         assert!(WorkspacePlanner::new().plan(&spec, &ctx).is_err());
     }
 
     #[test]
     fn extract_vars_finds_placeholders() {
-        let vars = extract_template_vars("ccb/{agent_name}/{project_slug}/{date}");
+        let vars = extract_template_vars("ccbr/{agent_name}/{project_slug}/{date}");
         assert!(vars.contains("agent_name"));
         assert!(vars.contains("project_slug"));
         assert!(vars.contains("date"));

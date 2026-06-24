@@ -157,7 +157,7 @@ mod tests {
             tmp.path(),
             Path::new("/run"),
             "%1",
-            "CCB-agent1-proj",
+            "CCBR-agent1-proj",
             "deepcode",
             "launch-1",
         );

@@ -14,22 +14,22 @@ use crate::context::CliContext;
 use crate::models_mailbox::ParsedAskCommand;
 use crate::services::ask_runtime::models::AskSummary;
 
-const DEFAULT_REPLY_GUIDANCE: &str = "CCB reply guidance:
+const DEFAULT_REPLY_GUIDANCE: &str = "CCBR reply guidance:
 - Answer directly and concisely.
 - Include only relevant conclusions, blockers, risks, evidence, and next actions.
 - Avoid raw logs and background unless explicitly requested.";
 
-const COMPACT_REPLY_GUIDANCE: &str = "CCB reply guidance:
+const COMPACT_REPLY_GUIDANCE: &str = "CCBR reply guidance:
 - Distill aggressively and lead with the answer.
 - Keep only details needed for this ask.
 - Omit empty sections, raw logs, repeated context, and background unless essential.";
 
-const SILENT_REPLY_GUIDANCE: &str = "CCB reply guidance:
+const SILENT_REPLY_GUIDANCE: &str = "CCBR reply guidance:
 - Silent-on-success requested.
 - Reply with the shortest useful status.
 - Include details only for failures, blockers, or required next actions.";
 
-const GUIDANCE_MARKER: &str = "CCB reply guidance:";
+const GUIDANCE_MARKER: &str = "CCBR reply guidance:";
 
 const EXPLICIT_OUTPUT_HINTS: &[&str] = &[
     "output requirements",
@@ -152,7 +152,7 @@ fn _artifact_request_body(
         let artifact =
             write_text_artifact(layout, message_body, "ask-request", owner_id, None, None)?;
         let stub = artifact_stub(
-            "CCB ask request was stored as an artifact by --artifact-request.",
+            "CCBR ask request was stored as an artifact by --artifact-request.",
             &artifact,
             false,
         );
@@ -163,7 +163,7 @@ fn _artifact_request_body(
         message_body,
         "ask-request",
         owner_id,
-        "CCB ask request is larger than 4 KiB and was stored as an artifact.",
+        "CCBR ask request is larger than 4 KiB and was stored as an artifact.",
         None,
         None,
         None,
@@ -171,7 +171,7 @@ fn _artifact_request_body(
     Ok((body, artifact))
 }
 
-/// Append CCB reply guidance to an `ask` message body unless suppressed.
+/// Append CCBR reply guidance to an `ask` message body unless suppressed.
 ///
 /// Mirrors Python `message_with_reply_guidance`.
 pub fn message_with_reply_guidance(
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn message_with_reply_guidance_appends_default() {
         let body = message_with_reply_guidance("review the diff", "ask", false, false);
-        assert!(body.starts_with("review the diff\n\nCCB reply guidance:"));
+        assert!(body.starts_with("review the diff\n\nCCBR reply guidance:"));
         assert!(body.contains("Answer directly and concisely."));
     }
 

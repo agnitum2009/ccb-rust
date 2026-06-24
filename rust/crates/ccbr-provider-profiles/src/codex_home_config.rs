@@ -352,7 +352,7 @@ fn write_managed_config_stub(
     let mut table = toml::map::Map::new();
     trust_managed_codex_project_paths(&mut table, project_root, workspace_path);
     let text = if table.is_empty() {
-        "# ccb agent-local codex config\n".into()
+        "# ccbr agent-local codex config\n".into()
     } else {
         render_toml_document(&table)?
     };
@@ -1186,8 +1186,8 @@ fn replace_managed_codex_activity_state_block(
     text: &str,
     state_table: &serde_json::Map<String, serde_json::Value>,
 ) -> String {
-    let begin = "# ccb managed codex activity hook state: begin";
-    let end = "# ccb managed codex activity hook state: end";
+    let begin = "# ccbr managed codex activity hook state: begin";
+    let end = "# ccbr managed codex activity hook state: end";
     let lines: Vec<&str> = text.lines().collect();
     let mut cleaned: Vec<&str> = Vec::new();
     let mut index = 0;

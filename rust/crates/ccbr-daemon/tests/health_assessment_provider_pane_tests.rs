@@ -129,14 +129,14 @@ fn runtime() -> ProviderRuntimeInfo {
         workspace_path: Some("/tmp/workspace".into()),
         project_id: "proj-1".into(),
         slot_key: None,
-        tmux_socket_path: Some("/tmp/ccb.sock".into()),
+        tmux_socket_path: Some("/tmp/ccbr.sock".into()),
         tmux_window_name: None,
     }
 }
 
 fn namespace_state() -> NamespaceStateInfo {
     NamespaceStateInfo {
-        tmux_socket_path: Some("/tmp/ccb.sock".into()),
+        tmux_socket_path: Some("/tmp/ccbr.sock".into()),
         tmux_session_name: "sess-1".into(),
         workspace_window_id: None,
     }
@@ -168,7 +168,7 @@ fn test_assess_provider_pane_reports_missing_session() {
 #[test]
 fn test_assess_provider_pane_marks_foreign_tmux_pane() {
     let backend = FakeBackend {
-        socket_path: "/tmp/ccb.sock".into(),
+        socket_path: "/tmp/ccbr.sock".into(),
         owned: false,
     };
     let session = Session {

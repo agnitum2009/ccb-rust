@@ -1,6 +1,6 @@
 /// Legacy role ID alias mappings.
 static LEGACY_ROLE_ALIASES: &[(&str, &str)] = &[
-    ("ccb.archi", "agentroles.archi"),
+    ("ccbr.archi", "agentroles.archi"),
     ("agentrole.ccbr_self", "agentroles.ccbr_self"),
 ];
 
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn test_canonical_role_id() {
         // Legacy aliases map to canonical
-        assert_eq!(canonical_role_id("ccb.archi"), "agentroles.archi");
+        assert_eq!(canonical_role_id("ccbr.archi"), "agentroles.archi");
         assert_eq!(
             canonical_role_id("agentrole.ccbr_self"),
             "agentroles.ccbr_self"
@@ -76,7 +76,7 @@ mod tests {
     fn test_legacy_role_ids() {
         // Canonical IDs with legacy mappings
         let legacy = legacy_role_ids("agentroles.archi");
-        assert_eq!(legacy, vec!["ccb.archi"]);
+        assert_eq!(legacy, vec!["ccbr.archi"]);
 
         let legacy = legacy_role_ids("agentroles.ccbr_self");
         assert_eq!(legacy, vec!["agentrole.ccbr_self"]);
@@ -89,12 +89,12 @@ mod tests {
     #[test]
     fn test_role_id_candidates() {
         // Legacy alias returns canonical first
-        let candidates = role_id_candidates("ccb.archi");
-        assert_eq!(candidates, vec!["agentroles.archi", "ccb.archi"]);
+        let candidates = role_id_candidates("ccbr.archi");
+        assert_eq!(candidates, vec!["agentroles.archi", "ccbr.archi"]);
 
         // Canonical ID returns itself first, then legacy
         let candidates = role_id_candidates("agentroles.archi");
-        assert_eq!(candidates, vec!["agentroles.archi", "ccb.archi"]);
+        assert_eq!(candidates, vec!["agentroles.archi", "ccbr.archi"]);
 
         // Unknown ID returns just itself normalized
         let candidates = role_id_candidates("unknown.role");

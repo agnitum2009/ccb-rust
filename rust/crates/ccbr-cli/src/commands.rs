@@ -438,7 +438,7 @@ pub fn doctor(
     let mut issues: Vec<String> = Vec::new();
     if !daemon_ok {
         issues.push(format!(
-            "daemon not reachable{}; run `ccb start`",
+            "daemon not reachable{}; run `ccbr start`",
             daemon_error.map(|e| format!(": {e}")).unwrap_or_default()
         ));
     }
@@ -531,7 +531,7 @@ pub fn tools(cmd: &ParsedTools) -> Result<String, String> {
         ToolsAction::Install { tool } => Ok(render_tools(
             tool,
             "install",
-            "guided: use the CCB install script (release-tarball downloader is not bundled in this build)",
+            "guided: use the CCBR install script (release-tarball downloader is not bundled in this build)",
         )),
     }
 }
@@ -701,10 +701,10 @@ pub fn repair(client: &dyn DaemonClient, cmd: &ParsedRepair) -> Result<String, S
 
 /// Print version information.
 pub fn version() -> Result<String, String> {
-    Ok(format!("ccb {}\n", crate::entry::VERSION))
+    Ok(format!("ccbr {}\n", crate::entry::VERSION))
 }
 
-/// Check for CCB updates against the published release index.
+/// Check for CCBR updates against the published release index.
 ///
 /// Mirrors the version-check portion of `management_runtime.commands_runtime.update.cmd_update`.
 /// The tarball download/staged install itself is delegated to the install script
@@ -715,32 +715,32 @@ pub fn update() -> Result<String, String> {
     let versions = crate::versioning::get_available_versions();
     if versions.is_empty() {
         return Ok(format!(
-            "ccb update: could not reach the release index (network/git unavailable); current v{current}.\n\
-             Re-run later or apply updates via the CCB install script.\n"
+            "ccbr update: could not reach the release index (network/git unavailable); current v{current}.\n\
+             Re-run later or apply updates via the CCBR install script.\n"
         ));
     }
     let latest = crate::versioning::latest_version(&versions);
     Ok(match latest {
         Some(l) if crate::versioning::is_newer_version(&l, current) => format!(
             "📦 Update available: v{current} → v{l}\n\
-             Apply with the CCB install script (release-tarball download/install is not bundled in this build).\n"
+             Apply with the CCBR install script (release-tarball download/install is not bundled in this build).\n"
         ),
         Some(l) => format!("✅ Up to date (v{current}; latest tagged release v{l})\n"),
         None => format!(
-            "ccb update: could not determine the latest version (current v{current})\n"
+            "ccbr update: could not determine the latest version (current v{current})\n"
         ),
     })
 }
 
 /// Uninstall stub.
 pub fn uninstall() -> Result<String, String> {
-    Ok("ccb uninstall: not implemented in this build; remove the CCB installation directory and ~/.ccbr entries manually.\n".to_string())
+    Ok("ccbr uninstall: not implemented in this build; remove the CCBR installation directory and ~/.ccbr entries manually.\n".to_string())
 }
 
 /// Reinstall stub.
 pub fn reinstall() -> Result<String, String> {
     Ok(
-        "ccb reinstall: not implemented in this build; run the CCB install script to reinstall.\n"
+        "ccbr reinstall: not implemented in this build; run the CCBR install script to reinstall.\n"
             .to_string(),
     )
 }
@@ -825,7 +825,7 @@ fn autonew_usage() -> String {
         .to_string()
 }
 
-/// Transfer conversation context between CCB agents.
+/// Transfer conversation context between CCBR agents.
 pub fn ctx_transfer(cmd: &ParsedCtxTransfer, project_root: &Path) -> Result<String, String> {
     use crate::services::UnixDaemonClient;
 

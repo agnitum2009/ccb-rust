@@ -757,7 +757,7 @@ impl AgentSpec {
                 "abcdefghijklmnopqrstuvwxyz0123456789._-".chars().collect();
             if trimmed.chars().any(|c| !allowed.contains(&c)) || !trimmed.contains('.') {
                 return Err(crate::AgentError::Validation(
-                    "role must use publisher.role form, for example ccb.archi".into(),
+                    "role must use publisher.role form, for example ccbr.archi".into(),
                 ));
             }
             self.role = Some(canonical_role_id(&trimmed));

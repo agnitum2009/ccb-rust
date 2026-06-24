@@ -1,4 +1,4 @@
-//! CCB provider-home storage classification.
+//! CCBR provider-home storage classification.
 //!
 //! Mirrors `lib/storage_classification/` from Python v7.5.2.
 

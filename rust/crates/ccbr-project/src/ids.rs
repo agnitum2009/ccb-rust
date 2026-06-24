@@ -48,7 +48,7 @@ pub fn normalize_project_path(value: impl AsRef<str>) -> String {
     normalized
 }
 
-/// Compute the full CCB project id (64-char SHA256 hex).
+/// Compute the full CCBR project id (64-char SHA256 hex).
 pub fn compute_project_id(project_root: impl AsRef<str>) -> String {
     let normalized = normalize_project_path(project_root);
     if normalized.is_empty() {
@@ -136,8 +136,8 @@ mod tests {
                 "f34a73caaa3c6a872a20369f5e14cae997fcf4e7dd9b4ea9e036c37a9a4b3e8c",
             ),
             (
-                "/mnt/C/code/ccb",
-                "797af39c87b7bb8bc8dcf035fcc9735f196270a4134f54fcaa69a00b8db751f1",
+                "/mnt/C/code/ccbr",
+                "dc4b2e73496d4e21a5a7a6a5675ee0c120b9eb15bfc454839f92e63f4d20379b",
             ),
         ];
         for (path, expected) in cases {
