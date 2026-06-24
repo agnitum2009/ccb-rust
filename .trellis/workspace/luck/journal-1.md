@@ -333,3 +333,45 @@ Batch-deleted 697 empty TODO: align with Python stub mirrors from ccb-providers 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Wave 4 Layer 1: e2e-terminal-edge parity closure
+
+**Date**: 2026-06-25
+**Task**: Wave 4 Layer 1: e2e-terminal-edge parity closure
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Closed Wave 4 Layer 1 mock-boundary integration parity: P0-a/b reload handoff and keeper/lifecycle tests, P1 terminal namespace survival / install core / MCP delegation / sidebar click+resize, P2 runtime env control plane / active runtime polling / ask+restart CLI edges / Codex stability regressions. Updated parity matrix and migration roadmap; retired 12 out-of-scope Python tests with rationale and documented remaining P0-c..h multi-agent recovery gaps. Full workspace gate green: cargo test --workspace -- --test-threads=1, clippy -D warnings, fmt --check.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a6c61732` | (see git log) |
+| `cd3f299b` | (see git log) |
+| `3f6df29d` | (see git log) |
+| `1d247409` | (see git log) |
+| `d4247896` | (see git log) |
+| `10186a2a` | (see git log) |
+| `bc6a154b` | (see git log) |
+| `864d4917` | (see git log) |
+| `37ca4357` | (see git log) |
+| `8e3b0608` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
