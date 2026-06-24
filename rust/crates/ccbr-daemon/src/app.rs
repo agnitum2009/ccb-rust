@@ -23,7 +23,7 @@ use ccbr_completion::{CompletionRegistry, CompletionTrackerService};
 use ccbr_jobs::JobStore;
 use ccbr_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
 use ccbr_provider_core::catalog::{build_default_provider_catalog, ProviderCatalog};
-use ccbr_providers::execution::ExecutionService;
+use ccbr_providers::execution::{ExecutionService, ProviderRuntimeContext};
 
 fn load_agent_registry(
     layout: &ccbr_storage::paths::PathLayout,
@@ -329,9 +329,26 @@ impl CcbdApp {
         // trackers for newly-running jobs.
         let started = self.dispatcher.tick();
         let now = chrono::Utc::now().to_rfc3339();
-        for job in started {
+        // Clone job records to avoid borrow conflicts when accessing
+        // self.registry + self.execution inside the loop.
+        let started_jobs: Vec<_> = started
+            .iter()
+            .map(|j| j.clone())
+            .collect();
+        for job in &started_jobs {
             let completion_job = to_completion_job_record(job);
             let _ = self.completion_tracker.start(&completion_job, &now);
+            // Register with execution service so heartbeat poll() can track
+            // provider output and drive completion detection.
+            let entry = self.registry.get(&job.agent_name);
+            let ctx = ProviderRuntimeContext {
+                agent_name: job.agent_name.clone(),
+                workspace_path: entry.and_then(|e| e.workspace_path.clone()),
+                backend_type: Some("tmux".to_string()),
+                runtime_ref: entry.and_then(|e| e.pane_id.clone()),
+                ..Default::default()
+            };
+            let _ = self.execution.start(&completion_job, Some(&ctx));
         }
 
         // Feed live tmux pane text into active execution submissions so adapters
