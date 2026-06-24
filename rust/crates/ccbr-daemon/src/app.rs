@@ -91,6 +91,7 @@ pub struct CcbdApp {
     pub last_shutdown_report: Option<CcbdShutdownReport>,
     pub current_config: Option<ccbr_agents::models::ProjectConfig>,
     pub completion_tracker: CompletionTrackerService<ProviderCatalog>,
+    pub daemon_instance_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +145,7 @@ impl CcbdApp {
         let (registry, agent_names) = load_agent_registry(&layout, config.as_ref());
         let config_value = config.as_ref().and_then(|c| serde_json::to_value(c).ok());
         let socket_path = layout.ccbrd_socket_path().as_str().to_string();
+        let daemon_instance_id = uuid::Uuid::new_v4().simple().to_string();
         let shared_job_store = JobStore::new(&layout);
 
         let mailbox = MessageBureauFacade::new(
@@ -190,6 +192,7 @@ impl CcbdApp {
             last_startup_report: None,
             last_shutdown_report: None,
             current_config,
+            daemon_instance_id,
         }
     }
 
@@ -199,6 +202,10 @@ impl CcbdApp {
 
     pub fn socket_path(&self) -> String {
         self.layout.ccbrd_socket_path().as_str().to_string()
+    }
+
+    pub fn daemon_instance_id(&self) -> &str {
+        &self.daemon_instance_id
     }
 
     pub fn tmux_socket_path(&self) -> String {
@@ -220,9 +227,10 @@ impl CcbdApp {
     /// Start the daemon: acquire ownership and write a startup report.
     pub fn start(&mut self) -> crate::Result<()> {
         let socket_path = self.socket_path();
+        let instance_id = self.daemon_instance_id().to_string();
         let generation = self
             .ownership
-            .acquire(std::process::id(), &socket_path)
+            .acquire(std::process::id(), &socket_path, &instance_id)
             .generation;
 
         let report = CcbdStartupReport {
