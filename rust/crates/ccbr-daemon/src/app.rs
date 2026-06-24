@@ -349,6 +349,15 @@ impl CcbdApp {
                 ..Default::default()
             };
             let _ = self.execution.start(&completion_job, Some(&ctx));
+            // Feed the prompt text from the job's request body so the adapter's
+            // deferred-prompt dispatch can send it to the provider pane.
+            let mut prompt_patch = std::collections::HashMap::new();
+            prompt_patch.insert(
+                "prompt_text".to_string(),
+                serde_json::Value::String(job.request.body.clone()),
+            );
+            self.execution
+                .feed_runtime_state(&completion_job.job_id, prompt_patch);
         }
 
         // Feed live tmux pane text into active execution submissions so adapters
@@ -359,6 +368,10 @@ impl CcbdApp {
         // Also ingest provider items into the completion tracker so the
         // orchestrator can settle on a terminal decision.
         let updates = self.execution.poll();
+        eprintln!("DEBUG heartbeat: poll_updates={} active_contexts={}", updates.len(), self.execution.active_contexts().len());
+        for u in &updates {
+            eprintln!("DEBUG heartbeat: job={} items={} decision={:?}", u.job_id, u.items.len(), u.decision.as_ref().map(|d| (&d.status, d.terminal)));
+        }
         for update in updates {
             // Ensure every running job has a tracker (handles restore/restart).
             if self.completion_tracker.current(&update.job_id).is_none() {
@@ -564,6 +577,7 @@ impl CcbdApp {
             let mut patch = std::collections::HashMap::new();
             patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
             patch.insert("socket_path".to_string(), serde_json::Value::String(socket_path.clone()));
+            patch.insert("pane_id".to_string(), serde_json::Value::String(pane_id.clone()));
             self.execution.feed_runtime_state(&job_id, patch);
         }
     }

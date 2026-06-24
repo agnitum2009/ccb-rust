@@ -418,6 +418,7 @@ fn dispatch_deferred_prompt_when_ready(
 ) -> Option<ProviderPollResult> {
     let pane_id = runtime_str(&submission.runtime_state, "pane_id");
     let prompt = runtime_str(&submission.runtime_state, "prompt_text");
+    eprintln!("DEBUG dispatch_deferred: pane_id=[{}] prompt_len={} prompt_sent={}", pane_id, prompt.len(), runtime_bool(&submission.runtime_state, "prompt_sent"));
     if pane_id.is_empty() || prompt.is_empty() {
         return None;
     }
