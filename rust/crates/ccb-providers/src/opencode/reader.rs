@@ -82,6 +82,114 @@ impl OpenCodeLogReader {
         capture_state(self)
     }
 
+    /// Read messages for a session, preferring SQLite and falling back to JSON files.
+    pub fn read_messages(&self, session_id: &str) -> Vec<Value> {
+        let mut messages = read_messages_from_db(self, session_id);
+        if messages.is_empty() {
+            messages = read_messages_from_files(self, session_id);
+        }
+        messages.sort_by(|a, b| {
+            let a_key = a
+                .as_object()
+                .map(OpenCodeStorageAccessor::message_sort_key)
+                .unwrap_or((-1, 0.0, String::new()));
+            let b_key = b
+                .as_object()
+                .map(OpenCodeStorageAccessor::message_sort_key)
+                .unwrap_or((-1, 0.0, String::new()));
+            a_key
+                .partial_cmp(&b_key)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        messages
+    }
+
+    /// Read parts for a message, preferring SQLite and falling back to JSON files.
+    pub fn read_parts(&self, message_id: &str) -> Vec<Value> {
+        let mut parts = read_parts_from_db(self, message_id);
+        if parts.is_empty() {
+            parts = read_parts_from_files(self, message_id);
+        }
+        parts.sort_by(|a, b| {
+            let a_key = a
+                .as_object()
+                .map(OpenCodeStorageAccessor::part_sort_key)
+                .unwrap_or((-1, 0.0, String::new()));
+            let b_key = b
+                .as_object()
+                .map(OpenCodeStorageAccessor::part_sort_key)
+                .unwrap_or((-1, 0.0, String::new()));
+            a_key
+                .partial_cmp(&b_key)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        parts
+    }
+
+    /// Find the latest session matching this reader's work directory from the SQLite database.
+    pub fn get_latest_session_from_db(&self) -> Option<SessionEntry> {
+        let candidates = build_work_dir_candidates(&self.work_dir);
+        let rows = self.storage.fetch_opencode_db_rows(
+            "SELECT id, directory, time_updated FROM session ORDER BY time_updated DESC LIMIT 200",
+            [],
+        );
+        let mut best_match: Option<SessionEntry> = None;
+        let mut best_updated: i64 = -1;
+        let mut latest_unfiltered: Option<SessionEntry> = None;
+        let mut latest_unfiltered_updated: i64 = -1;
+
+        for row in rows {
+            let directory = row.get("directory").and_then(|v| v.as_str())?;
+            if !db_directories_match(&candidates, directory, self.allow_parent_match) {
+                continue;
+            }
+            let sid = row.get("id").and_then(|v| v.as_str())?.to_string();
+            let updated = row
+                .get("time_updated")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(-1);
+            let entry = SessionEntry {
+                path: None,
+                payload: serde_json::Map::from_iter([
+                    ("id".to_string(), Value::String(sid.clone())),
+                    (
+                        "directory".to_string(),
+                        Value::String(directory.to_string()),
+                    ),
+                    (
+                        "time".to_string(),
+                        Value::Object(serde_json::Map::from_iter([(
+                            "updated".to_string(),
+                            Value::Number(updated.into()),
+                        )])),
+                    ),
+                ]),
+            };
+            if updated > latest_unfiltered_updated {
+                latest_unfiltered = Some(entry.clone());
+                latest_unfiltered_updated = updated;
+            }
+            if let Some(filter) = self.session_id_filter() {
+                if sid != filter {
+                    continue;
+                }
+            }
+            if updated > best_updated {
+                best_match = Some(entry);
+                best_updated = updated;
+            }
+        }
+
+        if self._allow_session_rollover {
+            if let Some(latest) = latest_unfiltered {
+                if latest_unfiltered_updated > best_updated {
+                    return Some(latest);
+                }
+            }
+        }
+        best_match
+    }
+
     /// Non-blocking attempt to read a new assistant message.
     pub fn try_get_message(
         &self,
@@ -110,9 +218,9 @@ impl OpenCodeLogReader {
             None => return (None, next_state),
         };
 
-        let messages = read_messages(self, &session_id);
+        let messages = self.read_messages(&session_id);
         let re = req_id_re();
-        let read_parts = |message_id: &str| read_parts(self, message_id);
+        let read_parts = |message_id: &str| self.read_parts(message_id);
         let extract_req_id = |text: &str| super::replies::extract_req_id_from_text(text, &re);
 
         let (reply, reply_state) = find_new_assistant_reply_with_state(
@@ -149,13 +257,15 @@ fn env_truthy(name: &str) -> bool {
 }
 
 #[derive(Debug, Clone)]
-struct SessionEntry {
-    path: Option<PathBuf>,
-    payload: serde_json::Map<String, Value>,
+pub struct SessionEntry {
+    pub path: Option<PathBuf>,
+    pub payload: serde_json::Map<String, Value>,
 }
 
 fn get_latest_session(reader: &OpenCodeLogReader) -> Option<SessionEntry> {
-    get_latest_session_from_files(reader)
+    reader
+        .get_latest_session_from_db()
+        .or_else(|| get_latest_session_from_files(reader))
 }
 
 fn get_latest_session_from_files(reader: &OpenCodeLogReader) -> Option<SessionEntry> {
@@ -302,9 +412,21 @@ fn directories_match(reader: &OpenCodeLogReader, directory: Option<&str>) -> boo
         None => return false,
     };
     let candidates = build_work_dir_candidates(&reader.work_dir);
-    candidates
-        .iter()
-        .any(|c| path_matches(directory, c, reader.allow_parent_match))
+    db_directories_match(&candidates, directory, reader.allow_parent_match)
+}
+
+fn db_directories_match(candidates: &[String], directory: &str, allow_parent_match: bool) -> bool {
+    if directory.trim().is_empty() {
+        return false;
+    }
+    let dir_norm = normalize_path_for_match(directory);
+    candidates.iter().any(|c| {
+        if allow_parent_match {
+            path_matches(&dir_norm, c, true)
+        } else {
+            dir_norm == *c
+        }
+    })
 }
 
 fn build_work_dir_candidates(work_dir: &Path) -> Vec<String> {
@@ -426,14 +548,35 @@ fn coerce_updated(value: Option<&Value>) -> i64 {
     }
 }
 
-fn read_messages(reader: &OpenCodeLogReader, session_id: &str) -> Vec<Value> {
-    let mut messages = read_messages_from_files(reader, session_id);
-    messages.sort_by(|a, b| {
-        message_sort_key(a)
-            .partial_cmp(&message_sort_key(b))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    messages
+fn read_messages_from_db(reader: &OpenCodeLogReader, session_id: &str) -> Vec<Value> {
+    let rows = reader.storage.fetch_opencode_db_rows(
+        "SELECT id, session_id, time_created, time_updated, data FROM message WHERE session_id = ?1 ORDER BY time_created ASC, time_updated ASC, id ASC",
+        [session_id],
+    );
+    rows.into_iter()
+        .map(|row| {
+            let mut payload = reader
+                .storage
+                .load_json_blob(row.get("data").unwrap_or(&Value::Null));
+            payload
+                .entry("id".to_string())
+                .or_insert_with(|| row.get("id").cloned().unwrap_or(Value::Null));
+            payload
+                .entry("sessionID".to_string())
+                .or_insert_with(|| row.get("session_id").cloned().unwrap_or(Value::Null));
+            let mut time = payload
+                .get("time")
+                .and_then(|v| v.as_object())
+                .cloned()
+                .unwrap_or_default();
+            time.entry("created".to_string())
+                .or_insert_with(|| row.get("time_created").cloned().unwrap_or(Value::Null));
+            time.entry("updated".to_string())
+                .or_insert_with(|| row.get("time_updated").cloned().unwrap_or(Value::Null));
+            payload.insert("time".to_string(), Value::Object(time));
+            Value::Object(payload)
+        })
+        .collect()
 }
 
 fn read_messages_from_files(reader: &OpenCodeLogReader, session_id: &str) -> Vec<Value> {
@@ -471,14 +614,38 @@ fn read_messages_from_files(reader: &OpenCodeLogReader, session_id: &str) -> Vec
         .collect()
 }
 
-fn read_parts(reader: &OpenCodeLogReader, message_id: &str) -> Vec<Value> {
-    let mut parts = read_parts_from_files(reader, message_id);
-    parts.sort_by(|a, b| {
-        part_sort_key(a)
-            .partial_cmp(&part_sort_key(b))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    parts
+fn read_parts_from_db(reader: &OpenCodeLogReader, message_id: &str) -> Vec<Value> {
+    let rows = reader.storage.fetch_opencode_db_rows(
+        "SELECT id, message_id, session_id, time_created, time_updated, data FROM part WHERE message_id = ?1 ORDER BY time_created ASC, time_updated ASC, id ASC",
+        [message_id],
+    );
+    rows.into_iter()
+        .map(|row| {
+            let mut payload = reader
+                .storage
+                .load_json_blob(row.get("data").unwrap_or(&Value::Null));
+            payload
+                .entry("id".to_string())
+                .or_insert_with(|| row.get("id").cloned().unwrap_or(Value::Null));
+            payload
+                .entry("messageID".to_string())
+                .or_insert_with(|| row.get("message_id").cloned().unwrap_or(Value::Null));
+            payload
+                .entry("sessionID".to_string())
+                .or_insert_with(|| row.get("session_id").cloned().unwrap_or(Value::Null));
+            let mut time = payload
+                .get("time")
+                .and_then(|v| v.as_object())
+                .cloned()
+                .unwrap_or_default();
+            time.entry("start".to_string())
+                .or_insert_with(|| row.get("time_created").cloned().unwrap_or(Value::Null));
+            time.entry("updated".to_string())
+                .or_insert_with(|| row.get("time_updated").cloned().unwrap_or(Value::Null));
+            payload.insert("time".to_string(), Value::Object(time));
+            Value::Object(payload)
+        })
+        .collect()
 }
 
 fn read_parts_from_files(reader: &OpenCodeLogReader, message_id: &str) -> Vec<Value> {
@@ -516,56 +683,6 @@ fn read_parts_from_files(reader: &OpenCodeLogReader, message_id: &str) -> Vec<Va
         .collect()
 }
 
-fn message_sort_key(message: &Value) -> (i64, f64, String) {
-    let empty = serde_json::Map::new();
-    let obj = message.as_object().unwrap_or(&empty);
-    let created = obj
-        .get("time")
-        .and_then(|t| t.as_object())
-        .and_then(|t| t.get("created"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(-1);
-    let mtime = obj
-        .get("_path")
-        .and_then(|v| v.as_str())
-        .and_then(|p| PathBuf::from(p).metadata().ok())
-        .and_then(|m| m.modified().ok())
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs_f64())
-        .unwrap_or(0.0);
-    let message_id = obj
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    (created, mtime, message_id)
-}
-
-fn part_sort_key(part: &Value) -> (i64, f64, String) {
-    let empty = serde_json::Map::new();
-    let obj = part.as_object().unwrap_or(&empty);
-    let started = obj
-        .get("time")
-        .and_then(|t| t.as_object())
-        .and_then(|t| t.get("start"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(-1);
-    let mtime = obj
-        .get("_path")
-        .and_then(|v| v.as_str())
-        .and_then(|p| PathBuf::from(p).metadata().ok())
-        .and_then(|m| m.modified().ok())
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs_f64())
-        .unwrap_or(0.0);
-    let part_id = obj
-        .get("id")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    (started, mtime, part_id)
-}
-
 fn capture_state(reader: &OpenCodeLogReader) -> HashMap<String, Value> {
     let session = match get_latest_session(reader) {
         Some(s) => s,
@@ -584,7 +701,7 @@ fn capture_state(reader: &OpenCodeLogReader) -> HashMap<String, Value> {
             .and_then(|t| t.get("updated")),
     );
     let assistant_count = session_id.as_ref().map_or(0, |sid| {
-        let messages = read_messages(reader, sid);
+        let messages = reader.read_messages(sid);
         messages
             .iter()
             .filter(|m| {
@@ -748,5 +865,201 @@ mod tests {
         let (reply, next_state) = reader.try_get_message(&state);
         assert_eq!(reply.as_deref(), Some("hello world"));
         assert_eq!(next_state.get("last_assistant_id").unwrap(), "m2");
+    }
+
+    #[test]
+    fn test_opencode_log_reader_reads_messages_and_parts_from_sqlite() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("storage");
+        std::fs::create_dir(&root).unwrap();
+        let db_path = tmp.path().join("opencode.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE message (
+                 id TEXT PRIMARY KEY,
+                 session_id TEXT NOT NULL,
+                 time_created INTEGER NOT NULL,
+                 time_updated INTEGER NOT NULL,
+                 data TEXT NOT NULL
+             );
+             CREATE TABLE part (
+                 id TEXT PRIMARY KEY,
+                 message_id TEXT NOT NULL,
+                 session_id TEXT NOT NULL,
+                 time_created INTEGER NOT NULL,
+                 time_updated INTEGER NOT NULL,
+                 data TEXT NOT NULL
+             );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?, ?, ?, ?, ?)",
+            rusqlite::params![
+                "msg_sqlite",
+                "ses_sqlite",
+                1700000000123i64,
+                1700000000999i64,
+                serde_json::json!({"role": "assistant"}).to_string()
+            ],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) VALUES (?, ?, ?, ?, ?, ?)",
+            rusqlite::params![
+                "prt_sqlite",
+                "msg_sqlite",
+                "ses_sqlite",
+                1700000000222i64,
+                1700000000888i64,
+                serde_json::json!({"type": "text", "text": "hello from sqlite"}).to_string()
+            ],
+        )
+        .unwrap();
+        drop(conn);
+
+        let reader = OpenCodeLogReader::new(Some(&root), tmp.path(), "proj-test", None);
+        let messages = reader.read_messages("ses_sqlite");
+        assert_eq!(messages.len(), 1);
+        let m = messages[0].as_object().unwrap();
+        assert_eq!(m.get("id").unwrap(), "msg_sqlite");
+        assert_eq!(m.get("sessionID").unwrap(), "ses_sqlite");
+        assert_eq!(m.get("role").unwrap(), "assistant");
+        assert_eq!(
+            m.get("time")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .get("created")
+                .unwrap(),
+            1700000000123i64
+        );
+
+        let parts = reader.read_parts("msg_sqlite");
+        assert_eq!(parts.len(), 1);
+        let p = parts[0].as_object().unwrap();
+        assert_eq!(p.get("id").unwrap(), "prt_sqlite");
+        assert_eq!(p.get("messageID").unwrap(), "msg_sqlite");
+        assert_eq!(p.get("sessionID").unwrap(), "ses_sqlite");
+        assert_eq!(p.get("text").unwrap(), "hello from sqlite");
+        assert_eq!(
+            p.get("time")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .get("start")
+                .unwrap(),
+            1700000000222i64
+        );
+    }
+
+    #[test]
+    fn test_opencode_log_reader_falls_back_to_json_when_sqlite_has_no_matching_rows() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("storage");
+        let message_dir = root.join("message").join("ses_file");
+        let part_dir = root.join("part").join("msg_file");
+        std::fs::create_dir_all(&message_dir).unwrap();
+        std::fs::create_dir_all(&part_dir).unwrap();
+        write_json(
+            &message_dir,
+            "msg_file.json",
+            serde_json::json!({
+                "id": "msg_file",
+                "sessionID": "ses_file",
+                "role": "assistant",
+                "time": {"created": 1700000100000i64, "completed": 1700000100010i64},
+            }),
+        );
+        write_json(
+            &part_dir,
+            "prt_file.json",
+            serde_json::json!({
+                "id": "prt_file",
+                "messageID": "msg_file",
+                "type": "text",
+                "text": "hello from json",
+                "time": {"start": 1700000100001i64},
+            }),
+        );
+
+        let db_path = tmp.path().join("opencode.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL, data TEXT NOT NULL);
+             CREATE TABLE part (id TEXT PRIMARY KEY, message_id TEXT NOT NULL, session_id TEXT NOT NULL, time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL, data TEXT NOT NULL);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?, ?, ?, ?, ?)",
+            rusqlite::params![
+                "msg_other",
+                "ses_other",
+                1i64,
+                2i64,
+                serde_json::json!({"role": "assistant"}).to_string()
+            ],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) VALUES (?, ?, ?, ?, ?, ?)",
+            rusqlite::params![
+                "prt_other",
+                "msg_other",
+                "ses_other",
+                1i64,
+                2i64,
+                serde_json::json!({"type": "text", "text": "other"}).to_string()
+            ],
+        )
+        .unwrap();
+        drop(conn);
+
+        let reader = OpenCodeLogReader::new(Some(&root), tmp.path(), "proj-test", None);
+        let messages = reader.read_messages("ses_file");
+        assert_eq!(messages.len(), 1);
+        assert_eq!(
+            messages[0].as_object().unwrap().get("id").unwrap(),
+            "msg_file"
+        );
+
+        let parts = reader.read_parts("msg_file");
+        assert_eq!(parts.len(), 1);
+        assert_eq!(parts[0].as_object().unwrap().get("id").unwrap(), "prt_file");
+    }
+
+    #[test]
+    fn test_opencode_log_reader_stays_pinned_to_filtered_session_by_default() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("storage");
+        std::fs::create_dir(&root).unwrap();
+        let db_path = tmp.path().join("opencode.db");
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE session (id TEXT PRIMARY KEY, directory TEXT NOT NULL, time_updated INTEGER NOT NULL)",
+        )
+        .unwrap();
+        let project_dir = tmp.path().join("repo");
+        std::fs::create_dir(&project_dir).unwrap();
+        conn.execute(
+            "INSERT INTO session (id, directory, time_updated) VALUES (?, ?, ?)",
+            rusqlite::params!["ses_old", project_dir.to_string_lossy().to_string(), 100i64],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO session (id, directory, time_updated) VALUES (?, ?, ?)",
+            rusqlite::params!["ses_new", project_dir.to_string_lossy().to_string(), 200i64],
+        )
+        .unwrap();
+        drop(conn);
+
+        let reader = OpenCodeLogReader::new(
+            Some(&root),
+            &project_dir,
+            "proj-test",
+            Some("ses_old".to_string()),
+        );
+        let latest = reader.get_latest_session_from_db();
+        assert!(latest.is_some());
+        assert_eq!(latest.unwrap().payload.get("id").unwrap(), "ses_old");
     }
 }

@@ -68,7 +68,7 @@ fn test_build_balanced_layout_adds_cmd_leaf_first() {
     modes.insert("agent2".into(), "worktree".into());
 
     let layout = build_balanced_layout(
-        &["agent1", "agent2", "agent3"],
+        ["agent1", "agent2", "agent3"],
         Some(&providers),
         Some(&modes),
         true,

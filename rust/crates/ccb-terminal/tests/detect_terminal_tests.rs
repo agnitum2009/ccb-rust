@@ -7,19 +7,19 @@ use ccb_terminal::detect::detect_terminal_with;
 fn fake_run(args: &[&str]) -> Option<String> {
     if args
         .windows(5)
-        .any(|w| w == &["display-message", "-p", "-t", "%1", "#{pane_tty}"])
+        .any(|w| w == ["display-message", "-p", "-t", "%1", "#{pane_tty}"])
     {
         return Some("/dev/pts/7".to_string());
     }
     if args
         .windows(4)
-        .any(|w| w == &["display-message", "-p", "#{client_tty}"])
+        .any(|w| w == ["display-message", "-p", "#{client_tty}"])
     {
         return Some("/dev/pts/7".to_string());
     }
     if args
         .windows(5)
-        .any(|w| w == &["display-message", "-p", "-t", "%1", "#{pane_id}"])
+        .any(|w| w == ["display-message", "-p", "-t", "%1", "#{pane_id}"])
     {
         return Some("%1".to_string());
     }

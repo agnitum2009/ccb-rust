@@ -11,6 +11,9 @@ use crate::execution::{ProviderRuntimeContext, ProviderSubmission};
 use super::models::PreparedActiveStart;
 use super::start::session_selector_name;
 
+type ConfigureReaderFn<R> = dyn FnOnce(&mut R, &HashMap<String, Value>, &ProviderRuntimeContext);
+type CompletionDirFn<S> = dyn FnOnce(&S) -> String;
+
 /// Session abstraction used by the active-runtime helpers.
 ///
 /// The concrete session types live in each provider backend; this trait lets the
@@ -32,6 +35,7 @@ pub trait ActiveSession {
 /// Mirrors Python `resume_active_submission`.  All provider-specific loading is
 /// injected via callbacks so the helper stays testable without concrete tmux
 /// dependencies.
+#[allow(clippy::too_many_arguments)]
 pub fn resume_active_submission<S, R>(
     job: &JobRecord,
     submission: &ProviderSubmission,
@@ -39,8 +43,8 @@ pub fn resume_active_submission<S, R>(
     load_session_fn: impl FnOnce(&Path, &str) -> Option<S>,
     backend_for_session_fn: impl FnOnce(&Value) -> Option<Value>,
     reader_factory: impl FnOnce(&S) -> R,
-    configure_reader_fn: Option<Box<dyn FnOnce(&mut R, &HashMap<String, Value>, &ProviderRuntimeContext)>>,
-    completion_dir_fn: Option<Box<dyn FnOnce(&S) -> String>>,
+    configure_reader_fn: Option<Box<ConfigureReaderFn<R>>>,
+    completion_dir_fn: Option<Box<CompletionDirFn<S>>>,
 ) -> Option<ProviderSubmission>
 where
     S: ActiveSession + 'static,
@@ -49,24 +53,21 @@ where
     let state = &submission.runtime_state;
     let work_dir = active_work_dir(context, state)?;
 
-    let (session, pane_id) =
-        resume_prepared_session(job, &work_dir, load_session_fn)?;
+    let (session, pane_id) = resume_prepared_session(job, &work_dir, load_session_fn)?;
 
     let backend = backend_for_session_fn(session.session_data())?;
 
     let mut reader = reader_factory(&session);
     if let Some(configure) = configure_reader_fn {
-        configure(&mut reader, state, context.expect("context validated above"));
+        configure(
+            &mut reader,
+            state,
+            context.expect("context validated above"),
+        );
     }
 
-    let runtime_state = resumed_runtime_state(
-        state,
-        reader,
-        backend,
-        pane_id,
-        &session,
-        completion_dir_fn,
-    );
+    let runtime_state =
+        resumed_runtime_state(state, reader, backend, pane_id, &session, completion_dir_fn);
     Some(ProviderSubmission {
         runtime_state,
         ..submission.clone()
@@ -257,9 +258,9 @@ mod tests {
             pane: Ok("%9".to_string()),
         };
 
-        let configured: std::rc::Rc<
-            std::cell::RefCell<Vec<(String, HashMap<String, Value>, ProviderRuntimeContext)>>,
-        > = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        type ConfiguredEntries = Vec<(String, HashMap<String, Value>, ProviderRuntimeContext)>;
+        let configured: std::rc::Rc<std::cell::RefCell<ConfiguredEntries>> =
+            std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
         let configured_cb = configured.clone();
 
         let resumed = resume_active_submission(
@@ -269,9 +270,15 @@ mod tests {
             |_path, _name| Some(session),
             |data| Some(data.clone()),
             |_session| "reader-ok".to_string(),
-            Some(Box::new(move |reader: &mut String, state: &HashMap<String, Value>, ctx: &ProviderRuntimeContext| {
-                configured_cb.borrow_mut().push((reader.clone(), state.clone(), ctx.clone()));
-            })),
+            Some(Box::new(
+                move |reader: &mut String,
+                      state: &HashMap<String, Value>,
+                      ctx: &ProviderRuntimeContext| {
+                    configured_cb
+                        .borrow_mut()
+                        .push((reader.clone(), state.clone(), ctx.clone()));
+                },
+            )),
             Some(Box::new(|_session| "/tmp/completions".to_string())),
         )
         .expect("expected resume to succeed");
@@ -282,15 +289,13 @@ mod tests {
             &serde_json::json!({"provider": "codex"})
         );
         // reader is stored via Debug formatting
-        assert!(
-            resumed
-                .runtime_state
-                .get("reader")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .contains("reader-ok")
-        );
+        assert!(resumed
+            .runtime_state
+            .get("reader")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .contains("reader-ok"));
         assert_eq!(
             resumed.runtime_state.get("completion_dir").unwrap(),
             "/tmp/completions"

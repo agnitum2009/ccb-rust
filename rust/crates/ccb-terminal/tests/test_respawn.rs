@@ -155,7 +155,7 @@ fn test_tmux_respawn_service_uses_shared_ready_budget_for_transient_failures() {
     assert!(result.is_err());
     let attempts = *respawn_attempts.lock().unwrap();
     assert!(
-        attempts >= 10 && attempts <= 30,
+        (10..=30).contains(&attempts),
         "expected retry budget to be shared, got {attempts} attempts"
     );
 }

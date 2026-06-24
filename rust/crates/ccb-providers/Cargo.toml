@@ -137,6 +137,7 @@ ccb-mailbox = { workspace = true }
 ccb-agents = { workspace = true }
 ccb-terminal = { workspace = true }
 ccb-memory = { workspace = true }
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

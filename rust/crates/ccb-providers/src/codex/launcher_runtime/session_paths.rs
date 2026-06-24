@@ -199,7 +199,7 @@ mod tests {
         std::fs::create_dir_all(&anchor).unwrap();
         let runtime_root_buf = tmp.path().join("state-root");
         let runtime_root = Utf8Path::from_path(&runtime_root_buf).unwrap();
-        write_runtime_marker(&anchor, &runtime_root, &project_root);
+        write_runtime_marker(anchor.as_ref(), runtime_root, project_root);
 
         let runtime_dir = runtime_root.join("agents/reviewer/provider-runtime/codex");
         std::fs::create_dir_all(&runtime_dir).unwrap();
@@ -223,7 +223,7 @@ mod tests {
         let runtime_root = Utf8Path::from_path(&runtime_root_buf).unwrap();
         let different_root_buf = tmp.path().join("different-root");
         let different_root = Utf8Path::from_path(&different_root_buf).unwrap();
-        write_runtime_marker(&anchor, &runtime_root, &project_root);
+        write_runtime_marker(anchor.as_ref(), runtime_root, project_root);
         // Corrupt the marker to point at a different runtime root.
         let marker = runtime_root.join("runtime-root.json");
         std::fs::write(

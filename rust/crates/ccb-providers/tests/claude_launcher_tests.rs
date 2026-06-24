@@ -199,7 +199,7 @@ fn seed_claude_history(
     session_id: Option<&str>,
 ) {
     let projects_root = managed_home.join(".claude").join("projects");
-    let project_dir = projects_root.join(project_key(&Utf8Path::from_path(project).unwrap()));
+    let project_dir = projects_root.join(project_key(Utf8Path::from_path(project).unwrap()));
     let session_env_root = managed_home.join(".claude").join("session-env");
     std::fs::create_dir_all(&project_dir).unwrap();
     std::fs::create_dir_all(&session_env_root).unwrap();
@@ -307,7 +307,7 @@ fn test_claude_history_locator_finds_uuid_session() {
         Utf8Path::from_path(&project).unwrap(),
         Utf8Path::from_path(&project).unwrap(),
         &env,
-        &Utf8Path::from_path(&managed_home).unwrap(),
+        Utf8Path::from_path(&managed_home).unwrap(),
     );
     let (found_id, has_history, best_cwd) = locator.latest_session_id();
     assert_eq!(found_id, Some(session_id));
@@ -335,7 +335,7 @@ fn test_claude_history_locator_falls_back_to_any_history() {
         Utf8Path::from_path(&project).unwrap(),
         Utf8Path::from_path(&project).unwrap(),
         &env,
-        &Utf8Path::from_path(&managed_home).unwrap(),
+        Utf8Path::from_path(&managed_home).unwrap(),
     );
     let (found_id, has_history, best_cwd) = locator.latest_session_id();
     assert_eq!(found_id, None);

@@ -254,7 +254,7 @@ mod tests {
         );
 
         let session_id = "550e8400-e29b-41d4-a716-446655440000";
-        write_claude_history(&legacy_home, &workspace_path, session_id);
+        write_claude_history(legacy_home, &workspace_path, session_id);
 
         let target = resolve_claude_restore_target(&spec("reviewer"), &runtime_dir, true, None);
 

@@ -65,6 +65,93 @@ impl OpenCodeProjectSession {
             .and_then(|v| v.as_str())
             .map(|s| s.trim())
     }
+
+    pub fn terminal(&self) -> Option<&str> {
+        self.data
+            .get("terminal")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+    }
+
+    pub fn start_cmd(&self) -> Option<&str> {
+        self.data
+            .get("start_cmd")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+    }
+
+    pub fn runtime_dir(&self) -> Option<&str> {
+        self.data
+            .get("runtime_dir")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+    }
+
+    pub fn pane_title_marker(&self) -> Option<&str> {
+        self.data
+            .get("pane_title_marker")
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+    }
+
+    /// Ensure the tmux pane for this session exists and is alive.
+    /// Mirrors Python `provider_backends.opencode.session_runtime.lifecycle.ensure_pane`.
+    pub fn ensure_pane(&self) -> Result<String, String> {
+        self.ensure_pane_with_backend(get_backend_for_session(&self.data))
+    }
+
+    /// Test seam: ensure pane using an injected backend.
+    pub fn ensure_pane_with_backend(
+        &self,
+        backend: Option<Box<dyn OpencodeBackend>>,
+    ) -> Result<String, String> {
+        let mut backend = backend.ok_or_else(|| "Terminal backend not available".to_string())?;
+        let pane_id = self
+            .pane_id()
+            .ok_or_else(|| format!("Pane not alive: {:?}", self.pane_id()))?;
+
+        if backend.is_alive(pane_id) {
+            return Ok(pane_id.to_string());
+        }
+
+        if self.terminal() == Some("tmux") {
+            if backend.pane_exists(pane_id) {
+                let start_cmd = self
+                    .start_cmd()
+                    .ok_or_else(|| format!("respawn failed: no start_cmd for pane {}", pane_id))?;
+                let cwd = self
+                    .runtime_dir()
+                    .or_else(|| self.work_dir())
+                    .map(PathBuf::from);
+                backend.respawn_pane(pane_id, start_cmd, cwd.as_deref());
+                if backend.is_alive(pane_id) {
+                    return Ok(pane_id.to_string());
+                }
+                return Err(format!("respawn failed for pane {}", pane_id));
+            } else {
+                return Err(format!("respawn failed: pane {} no longer exists", pane_id));
+            }
+        }
+
+        Err(format!("Pane not alive: {}", pane_id))
+    }
+}
+
+/// Backend abstraction used by OpenCode pane lifecycle.
+/// Tests provide a fake backend; production wiring can plug into a concrete
+/// tmux backend via `get_backend_for_session`.
+pub trait OpencodeBackend {
+    fn is_alive(&self, pane_id: &str) -> bool;
+    fn pane_exists(&self, pane_id: &str) -> bool;
+    fn respawn_pane(&mut self, pane_id: &str, cmd: &str, cwd: Option<&Path>);
+    fn save_crash_log(&mut self, _pane_id: &str, _crash_log_path: &Path, _lines: usize) {}
+}
+
+/// Resolve a terminal backend for an OpenCode session.
+/// Production wiring should delegate to the terminal-runtime backend registry;
+/// by default this returns `None` so the module stays provider-core agnostic.
+pub fn get_backend_for_session(_data: &HashMap<String, Value>) -> Option<Box<dyn OpencodeBackend>> {
+    None
 }
 
 /// Find the OpenCode session file for a work directory.
@@ -153,5 +240,132 @@ mod tests {
         assert_eq!(session.opencode_session_id(), Some("session-1"));
         assert_eq!(session.opencode_project_id(), Some("proj1"));
         assert_eq!(session.pane_id(), Some("%1"));
+    }
+
+    struct FakeBackend {
+        alive: std::collections::HashMap<String, bool>,
+        exists: std::collections::HashMap<String, bool>,
+        respawned: std::cell::RefCell<Vec<String>>,
+        crash_logs: std::cell::RefCell<Vec<(String, PathBuf)>>,
+    }
+
+    impl Default for FakeBackend {
+        fn default() -> Self {
+            Self {
+                alive: std::collections::HashMap::new(),
+                exists: std::collections::HashMap::new(),
+                respawned: std::cell::RefCell::new(Vec::new()),
+                crash_logs: std::cell::RefCell::new(Vec::new()),
+            }
+        }
+    }
+
+    impl OpencodeBackend for FakeBackend {
+        fn is_alive(&self, pane_id: &str) -> bool {
+            self.alive.get(pane_id).copied().unwrap_or(false)
+        }
+
+        fn pane_exists(&self, pane_id: &str) -> bool {
+            self.exists
+                .get(pane_id)
+                .copied()
+                .unwrap_or_else(|| self.is_alive(pane_id))
+        }
+
+        fn respawn_pane(&mut self, pane_id: &str, _cmd: &str, _cwd: Option<&Path>) {
+            self.respawned.borrow_mut().push(pane_id.to_string());
+            self.alive.insert(pane_id.to_string(), true);
+        }
+
+        fn save_crash_log(&mut self, pane_id: &str, crash_log_path: &Path, _lines: usize) {
+            self.crash_logs
+                .borrow_mut()
+                .push((pane_id.to_string(), crash_log_path.to_path_buf()));
+        }
+    }
+
+    fn fake_session(work_dir: &Path, extra: serde_json::Value) -> OpenCodeProjectSession {
+        let mut data = serde_json::json!({
+            "ccb_session_id": "test-session",
+            "terminal": "tmux",
+            "pane_id": "%1",
+            "pane_title_marker": "CCB-opencode-test",
+            "runtime_dir": work_dir.to_string_lossy().to_string(),
+            "work_dir": work_dir.to_string_lossy().to_string(),
+            "active": true,
+        });
+        if let Some(obj) = extra.as_object() {
+            for (k, v) in obj {
+                data[k] = v.clone();
+            }
+        }
+        let session_file = work_dir.join(".opencode-session");
+        std::fs::write(&session_file, serde_json::to_string(&data).unwrap()).unwrap();
+        load_project_session(work_dir, None).unwrap()
+    }
+
+    #[test]
+    fn test_ensure_pane_respawns_recorded_pane_without_marker_rebind() {
+        let tmp = TempDir::new().unwrap();
+        let session = fake_session(tmp.path(), serde_json::json!({"start_cmd": "sleep 1"}));
+        let backend = FakeBackend {
+            alive: [("%1".to_string(), false), ("%2".to_string(), true)]
+                .into_iter()
+                .collect(),
+            exists: [("%1".to_string(), true)].into_iter().collect(),
+            ..Default::default()
+        };
+        let result = session.ensure_pane_with_backend(Some(Box::new(backend)));
+        assert_eq!(result, Ok("%1".to_string()));
+    }
+
+    #[test]
+    fn test_ensure_pane_already_alive() {
+        let tmp = TempDir::new().unwrap();
+        let session = fake_session(tmp.path(), serde_json::Value::Null);
+        let backend = FakeBackend {
+            alive: [("%1".to_string(), true)].into_iter().collect(),
+            ..Default::default()
+        };
+        let result = session.ensure_pane_with_backend(Some(Box::new(backend)));
+        assert_eq!(result, Ok("%1".to_string()));
+    }
+
+    #[test]
+    fn test_ensure_pane_no_backend() {
+        let tmp = TempDir::new().unwrap();
+        let session = fake_session(tmp.path(), serde_json::json!({"terminal": "unknown"}));
+        let result = session.ensure_pane_with_backend(None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_lowercase().contains("backend"));
+    }
+
+    #[test]
+    fn test_ensure_pane_dead_no_marker() {
+        let tmp = TempDir::new().unwrap();
+        let session = fake_session(tmp.path(), serde_json::json!({"terminal": "unknown"}));
+        let backend = FakeBackend {
+            alive: [("%1".to_string(), false)].into_iter().collect(),
+            exists: [("%1".to_string(), true)].into_iter().collect(),
+            ..Default::default()
+        };
+        let result = session.ensure_pane_with_backend(Some(Box::new(backend)));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_lowercase().contains("not alive"));
+    }
+
+    #[test]
+    fn test_ensure_pane_missing_tmux_target_skips_respawn_noise() {
+        let tmp = TempDir::new().unwrap();
+        let session = fake_session(tmp.path(), serde_json::json!({"start_cmd": "sleep 1"}));
+        let backend = FakeBackend {
+            alive: [("%1".to_string(), false)].into_iter().collect(),
+            exists: [("%1".to_string(), false)].into_iter().collect(),
+            ..Default::default()
+        };
+        let result = session.ensure_pane_with_backend(Some(Box::new(backend)));
+        let err = result.unwrap_err().to_lowercase();
+        assert!(err.contains("respawn failed"));
+        assert!(err.contains("no longer exists"));
     }
 }

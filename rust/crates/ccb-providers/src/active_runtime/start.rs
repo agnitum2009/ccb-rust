@@ -5,9 +5,7 @@ use std::path::{Path, PathBuf};
 use ccb_completion::models::{CompletionSourceKind, JobRecord};
 use serde_json::Value;
 
-use crate::execution::{
-    error_submission, ProviderRuntimeContext, ProviderSubmission,
-};
+use crate::execution::{error_submission, ProviderRuntimeContext, ProviderSubmission};
 
 use super::models::PreparedActiveStart;
 use super::resume::ActiveSession;
@@ -54,6 +52,7 @@ pub fn session_selector_name(job: &JobRecord) -> String {
 /// Mirrors Python `prepare_active_start`.  If the context, session, pane or
 /// backend are unavailable, returns an error `ProviderSubmission` that can be
 /// handed back to the execution service.
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_active_start<S>(
     job: &JobRecord,
     context: Option<&ProviderRuntimeContext>,
@@ -135,7 +134,9 @@ where
         ));
     };
 
-    StartOutcome::Prepared(PreparedActiveStart::new(work_dir, session, pane_id, backend))
+    StartOutcome::Prepared(PreparedActiveStart::new(
+        work_dir, session, pane_id, backend,
+    ))
 }
 
 fn expand_tilde(path: &str) -> PathBuf {
@@ -256,10 +257,12 @@ mod tests {
             CompletionSourceKind::SessionEventLog,
             "now",
             "missing",
-            |_path, _name| Some(FakeSession {
-                data: Value::Null,
-                pane: Err("pane dead".to_string()),
-            }),
+            |_path, _name| {
+                Some(FakeSession {
+                    data: Value::Null,
+                    pane: Err("pane dead".to_string()),
+                })
+            },
             |_data| None,
         );
         let StartOutcome::Error(sub) = outcome else {
@@ -281,10 +284,12 @@ mod tests {
             CompletionSourceKind::SessionEventLog,
             "now",
             "missing",
-            |_path, _name| Some(FakeSession {
-                data: serde_json::json!({"x": 1}),
-                pane: Ok("%9".to_string()),
-            }),
+            |_path, _name| {
+                Some(FakeSession {
+                    data: serde_json::json!({"x": 1}),
+                    pane: Ok("%9".to_string()),
+                })
+            },
             |data| Some(data.clone()),
         );
         let prepared = outcome.expect_prepared();
