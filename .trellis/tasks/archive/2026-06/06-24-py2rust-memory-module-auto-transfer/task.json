@@ -1,0 +1,29 @@
+{
+  "id": "py2rust-memory-module-auto-transfer",
+  "name": "py2rust-memory-module-auto-transfer",
+  "title": "py2rust memory module and auto-transfer parity",
+  "description": "Align Rust ccb-memory deduper/formatter/parser and auto-transfer orchestration with Python reference tests.",
+  "status": "done",
+  "dev_type": null,
+  "scope": null,
+  "package": "ccb-memory",
+  "priority": "P2",
+  "creator": "luck",
+  "assignee": "luck",
+  "createdAt": "2026-06-24",
+  "completedAt": "2026-06-24",
+  "branch": null,
+  "base_branch": "python-rust/rolepacks-versioning-translation",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "rust/crates/ccb-memory/src/auto_transfer.rs",
+    "rust/crates/ccb-memory/tests/integration_tests.rs"
+  ],
+  "notes": "Covers test_memory_module.py and test_memory_auto_transfer.py parity. Provider-specific transfer (test_memory_transfer_providers.py) and real-context composition (test_project_memory_real_context.py) remain pending.",
+  "meta": {}
+}

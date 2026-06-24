@@ -1,12 +1,21 @@
 use ccb_memory::{
-    agent_private_memory_path, auto_source_candidates, ensure_project_memory, load_memory_sources,
+    agent_private_memory_path, auto_source_candidates, auto_transfer::clear_seen,
+    auto_transfer::maybe_auto_transfer_with, ensure_project_memory, load_memory_sources,
     materialize_runtime_memory_bundle, project_memory_path, runtime_memory_bundle_path,
     seed_metadata_path, ContextFormatter, ContextTransfer, ConversationDeduper, ConversationEntry,
     ProjectMemorySource, TransferContext,
 };
 use ccb_storage::paths::PathLayout;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+type StartedRecord = (
+    String,
+    PathBuf,
+    Option<PathBuf>,
+    Option<String>,
+    Option<String>,
+);
 
 // ---------------------------------------------------------------------------
 // Deduper tests
@@ -75,6 +84,68 @@ fn test_deduper_collapse_tool_calls() {
     assert!(result[0].tool_calls.is_empty());
 }
 
+#[test]
+fn test_deduper_strips_various_protocol_markers() {
+    let deduper = ConversationDeduper::new();
+    let text = "Hello\nCCB_REQ_ID: 20260202-123456-001-1-1\nCCB_BEGIN: 20260202-123456-001-1-1\nCCB_DONE: 20260202-123456-001-1-1\n[CCB_ASYNC_SUBMITTED provider=codex]\nWorld";
+    let result = deduper.strip_protocol_markers(text);
+    assert!(!result.contains("CCB_REQ_ID"));
+    assert!(!result.contains("CCB_BEGIN"));
+    assert!(!result.contains("CCB_DONE"));
+    assert!(!result.contains("CCB_ASYNC_SUBMITTED"));
+    assert!(result.contains("Hello"));
+    assert!(result.contains("World"));
+}
+
+#[test]
+fn test_deduper_collapse_multiple_tool_kinds() {
+    let deduper = ConversationDeduper::new();
+    let entries = vec![ConversationEntry {
+        role: "assistant".to_string(),
+        content: "".to_string(),
+        tool_calls: vec![
+            serde_json::json!({"name": "Read", "input": {"file_path": "/a.py"}}),
+            serde_json::json!({"name": "Read", "input": {"file_path": "/b.py"}}),
+            serde_json::json!({"name": "Bash", "input": {"command": "ls"}}),
+        ],
+        ..Default::default()
+    }];
+    let result = deduper.collapse_tool_calls(&entries);
+    assert!(result[0].content.contains("Read 2 file(s)"));
+    assert!(result[0].content.contains("Bash 1 command(s)"));
+}
+
+#[test]
+fn test_deduper_dedupe_messages_keeps_different() {
+    let deduper = ConversationDeduper::new();
+    let entries = vec![
+        ConversationEntry {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            ..Default::default()
+        },
+        ConversationEntry {
+            role: "assistant".to_string(),
+            content: "Hi".to_string(),
+            ..Default::default()
+        },
+        ConversationEntry {
+            role: "user".to_string(),
+            content: "How are you?".to_string(),
+            ..Default::default()
+        },
+    ];
+    let result = deduper.dedupe_messages(&entries);
+    assert_eq!(result.len(), 3);
+}
+
+#[test]
+fn test_deduper_dedupe_messages_empty() {
+    let deduper = ConversationDeduper::new();
+    let result = deduper.dedupe_messages(&[]);
+    assert!(result.is_empty());
+}
+
 // ---------------------------------------------------------------------------
 // Formatter tests
 // ---------------------------------------------------------------------------
@@ -133,6 +204,26 @@ fn test_formatter_truncate_to_limit() {
     ];
     let result = formatter.truncate_to_limit(&conversations, None);
     assert!(result.len() <= 1);
+}
+
+#[test]
+fn test_formatter_estimate_tokens() {
+    let formatter = ContextFormatter::new(1000);
+    let text = "a".repeat(400);
+    assert_eq!(formatter.estimate_tokens(&text), 100);
+}
+
+#[test]
+fn test_formatter_truncate_keeps_newest_pairs() {
+    let formatter = ContextFormatter::new(500);
+    let conversations = vec![
+        ("a".repeat(400), "b".repeat(400)),
+        ("c".repeat(400), "d".repeat(400)),
+        ("e".repeat(400), "f".repeat(400)),
+    ];
+    let result = formatter.truncate_to_limit(&conversations, Some(500));
+    assert_eq!(result.len(), 2);
+    assert_eq!(result.last().unwrap().0, "e".repeat(400));
 }
 
 #[test]
@@ -210,6 +301,31 @@ fn test_session_not_found() {
         result,
         Err(ccb_memory::MemoryError::SessionNotFound(_))
     ));
+}
+
+#[test]
+fn test_parse_session_tolerates_corrupted_lines() {
+    let parser = ccb_memory::ClaudeSessionParser::default();
+    let path = write_temp_session(
+        r#"{"type": "user", "message": {"content": "Hello"}}
+invalid json
+{"type": "assistant", "message": {"content": "Hi"}}"#,
+    );
+    let entries = parser.parse_session(&path).unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0].role, "user");
+    assert_eq!(entries[1].role, "assistant");
+}
+
+#[test]
+fn test_get_session_info_uses_file_stem() {
+    let parser = ccb_memory::ClaudeSessionParser::default();
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("my-session.jsonl");
+    std::fs::write(&path, "{}\n").unwrap();
+    let info = parser.get_session_info(&path).unwrap();
+    assert_eq!(info.session_id, "my-session");
+    assert_eq!(info.session_path, path.to_string_lossy().to_string());
 }
 
 // ---------------------------------------------------------------------------
@@ -958,4 +1074,91 @@ fn materialize_runtime_memory_bundle_handles_invalid_agent_name() {
     assert!(!result.written);
     assert!(result.sources.is_empty());
     assert!(!result.warnings.is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Auto-transfer tests (parity with test_memory_auto_transfer.py)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn maybe_auto_transfer_starts_once_for_same_key() {
+    clear_seen();
+    std::env::set_var("CCB_CTX_TRANSFER_ON_SESSION_SWITCH", "1");
+    let tmp = tempfile::tempdir().unwrap();
+    let original_cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+    let session_path = tmp.path().join("session.json");
+    let mut started: Vec<StartedRecord> = Vec::new();
+    let mut start = |provider: &str,
+                     work_dir: &Path,
+                     sp: Option<&Path>,
+                     sid: Option<&str>,
+                     pid: Option<&str>| {
+        started.push((
+            provider.to_string(),
+            work_dir.to_path_buf(),
+            sp.map(|p| p.to_path_buf()),
+            sid.map(|s| s.to_string()),
+            pid.map(|s| s.to_string()),
+        ));
+    };
+
+    maybe_auto_transfer_with(
+        "codex",
+        tmp.path(),
+        Some(&session_path),
+        Some("session-1"),
+        Some("proj-1"),
+        &mut start,
+    );
+    maybe_auto_transfer_with(
+        "codex",
+        tmp.path(),
+        Some(&session_path),
+        Some("session-1"),
+        Some("proj-1"),
+        &mut start,
+    );
+
+    assert_eq!(started.len(), 1);
+    assert_eq!(started[0].0, "codex");
+    assert_eq!(started[0].1, tmp.path());
+    std::env::set_current_dir(original_cwd).unwrap();
+}
+
+#[test]
+fn maybe_auto_transfer_skips_foreign_work_dir() {
+    clear_seen();
+    std::env::set_var("CCB_CTX_TRANSFER_ON_SESSION_SWITCH", "1");
+    let tmp = tempfile::tempdir().unwrap();
+    let original_cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(tmp.path()).unwrap();
+    let other = tmp.path().join("other");
+    std::fs::create_dir(&other).unwrap();
+    let mut started: Vec<StartedRecord> = Vec::new();
+    let mut start = |provider: &str,
+                     work_dir: &Path,
+                     sp: Option<&Path>,
+                     sid: Option<&str>,
+                     pid: Option<&str>| {
+        started.push((
+            provider.to_string(),
+            work_dir.to_path_buf(),
+            sp.map(|p| p.to_path_buf()),
+            sid.map(|s| s.to_string()),
+            pid.map(|s| s.to_string()),
+        ));
+    };
+
+    maybe_auto_transfer_with(
+        "codex",
+        &other,
+        Some(Path::new("/tmp/session.json")),
+        Some("session-1"),
+        Some("proj-1"),
+        &mut start,
+    );
+
+    assert!(started.is_empty());
+    std::env::set_current_dir(original_cwd).unwrap();
 }
