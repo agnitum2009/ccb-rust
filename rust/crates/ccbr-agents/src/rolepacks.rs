@@ -1304,7 +1304,7 @@ pub fn project_role_lock_warning(
         return Ok(String::new());
     }
     Ok(format!(
-        "role_lock_mismatch: {} locked version={} digest={} but installed current is version={} digest={}; run `ccb` interactively and accept role lock refresh to adopt the installed role version",
+        "role_lock_mismatch: {} locked version={} digest={} but installed current is version={} digest={}; run `ccbr` interactively and accept role lock refresh to adopt the installed role version",
         role.id,
         if locked_version.is_empty() { "unknown" } else { locked_version },
         if locked_digest.is_empty() { "unknown" } else { locked_digest },
@@ -1386,7 +1386,7 @@ pub fn resolve_project_agent_role(
         None => Ok(Some(ProjectRoleResolution {
             role_id: role_id.clone(),
             role: None,
-            warning: format!("role_not_installed: {role_id}; run `ccb roles install {role_id}`"),
+            warning: format!("role_not_installed: {role_id}; run `ccbr roles install {role_id}`"),
             lock_path,
         })),
     }
@@ -2985,7 +2985,7 @@ pub fn add_role_to_project_config(
     );
     result.insert(
         "note".into(),
-        "run ccb reload to mount new role agent".into(),
+        "run ccbr reload to mount new role agent".into(),
     );
 
     Ok(result)
