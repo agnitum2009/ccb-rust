@@ -1179,8 +1179,9 @@ impl JobDispatcher {
             "reason": reason,
             "detail": detail,
         });
+        facade.set_message_state(&edge.parent_message_id, MessageState::Failed, updated_at);
         if let Some(parent_job) = self.get(&edge.parent_job_id).cloned() {
-            let _ = facade.record_notice(
+            facade.record_notice(
                 &crate::adapters::mailbox::to_mailbox_job_record(&parent_job),
                 &reply,
                 Some(diagnostics.clone()),
@@ -1188,8 +1189,6 @@ impl JobDispatcher {
                 ReplyTerminalStatus::Failed,
                 Some(&edge.original_caller),
             );
-        } else {
-            facade.set_message_state(&edge.parent_message_id, MessageState::Failed, updated_at);
         }
     }
 

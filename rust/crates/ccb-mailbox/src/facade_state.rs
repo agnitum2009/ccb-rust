@@ -158,7 +158,12 @@ fn next_message_state(
             MessageState::PartiallyReplied
         };
     }
-    let terminal_replies: Vec<_> = replies.iter().filter(|r| !is_notice(r)).collect();
+    let non_notice: Vec<_> = replies.iter().filter(|r| !is_notice(r)).collect();
+    let terminal_replies = if non_notice.is_empty() {
+        replies.iter().collect()
+    } else {
+        non_notice
+    };
     if !terminal_replies.is_empty() {
         return reply_terminal_state(
             &terminal_replies

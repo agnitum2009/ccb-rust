@@ -650,3 +650,188 @@ fn callback_repair_submits_missing_continuation() {
     assert_eq!(continuation.agent_name, "codex");
     assert!(continuation.request.body.contains("repaired result"));
 }
+
+#[test]
+fn callback_timeout_records_failure_notice_and_fails_parent_message() {
+    let offset = Arc::new(AtomicU64::new(0));
+    let offset_c = Arc::clone(&offset);
+    let clock: Arc<dyn Fn() -> String + Send + Sync> = Arc::new(move || {
+        let base = chrono::DateTime::parse_from_rfc3339("2026-03-30T00:00:00Z").unwrap();
+        let dt = base + chrono::Duration::milliseconds(offset_c.load(Ordering::SeqCst) as i64);
+        dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    });
+    let (mut dispatcher, layout, _dir) = {
+        let (d, l, t) = dispatcher_with_mailbox_and_clock(clock);
+        (d.with_callback_timeout_s(0.1), l, t)
+    };
+
+    let parent_job_id = dispatcher
+        .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    let child_job_id = dispatcher
+        .submit(
+            &callback_envelope("claude", "codex", "child task"),
+            "claude",
+            None,
+        )
+        .jobs[0]
+        .job_id
+        .clone();
+    let edge = CallbackEdgeStore::new(&layout)
+        .get_latest_for_child_job(&child_job_id)
+        .unwrap();
+    dispatcher.complete_with_decision(&parent_job_id, &decision("delegated"));
+
+    offset.store(200, Ordering::SeqCst);
+    dispatcher.tick();
+
+    let parent_message = MessageStore::new(&layout)
+        .get_latest(&edge.parent_message_id)
+        .unwrap();
+    assert_eq!(parent_message.message_state, MessageState::Failed);
+    let replies = ReplyStore::new(&layout).list_message(&edge.parent_message_id);
+    assert_eq!(replies.len(), 1);
+    assert_eq!(replies[0].terminal_status, ReplyTerminalStatus::Failed);
+    assert!(replies[0].diagnostics.get("callback_failure").is_some());
+}
+
+#[test]
+fn callback_repair_from_pending_edge_with_child_reply() {
+    let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
+    let parent_job_id = dispatcher
+        .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    dispatcher.complete(&parent_job_id, JobStatus::Completed, "delegated");
+    let parent_job = dispatcher.get(&parent_job_id).cloned().unwrap();
+    let child_job_id = dispatcher
+        .submit(
+            &ask_envelope("claude", "codex", "child task"),
+            "claude",
+            None,
+        )
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    let child_job = dispatcher.get(&child_job_id).cloned().unwrap();
+    dispatcher.complete(&child_job.job_id, JobStatus::Completed, "repaired result");
+
+    let parent_attempt = ccb_mailbox::stores::AttemptStore::new(&layout)
+        .get_latest_by_job_id(&parent_job.job_id)
+        .unwrap();
+    let child_attempt = ccb_mailbox::stores::AttemptStore::new(&layout)
+        .get_latest_by_job_id(&child_job.job_id)
+        .unwrap();
+    let reply = ReplyRecord {
+        reply_id: format!(
+            "rep_{}",
+            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+        ),
+        message_id: child_attempt.message_id.clone(),
+        attempt_id: child_attempt.attempt_id.clone(),
+        agent_name: child_job.agent_name.clone(),
+        terminal_status: ReplyTerminalStatus::Completed,
+        reply: "repaired result".to_string(),
+        reply_artifact: None,
+        diagnostics: serde_json::json!({}),
+        finished_at: "2026-03-30T00:00:05Z".to_string(),
+    };
+    ccb_mailbox::stores::ReplyStore::new(&layout)
+        .append(&reply)
+        .unwrap();
+
+    let edge = CallbackEdgeRecord {
+        edge_id: format!(
+            "cb_{}",
+            &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]
+        ),
+        parent_job_id: parent_job.job_id.clone(),
+        parent_message_id: parent_attempt.message_id.clone(),
+        parent_agent: parent_job.agent_name.clone(),
+        child_job_id: child_job.job_id.clone(),
+        child_message_id: child_attempt.message_id.clone(),
+        callback_target_agent: parent_job.agent_name.clone(),
+        original_caller: "user".to_string(),
+        original_task_id: parent_job.request.task_id.clone(),
+        state: CallbackEdgeState::Pending,
+        child_reply_id: None,
+        child_status: Some("completed".to_string()),
+        continuation_job_id: None,
+        continuation_message_id: None,
+        timeout_at: Some("2099-01-01T00:00:00Z".to_string()),
+        created_at: "2026-03-30T00:00:00Z".to_string(),
+        updated_at: "2026-03-30T00:00:00Z".to_string(),
+        diagnostics: serde_json::json!({
+            "route_mode": "callback",
+            "child_agent": child_job.agent_name,
+            "parent_body": "root task",
+            "child_body": "child task",
+        }),
+    };
+    CallbackEdgeStore::new(&layout).append(&edge).unwrap();
+
+    dispatcher.tick();
+
+    let edge = CallbackEdgeStore::new(&layout)
+        .get_latest(&edge.edge_id)
+        .unwrap();
+    assert_eq!(edge.state, CallbackEdgeState::ContinuationSubmitted);
+    assert!(edge.continuation_job_id.is_some());
+}
+
+#[test]
+fn callback_repair_reuses_existing_continuation_job() {
+    let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
+    let parent_job_id = dispatcher
+        .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.tick();
+    let child_job_id = dispatcher
+        .submit(
+            &callback_envelope("claude", "codex", "child task"),
+            "claude",
+            None,
+        )
+        .jobs[0]
+        .job_id
+        .clone();
+    dispatcher.complete_with_decision(&parent_job_id, &decision("delegated"));
+    dispatcher.tick();
+    dispatcher.complete_with_decision(&child_job_id, &decision("child result"));
+
+    let edge = CallbackEdgeStore::new(&layout)
+        .get_latest_for_child_job(&child_job_id)
+        .unwrap();
+    let existing_continuation_id = edge.continuation_job_id.clone().unwrap();
+
+    // Simulate crash: roll the edge back to ChildCompleted but leave the
+    // continuation job in place.
+    let rolled_back = CallbackEdgeRecord {
+        state: CallbackEdgeState::ChildCompleted,
+        continuation_job_id: None,
+        continuation_message_id: None,
+        ..edge.clone()
+    };
+    CallbackEdgeStore::new(&layout)
+        .append(&rolled_back)
+        .unwrap();
+
+    dispatcher.tick();
+
+    let edge = CallbackEdgeStore::new(&layout)
+        .get_latest(&edge.edge_id)
+        .unwrap();
+    assert_eq!(edge.state, CallbackEdgeState::ContinuationSubmitted);
+    assert_eq!(
+        edge.continuation_job_id.as_ref().unwrap(),
+        &existing_continuation_id
+    );
+}
