@@ -127,6 +127,7 @@ tempfile = { workspace = true }
 libc = "0.2"
 md5 = { workspace = true }
 sha2 = { workspace = true }
+walkdir = { workspace = true }
 ccb-storage = { workspace = true }
 ccb-types = { workspace = true }
 ccb-provider-core = { workspace = true }
@@ -137,8 +138,10 @@ ccb-mailbox = { workspace = true }
 ccb-agents = { workspace = true }
 ccb-terminal = { workspace = true }
 ccb-memory = { workspace = true }
+ccb-provider-sessions = { workspace = true }
 rusqlite = { version = "0.31", features = ["bundled"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 sha2 = { workspace = true }
+filetime = "0.2"

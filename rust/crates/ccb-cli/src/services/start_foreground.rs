@@ -197,7 +197,7 @@ pub fn attach_started_project_namespace(
     attach_started_project_namespace_with(context, &runtime, client)
 }
 
-pub fn attach_started_project_namespace_with<C: AttachClient>(
+pub fn attach_started_project_namespace_with<C>(
     context: &CliContext,
     runtime: &dyn AttachRuntime,
     client: C,
@@ -552,9 +552,7 @@ fn tmux_client_tty(
             .stdout
             .lines()
             .filter_map(|line| {
-                let mut parts = line.splitn(2, '\t');
-                let pid_text = parts.next()?;
-                let tty_text = parts.next()?;
+                let (pid_text, tty_text) = line.split_once('\t')?;
                 let pid = pid_text.trim().parse::<i64>().ok()?;
                 if pid != client_pid as i64 {
                     return None;

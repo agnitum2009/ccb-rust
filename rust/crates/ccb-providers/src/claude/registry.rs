@@ -4,7 +4,7 @@ use std::sync::{Mutex, OnceLock};
 
 use serde_json::Value;
 
-use super::session::{load_project_session, ClaudeProjectSession};
+use super::session::ClaudeProjectSession;
 
 /// An entry in the Claude session registry.
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ impl ClaudeSessionRegistry {
 
     /// Register (or refresh) the session binding for a work directory.
     pub fn register(&self, work_dir: &Path, now: &str) -> Option<ClaudeSessionEntry> {
-        let session = load_project_session(work_dir, None)?;
+        let session = load_claude_session(work_dir)?;
         let key = registry_key(work_dir);
         let entry = ClaudeSessionEntry::from_session(work_dir, &session, now);
         let mut sessions = self.sessions.lock().unwrap();
@@ -97,6 +97,73 @@ impl ClaudeSessionRegistry {
     pub fn session_path_for(&self, work_dir: &Path) -> Option<PathBuf> {
         self.get(work_dir).and_then(|e| e.session_path)
     }
+
+    /// Find the Claude session file for a work directory, respecting workspace bindings.
+    /// Mirrors Python `ClaudeRegistrySessionMixin._find_claude_session_file`.
+    pub fn _find_claude_session_file(&self, work_dir: &Path) -> Option<PathBuf> {
+        find_claude_session_file(work_dir)
+    }
+
+    /// Load the Claude project session for a work directory.
+    /// Mirrors Python `ClaudeRegistrySessionMixin._load_claude_session`.
+    pub fn _load_claude_session(&self, work_dir: &Path) -> Option<ClaudeProjectSession> {
+        load_claude_session(work_dir)
+    }
+}
+
+const CLAUDE_SESSION_FILENAME: &str = ".claude-session";
+
+pub(crate) fn load_claude_session(work_dir: &Path) -> Option<ClaudeProjectSession> {
+    let session_file = find_claude_session_file(work_dir)?;
+    let raw = std::fs::read_to_string(&session_file).ok()?;
+    let data: HashMap<String, Value> = serde_json::from_str(&raw).ok()?;
+    Some(ClaudeProjectSession { session_file, data })
+}
+
+pub(crate) fn find_claude_session_file(work_dir: &Path) -> Option<PathBuf> {
+    if let Some(session_file) = super::session::find_project_session_file(work_dir, None) {
+        return Some(session_file);
+    }
+    let binding = workspace_binding_for_dir(work_dir)?;
+    let target_project = binding.target_project?;
+    let agent_name = binding.agent_name?;
+    let instance =
+        ccb_provider_core::instance_resolution::named_agent_instance(&agent_name, "claude");
+    let filename = ccb_provider_core::pathing::session_filename_for_instance(
+        CLAUDE_SESSION_FILENAME,
+        instance.as_deref(),
+    );
+    let ccb_dir = target_project.join(".ccb");
+    let candidate = ccb_dir.join(&filename);
+    candidate.exists().then_some(candidate)
+}
+
+#[derive(Debug, Default)]
+struct WorkspaceBinding {
+    target_project: Option<PathBuf>,
+    agent_name: Option<String>,
+}
+
+fn workspace_binding_for_dir(work_dir: &Path) -> Option<WorkspaceBinding> {
+    let binding_path = work_dir.join(".ccb-workspace.json");
+    if !binding_path.exists() {
+        return None;
+    }
+    let raw = std::fs::read_to_string(&binding_path).ok()?;
+    let value: Value = serde_json::from_str(&raw).ok()?;
+    let obj = value.as_object()?;
+    let target_project = obj
+        .get("target_project")
+        .and_then(|v| v.as_str())
+        .map(PathBuf::from);
+    let agent_name = obj
+        .get("agent_name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    Some(WorkspaceBinding {
+        target_project,
+        agent_name,
+    })
 }
 
 fn registry_key(work_dir: &Path) -> String {
@@ -189,5 +256,49 @@ mod tests {
             entry.session_path.as_ref().unwrap().to_string_lossy(),
             "/path/new.jsonl"
         );
+    }
+
+    #[test]
+    fn test_registry_resolves_named_workspace_session_file() {
+        let tmp = TempDir::new().unwrap();
+        let project_root = tmp.path().join("project");
+        std::fs::create_dir(&project_root).unwrap();
+        let workspace = tmp.path().join("workspace-agent3");
+        std::fs::create_dir(&workspace).unwrap();
+        std::fs::write(
+            workspace.join(".ccb-workspace.json"),
+            serde_json::json!({
+                "schema_version": 2,
+                "record_type": "workspace_binding",
+                "target_project": project_root.to_string_lossy().to_string(),
+                "project_id": "demo-project",
+                "agent_name": "agent3",
+                "workspace_mode": "linked",
+                "workspace_path": workspace.to_string_lossy().to_string(),
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let ccb_dir = project_root.join(".ccb");
+        std::fs::create_dir(&ccb_dir).unwrap();
+        let session_file = ccb_dir.join(".claude-agent3-session");
+        std::fs::write(
+            &session_file,
+            serde_json::json!({
+                "active": true,
+                "work_dir": workspace.to_string_lossy().to_string(),
+                "claude_session_id": "sid",
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let registry = ClaudeSessionRegistry::new();
+        assert_eq!(
+            registry._find_claude_session_file(&workspace),
+            Some(session_file.clone())
+        );
+        let loaded = registry._load_claude_session(&workspace).unwrap();
+        assert_eq!(loaded.session_file, session_file);
     }
 }

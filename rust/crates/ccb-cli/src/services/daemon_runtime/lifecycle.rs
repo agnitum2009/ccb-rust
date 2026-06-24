@@ -292,8 +292,8 @@ fn _timestamp_seconds(text: &str) -> Option<Duration> {
     }
 
     // Try ISO 8601 / RFC 3339 parsing (accepts trailing `Z`)
-    let normalized = if trimmed.ends_with('Z') {
-        format!("{}+00:00", &trimmed[..trimmed.len() - 1])
+    let normalized = if let Some(stripped) = trimmed.strip_suffix('Z') {
+        format!("{}+00:00", stripped)
     } else {
         trimmed.to_string()
     };

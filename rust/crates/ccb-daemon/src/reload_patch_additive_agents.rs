@@ -183,13 +183,15 @@ mod tests {
     }
 
     fn config_with_window(layout: &str, agents: &[&str]) -> ProjectConfig {
-        let mut config = ProjectConfig::default();
-        config.windows = Some(vec![ccb_agents::models::WindowSpec {
-            name: "main".to_string(),
-            order: 0,
-            layout_spec: layout.to_string(),
-            agent_names: agents.iter().map(|s| s.to_string()).collect(),
-        }]);
+        let mut config = ProjectConfig {
+            windows: Some(vec![ccb_agents::models::WindowSpec {
+                name: "main".to_string(),
+                order: 0,
+                layout_spec: layout.to_string(),
+                agent_names: agents.iter().map(|s| s.to_string()).collect(),
+            }]),
+            ..Default::default()
+        };
         for agent in agents {
             config.agents.insert(
                 agent.to_string(),
@@ -236,8 +238,10 @@ mod tests {
 
     #[test]
     fn test_additive_agent_steps_skips_added_windows() {
-        let mut old_config = ProjectConfig::default();
-        old_config.windows = Some(vec![]);
+        let old_config = ProjectConfig {
+            windows: Some(vec![]),
+            ..Default::default()
+        };
         let new_config = config_with_window("claude", &["claude"]);
         let old_topology = build_namespace_topology(&old_config);
         let new_topology = build_namespace_topology(&new_config);

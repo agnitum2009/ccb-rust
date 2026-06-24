@@ -183,14 +183,15 @@ mod tests {
     use ccb_agents::models::{ProjectConfig, WindowSpec};
 
     fn base_config() -> ProjectConfig {
-        let mut config = ProjectConfig::default();
-        config.windows = Some(vec![WindowSpec {
-            name: "main".to_string(),
-            order: 0,
-            layout_spec: "agent1, agent2".to_string(),
-            agent_names: vec!["agent1".to_string(), "agent2".to_string()],
-        }]);
-        config
+        ProjectConfig {
+            windows: Some(vec![WindowSpec {
+                name: "main".to_string(),
+                order: 0,
+                layout_spec: "agent1, agent2".to_string(),
+                agent_names: vec!["agent1".to_string(), "agent2".to_string()],
+            }]),
+            ..Default::default()
+        }
     }
 
     fn topology(config: &ProjectConfig) -> NamespaceTopologyPlan {

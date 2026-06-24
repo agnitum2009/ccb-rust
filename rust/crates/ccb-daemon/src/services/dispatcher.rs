@@ -1816,8 +1816,7 @@ impl JobDispatcher {
         let latest = store
             .list_message(&attempt.message_id)
             .into_iter()
-            .filter(|a| a.agent_name == attempt.agent_name)
-            .last();
+            .rfind(|a| a.agent_name == attempt.agent_name);
         matches!(latest, Some(l) if l.attempt_id == attempt.attempt_id)
     }
 
@@ -1984,8 +1983,7 @@ impl JobDispatcher {
         let latest = store
             .list_message(&attempt.message_id)
             .into_iter()
-            .filter(|a| a.agent_name == attempt.agent_name)
-            .last();
+            .rfind(|a| a.agent_name == attempt.agent_name);
         match latest {
             Some(l) if l.attempt_id != attempt.attempt_id => Some(l.job_id),
             _ => None,
@@ -2232,6 +2230,7 @@ impl JobDispatcher {
 
     /// Create a reply_delivery job carrying `reply` from `agent` to `requester`,
     /// linked to `source_job_id`. Returns the new job id.
+    #[allow(clippy::too_many_arguments)]
     fn create_reply_delivery_job(
         &mut self,
         source_job_id: &str,
@@ -2327,8 +2326,7 @@ impl JobDispatcher {
         if deliveries.len() > 1 {
             let newest = deliveries
                 .iter()
-                .filter(|id| *id != delivery_id)
-                .last()
+                .rfind(|id| *id != delivery_id)
                 .cloned();
             return serde_json::json!({
                 "job_id": source.job_id,

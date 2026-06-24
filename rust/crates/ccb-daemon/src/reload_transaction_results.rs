@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn failed_result_includes_error_details() {
         let kwargs = sample_kwargs();
-        let error = std::io::Error::new(std::io::ErrorKind::Other, "boom");
+        let error = std::io::Error::other("boom");
         let result = failed_result(
             "publish_failed",
             &error,

@@ -545,6 +545,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone)]
+    #[allow(dead_code, clippy::large_enum_variant)]
     enum Recorded {
         Job(JobRecord),
         Message(MessageRecord),

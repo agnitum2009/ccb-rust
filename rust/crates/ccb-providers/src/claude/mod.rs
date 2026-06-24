@@ -17,4 +17,5 @@ pub mod protocol_runtime;
 pub mod registry_runtime;
 pub mod registry_support;
 pub mod resolver_runtime;
+pub mod session_index_runtime;
 pub mod session_runtime;

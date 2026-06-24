@@ -155,29 +155,30 @@ fn test_project_namespace_controller_destroy_persists_destroyed_state() {
 }
 
 fn two_window_sidebar_config() -> ProjectConfig {
-    let mut config = ProjectConfig::default();
-    config.topology_signature = Some("cmd; agent1:codex".to_string());
-    config.entry_window = Some("review".to_string());
-    config.windows = Some(vec![
-        WindowSpec {
-            name: "main".to_string(),
-            order: 0,
-            layout_spec: "agent1".to_string(),
-            agent_names: vec!["agent1".to_string()],
-        },
-        WindowSpec {
-            name: "review".to_string(),
-            order: 1,
-            layout_spec: "agent2, agent3".to_string(),
-            agent_names: vec!["agent2".to_string(), "agent3".to_string()],
-        },
-    ]);
-    config.sidebar = Some(SidebarSpec {
-        mode: SIDEBAR_MODE_EVERY_WINDOW.into(),
-        width: SidebarDimension::Percent("15%".into()),
-        bottom_height: 20,
-    });
-    config
+    ProjectConfig {
+        topology_signature: Some("cmd; agent1:codex".to_string()),
+        entry_window: Some("review".to_string()),
+        windows: Some(vec![
+            WindowSpec {
+                name: "main".to_string(),
+                order: 0,
+                layout_spec: "agent1".to_string(),
+                agent_names: vec!["agent1".to_string()],
+            },
+            WindowSpec {
+                name: "review".to_string(),
+                order: 1,
+                layout_spec: "agent2, agent3".to_string(),
+                agent_names: vec!["agent2".to_string(), "agent3".to_string()],
+            },
+        ]),
+        sidebar: Some(SidebarSpec {
+            mode: SIDEBAR_MODE_EVERY_WINDOW.into(),
+            width: SidebarDimension::Percent("15%".into()),
+            bottom_height: 20,
+        }),
+        ..Default::default()
+    }
 }
 
 fn topology_plan(
@@ -318,14 +319,15 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
 }
 
 fn config_with_windows(windows: Vec<WindowSpec>, sidebar_width: SidebarDimension) -> ProjectConfig {
-    let mut config = ProjectConfig::default();
-    config.windows = Some(windows);
-    config.sidebar = Some(SidebarSpec {
-        mode: SIDEBAR_MODE_EVERY_WINDOW.into(),
-        width: sidebar_width,
-        bottom_height: 20,
-    });
-    config
+    ProjectConfig {
+        windows: Some(windows),
+        sidebar: Some(SidebarSpec {
+            mode: SIDEBAR_MODE_EVERY_WINDOW.into(),
+            width: sidebar_width,
+            bottom_height: 20,
+        }),
+        ..Default::default()
+    }
 }
 
 #[test]

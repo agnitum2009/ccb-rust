@@ -601,6 +601,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn build_request<'a>(
         registry: &'a TestRegistry,
         runtime_service: &'a TestRuntimeService,
@@ -617,7 +618,7 @@ mod tests {
             remount_project_fn: None,
             clock: Box::new(|| "2024-01-01T00:00:00Z".to_string()),
             event_store,
-            upsert_if_changed_fn: Box::new(|r| Ok(r)),
+            upsert_if_changed_fn: Box::new(Ok::<AgentRuntime, crate::DaemonError>),
             build_starting_runtime_fn: Box::new(|agent_name, runtime, attempted_at| {
                 let mut starting = runtime.cloned().unwrap_or_else(|| AgentRuntime {
                     agent_name: agent_name.to_string(),

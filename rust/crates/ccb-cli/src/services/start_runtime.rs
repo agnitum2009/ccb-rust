@@ -151,20 +151,16 @@ fn summary_from_payload(
         .map(|arr| {
             arr.iter()
                 .filter_map(|item| {
-                    if let Some(obj) = item.as_object() {
-                        Some(ProjectTmuxCleanupSummary {
-                            socket_name: obj
-                                .get("socket_name")
-                                .and_then(|v| v.as_str())
-                                .map(String::from),
-                            owned_panes: strings_from_obj(obj, "owned_panes"),
-                            active_panes: strings_from_obj(obj, "active_panes"),
-                            orphaned_panes: strings_from_obj(obj, "orphaned_panes"),
-                            killed_panes: strings_from_obj(obj, "killed_panes"),
-                        })
-                    } else {
-                        None
-                    }
+                    item.as_object().map(|obj| ProjectTmuxCleanupSummary {
+                        socket_name: obj
+                            .get("socket_name")
+                            .and_then(|v| v.as_str())
+                            .map(String::from),
+                        owned_panes: strings_from_obj(obj, "owned_panes"),
+                        active_panes: strings_from_obj(obj, "active_panes"),
+                        orphaned_panes: strings_from_obj(obj, "orphaned_panes"),
+                        killed_panes: strings_from_obj(obj, "killed_panes"),
+                    })
                 })
                 .collect()
         })

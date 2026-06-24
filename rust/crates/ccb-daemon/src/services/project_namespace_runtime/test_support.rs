@@ -896,8 +896,10 @@ mod tests {
 
     #[test]
     fn test_window_visibility_lag_hides_new_windows() {
-        let mut state = FakeTmuxState::default();
-        state.window_visibility_lag = 2;
+        let mut state = FakeTmuxState {
+            window_visibility_lag: 2,
+            ..Default::default()
+        };
         state.create_window("session", "win");
 
         assert!(list_windows(&mut state, "session").is_empty());
@@ -915,8 +917,10 @@ mod tests {
 
     #[test]
     fn test_pane_visibility_lag_hides_new_panes() {
-        let mut state = FakeTmuxState::default();
-        state.pane_visibility_lag = 1;
+        let mut state = FakeTmuxState {
+            pane_visibility_lag: 1,
+            ..Default::default()
+        };
         let window = state.create_window("session", "win");
 
         assert!(list_panes(&mut state, "session:win").is_empty());

@@ -4,28 +4,29 @@ use ccb_agents::models::{
 use ccb_daemon::services::project_namespace_runtime::topology_plan::build_namespace_topology_plan;
 
 fn test_config_with_sidebar() -> ProjectConfig {
-    let mut config = ProjectConfig::default();
-    config.topology_signature = Some("cmd; agent1:codex".to_string());
-    config.entry_window = Some("review".to_string());
-    config.windows = Some(vec![WindowSpec {
-        name: "main".to_string(),
-        order: 0,
-        layout_spec: "agent1".to_string(),
-        agent_names: vec!["agent1".to_string()],
-    }]);
-    config.tool_windows = Some(vec![ToolWindowSpec {
-        name: "logs".to_string(),
-        order: 1,
-        command: "tail -f /tmp/log".to_string(),
-        label: Some("Logs".to_string()),
-        show_in_sidebar: true,
-    }]);
-    config.sidebar = Some(SidebarSpec {
-        mode: ccb_agents::models::SIDEBAR_MODE_EVERY_WINDOW.into(),
-        width: SidebarDimension::Percent("20%".into()),
-        bottom_height: 25,
-    });
-    config
+    ProjectConfig {
+        topology_signature: Some("cmd; agent1:codex".to_string()),
+        entry_window: Some("review".to_string()),
+        windows: Some(vec![WindowSpec {
+            name: "main".to_string(),
+            order: 0,
+            layout_spec: "agent1".to_string(),
+            agent_names: vec!["agent1".to_string()],
+        }]),
+        tool_windows: Some(vec![ToolWindowSpec {
+            name: "logs".to_string(),
+            order: 1,
+            command: "tail -f /tmp/log".to_string(),
+            label: Some("Logs".to_string()),
+            show_in_sidebar: true,
+        }]),
+        sidebar: Some(SidebarSpec {
+            mode: ccb_agents::models::SIDEBAR_MODE_EVERY_WINDOW.into(),
+            width: SidebarDimension::Percent("20%".into()),
+            bottom_height: 25,
+        }),
+        ..Default::default()
+    }
 }
 
 #[test]
@@ -109,28 +110,30 @@ fn test_build_topology_plan_entry_window_defaults_to_first_window() {
 
 #[test]
 fn test_build_topology_plan_tool_window_order_offset() {
-    let mut config = ProjectConfig::default();
-    config.windows = Some(vec![
-        WindowSpec {
-            name: "a".to_string(),
+    let config = ProjectConfig {
+        windows: Some(vec![
+            WindowSpec {
+                name: "a".to_string(),
+                order: 0,
+                layout_spec: "agent1".to_string(),
+                agent_names: vec!["agent1".to_string()],
+            },
+            WindowSpec {
+                name: "b".to_string(),
+                order: 1,
+                layout_spec: "agent2".to_string(),
+                agent_names: vec!["agent2".to_string()],
+            },
+        ]),
+        tool_windows: Some(vec![ToolWindowSpec {
+            name: "tool".to_string(),
             order: 0,
-            layout_spec: "agent1".to_string(),
-            agent_names: vec!["agent1".to_string()],
-        },
-        WindowSpec {
-            name: "b".to_string(),
-            order: 1,
-            layout_spec: "agent2".to_string(),
-            agent_names: vec!["agent2".to_string()],
-        },
-    ]);
-    config.tool_windows = Some(vec![ToolWindowSpec {
-        name: "tool".to_string(),
-        order: 0,
-        command: "cmd".to_string(),
-        label: None,
-        show_in_sidebar: false,
-    }]);
+            command: "cmd".to_string(),
+            label: None,
+            show_in_sidebar: false,
+        }]),
+        ..Default::default()
+    };
 
     let plan = build_namespace_topology_plan(&config, None, None);
     assert_eq!(plan.windows.len(), 3);

@@ -200,7 +200,7 @@ pub fn connect_compatible_daemon(
 
 /// Build the identity payload used for daemon compatibility checks.
 fn config_identity_payload(context: &CliContext) -> Value {
-    let payload = match ccb_agents::config::load_project_config(&context.paths) {
+    match ccb_agents::config::load_project_config(&context.paths) {
         Ok(result) => {
             let identity =
                 ccb_agents::config_identity::project_config_identity_payload(&result.config);
@@ -210,8 +210,7 @@ fn config_identity_payload(context: &CliContext) -> Value {
             })
         }
         Err(_) => json!({"known_agents": Vec::<String>::new(), "config_signature": ""}),
-    };
-    payload
+    }
 }
 
 /// Record shutdown intent for the current project.

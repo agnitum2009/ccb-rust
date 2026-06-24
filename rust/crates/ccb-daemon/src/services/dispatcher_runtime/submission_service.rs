@@ -592,18 +592,16 @@ mod tests {
             self.attempts
                 .borrow()
                 .iter()
-                .filter(|a| a.agent_name == target)
+                .rfind(|a| a.agent_name == target)
                 .cloned()
-                .last()
         }
 
         fn attempt_latest_by_job_id(&self, job_id: &str) -> Option<AttemptRecord> {
             self.attempts
                 .borrow()
                 .iter()
-                .filter(|a| a.job_id == job_id)
+                .rfind(|a| a.job_id == job_id)
                 .cloned()
-                .last()
         }
 
         fn attempts_for_message(&self, message_id: &str) -> Vec<AttemptRecord> {
