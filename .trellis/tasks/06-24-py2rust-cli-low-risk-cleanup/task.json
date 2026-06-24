@@ -1,0 +1,26 @@
+{
+  "id": "py2rust-cli-low-risk-cleanup",
+  "name": "py2rust-cli-low-risk-cleanup",
+  "title": "py2rust parity matrix audit and quick wins",
+  "description": "",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "luck",
+  "assignee": "luck",
+  "createdAt": "2026-06-24",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "python-rust/rolepacks-versioning-translation",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "Remaining larger tasks identified during audit (still partial): cli_entrypoint (management install/update), daemon_lifecycle, providers, mailbox (dispatcher/fastpath integration), terminal_runtime (namespace/state integration), heartbeat (maintenance classifier), memory (broader auto-transfer/session tests), agents_roles (broader agent workspace), completion (full orchestration)."
+  "meta": {}
+}
