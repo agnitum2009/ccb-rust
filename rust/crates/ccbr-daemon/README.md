@@ -6,7 +6,7 @@ and `lib/fault_injection/`.
 ## Scope of this pass
 
 This crate provides a working daemon foundation focused on the critical paths
-for `ccb start`, `ccb stop`, `ccb status`, and provider pane management:
+for `ccbr start`, `ccbr stop`, `ccbr status`, and provider pane management:
 
 - Unix-domain-socket RPC server (`socket_server`)
 - Project namespace persistence (`services::project_namespace`)
@@ -48,7 +48,7 @@ migration pass and are documented here for follow-up work:
 ## Testing
 
 ```bash
-cd /home/agnitum/ccb/rust
+cd /home/agnitum/ccbr/rust
 cargo test -p ccbr-daemon
 cargo clippy -p ccbr-daemon
 ```
