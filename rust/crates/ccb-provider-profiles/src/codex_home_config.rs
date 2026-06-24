@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use camino::{Utf8Path, Utf8PathBuf};
+use ccb_memory::render_provider_home_memory;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -1381,42 +1382,32 @@ fn materialize_provider_memory_file(
     provider_memory_path: &Utf8Path,
     workspace_path: Option<&Utf8Path>,
 ) -> crate::Result<ccb_provider_core::memory_projection::MemoryProjectionResult> {
-    let mut sections: Vec<String> = Vec::new();
-    sections.push("# Provider User Memory\n".into());
+    let content = render_provider_home_memory(
+        project_root.as_std_path(),
+        agent_name,
+        provider,
+        workspace_path.map(|p| p.as_std_path()),
+        Some(provider_memory_path.as_std_path()),
+    )
+    .map_err(|e| {
+        crate::ProfilesError::Validation(format!("failed to render memory bundle: {e}"))
+    })?;
 
-    let project_memory = project_root.join(".ccb/ccb_memory.md");
-    if project_memory.is_file() {
-        sections.push(format!(
-            "\n## Project Memory\n\n{}",
-            safe_read_text(&project_memory)
-        ));
+    if content.trim().is_empty() {
+        let _ = fs::remove_file(target);
+        return Ok(
+            ccb_provider_core::memory_projection::memory_projection_result(
+                "skipped",
+                "no_memory_sources",
+                target.as_std_path(),
+                None,
+                None,
+                None,
+                None,
+            ),
+        );
     }
 
-    if provider_memory_path.is_file() {
-        sections.push(format!(
-            "\n## Provider Memory\n\n{}",
-            safe_read_text(provider_memory_path)
-        ));
-    }
-
-    if let Some(workspace) = workspace_path {
-        if workspace != project_root {
-            let workspace_memory = workspace.join(".ccb/ccb_memory.md");
-            if workspace_memory.is_file() {
-                sections.push(format!(
-                    "\n## Workspace Memory\n\n{}",
-                    safe_read_text(&workspace_memory)
-                ));
-            }
-        }
-    }
-
-    sections.push(format!(
-        "\n## Provider Context\n\n- provider: {}\n- agent: {}\n",
-        provider, agent_name
-    ));
-
-    let content = sections.join("\n");
     fs::create_dir_all(target.parent().unwrap_or(target.as_ref()))?;
     ccb_storage::atomic::atomic_write_text(target, &content)?;
 

@@ -327,7 +327,9 @@ version = "7.5.2"
 dependencies = [
  "camino",
  "ccb-provider-core",
+ "ccb-provider-profiles",
  "ccb-provider-sessions",
+ "ccb-providers",
  "ccb-storage",
  "ccb-types",
  "chrono",
@@ -442,6 +444,7 @@ name = "ccb-provider-profiles"
 version = "7.5.2"
 dependencies = [
  "camino",
+ "ccb-memory",
  "ccb-provider-core",
  "ccb-storage",
  "ccb-types",
@@ -482,6 +485,7 @@ dependencies = [
  "ccb-agents",
  "ccb-completion",
  "ccb-mailbox",
+ "ccb-memory",
  "ccb-provider-core",
  "ccb-provider-hooks",
  "ccb-provider-profiles",

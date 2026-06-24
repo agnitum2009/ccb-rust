@@ -2,6 +2,7 @@ pub mod filters;
 pub mod hashing;
 pub mod materializer;
 pub mod policy;
+pub mod provider_home;
 pub mod renderer;
 pub mod seed;
 pub mod sources;
@@ -15,6 +16,7 @@ pub use policy::{
     SOURCE_PROVIDER_NATIVE_PROJECT, SOURCE_PROVIDER_USER_MEMORY, SOURCE_RULES_DIR,
     SOURCE_RUNTIME_COORDINATION_RULES,
 };
+pub use provider_home::{render_provider_home_memory, runtime_memory_bundle_relative_path};
 pub use renderer::render_memory_bundle;
 pub use seed::{
     ensure_project_memory, project_memory_path, read_seed_metadata, seed_metadata_path,

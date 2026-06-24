@@ -6,6 +6,8 @@ use anyhow::Context;
 use camino::{Utf8Path, Utf8PathBuf};
 use ccb_provider_profiles::models::ResolvedProviderProfile;
 
+use ccb_memory::render_provider_home_memory;
+
 use crate::claude::home_layout::{claude_layout_for_home, ClaudeHomeLayout};
 
 /// Resolve the isolated Claude home layout for a runtime directory.
@@ -366,36 +368,17 @@ fn materialize_claude_memory(
         );
     };
 
-    let mut parts = Vec::new();
-    let ccb_memory = project_root.join(".ccb").join("ccb_memory.md");
-    if ccb_memory.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&ccb_memory) {
-            parts.push(text);
-        }
-    }
-    let docs_memory = project_root.join("docs").join("memory");
-    if docs_memory.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&docs_memory) {
-            let mut entries: Vec<_> = entries
-                .flatten()
-                .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
-                .collect();
-            entries.sort_by_key(|e| e.file_name());
-            for entry in entries {
-                if let Ok(text) = std::fs::read_to_string(entry.path()) {
-                    parts.push(text);
-                }
-            }
-        }
-    }
     let source_memory = source_home.join(".claude").join("CLAUDE.md");
-    if source_memory.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&source_memory) {
-            parts.push(text);
-        }
-    }
+    let rendered = render_provider_home_memory(
+        project_root.as_std_path(),
+        agent_name,
+        "claude",
+        workspace_path.map(|p| p.as_std_path()),
+        Some(source_memory.as_std_path()),
+    )
+    .map_err(|e| anyhow::anyhow!("failed to render claude memory bundle: {e}"))?;
 
-    if parts.is_empty() {
+    if rendered.trim().is_empty() {
         let _ = std::fs::remove_file(&target);
         return Ok(
             ccb_provider_core::memory_projection::memory_projection_result(
@@ -409,16 +392,6 @@ fn materialize_claude_memory(
             ),
         );
     }
-
-    let rendered = parts.join("\n\n---\n\n");
-    let rendered = if let Some(workspace_path) = workspace_path {
-        format!(
-            "# Claude project memory for {} (workspace: {})\n\n{}",
-            agent_name, workspace_path, rendered
-        )
-    } else {
-        rendered
-    };
 
     std::fs::create_dir_all(target.parent().unwrap_or(&layout.claude_dir))?;
     ccb_storage::atomic::atomic_write_text(&target, &rendered)?;
@@ -434,7 +407,7 @@ fn materialize_claude_memory(
             "written",
             target.as_std_path(),
             sha_ref,
-            Some(parts.len() as i64),
+            Some(1),
             None,
             None,
         ),

@@ -18,6 +18,7 @@ shell-escape = "0.1"
 ccb-provider-core = { workspace = true }
 ccb-storage = { workspace = true }
 ccb-types = { workspace = true }
+ccb-memory = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

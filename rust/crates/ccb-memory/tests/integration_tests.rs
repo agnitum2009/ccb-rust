@@ -5,6 +5,10 @@ use ccb_memory::{
     seed_metadata_path, ContextFormatter, ContextTransfer, ConversationDeduper, ConversationEntry,
     ProjectMemorySource, TransferContext,
 };
+use ccb_provider_profiles::codex_home_config::materialize_codex_home_config;
+use ccb_provider_profiles::models::{ProviderProfileSpec, ResolvedProviderProfile};
+use ccb_providers::claude::launcher_runtime::home::materialize_claude_home_config;
+use ccb_providers::opencode::launcher::materialize_opencode_memory_config;
 use ccb_storage::paths::PathLayout;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -1161,4 +1165,325 @@ fn maybe_auto_transfer_skips_foreign_work_dir() {
 
     assert!(started.is_empty());
     std::env::set_current_dir(original_cwd).unwrap();
+}
+
+// ---------------------------------------------------------------------------
+// Provider transfer runtime tests (parity with test_memory_transfer_providers.py)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_extract_from_codex_falls_back_to_latest_log_path() {
+    let tmp = tempfile::tempdir().unwrap();
+    let log_path = tmp.path().join("latest.jsonl");
+    std::fs::write(
+        &log_path,
+        r#"{"role": "user", "content": " user "}
+{"role": "assistant", "content": " assistant "}
+"#,
+    )
+    .unwrap();
+
+    // Point the bound session file at a missing path so the fallback scanner runs.
+    let session_file = tmp.path().join(".codex-session");
+    std::fs::write(
+        &session_file,
+        r#"{"codex_session_path": "/nonexistent/missing.jsonl"}"#,
+    )
+    .unwrap();
+
+    let deduper = ConversationDeduper::new();
+    let formatter = ContextFormatter::new(200);
+    let ctx = ccb_memory::transfer_runtime::providers_runtime::codex::extract_from_codex(
+        tmp.path(),
+        &ccb_memory::transfer::source_session_files(),
+        &deduper,
+        &formatter,
+        200,
+        4,
+        0,
+    )
+    .unwrap();
+
+    assert_eq!(ctx.source_provider, "codex");
+    assert_eq!(ctx.source_session_id, "latest");
+    assert_eq!(
+        ctx.metadata.get("session_path").and_then(|v| v.as_str()),
+        Some(log_path.to_string_lossy().as_ref())
+    );
+    assert_eq!(
+        ctx.conversations,
+        vec![("user".to_string(), "assistant".to_string())]
+    );
+}
+
+#[test]
+fn test_extract_from_opencode_uses_captured_session_state() {
+    let tmp = tempfile::tempdir().unwrap();
+    let ccb_dir = tmp.path().join(".ccb");
+    std::fs::create_dir(&ccb_dir).unwrap();
+    let session_path = tmp.path().join("session.json");
+    std::fs::write(
+        &session_path,
+        r#"{"messages": [
+    {"role": "user", "content": "question"},
+    {"role": "assistant", "content": "answer"}
+]}"#,
+    )
+    .unwrap();
+
+    let session_file = ccb_dir.join(".opencode-session");
+    std::fs::write(&session_file, r#"{"opencode_project_id": "proj-9"}"#).unwrap();
+
+    let deduper = ConversationDeduper::new();
+    let formatter = ContextFormatter::new(200);
+    let ctx = ccb_memory::transfer_runtime::providers_runtime::opencode::extract_from_opencode(
+        tmp.path(),
+        &ccb_memory::transfer::source_session_files(),
+        &deduper,
+        &formatter,
+        200,
+        2,
+        0,
+    )
+    .unwrap();
+
+    assert_eq!(ctx.source_provider, "opencode");
+    assert_eq!(ctx.source_session_id, "session");
+    assert_eq!(
+        ctx.metadata.get("session_path").and_then(|v| v.as_str()),
+        Some(session_path.to_string_lossy().as_ref())
+    );
+    assert_eq!(
+        ctx.metadata.get("project_id").and_then(|v| v.as_str()),
+        Some("proj-9")
+    );
+    assert_eq!(
+        ctx.conversations,
+        vec![("question".to_string(), "answer".to_string())]
+    );
+}
+
+#[test]
+fn test_extract_from_opencode_raises_when_no_session_identity_exists() {
+    let tmp = tempfile::tempdir().unwrap();
+    // No session files at all.
+    let deduper = ConversationDeduper::new();
+    let formatter = ContextFormatter::new(200);
+    let result = ccb_memory::transfer_runtime::providers_runtime::opencode::extract_from_opencode(
+        tmp.path(),
+        &ccb_memory::transfer::source_session_files(),
+        &deduper,
+        &formatter,
+        200,
+        2,
+        0,
+    );
+    assert!(matches!(
+        result,
+        Err(ccb_memory::MemoryError::SessionNotFound(_))
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// Real-context provider memory materialization tests
+// (parity with test_project_memory_real_context.py)
+// ---------------------------------------------------------------------------
+
+fn write_test_file(path: &Path, text: &str) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, text).unwrap();
+}
+
+fn assert_single_runtime_coordination(text: &str) {
+    assert_eq!(text.matches("## CCB Runtime Coordination Rules").count(), 1);
+    assert_eq!(text.matches("command ask \"$TARGET\"").count(), 1);
+}
+
+#[test]
+fn test_realistic_provider_memory_context_composes_each_provider_bundle() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project_root = tmp.path().join("external-real-project");
+    let workspace_path = tmp.path().join("external-real-project-worktree");
+    let claude_source_home = tmp.path().join("source-claude-home");
+    let codex_source_home = tmp.path().join("source-codex-home");
+    std::fs::create_dir(&project_root).unwrap();
+    std::fs::create_dir(&workspace_path).unwrap();
+
+    write_test_file(
+        &project_root.join(".ccb").join("ccb_memory.md"),
+        "# CCB Project Memory\n\nSHARED-MEMORY-SENTINEL\n",
+    );
+    write_test_file(&project_root.join("CLAUDE.md"), "PROJECT-CLAUDE-SENTINEL\n");
+    write_test_file(&project_root.join("AGENTS.md"), "PROJECT-AGENTS-SENTINEL\n");
+    write_test_file(&project_root.join("GEMINI.md"), "PROJECT-GEMINI-SENTINEL\n");
+    write_test_file(
+        &project_root.join("opencode.json"),
+        serde_json::json!({"instructions": ["AGENTS.md"], "model": "test-model"})
+            .to_string()
+            .as_str(),
+    );
+
+    write_test_file(
+        &project_root
+            .join(".ccb")
+            .join("agents")
+            .join("reviewer")
+            .join("memory.md"),
+        "CLAUDE-PRIVATE-SENTINEL\n",
+    );
+    write_test_file(
+        &project_root
+            .join(".ccb")
+            .join("agents")
+            .join("builder")
+            .join("memory.md"),
+        "CODEX-PRIVATE-SENTINEL\n",
+    );
+    write_test_file(
+        &project_root
+            .join(".ccb")
+            .join("agents")
+            .join("designer")
+            .join("memory.md"),
+        "OPENCODE-PRIVATE-SENTINEL\n",
+    );
+    write_test_file(
+        &project_root
+            .join(".ccb")
+            .join("agents")
+            .join("analyst")
+            .join("memory.md"),
+        "GEMINI-PRIVATE-SENTINEL\n",
+    );
+
+    write_test_file(
+        &claude_source_home.join(".claude").join("CLAUDE.md"),
+        "CLAUDE-USER-SENTINEL\n<!-- CCB_CONFIG_START -->\nOLD-CLAUDE-INSTALL-BLOCK\n<!-- CCB_CONFIG_END -->\n",
+    );
+    write_test_file(
+        &codex_source_home.join("AGENTS.md"),
+        "CODEX-USER-SENTINEL\n<!-- CCB_ROLES_START -->\nOLD-CODEX-ROLES-BLOCK\n<!-- CCB_ROLES_END -->\n",
+    );
+
+    let claude_home = project_root
+        .join(".ccb")
+        .join("agents")
+        .join("reviewer")
+        .join("provider-state")
+        .join("claude")
+        .join("home");
+    let claude_layout = materialize_claude_home_config(
+        camino::Utf8Path::from_path(&claude_home).unwrap(),
+        None,
+        Some(camino::Utf8Path::from_path(&claude_source_home).unwrap()),
+        Some(camino::Utf8Path::from_path(&project_root).unwrap()),
+        Some("reviewer"),
+        Some(camino::Utf8Path::from_path(&workspace_path).unwrap()),
+        false,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let codex_home = project_root
+        .join(".ccb")
+        .join("agents")
+        .join("builder")
+        .join("provider-state")
+        .join("codex")
+        .join("home");
+    materialize_codex_home_config(
+        &codex_home,
+        Some(&ProviderProfileSpec::default()),
+        Some(camino::Utf8Path::from_path(&codex_source_home).unwrap()),
+        Some(camino::Utf8Path::from_path(&project_root).unwrap()),
+        Some("builder"),
+        None,
+        Some(camino::Utf8Path::from_path(&workspace_path).unwrap()),
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+
+    let opencode_config_path = project_root
+        .join(".ccb")
+        .join("agents")
+        .join("designer")
+        .join("provider-state")
+        .join("opencode")
+        .join("opencode.json");
+    let opencode_profile = ResolvedProviderProfile::new("opencode", "designer");
+    let opencode_result = materialize_opencode_memory_config(
+        &project_root,
+        "designer",
+        Some(&workspace_path),
+        Some(&opencode_config_path),
+        Some(&opencode_profile),
+        None,
+        Some(
+            &project_root
+                .join(".ccb")
+                .join("agents")
+                .join("designer")
+                .join("memory-projection.json"),
+        ),
+    );
+
+    let gemini_materialization = materialize_runtime_memory_bundle(
+        &project_root,
+        "analyst",
+        "gemini",
+        Some(&workspace_path),
+        None,
+    )
+    .unwrap();
+
+    let claude_text = std::fs::read_to_string(claude_layout.claude_dir.join("CLAUDE.md")).unwrap();
+    let codex_text = std::fs::read_to_string(codex_home.join("AGENTS.md")).unwrap();
+    let opencode_text = std::fs::read_to_string(
+        project_root
+            .join(".ccb")
+            .join("runtime")
+            .join("memory")
+            .join("designer.md"),
+    )
+    .unwrap();
+    let gemini_text = std::fs::read_to_string(&gemini_materialization.path).unwrap();
+
+    for text in [&claude_text, &codex_text, &opencode_text, &gemini_text] {
+        assert!(text.contains("# CCB Managed Agent Memory"));
+        assert!(text.contains("SHARED-MEMORY-SENTINEL"));
+        assert_single_runtime_coordination(text);
+    }
+
+    assert!(claude_text.contains("provider: claude"));
+    assert!(claude_text.contains("CLAUDE-USER-SENTINEL"));
+    assert!(!claude_text.contains("OLD-CLAUDE-INSTALL-BLOCK"));
+    assert!(!claude_text.contains("PROJECT-CLAUDE-SENTINEL"));
+    assert!(claude_text.contains("CLAUDE-PRIVATE-SENTINEL"));
+
+    assert!(codex_text.contains("provider: codex"));
+    assert!(codex_text.contains("CODEX-USER-SENTINEL"));
+    assert!(!codex_text.contains("OLD-CODEX-ROLES-BLOCK"));
+    assert!(!codex_text.contains("PROJECT-AGENTS-SENTINEL"));
+    assert!(codex_text.contains("CODEX-PRIVATE-SENTINEL"));
+
+    assert_eq!(
+        opencode_result.env.get("OPENCODE_CONFIG"),
+        Some(&opencode_config_path.to_string_lossy().to_string())
+    );
+    let opencode_config: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&opencode_config_path).unwrap()).unwrap();
+    assert_eq!(
+        opencode_config["instructions"],
+        serde_json::json!(["AGENTS.md", ".ccb/runtime/memory/designer.md"])
+    );
+    assert!(opencode_text.contains("provider: opencode"));
+    assert!(!opencode_text.contains("PROJECT-AGENTS-SENTINEL"));
+    assert!(opencode_text.contains("OPENCODE-PRIVATE-SENTINEL"));
+
+    assert!(gemini_text.contains("provider: gemini"));
+    assert!(gemini_text.contains("PROJECT-GEMINI-SENTINEL"));
+    assert!(gemini_text.contains("GEMINI-PRIVATE-SENTINEL"));
 }

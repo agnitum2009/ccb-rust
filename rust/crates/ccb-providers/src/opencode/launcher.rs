@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use ccb_memory::{materialize_runtime_memory_bundle, runtime_memory_bundle_relative_path};
 use ccb_provider_core::contracts::{LaunchMode, ProviderRuntimeLauncher};
 use ccb_provider_core::runtime_shared::{apply_provider_command_template, provider_start_parts};
 use serde_json::Value;
@@ -121,48 +122,66 @@ pub fn materialize_opencode_memory_config(
         return OpenCodeMemoryConfigResult::default();
     }
 
-    let mut parts = Vec::new();
-    let ccb_memory = project_root.join(".ccb").join("ccb_memory.md");
-    if ccb_memory.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&ccb_memory) {
-            parts.push(text);
+    let bundle_result = match materialize_runtime_memory_bundle(
+        project_root,
+        agent_name,
+        "opencode",
+        workspace_path,
+        None,
+    ) {
+        Ok(r) => r,
+        Err(err) => {
+            let result = ccb_provider_core::memory_projection::memory_projection_result(
+                "failed",
+                "bundle_render_failed",
+                Path::new(""),
+                None,
+                None,
+                None,
+                Some(&err.to_string()),
+            );
+            let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+                &result,
+                "opencode",
+                event_path,
+                marker_path,
+                Some(agent_name),
+            );
+            return OpenCodeMemoryConfigResult::default();
         }
-    }
-    let docs_memory = project_root.join("docs").join("memory");
-    if docs_memory.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&docs_memory) {
-            let mut entries: Vec<_> = entries
-                .flatten()
-                .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
-                .collect();
-            entries.sort_by_key(|e| e.file_name());
-            for entry in entries {
-                if let Ok(text) = std::fs::read_to_string(entry.path()) {
-                    parts.push(text);
-                }
-            }
-        }
-    }
+    };
 
-    let rendered = if parts.is_empty() {
-        "No project memory configured.".to_string()
-    } else {
-        parts.join("\n\n---\n\n")
+    let bundle_text = match std::fs::read_to_string(&bundle_result.path) {
+        Ok(text) => text,
+        Err(err) => {
+            let result = ccb_provider_core::memory_projection::memory_projection_result(
+                "failed",
+                "bundle_read_failed",
+                &bundle_result.path,
+                None,
+                None,
+                None,
+                Some(&err.to_string()),
+            );
+            let _ = ccb_provider_core::memory_projection::record_memory_projection_event(
+                &result,
+                "opencode",
+                event_path,
+                marker_path,
+                Some(agent_name),
+            );
+            return OpenCodeMemoryConfigResult::default();
+        }
     };
-    let rendered = if let Some(workspace_path) = workspace_path {
-        format!(
-            "# OpenCode project memory for {} (workspace: {})\n\n{}",
-            agent_name,
-            workspace_path.display(),
-            rendered
-        )
-    } else {
-        rendered
-    };
+
+    let bundle_relative = runtime_memory_bundle_relative_path(project_root, agent_name)
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| bundle_result.path.to_string_lossy().to_string());
 
     let config_text = match serde_json::to_string_pretty(&serde_json::json!({
+        "instructions": ["AGENTS.md", bundle_relative],
         "memory": {
-            "instruction": rendered,
+            "instruction": bundle_text,
         }
     })) {
         Ok(t) => t,
@@ -223,7 +242,7 @@ pub fn materialize_opencode_memory_config(
         "written",
         config_path,
         sha_ref,
-        Some(parts.len() as i64),
+        Some(1),
         None,
         None,
     );
