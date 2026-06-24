@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-06-24
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~214 | Active |
+| `journal-1.md` | ~247 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-06-24 | py2rust consistency closure: claude_registry parity + final validation | `e8b707bf` | `python-rust/rolepacks-versioning-translation` |
 | 5 | 2026-06-24 | W2 runtime launch orchestration parity | - | `python-rust/rolepacks-versioning-translation` |
 | 4 | 2026-06-24 | W1: CLI services impl + socket client parity | - | `python-rust/rolepacks-versioning-translation` |
 | 3 | 2026-06-22 | fix ccb-cli env-var test flakiness | `c455a8df` | `python-rust/rolepacks-versioning-translation` |
