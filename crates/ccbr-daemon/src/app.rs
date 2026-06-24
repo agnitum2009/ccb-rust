@@ -23,7 +23,7 @@ use ccbr_completion::{CompletionRegistry, CompletionTrackerService};
 use ccbr_jobs::JobStore;
 use ccbr_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
 use ccbr_provider_core::catalog::{build_default_provider_catalog, ProviderCatalog};
-use ccbr_providers::execution::ExecutionService;
+use ccbr_providers::execution::{ExecutionService, ProviderRuntimeContext};
 
 fn load_agent_registry(
     layout: &ccbr_storage::paths::PathLayout,
@@ -329,9 +329,35 @@ impl CcbdApp {
         // trackers for newly-running jobs.
         let started = self.dispatcher.tick();
         let now = chrono::Utc::now().to_rfc3339();
-        for job in started {
+        // Clone job records to avoid borrow conflicts when accessing
+        // self.registry + self.execution inside the loop.
+        let started_jobs: Vec<_> = started
+            .iter()
+            .map(|j| j.clone())
+            .collect();
+        for job in &started_jobs {
             let completion_job = to_completion_job_record(job);
             let _ = self.completion_tracker.start(&completion_job, &now);
+            // Register with execution service so heartbeat poll() can track
+            // provider output and drive completion detection.
+            let entry = self.registry.get(&job.agent_name);
+            let ctx = ProviderRuntimeContext {
+                agent_name: job.agent_name.clone(),
+                workspace_path: entry.and_then(|e| e.workspace_path.clone()),
+                backend_type: Some("tmux".to_string()),
+                runtime_ref: entry.and_then(|e| e.pane_id.clone()),
+                ..Default::default()
+            };
+            let _ = self.execution.start(&completion_job, Some(&ctx));
+            // Feed the prompt text from the job's request body so the adapter's
+            // deferred-prompt dispatch can send it to the provider pane.
+            let mut prompt_patch = std::collections::HashMap::new();
+            prompt_patch.insert(
+                "prompt_text".to_string(),
+                serde_json::Value::String(job.request.body.clone()),
+            );
+            self.execution
+                .feed_runtime_state(&completion_job.job_id, prompt_patch);
         }
 
         // Feed live tmux pane text into active execution submissions so adapters
@@ -342,6 +368,10 @@ impl CcbdApp {
         // Also ingest provider items into the completion tracker so the
         // orchestrator can settle on a terminal decision.
         let updates = self.execution.poll();
+        eprintln!("DEBUG heartbeat: poll_updates={} active_contexts={}", updates.len(), self.execution.active_contexts().len());
+        for u in &updates {
+            eprintln!("DEBUG heartbeat: job={} items={} decision={:?}", u.job_id, u.items.len(), u.decision.as_ref().map(|d| (&d.status, d.terminal)));
+        }
         for update in updates {
             // Ensure every running job has a tracker (handles restore/restart).
             if self.completion_tracker.current(&update.job_id).is_none() {
@@ -533,7 +563,7 @@ impl CcbdApp {
         if !std::path::Path::new(&socket_path).exists() {
             return;
         }
-        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
+        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path.clone()));
         let contexts = self.execution.active_contexts();
         for (job_id, context) in contexts {
             let pane_id = context.runtime_ref.unwrap_or_default();
@@ -546,6 +576,8 @@ impl CcbdApp {
             let text = ccbr_terminal::TmuxBackend::strip_ansi(&text);
             let mut patch = std::collections::HashMap::new();
             patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
+            patch.insert("socket_path".to_string(), serde_json::Value::String(socket_path.clone()));
+            patch.insert("pane_id".to_string(), serde_json::Value::String(pane_id.clone()));
             self.execution.feed_runtime_state(&job_id, patch);
         }
     }
