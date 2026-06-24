@@ -65,11 +65,104 @@ impl DispatcherState {
     }
 }
 
+/// Lightweight snapshot of an agent runtime used by `comms_recover` to decide
+/// whether a RUNNING job is stale. Mirrors the subset of Python `AgentRuntime`
+/// fields consulted by `comms_recover._running_stale_reason`: `state`, `health`,
+/// and `pane_state`. Absent entry ≡ Python "registry miss" (`runtime_missing`).
+#[derive(Debug, Clone, Default)]
+pub struct RuntimeStateSnapshot {
+    pub agent_state: String,
+    pub health: String,
+    pub pane_state: String,
+}
+
+/// Mirrors Python `CommsRecoverTarget`.
+struct CommsRecoverTarget {
+    job_id: String,
+    #[allow(dead_code)]
+    reply_delivery_job_id: Option<String>,
+    block_reason: Option<String>,
+}
+
+/// Mirrors Python `CommsRecoverability` (Slice 1 subset).
+struct CommsRecoverability {
+    recoverable: bool,
+    block_reason: Option<String>,
+}
+
+/// Mirrors Python `_recover_target_from_payload`.
+fn recover_target_from_payload(payload: &serde_json::Value) -> Result<CommsRecoverTarget, String> {
+    if let Some(s) = payload.as_str() {
+        let job_id = s.trim().to_string();
+        if job_id.is_empty() {
+            return Err("comms_recover requires job_id".to_string());
+        }
+        return Ok(CommsRecoverTarget {
+            job_id,
+            reply_delivery_job_id: None,
+            block_reason: None,
+        });
+    }
+    let obj = payload
+        .as_object()
+        .ok_or_else(|| "comms_recover requires job_id".to_string())?;
+    let job_id = obj
+        .get("job_id")
+        .or_else(|| obj.get("id"))
+        .or_else(|| obj.get("target"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if job_id.is_empty() {
+        return Err("comms_recover requires job_id".to_string());
+    }
+    let reply_delivery_job_id = obj
+        .get("reply_delivery_job_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let block_reason = obj
+        .get("block_reason")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .and_then(|h| clean_running_hint(&h));
+    Ok(CommsRecoverTarget {
+        job_id,
+        reply_delivery_job_id,
+        block_reason,
+    })
+}
+
+/// Mirrors Python `_clean_running_hint`: returns the hint only if it is one of
+/// the recognized running-recovery hints, else `None`.
+fn clean_running_hint(value: &str) -> Option<String> {
+    let text = value.trim();
+    if text.is_empty() {
+        return None;
+    }
+    const ALLOWED: &[&str] = &[
+        "provider_prompt_idle",
+        "provider_prompt_idle_stale",
+        "provider_prompt_input_stuck",
+        "job_running_stale",
+    ];
+    if ALLOWED.contains(&text) {
+        Some(text.to_string())
+    } else {
+        None
+    }
+}
+
 pub struct JobDispatcher {
     pub state: DispatcherState,
     pub job_store: Vec<JobRecord>,
     pub agent_names: Vec<String>,
     mailbox_job_store: Option<ccb_jobs::JobStore>,
+    /// Agent runtime snapshots consulted by `comms_recover` for stale-running
+    /// detection (mirrors Python `dispatcher._registry`). Empty by default.
+    runtime_states: HashMap<String, RuntimeStateSnapshot>,
 }
 
 impl JobDispatcher {
@@ -80,7 +173,27 @@ impl JobDispatcher {
             job_store: Vec::new(),
             agent_names,
             mailbox_job_store: None,
+            runtime_states: HashMap::new(),
         }
+    }
+
+    /// Record an agent runtime snapshot for `comms_recover` stale-running
+    /// detection (mirrors Python `registry.upsert(runtime)`).
+    pub fn set_runtime_state(
+        &mut self,
+        agent_name: &str,
+        agent_state: &str,
+        health: &str,
+        pane_state: &str,
+    ) {
+        self.runtime_states.insert(
+            agent_name.to_string(),
+            RuntimeStateSnapshot {
+                agent_state: agent_state.to_string(),
+                health: health.to_string(),
+                pane_state: pane_state.to_string(),
+            },
+        );
     }
 
     /// Wire the dispatcher to persist job records to the shared mailbox job
@@ -357,11 +470,111 @@ impl JobDispatcher {
         })
     }
 
+    /// Communications recovery entrypoint. Mirrors Python
+    /// `lib/ccbd/services/dispatcher_runtime/comms_recover.py::comms_recover`.
+    ///
+    /// **Slice 1 (noop paths).** Determines recoverability and returns `noop`
+    /// for non-recoverable jobs: a RUNNING job whose agent runtime is healthy
+    /// and has no recognized stale hint → `noop` / `not_recoverable`; an unknown
+    /// hint is cleaned to `None` and ignored. Unknown job ids → `noop`.
+    /// Recovery actions (terminal retry / stale-running cancel+retry /
+    /// reply-delivery) land in later slices.
     pub fn comms_recover(&self, payload: &serde_json::Value) -> serde_json::Value {
+        let target = match recover_target_from_payload(payload) {
+            Ok(t) => t,
+            Err(reason) => {
+                return serde_json::json!({ "status": "noop", "noop_reason": reason });
+            }
+        };
+        let source = match self.get(&target.job_id) {
+            Some(job) => job,
+            None => {
+                return serde_json::json!({
+                    "status": "noop",
+                    "noop_reason": format!("unknown comms job: {}", target.job_id),
+                });
+            }
+        };
+        let recoverability =
+            self.comms_recoverability_for_job(source, target.block_reason.as_deref());
+        let noop_reason: serde_json::Value = if recoverability.recoverable {
+            serde_json::Value::Null
+        } else {
+            serde_json::Value::String(
+                recoverability
+                    .block_reason
+                    .clone()
+                    .unwrap_or_else(|| "not_recoverable".to_string()),
+            )
+        };
         serde_json::json!({
-            "status": "ok",
-            "payload": payload,
+            "job_id": source.job_id,
+            "agent_name": source.agent_name,
+            "status": if recoverability.recoverable { "pending" } else { "noop" },
+            "block_reason": recoverability.block_reason,
+            "recoverable": recoverability.recoverable,
+            "cancelled_old": null,
+            "released_event": null,
+            "retried_job": null,
+            "next_started": [],
+            "noop_reason": noop_reason,
         })
+    }
+
+    /// Mirrors Python `comms_recoverability_for_job` (Slice 1 subset: RUNNING
+    /// stale detection only). Failed-terminal + reply-delivery retry cases
+    /// (which need lineage / `_can_retry_job`) arrive in Slice 2+.
+    fn comms_recoverability_for_job(
+        &self,
+        job: &JobRecord,
+        running_hint: Option<&str>,
+    ) -> CommsRecoverability {
+        if job.status == JobStatus::Running {
+            if let Some(reason) = self.running_stale_reason(&job.agent_name, running_hint) {
+                return CommsRecoverability {
+                    recoverable: true,
+                    block_reason: Some(reason),
+                };
+            }
+        }
+        CommsRecoverability {
+            recoverable: false,
+            block_reason: None,
+        }
+    }
+
+    /// Mirrors Python `_running_stale_reason`. A recognized hint short-circuits
+    /// to itself; otherwise the agent runtime snapshot is consulted. Absent
+    /// runtime → `runtime_missing` (recoverable).
+    fn running_stale_reason(&self, agent_name: &str, running_hint: Option<&str>) -> Option<String> {
+        if let Some(hint) = running_hint {
+            return Some(hint.to_string());
+        }
+        let runtime = self.runtime_states.get(agent_name)?;
+        const RECOVERABLE_STATES: &[&str] = &["degraded", "failed", "stopped"];
+        const STALE_PANE: &[&str] = &["dead", "missing", "lost", "exited"];
+        const STALE_HEALTH: &[&str] = &["dead", "failed", "stopped", "unhealthy", "pane-dead"];
+        let state = runtime.agent_state.to_lowercase();
+        let health = runtime.health.to_lowercase();
+        let pane = runtime.pane_state.to_lowercase();
+        if RECOVERABLE_STATES.contains(&state.as_str()) {
+            if STALE_HEALTH.contains(&health.as_str()) {
+                return Some(health.replace('-', "_"));
+            }
+            if state == "stopped" {
+                return Some("runtime_stopped".to_string());
+            }
+            if state == "failed" {
+                return Some("runtime_failed".to_string());
+            }
+        }
+        if STALE_PANE.contains(&pane.as_str()) {
+            return Some(format!("pane_{pane}"));
+        }
+        if STALE_HEALTH.contains(&health.as_str()) {
+            return Some(health.replace('-', "_"));
+        }
+        None
     }
 
     pub fn resubmit(&self, message_id: &str) -> serde_json::Value {
