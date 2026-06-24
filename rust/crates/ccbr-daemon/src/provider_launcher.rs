@@ -462,7 +462,7 @@ fn build_codex_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
 fn build_claude_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     use ccbr_providers::claude::launcher_runtime::resolve_claude_restore_target;
     use ccbr_providers::claude::{build_claude_start_cmd, ClaudeStartCommand};
-    build_simple_provider_launch(
+    let result = build_simple_provider_launch(
         ctx,
         "claude",
         |spec, runtime_dir, launch_session_id, prepared_state| {
@@ -484,7 +484,34 @@ fn build_claude_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
                 resolve_claude_restore_target(spec, runtime_dir, ctx.restore, Some(workspace_utf8));
             Some(target.run_cwd.to_string())
         },
-    )
+    )?;
+
+    // Seed the isolated Claude HOME with essential config from the real HOME.
+    // Without this, Claude treats the isolated HOME as a first-run and shows
+    // a "Press Enter to continue…" security screen that blocks the prompt.
+    // The .claude.json file contains hasCompletedOnboarding + auth markers
+    // that skip the first-run screen (mirrors Python prepare_claude_home_overrides).
+    let runtime_home = runtime_dir_for_agent(ctx.project_root, ctx.agent_name).join("home");
+    let claude_config = runtime_home.join(".claude");
+    let _ = std::fs::create_dir_all(&claude_config);
+    if let Ok(home) = std::env::var("HOME") {
+        let real_home = std::path::Path::new(&home);
+        // Copy .claude.json (HOME root) — contains onboarding completion markers.
+        let claude_json_src = real_home.join(".claude.json");
+        if claude_json_src.exists() {
+            let _ = std::fs::copy(&claude_json_src, runtime_home.join(".claude.json"));
+        }
+        // Copy .claude/ config files.
+        let real_claude = real_home.join(".claude");
+        for file in &[".credentials.json", "settings.json"] {
+            let src = real_claude.join(file);
+            if src.exists() {
+                let _ = std::fs::copy(&src, claude_config.join(file));
+            }
+        }
+    }
+
+    Ok(result)
 }
 
 fn build_gemini_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {

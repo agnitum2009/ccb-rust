@@ -550,7 +550,7 @@ impl CcbdApp {
         if !std::path::Path::new(&socket_path).exists() {
             return;
         }
-        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
+        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path.clone()));
         let contexts = self.execution.active_contexts();
         for (job_id, context) in contexts {
             let pane_id = context.runtime_ref.unwrap_or_default();
@@ -563,6 +563,7 @@ impl CcbdApp {
             let text = ccbr_terminal::TmuxBackend::strip_ansi(&text);
             let mut patch = std::collections::HashMap::new();
             patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
+            patch.insert("socket_path".to_string(), serde_json::Value::String(socket_path.clone()));
             self.execution.feed_runtime_state(&job_id, patch);
         }
     }

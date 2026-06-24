@@ -422,6 +422,20 @@ fn dispatch_deferred_prompt_when_ready(
         return None;
     }
 
+    // Dismiss provider startup screens (e.g., Claude's "Press Enter to
+    // continue…" first-run security prompt) before checking readiness.
+    // Send Enter and defer — the next poll will find the pane interactive.
+    if let Some(target) = crate::execution::resolve_prompt_target(&submission.runtime_state) {
+        if target
+            .get_pane_content(&pane_id, PANE_CONTENT_LINES)
+            .map(|c| c.contains("Press Enter to continue"))
+            .unwrap_or(false)
+        {
+            let _ = target.send_text(&pane_id, "");
+            return None;
+        }
+    }
+
     let ready =
         if let Some(target) = crate::execution::resolve_prompt_target(&submission.runtime_state) {
             target
