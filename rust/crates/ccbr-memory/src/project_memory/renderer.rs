@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 const CCBR_RUNTIME_COORDINATION_RULES: &str = r#"## CCBR Runtime Coordination Rules
 
-- This is a CCBR (Rust) workspace. Discover other agents via `ccbr ps` or `ccbr status` — these read .ccbr/ccbr.config and list ONLY agents in THIS workspace. Do NOT use global process/dir searches (`ps aux`, `find /`) — they match unrelated ccb/OMX projects (o13, n14, e-contract, codex-dual). Authoritative roster = .ccbr/ccbr.config + `ccbr ps`.
-- CCBR `ask` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
+- This is a CCBR (Rust) workspace. Discover other agents via `psr` or `statusr` (= `ccbr ps`/`ccbr status`) — these read .ccbr/ccbr.config and list ONLY agents in THIS workspace. Do NOT use global process/dir searches (`ps aux`, `find /`) or the global `ps`/`status`/`ask` commands (they target the Python ccb daemon, NOT ccbrd). Authoritative roster = .ccbr/ccbr.config + `psr`.
+- For inter-agent communication use `askr <agent> <message>` (= `ccbr ask`). Do NOT use `ask` (that's `ccb ask` → Python ccbd → wrong daemon). `askr` routes to ccbrd (the running CCBR daemon).
+- CCBR `askr` is submit-only: submit once, then stop. Do not wait, poll, or run `pend`/`watch`/`ping` unless diagnostics were requested.
 - Prefer `/ask <agent> <message>` when available. Shell fallback:
 
 ```bash
