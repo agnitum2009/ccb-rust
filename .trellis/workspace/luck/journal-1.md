@@ -426,3 +426,37 @@ Wave 5 最后 3 个 P0（daemon-restore-jobs / mount-ownership-persist / supervi
 
 ### Status
 [OK] **parity 主线完成**：Python→Rust 1:1，ccbr 原样可运行如 ccb。父任务 18/18 done。
+
+
+## Session 9: Codex wire protocol smoke fix
+
+**Date**: 2026-06-26
+**Task**: Codex wire protocol smoke fix
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Fixed Codex ask reply extraction to use structured JSONL final answers while preserving all Codex hooks; validated ccbr-provider-core, ccbr-providers, ccbr-daemon, live askr agent1-to-agent2 smoke, and sidebar tmux metadata namespace.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `131688bd` | (see git log) |
+| `ac7d95e9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

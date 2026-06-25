@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
-- **Last Active**: 2026-06-25
+- **Total Sessions**: 9
+- **Last Active**: 2026-06-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~377 | Active |
+| `journal-1.md` | ~462 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-06-26 | Codex wire protocol smoke fix | `131688bd`, `ac7d95e9` | `python-rust/rolepacks-versioning-translation` |
 | 8 | 2026-06-25 | Wave 4 Layer 1: e2e-terminal-edge parity closure | `a6c61732`, `cd3f299b`, `3f6df29d`, `1d247409`, `d4247896`, `10186a2a`, `bc6a154b`, `864d4917`, `37ca4357`, `8e3b0608` | `python-rust/rolepacks-versioning-translation` |
 | 7 | 2026-06-24 | py2rust remove stub mirrors: ccb-providers + ccb-daemon clean tree | `761f4d70`, `f38543f4`, `fd86816c` | `python-rust/rolepacks-versioning-translation` |
 | 6 | 2026-06-24 | py2rust consistency closure: claude_registry parity + final validation | `e8b707bf` | `python-rust/rolepacks-versioning-translation` |
