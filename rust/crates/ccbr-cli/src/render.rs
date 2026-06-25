@@ -313,7 +313,15 @@ pub fn render_inbox(result: &Value) -> String {
         out.push_str("  (no events)\n");
     }
     for event in events {
-        out.push_str(&format!("  {}\n", event));
+        let source = event.get("source_actor").and_then(|v| v.as_str()).unwrap_or("?");
+        let reply_preview = event.get("reply_preview").and_then(|v| v.as_str()).unwrap_or("");
+        let status = event.get("reply_terminal_status").and_then(|v| v.as_str()).unwrap_or("pending");
+        let job_id = event.get("job_id").and_then(|v| v.as_str()).unwrap_or("-");
+        if reply_preview.is_empty() {
+            out.push_str(&format!("  [{}] from={} job={} (no reply yet)\n", status, source, job_id));
+        } else {
+            out.push_str(&format!("  [{}] from={} job={} → \"{}\"\n", status, source, job_id, reply_preview));
+        }
     }
     out
 }
@@ -848,8 +856,13 @@ mod tests {
         );
         assert!(out.contains("pending=1"), "missing pending count: {}", out);
         assert!(
-            out.contains("iev_089f836ba40b"),
-            "missing event id in output: {}",
+            out.contains("from=agent1"),
+            "missing source_actor in formatted output: {}",
+            out
+        );
+        assert!(
+            out.contains("job_209de548753c"),
+            "missing job_id in formatted output: {}",
             out
         );
     }
