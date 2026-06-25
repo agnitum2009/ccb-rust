@@ -71,9 +71,11 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
         crate::provider_launcher::provider_runtime_auth_path(&provider, app.project_root.to_string_lossy().as_ref(), &to_agent)
     {
         if !auth_path.exists() {
+            let utf8_auth = camino::Utf8Path::from_path(&auth_path)
+                .unwrap_or_else(|| camino::Utf8Path::new("/tmp/unknown"));
+            let detail = ccbr_provider_profiles::format_codex_auth_missing_error(utf8_auth);
             return Err(format!(
-                "agent {to_agent} ({provider}) has no auth credentials at {}",
-                auth_path.display()
+                "agent {to_agent} ({provider}) cannot ask: {detail}",
             ));
         }
     }
@@ -241,8 +243,8 @@ mod tests {
         assert!(result.is_err(), "ask should fail when auth.json is missing");
         let err = result.unwrap_err();
         assert!(
-            err.contains("auth credentials") || err.contains("auth.json"),
-            "error should mention auth credentials, got: {err}"
+            err.contains("no Codex credentials were found") && err.contains("auth.json"),
+            "error should surface codex auth path and hint, got: {err}"
         );
     }
 }

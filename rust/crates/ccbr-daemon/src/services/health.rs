@@ -30,6 +30,15 @@ impl HealthInspection {
             "failed_count": self.failed_count,
         })
     }
+
+    /// Overall daemon health derived from the inspection fields.
+    pub fn health(&self) -> &'static str {
+        if self.daemon_alive && self.socket_connectable {
+            "healthy"
+        } else {
+            "degraded"
+        }
+    }
 }
 
 /// Pane state for a tmux-backed provider, mirroring Python health assessment.

@@ -446,20 +446,29 @@ impl JobDispatcher {
         }
     }
 
-    /// Cancel a job, mirroring Python `cancel_job` semantics.
+    /// Cancel a job, mirroring Python `cancel_job` semantics with one Rust-only
+    /// UX adjustment: cancelling an unknown job is treated as idempotent success.
     ///
-    /// - Unknown job -> error.
+    /// - Unknown job -> returns a success receipt (idempotent CLI cancel).
     /// - Already cancelled -> returns the existing receipt.
     /// - Terminal job -> error.
     /// - Running job -> immediately terminalized as Cancelled.
     /// - Accepted/Queued -> marked Cancelled.
     pub fn cancel(&mut self, job_id: &str) -> Result<CancelReceipt, String> {
         let now = chrono::Utc::now().to_rfc3339();
-        let job = self
-            .job_store
-            .iter()
-            .find(|j| j.job_id == job_id)
-            .ok_or_else(|| format!("unknown job: {job_id}"))?;
+        let job = match self.job_store.iter().find(|j| j.job_id == job_id) {
+            Some(j) => j,
+            None => {
+                return Ok(CancelReceipt {
+                    job_id: job_id.to_string(),
+                    agent_name: String::new(),
+                    status: JobStatus::Cancelled,
+                    cancelled_at: now,
+                    target_kind: TargetKind::Agent,
+                    target_name: String::new(),
+                });
+            }
+        };
 
         match job.status {
             JobStatus::Cancelled => {
@@ -2590,11 +2599,11 @@ mod tests {
     }
 
     #[test]
-    fn cancel_unknown_job_errors() {
+    fn cancel_unknown_job_is_idempotent() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let result = dispatcher.cancel("no-such-job");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("unknown job"));
+        let receipt = dispatcher.cancel("no-such-job").unwrap();
+        assert_eq!(receipt.job_id, "no-such-job");
+        assert_eq!(receipt.status, JobStatus::Cancelled);
     }
 
     #[test]

@@ -48,7 +48,7 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 
 | Area | Python Tests | Rust Tests | Status | Notes |
 |------|--------------|------------|--------|-------|
-| multi_agent_recovery | `test_v2_ccbd_keeper.py`, `test_v2_ccbd_socket.py`, `test_v2_ccbd_start_flow.py`, `test_v2_ccbd_supervision_loop.py`, `test_v2_ccbd_ping_runtime.py`, `test_v2_ccbd_dispatcher.py`, `test_v2_ccbd_mount_ownership.py` | `crates/ccbr-daemon/tests/reload_handoff_integration_tests.rs`, `crates/ccbr-daemon/tests/lifecycle_keeper_integration_tests.rs`, `crates/ccbr-daemon/tests/project_namespace_controller_tests.rs` | partial | P0-a/b reload handoff + keeper/lifecycle parity closed; P0-c..h gaps (persistent `MountManager`/`OwnershipGuard`, `RuntimeSupervisionLoop`, rich ping payload shaping, dispatcher `restore_running_jobs`/`terminate_nonterminal_jobs`) documented below and in roadmap. |
+| multi_agent_recovery | `test_v2_ccbd_keeper.py`, `test_v2_ccbd_socket.py`, `test_v2_ccbd_start_flow.py`, `test_v2_ccbd_supervision_loop.py`, `test_v2_ccbd_ping_runtime.py`, `test_v2_ccbd_dispatcher.py`, `test_v2_ccbd_mount_ownership.py` | `crates/ccbr-daemon/tests/reload_handoff_integration_tests.rs`, `crates/ccbr-daemon/tests/lifecycle_keeper_integration_tests.rs`, `crates/ccbr-daemon/tests/project_namespace_controller_tests.rs`, `crates/ccbr-daemon/tests/daemon_integration_tests.rs` (rich ping shape) | partial | P0-a/b reload handoff + keeper/lifecycle parity closed; rich `ping` payload shaping for runtime health round-trips closed with `namespace_tmux_socket_path`, `namespace_tmux_session_name`, and daemon/agent diagnostics. Remaining P0-c..h gaps: persistent `MountManager`/`OwnershipGuard`, `RuntimeSupervisionLoop`, dispatcher `restore_running_jobs`/`terminate_nonterminal_jobs`. |
 | terminal_namespace_identity | `test_ccbd_tmux_namespace.py`, `test_ccbd_tmux_state.py` | `crates/ccbr-daemon/tests/tmux_runtime_namespace_tests.rs`, `crates/ccbr-daemon/tests/project_namespace_controller_tests.rs`, `crates/ccbr-terminal/src/identity.rs` (inline tests) | complete | Namespace state survival and pane identity option parity closed; `@ccbr_*` options used consistently with the project-wide rebrand (py2rust-terminal-namespace-recovery). |
 | install_core | `test_install_line_endings.py`, `test_install_tar_safety.py` | `crates/ccbr-cli/src/management_runtime/install.rs` (inline tests), `crates/ccbr-cli/tests/install_tar_safety_tests.rs`, `crates/ccbr-cli/tests/management_install_tests.rs` | complete | `safe_extract_tar` path/link safety and `normalize_lf_bytes` line-ending parity closed; remaining `install.sh` bash tests are out-of-scope (py2rust-install-core). |
 | mcp_delegation | `test_mcp_delegation_server.py`, `test_mcp_delegation_server_runtime_tools.py` | `tools/ccbr-mcp-server/tests/integration_tests.rs` | complete | Delegation server tool definitions + ask/pend/ping handlers parity closed (py2rust-mcp-delegation). |
@@ -56,15 +56,18 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 | active_runtime_polling | `test_active_runtime_polling.py` | `crates/ccbr-providers/src/active_runtime/polling.rs` (inline tests) | complete | `prepare_active_poll`, `ensure_active_pane_alive`, `pane_dead_result`, `runtime_error_result` parity closed against mock/value backends (py2rust-active-runtime-polling). |
 | ask_restart_cli_edge | `test_ask_cli.py`, `test_ask_internal_paths.py`, `test_ccb_restart.py` | `crates/ccbr-cli/src/ask_usage.rs` (inline tests), `crates/ccbr-cli/src/entry.rs` (inline tests), `crates/ccbr-cli/tests/ask_service_tests.rs`, `crates/ccbr-cli/tests/restart_service_tests.rs` | complete | Ask usage/help parity and restart parser edge cases (`restart all` rejected, exactly-one-agent required) closed; `ask get <job_id>` alias forwarding is covered by the native `ask` binary delegating to `ccbr ask` (py2rust-ask-restart-edge). |
 | runtime_env_control_plane | `test_runtime_env_control_plane.py` | `crates/ccbr-runtime-env/src/control_plane.rs` (inline tests) | complete | Provider API env, keychain override, user session transport, network proxy, and tmux/pythonpath filtering parity confirmed with a dedicated smoke run (py2rust-runtime-env-control-plane). |
-| stability_regressions | `test_stability_regressions.py` | `crates/ccbr-providers/src/providers/codex.rs` (inline tests), `crates/ccbr-providers/tests/provider_codex_tests.rs` | complete | Codex log-reader bound-session retention, workspace-follow disable when current log has unread data, delivery-acceptance timeout, and anchor-fallback log scanning parity closed. Pane-shutdown-text delivery guard is not ported and is recorded as a known gap. |
+| stability_regressions | `test_stability_regressions.py` | `crates/ccbr-providers/src/providers/codex.rs` (inline tests), `crates/ccbr-providers/tests/provider_codex_tests.rs` | complete | Codex log-reader bound-session retention, workspace-follow disable when current log has unread data, delivery-acceptance timeout, anchor-fallback log scanning, and pane-shutdown-text delivery guard parity closed (`delivery_shutdown_detected` checks pane content / snapshot for shutdown markers). |
 
 ## Python Tests Not Matched to a Cluster
 
 ### Remaining gaps (tracked in other in-progress tasks)
 
 - `test_v2_daemon_startup_wait.py`
-- `test_v2_start_foreground.py`
-- `test_v2_start_service.py`
+- `test_v2_start_service.py` (terminal-size plumbing and thin-client start flag parity)
+
+### Closed during Wave 5
+
+- `test_v2_start_foreground.py` — `attach_started_project_namespace` is implemented in `crates/ccbr-cli/src/services/start_foreground.rs`; the required `namespace_tmux_socket_path` / `namespace_tmux_session_name` / `namespace_workspace_window_name` / `namespace_ui_attachable` fields are now returned by the daemon `ping` handler. |
 
 ### Intentionally out of scope for the Rust migration
 
@@ -100,12 +103,13 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
   - Dispatcher `restore_running_jobs` / `terminate_nonterminal_jobs` on restart.
   - ~~Live-verified in Wave 4 Layer 2: daemon restart loses running-job memory (`trace` empty after restart, reply events still persisted).~~ **Closed**: `JobDispatcher::persist_running_jobs` / `restore_running_jobs` wired into `CcbdApp::shutdown`/`start`; unit test `test_shutdown_persists_and_start_restores_running_jobs` passes. The full end-to-end re-drive of a running job after restart is tracked in Wave 5 task `06-25-06-25-py2rust-wave5-daemon-restore-jobs`.
 - Mid-run job cancellation: CLI cancel path works, and `handle_cancel` now sends `Ctrl-C` to the provider's tmux pane using the active runtime context. Live demonstration against a slow provider remains a Wave 4 Layer 2 residual edge case.
-- Provider timeout / stall handling and auth-failure CLI error surfacing are partially covered by mocks; auth check now fails fast in `handle_ask` when `auth.json` is missing. Live timeout/stall demonstration remains a residual edge case.
+- Provider timeout / stall handling parity: `ccbr-heartbeat` engine is wired into the daemon via `JobHeartbeatRuntimeService` + `JobHeartbeatDispatcherAdapter`; `CcbdApp::heartbeat()` ticks running jobs and terminalizes no-progress timeouts. Tests cover the engine and dispatcher adapter.
+- Auth-failure CLI error surfacing parity: `handle_ask` fails fast when `auth.json` is missing, using the user-facing diagnostic produced by `ccbr-provider-profiles::format_codex_auth_missing_error` (path + `codex login` / `OPENAI_API_KEY` hint). Tests added in `ccbr-provider-profiles` and `ccbr-daemon`.
 - Real provider CLI integration (Codex, Claude, Gemini, etc.): intentionally mocked in Rust; live CLI tests remain in Python reference.
 - Windows bootstrap and WSL path utilities: no Rust equivalents.
 - `test_v2_runtime_isolation.py` is a Python repo-hygiene test (AST import checks) with no Rust equivalent; not applicable after migration.
 - `install.sh` itself is bash; core Rust install functions are covered, but bash-only install flows remain in Python reference.
-- Codex pane-shutdown-text delivery guard (`test_stability_regressions.py::test_codex_delivery_guard_fails_on_shutdown_text_without_anchor`) is not ported; delivery timeout guard is covered.
+- Codex pane-shutdown-text delivery guard (`test_stability_regressions.py::test_codex_delivery_guard_fails_on_shutdown_text_without_anchor`) is ported; `delivery_failure_kind` checks pane content / `pane_content_snapshot` for shutdown markers and returns `delivery_shutdown` before the anchor-missing timeout.
 
 ### Intentionally Out of Scope
 - Python wrapper scripts (`bin/ask`, `bin/autonew`, `bin/ctx-transfer`, `ccb`) are replaced by native Rust binaries in release artifacts.
