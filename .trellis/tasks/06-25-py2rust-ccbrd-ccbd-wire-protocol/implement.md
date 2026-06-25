@@ -106,6 +106,18 @@
     `cargo test -p ccbr-daemon test_trace_returns_job_history -- --test-threads=1`,
     `cargo test -p ccbr-daemon test_cancel_updates_mailbox_state -- --test-threads=1`,
     `cargo test -p ccbr-mailbox trace -- --test-threads=1`.
+- [x] `inbox` / `mailbox_head` / `ack`: verify mailbox-control owner and Python ack payload.
+  - Existing `inbox` and `mailbox_head` handlers already use mailbox-control state and Python agent/detail signatures.
+  - Minimal fix: make `ack` consume Python `inbound_event_id`, while preserving Rust legacy `event_id` as an alias.
+  - Validation:
+    `cargo test -p ccbr-daemon test_ack_acknowledges_reply_event -- --test-threads=1`.
+- [x] `stop-all` / `shutdown`: verify local workspace-exit owner and force semantics.
+  - Existing `stop-all` calls the stop flow directly with the caller-provided force flag.
+  - User-facing `shutdown` requests daemon shutdown; the daemon main loop then calls `CcbdApp::shutdown()`, which runs `stop_all(true, "shutdown")` and records `forced_cleanup`.
+  - Validation:
+    `cargo test -p ccbr-daemon test_start_stop_flow -- --test-threads=1`,
+    `cargo test -p ccbr-daemon test_shutdown_handler_requests_shutdown -- --test-threads=1`,
+    `cargo test -p ccbr-daemon app::tests::test_shutdown_forces_workspace_exit_cleanup --lib -- --test-threads=1`.
 - [x] `resubmit` / `retry`: verify Python message-bureau lifecycle payloads.
   - Added handler-level regressions:
     `handlers::resubmit::tests::resubmit_recreates_message_with_python_payload_shape`,

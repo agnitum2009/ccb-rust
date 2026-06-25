@@ -31,11 +31,11 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `submit` ask delivery | `backup/python-reference/lib/ccbd/handlers/submit.py`, `backup/python-reference/lib/provider_backends/codex/execution_runtime/start.py` | `rust/crates/ccbr-daemon/src/handlers/submit.rs`, `rust/crates/ccbr-daemon/src/app.rs`, `rust/crates/ccbr-providers/src/providers/codex.rs` | closed | P0 | Codex prompt dispatch is provider-owned during execution start; daemon heartbeat regression proves Python-style `submit` drives wrapped prompt delivery. |
 | Rust local `ask` op | none; Rust extension | `handlers/ask.rs` | guarded_extension | P0-supporting | Keep as CLI convenience; skip manual pane send when provider-owned start already sent the prompt. |
 | `project_view` sidebar readback | Python `handlers/project_view.py`, `project_view/**` | Rust `handlers/project_view.rs`, `tools/ccb-agent-sidebar/src/model.rs` | closed | P0 | Rust now emits the sidebar-consumed Python `{view, cache}` shape including project/ccbd/namespace/sidebar/window/agent/comms fields. |
-| `inbox` / `mailbox_head` / `ack` | Python mailbox handlers | Rust mailbox handlers + `ccbr-mailbox` | partially_verified | P0 | Preserve final reply and ack semantics under Python client flow. |
+| `inbox` / `mailbox_head` / `ack` | Python mailbox handlers | Rust mailbox handlers + `ccbr-mailbox` | closed | P0 | Rust uses mailbox-control state for readback and accepts Python `ack.inbound_event_id` while preserving Rust `event_id` alias. |
 | `project_restart_panes` | Python schedules in-place restart callback | Rust `handlers/project_restart.rs` + `run_start_flow` | closed_with_divergence | P0 | Rust now performs synchronous topology recreation via `run_start_flow`; no no-op `scheduled` success remains. |
 | `project_restart_agent` | Python restarts one agent with busy gate | Rust restarts all agents to preserve layout | accepted_divergence_candidate | P1 | Document/verify layout reason; ensure response shape does not mislead Python clients. |
 | `shutdown` red X | Python graceful daemon stop | Rust full workspace exit | accepted_local_divergence | P0 closed locally | User confirmed red X means complete workspace exit; Rust must kill tmux session/provider processes. |
-| `stop-all` | Python prepare/finalize project stop | Rust direct stop flow | partially_verified | P1 | Verify force=false/true response and lifecycle effects. |
+| `stop-all` | Python prepare/finalize project stop | Rust direct stop flow | closed_with_local_divergence | P1 | Rust executes stop flow directly with caller-provided `force`; user-facing `shutdown` owns full workspace exit with forced cleanup. |
 | `project_clear_context` | Python provider clear implementation | Rust handler | closed | P1 | Rust now sends `/clear` to real namespace/registry panes and returns Python-compatible target/result rows. |
 | `project_reload_config` | Python reload transaction | Rust reload handler | closed | P1 | Rust now returns Python dry-run/apply shape, publishes successful config into runtime read models, and blocks busy removed agents. |
 | `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
@@ -228,3 +228,41 @@ Evidence:
 - `cargo test -p ccbr-daemon test_trace_returns_job_history -- --test-threads=1`
 - `cargo test -p ccbr-daemon test_cancel_updates_mailbox_state -- --test-threads=1`
 - `cargo test -p ccbr-mailbox trace -- --test-threads=1`
+
+### `inbox` / `mailbox_head` / `ack` — closed 2026-06-26
+
+Owner finding:
+
+- Python `inbox` and `mailbox_head` are mailbox-control readbacks keyed by `agent_name`, and `inbox.detail` is optional.
+- Python `ack` reads `inbound_event_id`; Rust socket-client payloads also emit `inbound_event_id`.
+- Rust handler read only legacy `event_id`, so Python clients could accidentally acknowledge the current head while their requested `inbound_event_id` was ignored.
+
+Fix:
+
+- Kept `inbox` and `mailbox_head` on mailbox-control state.
+- `ack` now reads Python `inbound_event_id` first and preserves Rust `event_id` as a compatibility alias.
+- The integration regression acknowledges through `inbound_event_id` and verifies the task reply leaves the inbox.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon test_ack_acknowledges_reply_event -- --test-threads=1`
+
+### `stop-all` / `shutdown` — closed with local divergence 2026-06-26
+
+Owner finding:
+
+- Python `stop_all` prepares a stop summary and finalizes after response; Rust owns a direct stop-flow service.
+- Python `shutdown` is graceful, but the user confirmed the CCBR sidebar red X means complete workspace exit.
+- Rust local owner therefore requires user-facing `shutdown` to force cleanup; `stop-all` remains the explicit force-parameter path.
+
+Fix:
+
+- `stop-all` continues to pass the request `force` flag into `app.stop_all(force, "stop_all")` and returns stop-flow fields.
+- `shutdown` requests daemon shutdown; the daemon main loop calls `CcbdApp::shutdown()`, which persists running jobs, runs `stop_all(true, "shutdown")`, writes a shutdown report, records `forced_cleanup`, and releases the namespace.
+- This preserves Codex hooks: shutdown terminates the managed runtime processes and never disables hooks.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon test_start_stop_flow -- --test-threads=1`
+- `cargo test -p ccbr-daemon test_shutdown_handler_requests_shutdown -- --test-threads=1`
+- `cargo test -p ccbr-daemon app::tests::test_shutdown_forces_workspace_exit_cleanup --lib -- --test-threads=1`

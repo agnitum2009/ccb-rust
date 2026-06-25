@@ -582,7 +582,7 @@ fn test_ack_acknowledges_reply_event() {
     let ack = call(
         &mut app,
         "ack",
-        json!({"agent_name": "claude", "event_id": event_id}),
+        json!({"agent_name": "claude", "inbound_event_id": event_id}),
     );
     assert!(ack.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     assert_eq!(

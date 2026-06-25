@@ -11,7 +11,10 @@ pub fn handle_ack(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
     if agent_name.is_empty() {
         return Err("ack requires agent_name".into());
     }
-    let event_id = payload.get("event_id").and_then(|v| v.as_str());
+    let event_id = payload
+        .get("inbound_event_id")
+        .or_else(|| payload.get("event_id"))
+        .and_then(|v| v.as_str());
 
     // Guard against the mailbox control layer panicking when there is no
     // ackable reply head. If the head is missing, the requested event_id does
