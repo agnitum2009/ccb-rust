@@ -144,7 +144,9 @@ fn test_codex_launcher_build_start_cmd_includes_agent_model_shortcut() {
     )
     .unwrap();
 
-    assert!(cmd.contains("codex -c disable_paste_burst=true -m gpt-5 --search"));
+    assert!(cmd.contains("codex -c disable_paste_burst=true"));
+    assert!(cmd.contains("developer_instructions="));
+    assert!(cmd.contains("-m gpt-5 --search"));
 }
 
 #[test]
@@ -482,9 +484,9 @@ fn test_codex_launcher_provider_command_template_wraps_original_resume_command()
 
     assert!(!cmd.contains("{command}"));
     assert!(cmd.starts_with("export "));
-    assert!(cmd.contains(
-        "; sandbox=1 codex -c disable_paste_burst=true resume agent1-session-id omx --madmax"
-    ));
+    assert!(cmd.contains("; sandbox=1 codex -c disable_paste_burst=true"));
+    assert!(cmd.contains("developer_instructions="));
+    assert!(cmd.contains("resume agent1-session-id omx --madmax"));
     assert!(!cmd.contains("sandbox=1 export "));
 }
 

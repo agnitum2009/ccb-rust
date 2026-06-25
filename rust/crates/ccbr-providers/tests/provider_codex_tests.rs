@@ -308,7 +308,9 @@ fn write_codex_session(
             obj.insert(k, v);
         }
     }
-    let path = dir.join(".codex-session");
+    // Codex execution resolves named agents through their instance-scoped
+    // session file; it must not silently fall back to the primary session.
+    let path = dir.join(".codex-agent1-session");
     std::fs::write(&path, serde_json::to_string(&data).unwrap()).unwrap();
     path
 }

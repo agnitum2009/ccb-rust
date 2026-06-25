@@ -1,0 +1,62 @@
+# Codex Wire Protocol
+
+## Scenario: CCBR ask delivery into Codex
+
+### 1. Scope / Trigger
+
+- Trigger: any change to `ccbr ask` delivery, Codex session discovery, Codex JSONL polling, inbox reply extraction, or pane fallback completion.
+- Hard rule: do not disable, remove, skip, or mask Codex hooks, including `session_start`. Preserve hooks and solve coordination through launch args, developer instructions, session binding, and protocol polling.
+
+### 2. Signatures
+
+- CLI: `ccbr ask <target> --from <sender> <message>`
+- Session files: `.ccbr/.codex-<agent>-session` for named Codex agents; do not fall back to `.ccbr/.codex-session` for named agents.
+- Prompt state key consumed by daemon ask delivery: `runtime_state["prompt_text"]`.
+- Provider state keys: `session_path`, `state.log_path`, `state.offset`, `request_anchor`, `anchor_seen`, `reply_buffer`, `last_agent_message`.
+
+### 3. Contracts
+
+- Wrapped Codex prompts contain `<<BEGIN:req-xxxxxxxx>>` followed by the user body.
+- Codex JSONL is authoritative when `session_path` points to an existing file.
+- `event_msg` with `payload.type = "user_message"` confirms anchor delivery when the text contains the exact `request_anchor`.
+- `event_msg` with `payload.type = "agent_message"` or `response_item` assistant messages may supply reply text.
+- `event_msg` with `payload.type = "task_complete"` is the terminal boundary; prefer `last_agent_message` for the final reply.
+- Pane text fallback is allowed only when no structured Codex JSONL file exists.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+|-----------|-------------------|
+| Named agent session file missing | submission stays unavailable/error; no primary-session fallback |
+| `prompt_text` missing | daemon cannot deliver wrapped prompt; treat as protocol bug |
+| JSONL exists but has no new terminal event | keep job running; do not complete from pane text |
+| JSONL contains `task_complete.last_agent_message` | complete job and store that text in sender inbox |
+| No JSONL file exists | pane fallback may detect a ready prompt as best-effort completion |
+
+### 5. Good / Base / Bad Cases
+
+- Good: `agent1 -> agent2` ask completes and `ccbr inbox --detail agent1` shows only `agent2`'s final answer.
+- Base: startup keeps Codex hooks enabled and injects CCBR coordination through launch `developer_instructions`.
+- Bad: inbox preview contains Codex TUI chrome, the original prompt, or hook warning text.
+
+### 6. Tests Required
+
+- Unit: named `.ccbr/.codex-<agent>-session` is chosen and `prompt_text` equals the wrapped prompt.
+- Unit: request anchor matching accepts the actual `<<BEGIN:req-...>>` text.
+- Unit: when JSONL exists, pane fallback must not complete before `task_complete`.
+- Live smoke: `ccbr ask agent2 --from agent1 "Reply exactly: TOKEN"` then `ccbr inbox --detail agent1` contains `TOKEN`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+Codex pane shows a ready prompt, so complete the job from captured pane text.
+```
+
+#### Correct
+
+```text
+If Codex JSONL exists, wait for `task_complete` and use structured final-answer text.
+```
+

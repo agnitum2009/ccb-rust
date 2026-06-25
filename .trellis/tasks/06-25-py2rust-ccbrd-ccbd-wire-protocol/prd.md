@@ -45,9 +45,9 @@ ccbrd 必须保持：
 - `build_start_cmd`(command.rs:39-48) 正确传 `project_root=Some`+`agent_name=Some(&spec.name)` → `materialize_codex_memory` 不被跳过 → render_provider_home_memory 渲染（含 CCBR_RUNTIME_COORDINATION_RULES `/ask`）→ atomic_write 写 home/AGENTS.md（rendered）。
 - 但运行时 home/AGENTS.md 是 raw（`<!-- AUTONOMY DIRECTIVE -->` + "USE CODEX NATIVE SUBAGENTS" + `omx:generated:agents-md`，0 CCB 头）。
 - **根因**：codex 启动的 **oh-my-codex session_start hook 重新生成 AGENTS.md**，覆盖了 ccbr 的 rendered 版。codex session_start 读到的 = 被覆盖的 raw（无 `/ask` rules）→ 不知道用 `ccbr ask`。
-- Python n14 对照：其 codex home/AGENTS.md 是 CCB rendered（"# CCB Managed Agent Memory"+rules，持久）→ 说明 Python 那边该 session_start 重生成 hook 没生效/被禁用。ccbr 未对齐。
+- Python n14 对照：其 codex home/AGENTS.md 是 CCB rendered（"# CCB Managed Agent Memory"+rules，持久）。该差异只能作为现象参考，**不得通过禁用 Codex hooks 来对齐**。
 
-**正解（daemon 侧，对齐 Python）**：在 `materialize_codex_home_config`（ccbr-provider-profiles/codex_home_config.rs）里**阻止/禁用 codex 的 oh-my-codex session_start AGENTS.md 重生成 hook**（或 post-launch 重写 AGENTS.md 后触发 codex reload），使 ccbr rendered 的含 `/ask` coordination rules 的 AGENTS.md 持久。需先定位该 hook 在 source config.toml 的具体配置（session_start hook 调 omx AGENTS.md 生成器），在物化 target config 时禁用它。
+**硬约束（luck，2026-06-26）**：严禁屏蔽、禁用、删除任何 Codex hooks，包括 `session_start`。后续方案必须保留 Codex hook 全量运行；只能通过 launch args / developer instructions / CCBR 自身会话定位与线协议修复来解决互操作问题。
 
 **无效尝试（已验证 race 输）**：script 层 `inject_comms_rules`（start 后追加规则）—— codex 在 session_start 已读完，太晚。
 

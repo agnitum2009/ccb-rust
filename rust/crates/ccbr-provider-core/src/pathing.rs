@@ -46,11 +46,27 @@ pub fn session_filename_for_instance(base_filename: &str, instance: Option<&str>
 
 /// Look for a session file in a work directory.
 pub fn find_session_file_for_work_dir(work_dir: &Path, session_filename: &str) -> Option<PathBuf> {
-    let candidate = work_dir.expand_home().join(session_filename);
+    let start = work_dir.expand_home();
+    let candidate = start.join(session_filename);
     if candidate.exists() {
-        Some(candidate)
-    } else {
-        None
+        return Some(candidate);
+    }
+    find_project_ccbr_session_file(&start, session_filename)
+}
+
+fn find_project_ccbr_session_file(start: &Path, session_filename: &str) -> Option<PathBuf> {
+    let mut current = start.canonicalize().unwrap_or_else(|_| start.to_path_buf());
+    if current.is_file() {
+        current = current.parent()?.to_path_buf();
+    }
+    loop {
+        let candidate = current.join(".ccbr").join(session_filename);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        if !current.pop() {
+            return None;
+        }
     }
 }
 
@@ -128,5 +144,21 @@ mod tests {
         let tmp = std::env::temp_dir();
         let found = find_session_file_for_work_dir(&tmp, ".definitely-missing-session");
         assert!(found.is_none());
+    }
+
+    #[test]
+    fn test_find_session_file_for_work_dir_uses_project_ccbr_anchor() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path().join("repo");
+        let nested = project.join("subdir");
+        std::fs::create_dir_all(project.join(".ccbr")).unwrap();
+        std::fs::create_dir_all(&nested).unwrap();
+        let session = project.join(".ccbr").join(".codex-agent1-session");
+        std::fs::write(&session, "{}").unwrap();
+
+        assert_eq!(
+            find_session_file_for_work_dir(&nested, ".codex-agent1-session"),
+            Some(session)
+        );
     }
 }

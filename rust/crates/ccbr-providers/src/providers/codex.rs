@@ -242,12 +242,18 @@ fn start_active_submission(
     }
 
     let workspace_path_buf = PathBuf::from(&workspace_path);
-    let session = load_project_session(&workspace_path_buf, None);
+    let session = load_session(load_project_session, &workspace_path_buf, &job.agent_name);
 
     let session_path = session
         .as_ref()
         .and_then(|s| s.codex_session_path())
         .map(|s| s.to_string())
+        .or_else(|| {
+            session
+                .as_ref()
+                .and_then(|s| latest_session_log(s, &workspace_path_buf))
+                .map(|p| p.to_string_lossy().to_string())
+        })
         .or_else(|| {
             context
                 .and_then(|c| c.session_ref.as_deref())
@@ -363,7 +369,8 @@ fn start_active_submission(
         "delivery_confirmed_at".to_string(),
         Value::String(String::new()),
     );
-    runtime_state.insert("prompt".to_string(), Value::String(prompt));
+    runtime_state.insert("prompt".to_string(), Value::String(prompt.clone()));
+    runtime_state.insert("prompt_text".to_string(), Value::String(prompt));
 
     ProviderSubmission {
         job_id: job.job_id.clone(),
@@ -468,6 +475,7 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
 
     let path = PathBuf::from(expand_tilde(&current_log_path));
     let offset = state.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+    let log_exists = path.exists();
     let (entries, new_offset) = read_log_entries(&path, offset).unwrap_or_default();
 
     for entry in entries {
@@ -498,10 +506,13 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     current_state.insert("offset".to_string(), Value::Number(new_offset.into()));
 
     let result = finalize_poll_result(&submission, poll, Value::Object(current_state), now);
-    // When the structured session log yields no progress (empty or missing
-    // entries), fall back to pane-text turn-boundary detection so live codex
-    // panes can complete even without a writable/structured log.
-    result.or_else(|| poll_pane_text_completion_codex(&submission, now))
+    if result.is_none() && !log_exists {
+        // Fallback only when there is no structured log to read. If a Codex
+        // JSONL exists, wait for task_complete/agent_message instead of letting
+        // pane text promote the prompt/TUI chrome to a completed reply.
+        return poll_pane_text_completion_codex(&submission, now);
+    }
+    result
 }
 
 #[derive(Debug, Clone)]
@@ -671,8 +682,7 @@ fn handle_user_entry(
     if poll.request_anchor.is_empty() || poll.anchor_seen {
         return;
     }
-    let needle = format!("{} {}", REQ_ID_PREFIX, poll.request_anchor);
-    if text.contains(&needle) {
+    if text_contains_request_anchor(text, &poll.request_anchor) {
         let mut payload = HashMap::new();
         payload.insert(
             "turn_id".to_string(),
@@ -1134,8 +1144,8 @@ fn delivery_acceptance_guard(
     let failure_kind = failure_kind.as_deref()?;
 
     let work_dir = submission_work_dir(submission, state)?;
-    let session = load_project_session(&work_dir, None)?;
-    let current_log = current_session_log(&session)?;
+    let session = load_session(load_project_session, &work_dir, &submission.agent_name)?;
+    let current_log = current_or_latest_session_log(&session, &work_dir)?;
     if !current_log.exists() {
         return None;
     }
@@ -1428,6 +1438,37 @@ fn current_session_log(session: &CodexProjectSession) -> Option<PathBuf> {
         .filter(|p| !p.as_os_str().is_empty())
 }
 
+fn current_or_latest_session_log(
+    session: &CodexProjectSession,
+    work_dir: &Path,
+) -> Option<PathBuf> {
+    current_session_log(session).or_else(|| latest_session_log(session, work_dir))
+}
+
+fn latest_session_log(session: &CodexProjectSession, work_dir: &Path) -> Option<PathBuf> {
+    let root = codex_session_root_path(&session.data)?;
+    if !root.is_dir() {
+        return None;
+    }
+    let target_work_dir = normalize_work_dir(work_dir)?;
+    let mut matches = walk_jsonl_files(&root)
+        .into_iter()
+        .filter(|path| log_matches_work_dir(path, &target_work_dir))
+        .collect::<Vec<_>>();
+    matches.sort_by(|a, b| {
+        file_modified(a)
+            .cmp(&file_modified(b))
+            .then_with(|| a.cmp(b))
+    });
+    matches.pop()
+}
+
+fn file_modified(path: &Path) -> std::time::SystemTime {
+    std::fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .unwrap_or(std::time::UNIX_EPOCH)
+}
+
 fn current_log_is_drained(log_path: &Path, offset: u64) -> bool {
     match std::fs::metadata(log_path) {
         Ok(meta) => meta.len() <= offset,
@@ -1455,7 +1496,7 @@ fn refresh_runtime_state(submission: &ProviderSubmission, _now: &str) -> HashMap
         Some(p) => p,
         None => return state.clone(),
     };
-    let session = match load_project_session(&work_dir, None) {
+    let session = match load_session(load_project_session, &work_dir, &submission.agent_name) {
         Some(s) => s,
         None => return state.clone(),
     };
@@ -1468,7 +1509,7 @@ fn refresh_runtime_state(submission: &ProviderSubmission, _now: &str) -> HashMap
         );
     }
 
-    let current_log = match current_session_log(&session) {
+    let current_log = match current_or_latest_session_log(&session, &work_dir) {
         Some(p) => p,
         None => return runtime_state,
     };
@@ -1625,18 +1666,24 @@ fn log_matches_work_dir(log_path: &Path, target_work_dir: &str) -> bool {
 }
 
 fn log_contains_request_anchor(log_path: &Path, request_anchor: &str) -> bool {
-    let needle = format!("{} {}", REQ_ID_PREFIX, request_anchor);
     let file = match File::open(log_path) {
         Ok(f) => f,
         Err(_) => return false,
     };
     let reader = std::io::BufReader::new(file);
     for line in reader.lines().map_while(Result::ok) {
-        if line.contains(&needle) {
+        if text_contains_request_anchor(&line, request_anchor) {
             return true;
         }
     }
     false
+}
+
+fn text_contains_request_anchor(text: &str, request_anchor: &str) -> bool {
+    if request_anchor.is_empty() {
+        return false;
+    }
+    text.contains(request_anchor) || text.contains(&format!("{} {}", REQ_ID_PREFIX, request_anchor))
 }
 
 fn extract_cwd_from_log_file(log_path: &Path) -> Option<String> {
@@ -2269,6 +2316,94 @@ mod tests {
     }
 
     #[test]
+    fn test_text_contains_request_anchor_accepts_actual_and_legacy_forms() {
+        let anchor = "<<BEGIN:req-12345678>>";
+        assert!(text_contains_request_anchor(anchor, anchor));
+        assert!(text_contains_request_anchor(
+            &format!("req- {anchor}"),
+            anchor
+        ));
+        assert!(!text_contains_request_anchor("req-12345678", anchor));
+    }
+
+    #[test]
+    fn test_poll_waits_for_structured_log_instead_of_pane_fallback() {
+        let tmp = tempfile::tempdir().unwrap();
+        let log_path = tmp.path().join("codex-session.jsonl");
+        let job_id = "job_wait_jsonl";
+        let request_anchor = request_anchor_for_job(job_id);
+        let mut file = File::create(&log_path).unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"event_msg","payload":{{"type":"user_message","message":"{}"}}}}"#,
+            request_anchor
+        )
+        .unwrap();
+        let offset = file.metadata().unwrap().len();
+
+        let mut state = HashMap::new();
+        state.insert("mode".to_string(), Value::String("active".to_string()));
+        state.insert(
+            "state".to_string(),
+            serde_json::json!({"log_path": log_path.to_string_lossy(), "offset": offset}),
+        );
+        state.insert(
+            "request_anchor".to_string(),
+            Value::String(request_anchor.clone()),
+        );
+        state.insert("next_seq".to_string(), Value::Number(1.into()));
+        state.insert("anchor_seen".to_string(), Value::Bool(true));
+        state.insert("bound_turn_id".to_string(), Value::String(String::new()));
+        state.insert("bound_task_id".to_string(), Value::String(String::new()));
+        state.insert(
+            "reply_buffer".to_string(),
+            Value::String(format!("{request_anchor}\n›")),
+        );
+        state.insert(
+            "last_agent_message".to_string(),
+            Value::String(String::new()),
+        );
+        state.insert(
+            "last_final_answer".to_string(),
+            Value::String(String::new()),
+        );
+        state.insert(
+            "last_assistant_message".to_string(),
+            Value::String(String::new()),
+        );
+        state.insert(
+            "last_assistant_signature".to_string(),
+            Value::String(String::new()),
+        );
+        state.insert(
+            "session_path".to_string(),
+            Value::String(log_path.to_string_lossy().to_string()),
+        );
+        state.insert("no_wrap".to_string(), Value::Bool(false));
+        state.insert(
+            "delivery_state".to_string(),
+            Value::String("accepted".to_string()),
+        );
+
+        let submission = ProviderSubmission {
+            job_id: job_id.to_string(),
+            agent_name: "agent1".to_string(),
+            provider: PROVIDER_NAME.to_string(),
+            accepted_at: "2026-04-04T10:00:00Z".to_string(),
+            ready_at: "2026-04-04T10:00:00Z".to_string(),
+            source_kind: CompletionSourceKind::ProtocolEventStream,
+            reply: String::new(),
+            status: CompletionStatus::Incomplete,
+            reason: "in_progress".to_string(),
+            confidence: CompletionConfidence::Observed,
+            diagnostics: None,
+            runtime_state: state,
+        };
+
+        assert!(poll_submission(&submission, "2026-04-04T10:00:01Z").is_none());
+    }
+
+    #[test]
     fn test_abort_status_detects_cancel() {
         assert_eq!(abort_status("user cancelled"), "cancelled");
         assert_eq!(abort_status("something broke"), "failed");
@@ -2377,6 +2512,79 @@ mod tests {
             Some("/a/b".to_string())
         );
         assert_eq!(extract_env_assignment("BAR=/a/b", "FOO"), None);
+    }
+
+    #[test]
+    fn test_start_active_submission_uses_named_ccbr_session_and_prompt_text() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("repo");
+        let ccbr_dir = work_dir.join(".ccbr");
+        let primary_root = work_dir.join("primary-sessions");
+        let agent_root = work_dir.join("agent2-sessions");
+        std::fs::create_dir_all(&ccbr_dir).unwrap();
+        std::fs::create_dir_all(&primary_root).unwrap();
+        std::fs::create_dir_all(&agent_root).unwrap();
+
+        let primary_log = primary_root.join("primary.jsonl");
+        let agent_log = agent_root.join("agent2.jsonl");
+        for log in [&primary_log, &agent_log] {
+            let mut file = std::fs::File::create(log).unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+                work_dir.to_string_lossy()
+            )
+            .unwrap();
+        }
+        std::fs::write(
+            ccbr_dir.join(".codex-session"),
+            serde_json::json!({"codex_session_root": primary_root.to_string_lossy().to_string()})
+                .to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            ccbr_dir.join(".codex-agent2-session"),
+            serde_json::json!({"codex_session_root": agent_root.to_string_lossy().to_string()})
+                .to_string(),
+        )
+        .unwrap();
+
+        let job = JobRecord {
+            job_id: "job_named_session".to_string(),
+            agent_name: "agent2".to_string(),
+            provider: "codex".to_string(),
+            target_kind: ccbr_completion::models::TargetKind::Agent,
+            request: ccbr_completion::models::JobRequest {
+                body: "hello agent2".to_string(),
+                message_type: None,
+            },
+            provider_options: Map::new(),
+            workspace_path: None,
+            provider_instance: None,
+        };
+        let ctx = ProviderRuntimeContext {
+            agent_name: "agent2".to_string(),
+            workspace_path: Some(work_dir.to_string_lossy().to_string()),
+            backend_type: Some("tmux".to_string()),
+            runtime_ref: Some("%1".to_string()),
+            session_ref: None,
+            ..Default::default()
+        };
+
+        let submission = start_active_submission(&job, Some(&ctx), "2026-04-04T10:00:00Z");
+
+        assert_eq!(
+            get_str(&submission.runtime_state, "session_path"),
+            agent_log.to_string_lossy().to_string()
+        );
+        assert_eq!(
+            get_str(&submission.runtime_state, "delivery_target_session_path"),
+            agent_log.to_string_lossy().to_string()
+        );
+        let prompt_text = get_str(&submission.runtime_state, "prompt_text");
+        assert!(prompt_text.starts_with("<<BEGIN:req-"));
+        assert!(prompt_text.contains("hello agent2"));
+        assert_eq!(get_str(&submission.runtime_state, "prompt"), prompt_text);
     }
 
     #[test]
