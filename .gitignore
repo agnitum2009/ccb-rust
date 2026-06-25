@@ -40,3 +40,7 @@ openspec
 .loop/
 .agents/
 .omx/
+
+# dot-dirs 不列入仓（runtime/state，glm5.2 2026-06-25）
+/--help/
+**/.omc/
