@@ -133,15 +133,14 @@ fn run_ccb_kill(project_root: &Path) -> io::Result<()> {
 
 fn run_ccb_kill_with_program(program: PathBuf, project_root: &Path) -> io::Result<()> {
     let status = Command::new(program)
-        .arg("kill")
-        .arg("--force")
+        .arg("shutdown")
         .current_dir(project_root)
         .status()?;
     if status.success() {
         return Ok(());
     }
     Err(io::Error::other(format!(
-        "ccb kill failed with status {status}"
+        "ccb shutdown failed with status {status}"
     )))
 }
 
