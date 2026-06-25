@@ -54,13 +54,9 @@ pub fn handle_cancel(app: &mut CcbdApp, payload: &Value) -> Result<Value, String
             provider_turn_ref: None,
             diagnostics: Value::Object(Default::default()),
         };
-        let _ = app.mailbox.record_terminal(
-            &mailbox_job,
-            &decision,
-            &receipt.cancelled_at,
-            true,
-            true,
-        );
+        let _ =
+            app.mailbox
+                .record_terminal(&mailbox_job, &decision, &receipt.cancelled_at, true, true);
     }
 
     Ok(receipt.to_record())
@@ -127,7 +123,8 @@ mod tests {
         );
         let job_id = receipt.jobs[0].job_id.clone();
         app.dispatcher.tick();
-        app.dispatcher.update_job_status(&job_id, JobStatus::Completed, None);
+        app.dispatcher
+            .update_job_status(&job_id, JobStatus::Completed, None);
 
         let result = handle_cancel(&mut app, &json!({"job_id": job_id}));
         assert!(result.is_err());

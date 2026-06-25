@@ -7,7 +7,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::tick::{
-    HeartbeatPolicy, HeartbeatService, HeartbeatState, Job, JobSnapshot, Dispatcher as TickDispatcher,
+    Dispatcher as TickDispatcher, HeartbeatPolicy, HeartbeatService, HeartbeatState, Job,
+    JobSnapshot,
 };
 
 /// In-memory store for per-job heartbeat state.
@@ -75,7 +76,13 @@ impl HeartbeatService for JobHeartbeatRuntimeService {
     }
 
     fn load(&self, _kind: &str, id: &str) -> crate::tick::Result<Option<HeartbeatState>> {
-        Ok(self.store.states.lock().unwrap().get(&self.key(id)).cloned())
+        Ok(self
+            .store
+            .states
+            .lock()
+            .unwrap()
+            .get(&self.key(id))
+            .cloned())
     }
 
     fn save(&self, state: HeartbeatState) -> crate::tick::Result<()> {
@@ -136,7 +143,8 @@ impl<'a> TickDispatcher for JobHeartbeatDispatcherAdapter<'a> {
                 _ => None,
             })
             .unwrap_or(crate::models::api_models::common::JobStatus::Incomplete);
-        self.dispatcher.update_job_status(job_id, status, Some(decision));
+        self.dispatcher
+            .update_job_status(job_id, status, Some(decision));
         Ok(())
     }
 }
@@ -145,8 +153,8 @@ impl<'a> TickDispatcher for JobHeartbeatDispatcherAdapter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::api_models::messages::MessageEnvelope;
     use crate::models::api_models::common::{DeliveryScope, JobStatus};
+    use crate::models::api_models::messages::MessageEnvelope;
 
     fn make_test_job(job_id: &str, agent_name: &str, updated_at: &str) -> Job {
         Job {
@@ -197,8 +205,14 @@ mod tests {
             job.updated_at = old.into();
         }
 
-        let mut adapter = JobHeartbeatDispatcherAdapter { dispatcher: &mut dispatcher };
-        let result = crate::tick::tick_job_heartbeat(&service, &mut adapter, &make_test_job(&job_id, "agent1", old));
+        let mut adapter = JobHeartbeatDispatcherAdapter {
+            dispatcher: &mut dispatcher,
+        };
+        let result = crate::tick::tick_job_heartbeat(
+            &service,
+            &mut adapter,
+            &make_test_job(&job_id, "agent1", old),
+        );
         assert!(result.is_ok(), "tick should not error: {:?}", result.err());
 
         let job = dispatcher.get(&job_id).unwrap();

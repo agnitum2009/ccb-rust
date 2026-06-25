@@ -544,7 +544,13 @@ fn poll_pane_text_completion_codex(
         let pane_id = get_str(&submission.runtime_state, "pane_id");
         if !socket.is_empty() && !pane_id.is_empty() {
             let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket.to_string()));
-            let _ = backend.tmux_run(&["send-keys", "-t", &pane_id, "Enter"], false, false, None, None);
+            let _ = backend.tmux_run(
+                &["send-keys", "-t", &pane_id, "Enter"],
+                false,
+                false,
+                None,
+                None,
+            );
         }
         return None; // Re-check next poll after Enter.
     }

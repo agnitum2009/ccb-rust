@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -32,10 +32,12 @@ fn main() {
     }
 
     let socket_path = app.socket_path();
+    // Use the app's own shutdown flag so RPC handlers and signals agree on
+    // when to terminate the daemon.
+    let shutdown_requested = app.shutdown_requested.clone();
     let app = Arc::new(Mutex::new(app));
     let server = SocketServer::new(&socket_path);
 
-    let shutdown_requested = Arc::new(AtomicBool::new(false));
     let heartbeat_shutdown = shutdown_requested.clone();
     let heartbeat_app = Arc::clone(&app);
 

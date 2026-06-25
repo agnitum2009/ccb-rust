@@ -66,26 +66,31 @@ impl StopFlowService {
                 }
             }
 
-            match self.mode {
-                StopFlowMode::Tmux => {
-                    let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket.to_string()));
-                    for pane in &killed_panes {
-                        if let Err(e) = backend.kill_pane(pane) {
-                            errors.push(e.to_string());
-                        }
-                    }
-                    // Fallback: if no pane ids were tracked but a session exists,
-                    // tear down the whole session.
-                    if killed_panes.is_empty() {
-                        if let Some(session) = session_name {
-                            if let Err(e) = backend.kill_pane(session) {
+            // Only terminate provider panes on forced stops. Graceful shutdown
+            // preserves panes so a restarted daemon can adopt running jobs.
+            if force {
+                match self.mode {
+                    StopFlowMode::Tmux => {
+                        let backend =
+                            ccbr_terminal::TmuxBackend::new(None, Some(socket.to_string()));
+                        for pane in &killed_panes {
+                            if let Err(e) = backend.kill_pane(pane) {
                                 errors.push(e.to_string());
                             }
                         }
+                        // Fallback: if no pane ids were tracked but a session exists,
+                        // tear down the whole session.
+                        if killed_panes.is_empty() {
+                            if let Some(session) = session_name {
+                                if let Err(e) = backend.kill_pane(session) {
+                                    errors.push(e.to_string());
+                                }
+                            }
+                        }
                     }
-                }
-                StopFlowMode::Stub => {
-                    // No-op.
+                    StopFlowMode::Stub => {
+                        // No-op.
+                    }
                 }
             }
         }
