@@ -263,6 +263,36 @@ impl JobDispatcher {
         );
     }
 
+    /// Persist all non-terminal jobs so a restarted daemon can restore running
+    /// job memory.  This closes the S3.3 daemon-restart job-continuity gap.
+    pub fn persist_running_jobs(&self, path: &camino::Utf8Path) -> Result<(), String> {
+        let running: Vec<&JobRecord> = self
+            .job_store
+            .iter()
+            .filter(|j| !j.status.is_terminal())
+            .collect();
+        ccbr_storage::json::JsonStore::new()
+            .save(path, &running)
+            .map_err(|e| format!("failed to persist running jobs: {e}"))
+    }
+
+    /// Restore non-terminal jobs from a previous daemon instance.  Jobs whose
+    /// agent is no longer configured are dropped.  Running jobs are left in the
+    /// dispatcher state so heartbeat/comms_recover can drive them to completion.
+    pub fn restore_running_jobs(&mut self, path: &camino::Utf8Path) {
+        let loaded: Vec<JobRecord> = ccbr_storage::json::JsonStore::new()
+            .load(path)
+            .unwrap_or_default();
+        let valid: Vec<JobRecord> = loaded
+            .into_iter()
+            .filter(|j| self.agent_names.contains(&j.agent_name) && !j.status.is_terminal())
+            .collect();
+        if !valid.is_empty() {
+            self.job_store = valid;
+            self.state.rebuild(&self.job_store);
+        }
+    }
+
     /// Wire the dispatcher to persist job records to the shared mailbox job
     /// store so that `trace` and other mailbox inspection handlers can see
     /// dispatcher job history.

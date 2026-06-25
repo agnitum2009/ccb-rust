@@ -247,6 +247,11 @@ impl CcbdApp {
         self.last_startup_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
 
+        // Restore running jobs from the previous daemon instance so trace shows
+        // them and heartbeat/comms_recover can continue driving them.
+        let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
+        self.dispatcher.restore_running_jobs(&running_jobs_path);
+
         self.lifecycle
             .record(crate::services::lifecycle::LifecycleReport {
                 project_id: self.project_id().to_string(),
@@ -283,6 +288,12 @@ impl CcbdApp {
         let report_path = self.layout.ccbrd_shutdown_report_path();
         self.last_shutdown_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
+
+        // Persist running/non-terminal jobs so the next daemon instance can
+        // restore job memory (S3.3 daemon restart job continuity).
+        let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
+        let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
+
         self.ownership.release();
         self.project_namespace.unmount().ok();
         Ok(())
@@ -812,5 +823,81 @@ main = "agent1:codex"
 
         let entry = app.registry.get("agent1").expect("agent1 still registered");
         assert_eq!(entry.pane_id.as_deref(), Some("%42"));
+    }
+
+    #[test]
+    fn test_shutdown_persists_and_start_restores_running_jobs() {
+        use crate::models::api_models::common::JobStatus;
+        use crate::models::api_models::messages::MessageEnvelope;
+        use crate::models::api_models::records::JobRecord;
+
+        let dir = TempDir::new().unwrap();
+        let ccbr_dir = dir.path().join(".ccbr");
+        std::fs::create_dir_all(&ccbr_dir).unwrap();
+        std::fs::write(
+            ccbr_dir.join("ccbr.config"),
+            r#"version = 2
+default_agents = ["agent1"]
+
+[agents.agent1]
+provider = "codex"
+target = "agent1"
+"#,
+        )
+        .unwrap();
+
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+
+        // Inject a running job directly into the dispatcher.
+        let job = JobRecord {
+            job_id: "job-1".into(),
+            submission_id: None,
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            request: MessageEnvelope {
+                project_id: "proj-1".into(),
+                to_agent: "agent1".into(),
+                from_actor: "user".into(),
+                body: "keep running".into(),
+                task_id: None,
+                reply_to: None,
+                message_type: "ask".into(),
+                delivery_scope: crate::models::api_models::common::DeliveryScope::Single,
+                silence_on_success: false,
+                route_options: serde_json::json!({}),
+                body_artifact: None,
+            },
+            status: JobStatus::Running,
+            terminal_decision: None,
+            cancel_requested_at: None,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
+            workspace_path: None,
+            target_kind: crate::models::api_models::common::TargetKind::Agent,
+            target_name: "agent1".into(),
+        };
+        app.dispatcher.job_store.push(job);
+        app.dispatcher.state.rebuild(&app.dispatcher.job_store.clone());
+
+        app.shutdown().expect("shutdown should succeed");
+
+        // Simulate a fresh daemon instance in the same project.
+        let mut restarted = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        restarted.start().expect("start should succeed");
+
+        let restored = restarted
+            .dispatcher
+            .get("job-1")
+            .expect("running job should be restored");
+        assert_eq!(restored.status, JobStatus::Running);
+        assert_eq!(restored.agent_name, "agent1");
     }
 }
