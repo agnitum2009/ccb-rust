@@ -1177,11 +1177,60 @@ fn delivery_failure_kind(
     submission: &ProviderSubmission,
     now: &str,
 ) -> Option<String> {
+    if delivery_shutdown_detected(state) {
+        return Some("delivery_shutdown".to_string());
+    }
     if delivery_timeout_elapsed(state, submission, now) {
         Some("delivery_anchor_missing".to_string())
     } else {
         None
     }
+}
+
+/// Detect codex pane shutdown before the request anchor was delivered.
+///
+/// Mirrors Python's `provider_execution.codex` shutdown-text guard: if the
+/// target pane shows shutdown/dead markers while we are still waiting for the
+/// anchor, the prompt never reached the provider and we should fail fast.
+fn delivery_shutdown_detected(state: &HashMap<String, Value>) -> bool {
+    let content = delivery_pane_content(state).unwrap_or_default();
+    if content.is_empty() {
+        return false;
+    }
+    let lowered = content.to_lowercase();
+    // Codex-specific shutdown markers observed in the wild.
+    const SHUTDOWN_MARKERS: &[&str] = &[
+        "shutting down",
+        "shutting down...",
+        "pane is dead",
+        "pane died",
+        "exited",
+        "killed",
+        "terminated",
+    ];
+    SHUTDOWN_MARKERS.iter().any(|m| lowered.contains(m))
+}
+
+/// Best-effort read of the target pane content used for delivery guard checks.
+///
+/// 1. If the runtime state contains a `pane_content_snapshot` (set by tests or
+///    an external observer), use it directly.
+/// 2. Otherwise attempt to capture the last N lines from the tmux pane referred
+///    to by `delivery_target_pane_id` / `socket_path`.
+fn delivery_pane_content(state: &HashMap<String, Value>) -> Option<String> {
+    if let Some(snapshot) = state.get("pane_content_snapshot").and_then(|v| v.as_str()) {
+        return Some(snapshot.to_string());
+    }
+    let pane_id = get_str(state, "delivery_target_pane_id");
+    let socket = get_str(state, "socket_path");
+    if pane_id.is_empty() || socket.is_empty() {
+        return None;
+    }
+    let backend = ccb_terminal::TmuxBackend::new(None, Some(socket.to_string()));
+    backend
+        .tmux_run_capture(&["capture-pane", "-p", "-t", &pane_id])
+        .ok()
+        .map(|s| ccb_terminal::TmuxBackend::strip_ansi(&s))
 }
 
 fn delivery_timeout_elapsed(
@@ -2443,5 +2492,55 @@ mod tests {
             result.is_none(),
             "expected no fallback while current log has unread data"
         );
+    }
+
+    #[test]
+    fn test_delivery_shutdown_detected_matches_shutdown_markers() {
+        assert!(delivery_shutdown_detected(&snapshot_map(
+            ">_ OpenAI Codex\nShutting down...\nPane is dead"
+        )));
+        assert!(delivery_shutdown_detected(&snapshot_map(
+            "codex exited unexpectedly"
+        )));
+        assert!(!delivery_shutdown_detected(&snapshot_map(
+            ">_ OpenAI Codex\nmodel: gpt-5.5 /model to change\n› Implement feature"
+        )));
+        assert!(!delivery_shutdown_detected(&HashMap::new()));
+    }
+
+    #[test]
+    fn test_delivery_failure_kind_prefers_shutdown_over_timeout() {
+        let mut state = HashMap::new();
+        state.insert(
+            "pane_content_snapshot".to_string(),
+            Value::String(">_ OpenAI Codex\nShutting down...\nPane is dead".to_string()),
+        );
+        let submission = ProviderSubmission {
+            job_id: "j1".to_string(),
+            agent_name: "agent1".to_string(),
+            provider: "codex".to_string(),
+            accepted_at: "2026-04-04T10:00:00Z".to_string(),
+            ready_at: "2026-04-04T10:00:00Z".to_string(),
+            source_kind: ccb_completion::models::CompletionSourceKind::ProtocolEventStream,
+            reply: String::new(),
+            status: CompletionStatus::Incomplete,
+            reason: "in_progress".to_string(),
+            confidence: CompletionConfidence::Observed,
+            diagnostics: None,
+            runtime_state: state.clone(),
+        };
+        assert_eq!(
+            delivery_failure_kind(&state, &submission, "2026-04-04T10:00:05Z"),
+            Some("delivery_shutdown".to_string())
+        );
+    }
+
+    fn snapshot_map(content: &str) -> HashMap<String, Value> {
+        let mut m = HashMap::new();
+        m.insert(
+            "pane_content_snapshot".to_string(),
+            Value::String(content.to_string()),
+        );
+        m
     }
 }

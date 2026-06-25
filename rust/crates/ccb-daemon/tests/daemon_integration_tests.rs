@@ -70,6 +70,70 @@ fn test_python_shape_ping() {
     let resp: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     assert!(resp.get("pong").is_some());
+
+    assert_eq!(resp["target"].as_str(), Some("ccbd"));
+    assert_eq!(resp["mount_state"].as_str(), Some("running"));
+    assert!(resp["health"].is_string());
+    assert!(resp["socket_path"].is_string());
+    assert!(resp["tmux_socket_path"].is_string());
+    assert!(resp["known_agents"].is_array());
+    assert!(resp["namespace_tmux_socket_path"].is_string());
+    assert!(resp["namespace_tmux_session_name"].is_string());
+    assert!(resp["namespace_workspace_window_name"].is_string());
+    assert_eq!(resp["namespace_ui_attachable"].as_bool(), Some(false));
+    assert!(resp["diagnostics"].is_object());
+    assert_eq!(resp["diagnostics"]["pid_alive"].as_bool(), Some(true));
+}
+
+#[test]
+fn test_ping_all_targets_shape() {
+    let dir = TempDir::new().unwrap();
+    let mut app = stub_app_with_config(&dir, &["claude", "gemini"]);
+    app.registry.register(ccb_daemon::services::registry::AgentRuntimeEntry {
+        agent_name: "claude".into(),
+        provider: "claude".into(),
+        state: "idle".into(),
+        health: "healthy".into(),
+        pane_id: Some("%1".into()),
+        workspace_path: Some(dir.path().to_string_lossy().to_string()),
+        runtime_pid: None,
+        session_id: None,
+        restart_count: 0,
+    });
+    app.registry.register(ccb_daemon::services::registry::AgentRuntimeEntry {
+        agent_name: "gemini".into(),
+        provider: "gemini".into(),
+        state: "idle".into(),
+        health: "healthy".into(),
+        pane_id: Some("%2".into()),
+        workspace_path: Some(dir.path().to_string_lossy().to_string()),
+        runtime_pid: None,
+        session_id: None,
+        restart_count: 0,
+    });
+
+    let all = call(&mut app, "ping", json!({"target": "all"}));
+    assert!(all["ok"].as_bool().unwrap_or(false));
+    let result = all["result"].as_object().unwrap();
+    assert_eq!(result["target"].as_str(), Some("all"));
+    assert_eq!(result["ccbd_state"].as_str(), Some("running"));
+    let agents = result["agents"].as_array().unwrap();
+    assert_eq!(agents.len(), 2);
+    for agent in agents {
+        assert!(agent["agent_name"].is_string());
+        assert!(agent["provider"].is_string());
+        assert!(agent["mount_state"].is_string());
+        assert!(agent["runtime_state"].is_string());
+        assert!(agent["health"].is_string());
+        assert!(agent["diagnostics"].is_object());
+    }
+
+    let single = call(&mut app, "ping", json!({"target": "claude"}));
+    assert!(single["ok"].as_bool().unwrap_or(false));
+    let single_result = single["result"].as_object().unwrap();
+    assert_eq!(single_result["agent_name"].as_str(), Some("claude"));
+    assert_eq!(single_result["target"].as_str(), Some("claude"));
+    assert!(single_result["diagnostics"].is_object());
 }
 
 #[test]

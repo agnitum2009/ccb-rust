@@ -274,13 +274,23 @@ main = "codex:codex"
     )
     .unwrap();
 
-    std::env::set_var("CODEX_START_CMD", "sh");
+    std::env::set_var("CODEX_START_CMD", "sh -c 'exec sleep 30'");
 
     let (server, handle, socket) = spawn_daemon_real(&dir);
     let project = dir.path().to_str().unwrap();
 
     let start_code = run(&["--project", project, "start", "codex"]);
     assert_eq!(start_code, 0, "start should succeed");
+
+    // Codex asks now fail fast if the isolated runtime home has no auth.json.
+    // Seed a minimal auth file so the ask can reach the pane in this test.
+    let codex_auth = ccb_dir
+        .join("runtime")
+        .join("codex")
+        .join("home")
+        .join("auth.json");
+    std::fs::create_dir_all(codex_auth.parent().unwrap()).unwrap();
+    std::fs::write(&codex_auth, "{}").unwrap();
 
     let ask_code = run(&["--project", project, "ask", "codex", "hello"]);
     assert_eq!(ask_code, 0, "ask should succeed");

@@ -65,6 +65,21 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
         .ok_or_else(|| format!("agent {to_agent} has no active pane"))?;
     let pane_id = pane_id.ok_or_else(|| format!("agent {to_agent} has no active pane"))?;
 
+    // Surface a clear auth error before trying to send, so a missing auth.json
+    // fails fast instead of silently hanging in the provider CLI.
+    if let Some(auth_path) =
+        crate::provider_launcher::provider_runtime_auth_path(&provider, app.project_root.to_string_lossy().as_ref(), &to_agent)
+    {
+        if !auth_path.exists() {
+            let utf8_auth = camino::Utf8Path::from_path(&auth_path)
+                .unwrap_or_else(|| camino::Utf8Path::new("/tmp/unknown"));
+            let detail = ccb_provider_profiles::format_codex_auth_missing_error(utf8_auth);
+            return Err(format!(
+                "agent {to_agent} ({provider}) cannot ask: {detail}",
+            ));
+        }
+    }
+
     // Record the ask in the dispatcher for tracking.
     let workspace = workspace_path.as_deref().unwrap_or("");
     let receipt = app.dispatcher.submit(&envelope, &provider, Some(workspace));
@@ -196,5 +211,40 @@ mod tests {
         let result = handle_ask(&mut app, &payload);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("no active pane"));
+    }
+
+    #[test]
+    fn test_ask_fails_fast_on_missing_auth_json() {
+        let dir = TempDir::new().unwrap();
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: "codex".to_string(),
+            provider: "codex".to_string(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%1".to_string()),
+            workspace_path: Some(dir.path().to_string_lossy().to_string()),
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        let payload = json!({
+            "project_id": "proj-1",
+            "to_agent": "codex",
+            "from_actor": "user",
+            "body": "hello",
+        });
+        let result = handle_ask(&mut app, &payload);
+        assert!(result.is_err(), "ask should fail when auth.json is missing");
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("no Codex credentials were found") && err.contains("auth.json"),
+            "error should surface codex auth path and hint, got: {err}"
+        );
     }
 }

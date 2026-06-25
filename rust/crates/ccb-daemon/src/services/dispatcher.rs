@@ -263,6 +263,36 @@ impl JobDispatcher {
         );
     }
 
+    /// Persist all non-terminal jobs so a restarted daemon can restore running
+    /// job memory.  This closes the S3.3 daemon-restart job-continuity gap.
+    pub fn persist_running_jobs(&self, path: &camino::Utf8Path) -> Result<(), String> {
+        let running: Vec<&JobRecord> = self
+            .job_store
+            .iter()
+            .filter(|j| !j.status.is_terminal())
+            .collect();
+        ccb_storage::json::JsonStore::new()
+            .save(path, &running)
+            .map_err(|e| format!("failed to persist running jobs: {e}"))
+    }
+
+    /// Restore non-terminal jobs from a previous daemon instance.  Jobs whose
+    /// agent is no longer configured are dropped.  Running jobs are left in the
+    /// dispatcher state so heartbeat/comms_recover can drive them to completion.
+    pub fn restore_running_jobs(&mut self, path: &camino::Utf8Path) {
+        let loaded: Vec<JobRecord> = ccb_storage::json::JsonStore::new()
+            .load(path)
+            .unwrap_or_default();
+        let valid: Vec<JobRecord> = loaded
+            .into_iter()
+            .filter(|j| self.agent_names.contains(&j.agent_name) && !j.status.is_terminal())
+            .collect();
+        if !valid.is_empty() {
+            self.job_store = valid;
+            self.state.rebuild(&self.job_store);
+        }
+    }
+
     /// Wire the dispatcher to persist job records to the shared mailbox job
     /// store so that `trace` and other mailbox inspection handlers can see
     /// dispatcher job history.
@@ -416,77 +446,87 @@ impl JobDispatcher {
         }
     }
 
-    pub fn cancel(&mut self, job_id: &str) -> CancelReceipt {
+    /// Cancel a job, mirroring Python `cancel_job` semantics with one Rust-only
+    /// UX adjustment: cancelling an unknown job is treated as idempotent success.
+    ///
+    /// - Unknown job -> returns a success receipt (idempotent CLI cancel).
+    /// - Already cancelled -> returns the existing receipt.
+    /// - Terminal job -> error.
+    /// - Running job -> immediately terminalized as Cancelled.
+    /// - Accepted/Queued -> marked Cancelled.
+    pub fn cancel(&mut self, job_id: &str) -> Result<CancelReceipt, String> {
         let now = chrono::Utc::now().to_rfc3339();
-        let mut receipt: Option<CancelReceipt> = None;
-        if let Some(job) = self.job_store.iter_mut().find(|j| j.job_id == job_id) {
-            match job.status {
-                JobStatus::Cancelled => {
-                    receipt = Some(CancelReceipt {
-                        job_id: job_id.to_string(),
-                        agent_name: job.agent_name.clone(),
-                        status: JobStatus::Cancelled,
-                        cancelled_at: job.updated_at.clone(),
-                        target_kind: TargetKind::Agent,
-                        target_name: job.agent_name.clone(),
-                    });
-                }
-                JobStatus::Completed | JobStatus::Failed | JobStatus::Incomplete => {
-                    // Already terminal; mirror the job's terminal status.
-                    let terminal_status = job.status;
-                    receipt = Some(CancelReceipt {
-                        job_id: job_id.to_string(),
-                        agent_name: job.agent_name.clone(),
-                        status: terminal_status,
-                        cancelled_at: now.clone(),
-                        target_kind: TargetKind::Agent,
-                        target_name: job.agent_name.clone(),
-                    });
-                }
-                JobStatus::Running => {
-                    // Active jobs are marked cancel-requested; the execution layer
-                    // will drive the final terminal transition.
-                    job.cancel_requested_at = Some(now.clone());
-                    job.updated_at = now.clone();
-                    receipt = Some(CancelReceipt {
-                        job_id: job_id.to_string(),
-                        agent_name: job.agent_name.clone(),
-                        status: JobStatus::Cancelled,
-                        cancelled_at: now.clone(),
-                        target_kind: TargetKind::Agent,
-                        target_name: job.agent_name.clone(),
-                    });
-                }
-                JobStatus::Accepted | JobStatus::Queued => {
-                    job.status = JobStatus::Cancelled;
-                    job.cancel_requested_at = Some(now.clone());
-                    job.updated_at = now.clone();
-                    receipt = Some(CancelReceipt {
-                        job_id: job_id.to_string(),
-                        agent_name: job.agent_name.clone(),
-                        status: JobStatus::Cancelled,
-                        cancelled_at: now.clone(),
-                        target_kind: TargetKind::Agent,
-                        target_name: job.agent_name.clone(),
-                    });
-                }
+        let job = match self.job_store.iter().find(|j| j.job_id == job_id) {
+            Some(j) => j,
+            None => {
+                return Ok(CancelReceipt {
+                    job_id: job_id.to_string(),
+                    agent_name: String::new(),
+                    status: JobStatus::Cancelled,
+                    cancelled_at: now,
+                    target_kind: TargetKind::Agent,
+                    target_name: String::new(),
+                });
             }
+        };
+
+        match job.status {
+            JobStatus::Cancelled => {
+                return Ok(CancelReceipt {
+                    job_id: job_id.to_string(),
+                    agent_name: job.agent_name.clone(),
+                    status: JobStatus::Cancelled,
+                    cancelled_at: job.updated_at.clone(),
+                    target_kind: job.target_kind,
+                    target_name: job.target_name.clone(),
+                });
+            }
+            JobStatus::Completed | JobStatus::Failed | JobStatus::Incomplete => {
+                return Err(format!("job is already terminal: {:?}", job.status));
+            }
+            _ => {}
         }
-        if let Some(job) = self.job_store.iter().find(|j| j.job_id == job_id) {
-            self.persist_job_to_mailbox(job);
+
+        let mut job = job.clone();
+        job.cancel_requested_at = Some(now.clone());
+        job.updated_at = now.clone();
+
+        if job.status == JobStatus::Running {
+            // Mid-run cancellation is terminalized immediately, matching Python.
+            job.status = JobStatus::Cancelled;
+            let decision = CompletionDecision {
+                terminal: true,
+                status: CompletionStatus::Cancelled,
+                reason: Some("cancel_info".into()),
+                confidence: Some(ccb_completion::models::CompletionConfidence::Degraded),
+                reply: String::new(),
+                anchor_seen: false,
+                reply_started: false,
+                reply_stable: false,
+                provider_turn_ref: None,
+                source_cursor: None,
+                finished_at: Some(now.clone()),
+                diagnostics: Default::default(),
+            };
+            job.terminal_decision = Some(decision.to_record());
+        } else {
+            // Accepted / Queued -> cancelled directly.
+            job.status = JobStatus::Cancelled;
         }
-        if let Some(r) = receipt {
-            self.state.rebuild(&self.job_store);
-            return r;
-        }
-        CancelReceipt {
+
+        self.job_store.retain(|j| j.job_id != job_id);
+        self.job_store.push(job.clone());
+        self.state.rebuild(&self.job_store);
+        self.persist_job_to_mailbox(&job);
+
+        Ok(CancelReceipt {
             job_id: job_id.to_string(),
-            agent_name: String::new(),
+            agent_name: job.agent_name.clone(),
             status: JobStatus::Cancelled,
-            cancelled_at: now,
-            target_kind: TargetKind::Agent,
-            target_name: String::new(),
-        }
+            cancelled_at: now.clone(),
+            target_kind: job.target_kind,
+            target_name: job.target_name.clone(),
+        })
     }
 
     pub fn get(&self, job_id: &str) -> Option<&JobRecord> {
@@ -1667,24 +1707,18 @@ impl JobDispatcher {
             });
         }
         if source.status == JobStatus::Running {
-            // Stale-running recovery: cancel + retry + tick.
-            let cancelled_receipt = self.cancel(&source.job_id);
-            // Force the terminal Cancelled transition for the recovered job. The
-            // Rust `cancel` RPC marks running jobs cancel-requested (defers the
-            // terminal transition to the execution layer); recovery terminates
-            // the job outright, mirroring Python recovery semantics.
-            let now = chrono::Utc::now().to_rfc3339();
-            if let Some(job) = self
-                .job_store
-                .iter_mut()
-                .find(|j| j.job_id == source.job_id)
-            {
-                if !job.status.is_terminal() {
-                    job.status = JobStatus::Cancelled;
-                    job.updated_at = now;
-                }
-            }
-            self.state.rebuild(&self.job_store);
+            // Stale-running recovery: cancel + retry + tick.  cancel() now
+            // terminalizes running jobs immediately, matching Python cancel_job.
+            let cancelled_receipt = self
+                .cancel(&source.job_id)
+                .unwrap_or_else(|_| CancelReceipt {
+                    job_id: source.job_id.clone(),
+                    agent_name: source.agent_name.clone(),
+                    status: JobStatus::Cancelled,
+                    cancelled_at: chrono::Utc::now().to_rfc3339(),
+                    target_kind: source.target_kind,
+                    target_name: source.target_name.clone(),
+                });
             let retried = self.retry_job(&source.job_id);
             let started: Vec<&JobRecord> = self.tick();
             let retried_job = retried.as_ref().map(|j| {
@@ -2565,12 +2599,20 @@ mod tests {
     }
 
     #[test]
+    fn cancel_unknown_job_is_idempotent() {
+        let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
+        let receipt = dispatcher.cancel("no-such-job").unwrap();
+        assert_eq!(receipt.job_id, "no-such-job");
+        assert_eq!(receipt.status, JobStatus::Cancelled);
+    }
+
+    #[test]
     fn cancel_queued_job_marks_it_cancelled() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
         let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
         let job_id = receipt.jobs[0].job_id.clone();
 
-        let cancel_receipt = dispatcher.cancel(&job_id);
+        let cancel_receipt = dispatcher.cancel(&job_id).unwrap();
         assert_eq!(cancel_receipt.status, JobStatus::Cancelled);
 
         let job = dispatcher.get(&job_id).unwrap();
@@ -2581,7 +2623,7 @@ mod tests {
     }
 
     #[test]
-    fn cancel_running_job_marks_cancel_requested() {
+    fn cancel_running_job_terminalizes_immediately() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
         let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
         let job_id = receipt.jobs[0].job_id.clone();
@@ -2591,13 +2633,14 @@ mod tests {
         assert_eq!(job_before.status, JobStatus::Running);
         assert!(job_before.cancel_requested_at.is_none());
 
-        let cancel_receipt = dispatcher.cancel(&job_id);
+        let cancel_receipt = dispatcher.cancel(&job_id).unwrap();
         assert_eq!(cancel_receipt.status, JobStatus::Cancelled);
 
         let job = dispatcher.get(&job_id).unwrap();
-        assert_eq!(job.status, JobStatus::Running);
+        assert_eq!(job.status, JobStatus::Cancelled);
         assert!(job.cancel_requested_at.is_some());
-        assert_eq!(dispatcher.state.active_job("claude"), Some(job_id.as_str()));
+        assert!(job.terminal_decision.is_some());
+        assert!(dispatcher.state.active_job("claude").is_none());
     }
 
     #[test]
@@ -2652,15 +2695,16 @@ mod tests {
     }
 
     #[test]
-    fn cancel_completed_job_reports_terminal_status() {
+    fn cancel_completed_job_errors() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
         let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
         let job_id = receipt.jobs[0].job_id.clone();
         dispatcher.tick();
         dispatcher.update_job_status(&job_id, JobStatus::Completed, None);
 
-        let cancel_receipt = dispatcher.cancel(&job_id);
-        assert_eq!(cancel_receipt.status, JobStatus::Completed);
+        let result = dispatcher.cancel(&job_id);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("already terminal"));
         assert_eq!(
             dispatcher.get(&job_id).unwrap().status,
             JobStatus::Completed
