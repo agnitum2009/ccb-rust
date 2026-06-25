@@ -67,6 +67,27 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
     // Python wire shape: build_response returns {view, cache, schema_version}
     // with agents/windows/comms nested under `view`. The sidebar reads
     // response["view"]["agents"] etc., so the view payload must be wrapped.
+    // Build basic comms from dispatcher's latest jobs per agent (Python _comms_view port).
+    let comms: Vec<Value> = app
+        .registry
+        .all_entries()
+        .iter()
+        .filter_map(|e| {
+            let job = app.dispatcher.latest_for_agent(&e.agent_name)?;
+            let body = job.request.body.as_str();
+            let preview: String = body.chars().take(80).collect();
+            Some(json!({
+                "id": job.job_id,
+                "from_actor": job.request.from_actor,
+                "to_agent": job.agent_name,
+                "message_type": job.request.message_type,
+                "body_preview": preview,
+                "status": format!("{:?}", job.status).to_lowercase(),
+                "created_at": job.created_at,
+            }))
+        })
+        .collect();
+
     let generated_at = chrono::Utc::now().to_rfc3339();
     Ok(json!({
         "schema_version": schema_version,
@@ -81,7 +102,7 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
             },
             "windows": windows.unwrap_or_default(),
             "agents": agents,
-            "comms": [],
+            "comms": comms,
         },
         "cache": {
             "generated_at": generated_at,
