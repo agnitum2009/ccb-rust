@@ -38,7 +38,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `stop-all` | Python prepare/finalize project stop | Rust direct stop flow | partially_verified | P1 | Verify force=false/true response and lifecycle effects. |
 | `project_clear_context` | Python provider clear implementation | Rust handler | unknown | P1 | Compare response and provider coverage. |
 | `project_reload_config` | Python reload transaction | Rust reload handler | unknown | P1 | Compare additive/reload/blocked cases. |
-| `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | unknown | P1 | Verify tmux target behavior and response fields. |
+| `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
 | `watch/get/queue/trace/resubmit/retry/cancel` | Python dispatcher handlers | Rust dispatcher handlers | unknown | P2 | Matrix response envelopes and edge cases. |
 | Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling. |
 
@@ -110,3 +110,23 @@ Evidence:
 - `cargo test -p ccbr-daemon test_project_view_matches_sidebar_wire_shape -- --test-threads=1`
 - `cargo test -p ccbr-daemon -- --test-threads=1`
 - `(cd tools/ccb-agent-sidebar && cargo test -- --test-threads=1)`
+
+### `project_focus_window/agent` — closed 2026-06-26
+
+Owner finding:
+
+- Python focus handlers are not acknowledgements; they call `ProjectFocusService`, validate the ProjectView namespace epoch, target tmux, and return a `focused` response.
+- Rust handlers were no-ops that returned `status=ok` without changing the active tmux window or pane.
+
+Fix:
+
+- Rust focus handlers now build a namespace-backed focus plan.
+- `project_focus_window` selects `session:window` and, for agent windows, selects the first configured agent pane when present.
+- `project_focus_agent` resolves the agent's configured window and pane, rejects missing panes, and selects both window and pane.
+- Both handlers reject stale namespace epochs with `stale_view`, matching the sidebar retry path.
+- Sidebar panes are refreshed best-effort with `C-l` after focus succeeds.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon project_focus -- --test-threads=1`
+- `cargo test -p ccbr-daemon -- --test-threads=1`

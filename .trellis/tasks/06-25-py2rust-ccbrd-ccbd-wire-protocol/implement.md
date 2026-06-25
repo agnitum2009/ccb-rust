@@ -44,7 +44,17 @@
 
 - `project_clear_context`: verify provider-specific clear semantics and structured response.
 - `project_reload_config`: verify additive/reload shape vs Python.
-- `project_focus_*`: verify tmux targeting and response shape.
+- [x] `project_focus_*`: verify tmux targeting and response shape.
+  - Added handler-level planning regressions:
+    `focus_agent_plans_window_and_pane_selection`,
+    `focus_tool_window_does_not_select_agent_pane`,
+    `focus_rejects_stale_namespace_epoch`.
+  - Minimal fix: replace no-op focus handlers with namespace epoch validation,
+    window/agent lookup, tmux `select-window` + `select-pane`, Python-style
+    success response, and best-effort sidebar refresh.
+  - Validation:
+    `cargo test -p ccbr-daemon project_focus -- --test-threads=1`,
+    `cargo test -p ccbr-daemon -- --test-threads=1`.
 - `watch/get/trace/queue`: verify Python response envelopes and empty/error cases.
 
 ## Phase D — Validation
