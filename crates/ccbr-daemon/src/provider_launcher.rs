@@ -782,8 +782,6 @@ fn launch_command_in_pane(
         return Err("cannot launch empty command in pane".to_string());
     }
 
-    eprintln!("DEBUG launch_command_in_pane: pane={pane_id} socket={socket_path} cwd={cwd} command=[{command}]");
-
     let backend = TmuxBackend::new(None, Some(socket_path.to_string()));
     backend
         .tmux_run(
