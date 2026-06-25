@@ -452,7 +452,9 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     let mut poll = build_poll_state(&submission);
     let session_path = poll.session_path.clone();
     if session_path.is_empty() {
-        return None;
+        // Fallback: detect turn completion from pane text when no session
+        // log path is available (live mode without structured log access).
+        return poll_pane_text_completion_codex(&submission, now);
     }
 
     let state = submission
@@ -515,6 +517,66 @@ struct CodexPollState {
     terminal_reason: String,
     items: Vec<CompletionItem>,
     reached_terminal: bool,
+}
+
+/// Detect turn completion from pane text for codex (live mode fallback).
+/// If the pane shows codex's ready prompt (›) after prompt was sent,
+/// the turn is complete.
+fn poll_pane_text_completion_codex(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let buffer = get_str(&submission.runtime_state, "reply_buffer");
+    if buffer.is_empty() {
+        return None;
+    }
+
+    // Dismiss codex startup dialogs (trust prompt) before checking completion.
+    let lowered = buffer.to_lowercase();
+    if lowered.contains("do you trust") || lowered.contains("press enter to continue") {
+        // Send Enter key directly via raw tmux (send_text's sanitize_text
+        // strips empty/whitespace, making it a no-op for just Enter).
+        let socket = get_str(&submission.runtime_state, "socket_path");
+        let pane_id = get_str(&submission.runtime_state, "pane_id");
+        if !socket.is_empty() && !pane_id.is_empty() {
+            let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket.to_string()));
+            let _ = backend.tmux_run(&["send-keys", "-t", &pane_id, "Enter"], false, false, None, None);
+        }
+        return None; // Re-check next poll after Enter.
+    }
+
+    // Codex ready prompt is › (U+203A) on its own — turn complete.
+    if !buffer.contains('›') {
+        return None;
+    }
+
+    let provider_turn_ref = get_str(&submission.runtime_state, "request_anchor");
+    let provider_turn_ref = if provider_turn_ref.is_empty() {
+        submission.job_id.clone()
+    } else {
+        provider_turn_ref.to_string()
+    };
+
+    let decision = CompletionDecision {
+        terminal: true,
+        status: CompletionStatus::Completed,
+        reason: Some("pane_text_turn_boundary".to_string()),
+        confidence: Some(CompletionConfidence::Observed),
+        reply: buffer.trim().to_string(),
+        anchor_seen: true,
+        reply_started: true,
+        reply_stable: true,
+        provider_turn_ref: Some(provider_turn_ref),
+        source_cursor: None,
+        finished_at: Some(now.to_string()),
+        diagnostics: serde_json::Map::new(),
+    };
+
+    let mut updated = submission.clone();
+    updated
+        .runtime_state
+        .insert("turn_boundary_detected".to_string(), Value::Bool(true));
+    Some(ProviderPollResult::new(updated, Vec::new(), Some(decision)))
 }
 
 fn build_poll_state(submission: &ProviderSubmission) -> CodexPollState {
