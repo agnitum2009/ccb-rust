@@ -98,9 +98,9 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
   - `RuntimeSupervisionLoop` end-to-end recovery orchestration.
   - Rich `ping` payload shaping for runtime health round-trips.
   - Dispatcher `restore_running_jobs` / `terminate_nonterminal_jobs` on restart.
-  - Live-verified in Wave 4 Layer 2: daemon restart loses running-job memory (`trace` empty after restart, reply events still persisted). See `.trellis/tasks/06-25-py2rust-wave5-parity-audit/research/wave5-gap-analysis.md`.
-- Mid-run job cancellation: CLI cancel path works, but true cancellation while a provider is actively running is not yet demonstrated end-to-end.
-- Provider timeout / stall handling and auth-failure CLI error surfacing are partially covered by mocks; live edge behavior needs hardening. See S4 edge verification logs in `.trellis/tasks/06-25-py2rust-wave4-layer2-s4-edge/research/`.
+  - ~~Live-verified in Wave 4 Layer 2: daemon restart loses running-job memory (`trace` empty after restart, reply events still persisted).~~ **Closed**: `JobDispatcher::persist_running_jobs` / `restore_running_jobs` wired into `CcbdApp::shutdown`/`start`; unit test `test_shutdown_persists_and_start_restores_running_jobs` passes. The full end-to-end re-drive of a running job after restart is tracked in Wave 5 task `06-25-06-25-py2rust-wave5-daemon-restore-jobs`.
+- Mid-run job cancellation: CLI cancel path works, and `handle_cancel` now sends `Ctrl-C` to the provider's tmux pane using the active runtime context. Live demonstration against a slow provider remains a Wave 4 Layer 2 residual edge case.
+- Provider timeout / stall handling and auth-failure CLI error surfacing are partially covered by mocks; auth check now fails fast in `handle_ask` when `auth.json` is missing. Live timeout/stall demonstration remains a residual edge case.
 - Real provider CLI integration (Codex, Claude, Gemini, etc.): intentionally mocked in Rust; live CLI tests remain in Python reference.
 - Windows bootstrap and WSL path utilities: no Rust equivalents.
 - `test_v2_runtime_isolation.py` is a Python repo-hygiene test (AST import checks) with no Rust equivalent; not applicable after migration.
