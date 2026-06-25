@@ -29,3 +29,26 @@
 ## Notes
 - 这是 ccbr 从"Rust-CLI 可用"升级到"Python 客户端可互操作"的核心里程碑，规模大，建议拆子任务按 RPC 簇推进（sidebar-view / mailbox-comms / namespace / ask-chain 等）。
 - 前置已就位：`ccbr-agent-sidebar` 软链、`run-ccbr.sh`（mouse on + sidebar bootstrap）、dapro-ass `[ui.sidebar]` 配置——线协议通了之后这些即可用。
+
+## Polling 纪律约束（glm5.2 审定，防回归）
+**不对齐 Python 的 per-agent bridge + 紧轮询架构**（那是 Python GIL/单线程约束逼出的"无奈"方案，每个 codex agent 一个 bridge 进程持续 0.05~0.2s 轮询 fifo/comm/readiness，导致 ~18.8%/agent + ccbd main 0.2s 双循环 15.4%）。
+ccbrd 必须保持：
+- **单进程**（不引入 per-agent bridge 进程）。
+- **active-only 轮询**：`feed_active_pane_text_to_execution` 只对 `execution.active_contexts()`（运行中 job）做 capture-pane；**idle agent 零轮询**。
+- **heartbeat 1s**（非 0.2s 紧轮询）。
+- 若需更低完成检测延迟，**仅对 active job** 把 capture 间隔调到 ~200ms（仍不引入 idle 开销）。
+- Rust 多线程/async/inotify 能力允许事件驱动时，优先事件驱动而非轮询。
+
+## Agent 间通信 root cause（glm5.2 深挖，2026-06-25）
+**现象**：codex agent 不用 `ccbr ask` 跨 agent 通信，改用 codex 原生子 agent（spawn）。
+**trace**：
+- `build_start_cmd`(command.rs:39-48) 正确传 `project_root=Some`+`agent_name=Some(&spec.name)` → `materialize_codex_memory` 不被跳过 → render_provider_home_memory 渲染（含 CCBR_RUNTIME_COORDINATION_RULES `/ask`）→ atomic_write 写 home/AGENTS.md（rendered）。
+- 但运行时 home/AGENTS.md 是 raw（`<!-- AUTONOMY DIRECTIVE -->` + "USE CODEX NATIVE SUBAGENTS" + `omx:generated:agents-md`，0 CCB 头）。
+- **根因**：codex 启动的 **oh-my-codex session_start hook 重新生成 AGENTS.md**，覆盖了 ccbr 的 rendered 版。codex session_start 读到的 = 被覆盖的 raw（无 `/ask` rules）→ 不知道用 `ccbr ask`。
+- Python n14 对照：其 codex home/AGENTS.md 是 CCB rendered（"# CCB Managed Agent Memory"+rules，持久）→ 说明 Python 那边该 session_start 重生成 hook 没生效/被禁用。ccbr 未对齐。
+
+**正解（daemon 侧，对齐 Python）**：在 `materialize_codex_home_config`（ccbr-provider-profiles/codex_home_config.rs）里**阻止/禁用 codex 的 oh-my-codex session_start AGENTS.md 重生成 hook**（或 post-launch 重写 AGENTS.md 后触发 codex reload），使 ccbr rendered 的含 `/ask` coordination rules 的 AGENTS.md 持久。需先定位该 hook 在 source config.toml 的具体配置（session_start hook 调 omx AGENTS.md 生成器），在物化 target config 时禁用它。
+
+**无效尝试（已验证 race 输）**：script 层 `inject_comms_rules`（start 后追加规则）—— codex 在 session_start 已读完，太晚。
+
+**前置已就位**：`ccbr-agent-sidebar` 软链、`run-ccbr.sh`、project_view 线协议（envelope+agent.window）、sidebar 渲染、mouse、7-agent CPU 优势。
