@@ -42,34 +42,44 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 | config_project | `test_ccbd_project_clear.py`, `test_ccbd_project_focus.py`, `test_ccbd_project_view.py`, `test_gemini_project_hash_candidates.py`, `test_project_id.py` (+12 more) | `crates/ccb-project/tests/smoke.rs`, `crates/ccb-workspace/tests/smoke.rs` | complete | Core project/workspace discovery, identity, resolver, and binding parity mapped to Python project tests; Rust tests pass. Remaining daemon project commands and provider hash candidates are tracked under py2rust-daemon and py2rust-providers. |
 | types_i18n | `test_ccb_protocol.py`, `test_claude_protocol.py`, `test_codebuddy_protocol.py`, `test_copilot_protocol.py`, `test_droid_protocol.py` (+2 more) | `crates/ccb-types/tests/control_plane.rs`, `crates/ccb-types/tests/env.rs`, `crates/ccb-types/tests/i18n.rs` (+1 more) | complete | Core types, env, i18n, and control-plane contracts parity mapped to Python protocol/env tests; Rust tests pass. Provider-specific protocol tests remain in Python reference and are covered by py2rust-providers. |
 
+## Wave 4 Layer 1 — e2e-terminal-edge parity
+
+> Rust crate names in this section use the post-rename `ccb-*` prefix. Older rows above still reference the pre-rename `ccb-*` names for the same crates.
+
+| Area | Python Tests | Rust Tests | Status | Notes |
+|------|--------------|------------|--------|-------|
+| multi_agent_recovery | `test_v2_ccbd_keeper.py`, `test_v2_ccbd_socket.py`, `test_v2_ccbd_start_flow.py`, `test_v2_ccbd_supervision_loop.py`, `test_v2_ccbd_ping_runtime.py`, `test_v2_ccbd_dispatcher.py`, `test_v2_ccbd_mount_ownership.py` | `crates/ccb-daemon/tests/reload_handoff_integration_tests.rs`, `crates/ccb-daemon/tests/lifecycle_keeper_integration_tests.rs`, `crates/ccb-daemon/tests/project_namespace_controller_tests.rs` | partial | P0-a/b reload handoff + keeper/lifecycle parity closed; P0-c..h gaps (persistent `MountManager`/`OwnershipGuard`, `RuntimeSupervisionLoop`, rich ping payload shaping, dispatcher `restore_running_jobs`/`terminate_nonterminal_jobs`) documented below and in roadmap. |
+| terminal_namespace_identity | `test_ccbd_tmux_namespace.py`, `test_ccbd_tmux_state.py` | `crates/ccb-daemon/tests/tmux_runtime_namespace_tests.rs`, `crates/ccb-daemon/tests/project_namespace_controller_tests.rs`, `crates/ccb-terminal/src/identity.rs` (inline tests) | complete | Namespace state survival and pane identity option parity closed; `@ccb_*` options used consistently with the project-wide rebrand (py2rust-terminal-namespace-recovery). |
+| install_core | `test_install_line_endings.py`, `test_install_tar_safety.py` | `crates/ccb-cli/src/management_runtime/install.rs` (inline tests), `crates/ccb-cli/tests/install_tar_safety_tests.rs`, `crates/ccb-cli/tests/management_install_tests.rs` | complete | `safe_extract_tar` path/link safety and `normalize_lf_bytes` line-ending parity closed; remaining `install.sh` bash tests are out-of-scope (py2rust-install-core). |
+| mcp_delegation | `test_mcp_delegation_server.py`, `test_mcp_delegation_server_runtime_tools.py` | `tools/ccb-mcp-server/tests/integration_tests.rs` | complete | Delegation server tool definitions + ask/pend/ping handlers parity closed (py2rust-mcp-delegation). |
+| sidebar_click_resize | `test_sidebar_click.py`, `test_sidebar_resize_sync.py` | `crates/ccb-cli/src/sidebar_click.rs`, `crates/ccb-cli/src/sidebar_resize_sync.rs`, `crates/ccb-cli/tests/sidebar_click_tests.rs`, `crates/ccb-cli/tests/sidebar_resize_sync_tests.rs` | complete | Sidebar click focus and resize-sync guard parity closed (py2rust-sidebar). |
+| active_runtime_polling | `test_active_runtime_polling.py` | `crates/ccb-providers/src/active_runtime/polling.rs` (inline tests) | complete | `prepare_active_poll`, `ensure_active_pane_alive`, `pane_dead_result`, `runtime_error_result` parity closed against mock/value backends (py2rust-active-runtime-polling). |
+| ask_restart_cli_edge | `test_ask_cli.py`, `test_ask_internal_paths.py`, `test_ccb_restart.py` | `crates/ccb-cli/src/ask_usage.rs` (inline tests), `crates/ccb-cli/src/entry.rs` (inline tests), `crates/ccb-cli/tests/ask_service_tests.rs`, `crates/ccb-cli/tests/restart_service_tests.rs` | complete | Ask usage/help parity and restart parser edge cases (`restart all` rejected, exactly-one-agent required) closed; `ask get <job_id>` alias forwarding is covered by the native `ask` binary delegating to `ccb ask` (py2rust-ask-restart-edge). |
+| runtime_env_control_plane | `test_runtime_env_control_plane.py` | `crates/ccb-runtime-env/src/control_plane.rs` (inline tests) | complete | Provider API env, keychain override, user session transport, network proxy, and tmux/pythonpath filtering parity confirmed with a dedicated smoke run (py2rust-runtime-env-control-plane). |
+| stability_regressions | `test_stability_regressions.py` | `crates/ccb-providers/src/providers/codex.rs` (inline tests), `crates/ccb-providers/tests/provider_codex_tests.rs` | complete | Codex log-reader bound-session retention, workspace-follow disable when current log has unread data, delivery-acceptance timeout, and anchor-fallback log scanning parity closed. Pane-shutdown-text delivery guard is not ported and is recorded as a known gap. |
+
 ## Python Tests Not Matched to a Cluster
 
-- `test_active_runtime_polling.py`
-- `test_ask_cli.py`
-- `test_ask_internal_paths.py`
-- `test_ask_skill_templates.py`
-- `test_ccb_github_skill.py`
-- `test_ccb_restart.py`
-- `test_install_identity_output.py`
-- `test_install_line_endings.py`
-- `test_install_major_upgrade_guard.py`
-- `test_install_root_confirmation.py`
-- `test_install_script_sidebar.py`
-- `test_install_source_dev_mode.py`
-- `test_install_tar_safety.py`
-- `test_install_watchdog_optional.py`
-- `test_mcp_delegation_server.py`
-- `test_mcp_delegation_server_runtime_tools.py`
-- `test_repo_hygiene.py`
-- `test_runtime_env_control_plane.py`
-- `test_sidebar_click.py`
-- `test_sidebar_resize_sync.py`
-- `test_stability_regressions.py`
+### Remaining gaps (tracked in other in-progress tasks)
+
 - `test_v2_daemon_startup_wait.py`
 - `test_v2_start_foreground.py`
 - `test_v2_start_service.py`
-- `test_windows_bootstrap_script.py`
-- `test_wsl_path_utils.py`
+
+### Intentionally out of scope for the Rust migration
+
+- `test_ask_skill_templates.py` — skill markdown text in `inherit_skills/` is human-facing instruction content, not runtime code.
+- `test_ccb_github_skill.py` — release-management skill (`dev_tools/skills/ccb-github/scripts/check_release_state.py`), not CCB runtime behavior.
+- `test_install_identity_output.py` — tests `install.sh` bash function `print_install_identity_summary`/`write_install_metadata`; release install flow remains driven by `install.sh`.
+- `test_install_major_upgrade_guard.py` — tests `install.sh` bash function `require_major_upgrade_confirmation`.
+- `test_install_root_confirmation.py` — tests `install.sh` bash root-confirm flow.
+- `test_install_script_sidebar.py` — tests `install.sh` / `bin/build-ccb-agent-sidebar` packaging scripts; sidebar TUI is a native Rust binary, but install-time build/packaging remains bash.
+- `test_install_source_dev_mode.py` — tests source-dev wrapper provisioning inside `install.sh`; native Rust release artifacts replace wrapper scripts.
+- `test_install_watchdog_optional.py` — tests `install.sh` optional watchdog/toml/role-pack/neovim provisioning.
+- `test_install_droid_delegation.py` — tests `install.sh` Droid MCP delegation registration via the `droid` CLI.
+- `test_repo_hygiene.py` — repository layout/skill hygiene, not runtime behavior.
+- `test_windows_bootstrap_script.py` — tests `scripts/bootstrap-windows-test-env.ps1`; no Rust Windows bootstrap parity target exists.
+- `test_wsl_path_utils.py` — tests `terminal._extract_wsl_path_from_unc_like_path`; WSL path helpers are intentionally not ported.
 
 ## Rust Tests Not Matched to a Cluster
 
@@ -83,16 +93,23 @@ Generated during Phase 5 of the Rust migration alignment (v7.5.2).
 ## Coverage Gaps & Out-of-Scope Items
 
 ### Gaps
-- End-to-end multi-agent session persistence and recovery: partially covered by daemon reload tests, but no full parity with Python `test_v2_ccbd_*` suite yet.
+- End-to-end multi-agent session persistence and recovery: P0-a reload handoff and P0-b keeper/lifecycle parity are closed; P0-c..h remain as known gaps:
+  - Persistent `MountManager` / `OwnershipGuard` for runtime mount ownership across daemon restarts.
+  - `RuntimeSupervisionLoop` end-to-end recovery orchestration.
+  - Rich `ping` payload shaping for runtime health round-trips.
+  - Dispatcher `restore_running_jobs` / `terminate_nonterminal_jobs` on restart.
 - Real provider CLI integration (Codex, Claude, Gemini, etc.): intentionally mocked in Rust; live CLI tests remain in Python reference.
 - Windows bootstrap and WSL path utilities: no Rust equivalents.
 - `test_v2_runtime_isolation.py` is a Python repo-hygiene test (AST import checks) with no Rust equivalent; not applicable after migration.
-- `install.sh` itself is bash; coverage relies on the new `test_rust_release_artifact.py` validation test.
+- `install.sh` itself is bash; core Rust install functions are covered, but bash-only install flows remain in Python reference.
+- Codex pane-shutdown-text delivery guard (`test_stability_regressions.py::test_codex_delivery_guard_fails_on_shutdown_text_without_anchor`) is not ported; delivery timeout guard is covered.
 
 ### Intentionally Out of Scope
 - Python wrapper scripts (`bin/ask`, `bin/autonew`, `bin/ctx-transfer`, `ccb`) are replaced by native Rust binaries in release artifacts.
 - `lib/` Python implementation is excluded from release tarballs; runtime behavior is provided by Rust crates.
 - Provider-specific Python hook scripts (e.g., `bin/ccb-provider-activity-hook`) are retained for source installs but not required in release artifacts.
+- The following Python tests exercise bash/install/skill/repo-hygiene/Windows/WSL behavior and are retired from the Rust parity target (see "Python Tests Not Matched to a Cluster" above for rationale):
+  `test_ask_skill_templates.py`, `test_ccb_github_skill.py`, `test_install_identity_output.py`, `test_install_major_upgrade_guard.py`, `test_install_root_confirmation.py`, `test_install_script_sidebar.py`, `test_install_source_dev_mode.py`, `test_install_watchdog_optional.py`, `test_install_droid_delegation.py`, `test_repo_hygiene.py`, `test_windows_bootstrap_script.py`, `test_wsl_path_utils.py`.
 
 ## How to Use This Matrix
 
