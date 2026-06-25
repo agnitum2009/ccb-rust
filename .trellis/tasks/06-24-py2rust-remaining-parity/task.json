@@ -32,7 +32,10 @@
     "06-25-py2rust-wave4-layer2-s4-edge",
     "06-25-py2rust-ccb-legacy-nonrust-sync",
     "06-25-py2rust-wave4-layer2-residual-gaps",
-    "06-25-py2rust-wave5-parity-audit"
+    "06-25-py2rust-wave5-parity-audit",
+    "06-25-06-25-py2rust-wave5-daemon-restore-jobs",
+    "06-25-06-25-py2rust-wave5-mount-ownership-persist",
+    "06-25-06-25-py2rust-wave5-supervision-loop"
   ],
   "parent": null,
   "relatedFiles": [],
