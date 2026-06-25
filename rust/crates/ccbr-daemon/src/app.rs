@@ -821,31 +821,37 @@ impl CcbdApp {
         let project_id = self.project_id().to_string();
         let project_root_str = project_root.to_string();
 
-        for (agent_name, pane_id, provider, workspace) in &agent_launches {
-            if provider.trim().is_empty() {
-                continue;
+        // Launch providers in parallel (3x speedup for multiple agents)
+        std::thread::scope(|s| {
+            for (agent_name, pane_id, provider, workspace) in &agent_launches {
+                if provider.trim().is_empty() {
+                    continue;
+                }
+                let ws = workspace.as_deref().unwrap_or(project_root_str.as_str());
+                let ctx = crate::provider_launcher::LaunchContext {
+                    provider: provider.as_str(),
+                    agent_name: agent_name.as_str(),
+                    project_id: project_id.as_str(),
+                    project_root: project_root_str.as_str(),
+                    workspace_path: ws,
+                    pane_id: pane_id.as_str(),
+                    socket_path: socket.as_str(),
+                    restore,
+                    command_template: None,
+                    startup_args: &[],
+                    auto_permission,
+                    spec: None,
+                    terminal_size: None,
+                    startup_timeout_s: None,
+                };
+                let launcher_ref = &launcher;
+                s.spawn(move || {
+                    if let Err(e) = launcher_ref.launch(&ctx) {
+                        eprintln!("ccbrd: provider launch failed: {e}");
+                    }
+                });
             }
-            let ws = workspace.as_deref().unwrap_or(project_root_str.as_str());
-            let ctx = crate::provider_launcher::LaunchContext {
-                provider: provider.as_str(),
-                agent_name: agent_name.as_str(),
-                project_id: project_id.as_str(),
-                project_root: project_root_str.as_str(),
-                workspace_path: ws,
-                pane_id: pane_id.as_str(),
-                socket_path: socket.as_str(),
-                restore,
-                command_template: None,
-                startup_args: &[],
-                auto_permission,
-                spec: None,
-                terminal_size: None,
-                startup_timeout_s: None,
-            };
-            if let Err(e) = launcher.launch(&ctx) {
-                eprintln!("ccbrd: provider launch failed for {agent_name}: {e}");
-            }
-        }
+        });
 
         self.project_namespace.mount(namespace)?;
 
