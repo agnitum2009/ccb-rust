@@ -98,6 +98,14 @@ fn run_tui(args: &Args) -> io::Result<ExitAction> {
                         {
                             return Ok(action);
                         }
+                    } else if matches!(mouse.kind, MouseEventKind::Moved) {
+                        let size = terminal.size()?;
+                        let area = Rect::new(0, 0, size.width, size.height);
+                        let tree_area = sidebar_areas(area, app.sidebar_view()).tree;
+                        app.hover_kill = matches!(
+                            header_action_at(mouse.column, mouse.row, tree_area),
+                            Some(HeaderMouseAction::KillProject)
+                        );
                     }
                 }
                 _ => {}
@@ -173,6 +181,7 @@ pub struct SidebarApp {
     hidden_comms: HashSet<String>,
     selection_follows_focus: bool,
     refresh_after: Instant,
+    hover_kill: bool,
 }
 
 impl SidebarApp {
@@ -187,6 +196,7 @@ impl SidebarApp {
             hidden_comms: HashSet::new(),
             selection_follows_focus: true,
             refresh_after: Instant::now(),
+            hover_kill: false,
         }
     }
 
@@ -841,7 +851,7 @@ fn draw_tree(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
     let list = List::new(items).block(
         Block::default()
             .title_top(Line::from(title).style(focus_style).left_aligned())
-            .title_top(tree_controls_line().right_aligned())
+            .title_top(tree_controls_line(app.hover_kill).right_aligned())
             .borders(Borders::ALL)
             .border_style(focus_style),
     );
@@ -864,7 +874,12 @@ fn tree_title_width(width: u16) -> u16 {
     width.saturating_sub(TREE_CONTROL_CONTENT_WIDTH + 1)
 }
 
-fn tree_controls_line() -> Line<'static> {
+fn tree_controls_line(hover_kill: bool) -> Line<'static> {
+    let kill_style = if hover_kill {
+        Style::default().fg(Color::Black).bg(Color::Red).add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+    };
     Line::from(vec![
         Span::styled(
             TREE_REFRESH_SYMBOL,
@@ -873,10 +888,7 @@ fn tree_controls_line() -> Line<'static> {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),
-        Span::styled(
-            TREE_KILL_SYMBOL,
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(TREE_KILL_SYMBOL, kill_style),
     ])
 }
 
@@ -1473,7 +1485,7 @@ mod tests {
 
     #[test]
     fn tree_controls_render_as_right_aligned_symbol_pair() {
-        let line = tree_controls_line();
+        let line = tree_controls_line(false);
         let text = line
             .spans
             .iter()
