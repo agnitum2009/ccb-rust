@@ -304,13 +304,13 @@ fn test_tmux_describe_pane_reads_title_and_user_options() {
         });
 
     let info = backend
-        .describe_pane("%7", &["@ccbr_agent", "@ccbr_project_id"])
+        .describe_pane("%7", &["@ccb_agent", "@ccb_project_id"])
         .expect("describe_pane should return a map");
     assert_eq!(info.get("pane_id"), Some(&"%7".to_string()));
     assert_eq!(info.get("pane_title"), Some(&"agent2".to_string()));
     assert_eq!(info.get("pane_dead"), Some(&"0".to_string()));
-    assert_eq!(info.get("@ccbr_agent"), Some(&"agent2".to_string()));
-    assert_eq!(info.get("@ccbr_project_id"), Some(&"proj-7".to_string()));
+    assert_eq!(info.get("@ccb_agent"), Some(&"agent2".to_string()));
+    assert_eq!(info.get("@ccb_project_id"), Some(&"proj-7".to_string()));
 
     let (args, capture) = captured.lock().unwrap().take().unwrap();
     assert!(capture);

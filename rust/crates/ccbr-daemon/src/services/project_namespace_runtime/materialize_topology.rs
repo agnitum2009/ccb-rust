@@ -173,13 +173,13 @@ pub fn existing_topology_agent_panes(
         for agent_name in &window.agent_names {
             let mut expected = HashMap::new();
             expected.insert(
-                "@ccbr_project_id".to_string(),
+                "@ccb_project_id".to_string(),
                 controller.project_id.clone(),
             );
-            expected.insert("@ccbr_role".to_string(), "agent".to_string());
-            expected.insert("@ccbr_slot".to_string(), agent_name.clone());
-            expected.insert("@ccbr_window".to_string(), window.name.clone());
-            expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
+            expected.insert("@ccb_role".to_string(), "agent".to_string());
+            expected.insert("@ccb_slot".to_string(), agent_name.clone());
+            expected.insert("@ccb_window".to_string(), window.name.clone());
+            expected.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
 
             let matches = _list_panes_by_user_options(&context.backend, expected);
             if matches.len() == 1 {
@@ -206,16 +206,16 @@ pub fn topology_active_panes(
     for role in ["sidebar", "agent", "tool"] {
         let mut expected = HashMap::new();
         expected.insert(
-            "@ccbr_project_id".to_string(),
+            "@ccb_project_id".to_string(),
             controller.project_id.clone(),
         );
-        expected.insert("@ccbr_role".to_string(), role.to_string());
-        expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
+        expected.insert("@ccb_role".to_string(), role.to_string());
+        expected.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
 
         for pane_id in _list_panes_by_user_options(&context.backend, expected) {
-            let window_name = _pane_option(&context.backend, &pane_id, "@ccbr_window");
+            let window_name = _pane_option(&context.backend, &pane_id, "@ccb_window");
             let sidebar_instance =
-                _pane_option(&context.backend, &pane_id, "@ccbr_sidebar_instance");
+                _pane_option(&context.backend, &pane_id, "@ccb_sidebar_instance");
             if expected_windows.contains(&window_name)
                 || expected_windows.contains(&sidebar_instance)
             {
@@ -279,12 +279,12 @@ pub fn topology_recreate_reason(
         for window in &topology_plan.windows {
             let mut expected = HashMap::new();
             expected.insert(
-                "@ccbr_project_id".to_string(),
+                "@ccb_project_id".to_string(),
                 controller.project_id.clone(),
             );
-            expected.insert("@ccbr_role".to_string(), "sidebar".to_string());
-            expected.insert("@ccbr_sidebar_instance".to_string(), window.name.clone());
-            expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
+            expected.insert("@ccb_role".to_string(), "sidebar".to_string());
+            expected.insert("@ccb_sidebar_instance".to_string(), window.name.clone());
+            expected.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
 
             let matches = _list_panes_by_user_options(&context.backend, expected);
             if matches.len() != 1 {
@@ -303,13 +303,13 @@ pub fn topology_recreate_reason(
     for window_name in expected_tools {
         let mut expected = HashMap::new();
         expected.insert(
-            "@ccbr_project_id".to_string(),
+            "@ccb_project_id".to_string(),
             controller.project_id.clone(),
         );
-        expected.insert("@ccbr_role".to_string(), "tool".to_string());
-        expected.insert("@ccbr_slot".to_string(), format!("tool:{window_name}"));
-        expected.insert("@ccbr_window".to_string(), window_name.clone());
-        expected.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
+        expected.insert("@ccb_role".to_string(), "tool".to_string());
+        expected.insert("@ccb_slot".to_string(), format!("tool:{window_name}"));
+        expected.insert("@ccb_window".to_string(), window_name.clone());
+        expected.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
 
         let matches = _list_panes_by_user_options(&context.backend, expected);
         if matches.len() != 1 {
@@ -816,7 +816,7 @@ fn _session_sidebar_width_override(backend: &Backend, session_name: &str) -> i32
             "-qv",
             "-t",
             session_name,
-            "@ccbr_sidebar_width_cells",
+            "@ccb_sidebar_width_cells",
         ],
         false,
         true,
@@ -833,7 +833,7 @@ fn _set_session_sidebar_sync_guard(backend: &Backend, session_name: &str, enable
             "set-option",
             "-t",
             session_name,
-            "@ccbr_sidebar_sync_guard",
+            "@ccb_sidebar_sync_guard",
             "1",
         ]
     } else {
@@ -842,7 +842,7 @@ fn _set_session_sidebar_sync_guard(backend: &Backend, session_name: &str, enable
             "-u",
             "-t",
             session_name,
-            "@ccbr_sidebar_sync_guard",
+            "@ccb_sidebar_sync_guard",
         ]
     };
     let _ = backend._tmux_run(&args, false, true);

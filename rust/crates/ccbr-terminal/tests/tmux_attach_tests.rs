@@ -5,7 +5,7 @@ use ccbr_terminal::tmux_attach::{
 
 #[test]
 fn test_tmux_attach_helpers() {
-    assert_eq!(normalize_user_option("ccbr_agent"), "@ccbr_agent");
+    assert_eq!(normalize_user_option("ccbr_agent"), "@ccb_agent");
     assert_eq!(normalize_user_option("@keep"), "@keep");
     assert_eq!(normalize_user_option(""), "");
     assert!(pane_exists_output("%12\n"));

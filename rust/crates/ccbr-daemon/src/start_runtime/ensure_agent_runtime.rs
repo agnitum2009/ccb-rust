@@ -483,18 +483,18 @@ fn apply_identity(
         "agent",
     );
     let options = [
-        ("@ccbr_label_style", visual.label_style.as_str()),
-        ("@ccbr_border_style", visual.border_style.as_str()),
+        ("@ccb_label_style", visual.label_style.as_str()),
+        ("@ccb_border_style", visual.border_style.as_str()),
         (
-            "@ccbr_active_border_style",
+            "@ccb_active_border_style",
             visual.active_border_style.as_str(),
         ),
-        ("@ccbr_agent", agent_label),
-        ("@ccbr_role", "agent"),
-        ("@ccbr_slot", agent_label),
-        ("@ccbr_project_id", project_id),
-        ("@ccbr_session_id", session_id),
-        ("@ccbr_managed_by", "ccbrd"),
+        ("@ccb_agent", agent_label),
+        ("@ccb_role", "agent"),
+        ("@ccb_slot", agent_label),
+        ("@ccb_project_id", project_id),
+        ("@ccb_session_id", session_id),
+        ("@ccb_managed_by", "ccbrd"),
     ];
     for (name, value) in options {
         backend.set_pane_user_option(pane_id, name, value);

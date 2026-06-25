@@ -71,16 +71,16 @@ fn test_tmux_ownership_prefers_described_pane_match() {
 
     let mut described = HashMap::new();
     described.insert("pane_title".to_string(), "agent1".to_string());
-    described.insert("@ccbr_agent".to_string(), "agent1".to_string());
-    described.insert("@ccbr_project_id".to_string(), "proj_1".to_string());
-    described.insert("@ccbr_session_id".to_string(), "sess_1".to_string());
+    described.insert("@ccb_agent".to_string(), "agent1".to_string());
+    described.insert("@ccb_project_id".to_string(), "proj_1".to_string());
+    described.insert("@ccb_session_id".to_string(), "sess_1".to_string());
 
     let backend = DescribingBackend {
         expected_pane_id: "%12".to_string(),
         expected_options: vec![
-            "@ccbr_agent".to_string(),
-            "@ccbr_project_id".to_string(),
-            "@ccbr_session_id".to_string(),
+            "@ccb_agent".to_string(),
+            "@ccb_project_id".to_string(),
+            "@ccb_session_id".to_string(),
         ],
         described,
     };
@@ -92,9 +92,9 @@ fn test_tmux_ownership_prefers_described_pane_match() {
     assert_eq!(
         ownership.actual_options,
         vec![
-            ("@ccbr_agent".to_string(), "agent1".to_string()),
-            ("@ccbr_project_id".to_string(), "proj_1".to_string()),
-            ("@ccbr_session_id".to_string(), "sess_1".to_string()),
+            ("@ccb_agent".to_string(), "agent1".to_string()),
+            ("@ccb_project_id".to_string(), "proj_1".to_string()),
+            ("@ccb_session_id".to_string(), "sess_1".to_string()),
         ]
     );
 }
@@ -153,7 +153,7 @@ fn test_tmux_ownership_reports_foreign_when_listed_match_missing() {
         .insert("agent_name".to_string(), serde_json::json!("agent1"));
 
     let mut expected_options = HashMap::new();
-    expected_options.insert("@ccbr_agent".to_string(), "agent1".to_string());
+    expected_options.insert("@ccb_agent".to_string(), "agent1".to_string());
 
     let backend = ListingBackend {
         expected_options,

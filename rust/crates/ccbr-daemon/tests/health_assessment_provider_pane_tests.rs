@@ -92,14 +92,14 @@ impl SessionBackend for FakeBackend {
         _user_options: &[String],
     ) -> Option<HashMap<String, String>> {
         let mut options = HashMap::new();
-        options.insert("@ccbr_project_id".to_string(), "proj-1".to_string());
-        options.insert("@ccbr_role".to_string(), "agent".to_string());
-        options.insert("@ccbr_slot".to_string(), "agent1".to_string());
-        options.insert("@ccbr_window".to_string(), "main".to_string());
-        options.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
+        options.insert("@ccb_project_id".to_string(), "proj-1".to_string());
+        options.insert("@ccb_role".to_string(), "agent".to_string());
+        options.insert("@ccb_slot".to_string(), "agent1".to_string());
+        options.insert("@ccb_window".to_string(), "main".to_string());
+        options.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
         if !self.owned {
             // Make the record not match by changing the project id.
-            options.insert("@ccbr_project_id".to_string(), "other-proj".to_string());
+            options.insert("@ccb_project_id".to_string(), "other-proj".to_string());
         }
         Some(options)
     }

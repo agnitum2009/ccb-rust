@@ -258,9 +258,9 @@ pub fn render_tmux_session_theme(
         .unwrap_or_else(|| "-".to_string());
 
     let mut session_options = HashMap::new();
-    session_options.insert("@ccbr_active".to_string(), "1".to_string());
-    session_options.insert("@ccbr_version".to_string(), normalized_version.clone());
-    session_options.insert("@ccbr_theme_profile".to_string(), profile.name.clone());
+    session_options.insert("@ccb_active".to_string(), "1".to_string());
+    session_options.insert("@ccb_version".to_string(), normalized_version.clone());
+    session_options.insert("@ccb_theme_profile".to_string(), profile.name.clone());
     session_options.insert("status-position".to_string(), "bottom".to_string());
     session_options.insert("status-interval".to_string(), tmux_status_interval(environ));
     session_options.insert("status-style".to_string(), STATUS_STYLE.to_string());
@@ -629,7 +629,7 @@ mod tests {
     #[test]
     fn test_pane_border_format_contains_agent_marker() {
         let fmt = pane_border_format(None, None);
-        assert!(fmt.contains("@ccbr_agent"));
+        assert!(fmt.contains("@ccb_agent"));
         assert!(fmt.contains("pane_title"));
     }
 
@@ -684,6 +684,6 @@ mod tests {
     #[test]
     fn test_normalized_ccbr_version() {
         let rendered = render_tmux_session_theme("", None, None, None, None);
-        assert_eq!(rendered.session_options["@ccbr_version"], "?");
+        assert_eq!(rendered.session_options["@ccb_version"], "?");
     }
 }

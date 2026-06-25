@@ -64,7 +64,7 @@ fn test_tmux_pane_service_sets_user_option_and_reads_content() {
 
     assert_eq!(
         calls.lock().unwrap()[0],
-        vec!["set-option", "-p", "-t", "%3", "@ccbr_agent", "Gemini"]
+        vec!["set-option", "-p", "-t", "%3", "@ccb_agent", "Gemini"]
     );
     assert_eq!(text, Some("hello\n".to_string()));
     assert!(alive);
@@ -88,7 +88,7 @@ fn test_tmux_pane_service_describes_pane_with_user_options() {
             },
         );
 
-    let described = service.describe_pane("%3", &["@ccbr_agent".into(), "@ccbr_project_id".into()]);
+    let described = service.describe_pane("%3", &["@ccb_agent".into(), "@ccb_project_id".into()]);
 
     assert_eq!(
         described,
@@ -96,8 +96,8 @@ fn test_tmux_pane_service_describes_pane_with_user_options() {
             ("pane_id".to_string(), "%3".to_string()),
             ("pane_title".to_string(), "agent2".to_string()),
             ("pane_dead".to_string(), "0".to_string()),
-            ("@ccbr_agent".to_string(), "agent2".to_string()),
-            ("@ccbr_project_id".to_string(), "proj-1".to_string()),
+            ("@ccb_agent".to_string(), "agent2".to_string()),
+            ("@ccb_project_id".to_string(), "proj-1".to_string()),
         ]))
     );
 }

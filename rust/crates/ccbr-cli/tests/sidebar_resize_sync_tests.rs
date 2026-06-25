@@ -54,14 +54,14 @@ fn test_sidebar_resize_sync_copies_source_window_sidebar_width_to_other_windows(
         "set-option".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_width_cells".to_string(),
+        "@ccb_sidebar_width_cells".to_string(),
         "41".to_string(),
     ]));
     assert!(locked.contains(&vec![
         "set-option".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_sync_guard".to_string(),
+        "@ccb_sidebar_sync_guard".to_string(),
         "1".to_string(),
     ]));
     assert!(locked.contains(&vec![
@@ -83,7 +83,7 @@ fn test_sidebar_resize_sync_copies_source_window_sidebar_width_to_other_windows(
         "-u".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_sync_guard".to_string(),
+        "@ccb_sidebar_sync_guard".to_string(),
     ]));
 }
 
@@ -168,13 +168,13 @@ fn test_sidebar_resize_sync_reapplies_stored_width_after_window_resize() {
         "-qv".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_width_cells".to_string(),
+        "@ccb_sidebar_width_cells".to_string(),
     ]));
     assert!(!locked.contains(&vec![
         "set-option".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_width_cells".to_string(),
+        "@ccb_sidebar_width_cells".to_string(),
         "59".to_string(),
     ]));
     assert!(locked.contains(&vec![
@@ -188,7 +188,7 @@ fn test_sidebar_resize_sync_reapplies_stored_width_after_window_resize() {
         "set-option".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_sync_guard".to_string(),
+        "@ccb_sidebar_sync_guard".to_string(),
         "1".to_string(),
     ]));
     assert!(locked.contains(&vec![
@@ -196,6 +196,6 @@ fn test_sidebar_resize_sync_reapplies_stored_width_after_window_resize() {
         "-u".to_string(),
         "-t".to_string(),
         "ccb-demo".to_string(),
-        "@ccbr_sidebar_sync_guard".to_string(),
+        "@ccb_sidebar_sync_guard".to_string(),
     ]));
 }

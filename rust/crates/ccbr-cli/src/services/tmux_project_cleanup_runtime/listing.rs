@@ -27,7 +27,7 @@ pub fn list_project_tmux_panes(
 
     let service = TmuxPaneService::new(backend);
     let mut expected = HashMap::new();
-    expected.insert("@ccbr_project_id".into(), project_text.into());
+    expected.insert("@ccb_project_id".into(), project_text.into());
     service
         .list_panes_by_user_options(&expected)
         .into_iter()

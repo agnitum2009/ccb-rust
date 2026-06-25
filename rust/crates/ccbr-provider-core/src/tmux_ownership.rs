@@ -92,13 +92,13 @@ pub fn session_user_option_lookup(session: &Session) -> HashMap<String, String> 
     }
     let mut lookup = HashMap::new();
     if let Some(agent_name) = session_data_text(session, "agent_name") {
-        lookup.insert("@ccbr_agent".to_string(), agent_name);
+        lookup.insert("@ccb_agent".to_string(), agent_name);
     }
     if let Some(project_id) = session_data_text(session, "ccbr_project_id") {
-        lookup.insert("@ccbr_project_id".to_string(), project_id);
+        lookup.insert("@ccb_project_id".to_string(), project_id);
     }
     if let Some(session_id) = session_data_text(session, "ccbr_session_id") {
-        lookup.insert("@ccbr_session_id".to_string(), session_id);
+        lookup.insert("@ccb_session_id".to_string(), session_id);
     }
     lookup
 }
@@ -113,16 +113,16 @@ pub fn session_slot_user_option_lookup(session: &Session) -> HashMap<String, Str
     }
     let mut lookup = HashMap::new();
     if let Some(agent_name) = session_data_text(session, "agent_name") {
-        lookup.insert("@ccbr_agent".to_string(), agent_name);
+        lookup.insert("@ccb_agent".to_string(), agent_name);
     }
     if let Some(project_id) = session_data_text(session, "ccbr_project_id") {
-        lookup.insert("@ccbr_project_id".to_string(), project_id);
+        lookup.insert("@ccb_project_id".to_string(), project_id);
     }
     if let Some(slot_key) = session_data_text(session, "ccbr_slot") {
-        lookup.insert("@ccbr_slot".to_string(), slot_key);
+        lookup.insert("@ccb_slot".to_string(), slot_key);
     }
     if let Some(managed_by) = session_data_text(session, "ccbr_managed_by") {
-        lookup.insert("@ccbr_managed_by".to_string(), managed_by);
+        lookup.insert("@ccb_managed_by".to_string(), managed_by);
     }
     lookup
 }
@@ -143,7 +143,7 @@ pub fn session_display_title(session: &Session) -> Option<String> {
         return Some(agent_name);
     }
     let lookup = session_user_option_lookup(session);
-    if let Some(agent_name) = lookup.get("@ccbr_agent") {
+    if let Some(agent_name) = lookup.get("@ccb_agent") {
         return Some(agent_name.clone());
     }
     session_pane_title_marker(session)
@@ -376,10 +376,10 @@ mod tests {
         );
         let lookup = session_user_option_lookup(&session);
         assert_eq!(
-            lookup.get("@ccbr_agent"),
+            lookup.get("@ccb_agent"),
             Some(&"claude-reviewer".to_string())
         );
-        assert_eq!(lookup.get("@ccbr_project_id"), Some(&"proj-1".to_string()));
+        assert_eq!(lookup.get("@ccb_project_id"), Some(&"proj-1".to_string()));
     }
 
     #[test]
@@ -397,13 +397,13 @@ mod tests {
             state: "foreign".to_string(),
             pane_id: Some("%1".to_string()),
             pane_title: None,
-            expected_options: vec![("@ccbr_agent".to_string(), "a1".to_string())],
-            actual_options: vec![("@ccbr_agent".to_string(), "a2".to_string())],
+            expected_options: vec![("@ccb_agent".to_string(), "a1".to_string())],
+            actual_options: vec![("@ccb_agent".to_string(), "a2".to_string())],
             reason: Some("ownership-mismatch".to_string()),
         };
         let text = ownership_error_text(&ownership, None);
         assert!(text.contains("Pane ownership mismatch for %1"));
-        assert!(text.contains("@ccbr_agent=a1"));
-        assert!(text.contains("@ccbr_agent=a2"));
+        assert!(text.contains("@ccb_agent=a1"));
+        assert!(text.contains("@ccb_agent=a2"));
     }
 }

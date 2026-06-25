@@ -288,7 +288,7 @@ where
         "-qv".to_string(),
         "-t".to_string(),
         sync.session_name.clone(),
-        "@ccbr_sidebar_width_cells".to_string(),
+        "@ccb_sidebar_width_cells".to_string(),
     ]);
     match output {
         Ok(out) => out.lines().next().map(positive_int).unwrap_or(0),
@@ -304,7 +304,7 @@ where
         "set-option".to_string(),
         "-t".to_string(),
         sync.session_name.clone(),
-        "@ccbr_sidebar_width_cells".to_string(),
+        "@ccb_sidebar_width_cells".to_string(),
         width.max(1).to_string(),
     ]);
 }
@@ -318,7 +318,7 @@ where
             "set-option".to_string(),
             "-t".to_string(),
             sync.session_name.clone(),
-            "@ccbr_sidebar_sync_guard".to_string(),
+            "@ccb_sidebar_sync_guard".to_string(),
             "1".to_string(),
         ]);
     } else {
@@ -327,7 +327,7 @@ where
             "-u".to_string(),
             "-t".to_string(),
             sync.session_name.clone(),
-            "@ccbr_sidebar_sync_guard".to_string(),
+            "@ccb_sidebar_sync_guard".to_string(),
         ]);
     }
 }

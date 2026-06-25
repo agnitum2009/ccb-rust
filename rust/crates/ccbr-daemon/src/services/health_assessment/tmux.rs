@@ -56,11 +56,11 @@ impl TmuxNamespaceBackend for SessionBackendAdapter {
         let options = self.0.describe_pane(
             pane_id,
             &[
-                "@ccbr_project_id".to_string(),
-                "@ccbr_role".to_string(),
-                "@ccbr_slot".to_string(),
-                "@ccbr_window".to_string(),
-                "@ccbr_managed_by".to_string(),
+                "@ccb_project_id".to_string(),
+                "@ccb_role".to_string(),
+                "@ccb_slot".to_string(),
+                "@ccb_window".to_string(),
+                "@ccb_managed_by".to_string(),
             ],
         )?;
         Some(Box::new(SessionPaneRecord { options }))
@@ -77,11 +77,11 @@ impl PaneRecord for SessionPaneRecord {
     }
 
     fn window_name(&self) -> Option<&str> {
-        self.options.get("@ccbr_window").map(|s| s.as_str())
+        self.options.get("@ccb_window").map(|s| s.as_str())
     }
 
     fn ccbr_window(&self) -> Option<&str> {
-        self.options.get("@ccbr_window").map(|s| s.as_str())
+        self.options.get("@ccb_window").map(|s| s.as_str())
     }
 
     fn matches(
@@ -93,13 +93,13 @@ impl PaneRecord for SessionPaneRecord {
         window_name: Option<&str>,
         managed_by: &str,
     ) -> bool {
-        self.options.get("@ccbr_project_id").map(|s| s.as_str()) == Some(project_id)
-            && self.options.get("@ccbr_role").map(|s| s.as_str()) == Some(role)
+        self.options.get("@ccb_project_id").map(|s| s.as_str()) == Some(project_id)
+            && self.options.get("@ccb_role").map(|s| s.as_str()) == Some(role)
             && slot_key
-                .is_none_or(|key| self.options.get("@ccbr_slot").map(|s| s.as_str()) == Some(key))
+                .is_none_or(|key| self.options.get("@ccb_slot").map(|s| s.as_str()) == Some(key))
             && window_name.is_none_or(|name| {
-                self.options.get("@ccbr_window").map(|s| s.as_str()) == Some(name)
+                self.options.get("@ccb_window").map(|s| s.as_str()) == Some(name)
             })
-            && self.options.get("@ccbr_managed_by").map(|s| s.as_str()) == Some(managed_by)
+            && self.options.get("@ccb_managed_by").map(|s| s.as_str()) == Some(managed_by)
     }
 }

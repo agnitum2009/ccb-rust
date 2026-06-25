@@ -58,32 +58,32 @@ pub fn apply_ccbr_pane_identity<B>(
 
     backend.set_pane_title(pane_id, title);
     let options: Vec<(&str, String)> = vec![
-        ("@ccbr_label_style", visual.label_style.clone()),
-        ("@ccbr_border_style", visual.border_style.clone()),
+        ("@ccb_label_style", visual.label_style.clone()),
+        ("@ccb_border_style", visual.border_style.clone()),
         (
-            "@ccbr_active_border_style",
+            "@ccb_active_border_style",
             visual.active_border_style.clone(),
         ),
-        ("@ccbr_agent", agent_label.to_string()),
-        ("@ccbr_role", role_text.to_string()),
-        ("@ccbr_slot", slot.to_string()),
-        ("@ccbr_project_id", project_id.to_string()),
+        ("@ccb_agent", agent_label.to_string()),
+        ("@ccb_role", role_text.to_string()),
+        ("@ccb_slot", slot.to_string()),
+        ("@ccb_project_id", project_id.to_string()),
     ];
     let mut opts: HashMap<&str, String> = options.into_iter().collect();
     if let Some(window) = window_name {
-        opts.insert("@ccbr_window", window.trim().to_string());
+        opts.insert("@ccb_window", window.trim().to_string());
     }
     if let Some(sidebar) = sidebar_instance {
-        opts.insert("@ccbr_sidebar_instance", sidebar.trim().to_string());
+        opts.insert("@ccb_sidebar_instance", sidebar.trim().to_string());
     }
     if let Some(session) = session_id {
-        opts.insert("@ccbr_session_id", session.trim().to_string());
+        opts.insert("@ccb_session_id", session.trim().to_string());
     }
     if let Some(epoch) = namespace_epoch {
-        opts.insert("@ccbr_namespace_epoch", epoch.to_string());
+        opts.insert("@ccb_namespace_epoch", epoch.to_string());
     }
     let managed = managed_by.unwrap_or("ccbrd");
-    opts.insert("@ccbr_managed_by", managed.trim().to_string());
+    opts.insert("@ccb_managed_by", managed.trim().to_string());
 
     for (name, value) in opts {
         backend.set_pane_user_option(pane_id, name, &value);
@@ -197,12 +197,12 @@ mod tests {
         let options = backend.options.lock().unwrap();
         assert!(options
             .iter()
-            .any(|(_, k, v)| k == "@ccbr_agent" && v == "claude-agent"));
+            .any(|(_, k, v)| k == "@ccb_agent" && v == "claude-agent"));
         assert!(options
             .iter()
-            .any(|(_, k, v)| k == "@ccbr_project_id" && v == "proj-42"));
+            .any(|(_, k, v)| k == "@ccb_project_id" && v == "proj-42"));
         assert!(options
             .iter()
-            .any(|(_, k, v)| k == "@ccbr_managed_by" && v == "ccbrd"));
+            .any(|(_, k, v)| k == "@ccb_managed_by" && v == "ccbrd"));
     }
 }

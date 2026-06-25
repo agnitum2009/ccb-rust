@@ -71,7 +71,7 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
     );
     assert_eq!(guard.pane_titles.get("%2"), Some(&"cmd".to_string()));
     assert_eq!(
-        guard.pane_options.get("%2").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%2").unwrap().get("@ccb_slot"),
         Some(&"cmd".to_string())
     );
     assert_eq!(
@@ -79,7 +79,7 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
             .pane_options
             .get("%2")
             .unwrap()
-            .get("@ccbr_namespace_epoch"),
+            .get("@ccb_namespace_epoch"),
         Some(&"1".to_string())
     );
     assert_eq!(
@@ -87,7 +87,7 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
             .pane_options
             .get("%2")
             .unwrap()
-            .get("@ccbr_managed_by"),
+            .get("@ccb_managed_by"),
         Some(&"ccbrd".to_string())
     );
     let window_key = format!(
@@ -309,7 +309,7 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
         Some(&"review".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%1").unwrap().get("@ccbr_role"),
+        guard.pane_options.get("%1").unwrap().get("@ccb_role"),
         Some(&"sidebar".to_string())
     );
     assert_eq!(
@@ -317,11 +317,11 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
             .pane_options
             .get("%1")
             .unwrap()
-            .get("@ccbr_sidebar_instance"),
+            .get("@ccb_sidebar_instance"),
         Some(&"main".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%3").unwrap().get("@ccbr_role"),
+        guard.pane_options.get("%3").unwrap().get("@ccb_role"),
         Some(&"sidebar".to_string())
     );
     assert_eq!(
@@ -329,19 +329,19 @@ fn test_project_namespace_controller_materializes_explicit_windows_and_sidebar()
             .pane_options
             .get("%3")
             .unwrap()
-            .get("@ccbr_sidebar_instance"),
+            .get("@ccb_sidebar_instance"),
         Some(&"review".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%2").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%2").unwrap().get("@ccb_slot"),
         Some(&"agent1".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%4").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%4").unwrap().get("@ccb_slot"),
         Some(&"agent2".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%5").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%5").unwrap().get("@ccb_slot"),
         Some(&"agent3".to_string())
     );
     assert!(guard
@@ -436,23 +436,23 @@ fn test_project_namespace_sidebar_width_preserves_agent_grid_area() {
     let state = backend.state();
     let guard = state.lock().unwrap();
     assert_eq!(
-        guard.pane_options.get("%1").unwrap().get("@ccbr_role"),
+        guard.pane_options.get("%1").unwrap().get("@ccb_role"),
         Some(&"sidebar".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%2").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%2").unwrap().get("@ccb_slot"),
         Some(&"agent1".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%4").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%4").unwrap().get("@ccb_slot"),
         Some(&"agent2".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%3").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%3").unwrap().get("@ccb_slot"),
         Some(&"agent3".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%5").unwrap().get("@ccbr_slot"),
+        guard.pane_options.get("%5").unwrap().get("@ccb_slot"),
         Some(&"agent4".to_string())
     );
     assert_eq!(
@@ -630,7 +630,7 @@ fn test_project_namespace_controller_preserves_manual_sidebar_width_override() {
             .session_options
             .entry(layout.ccbrd_tmux_session_name())
             .or_default()
-            .insert("@ccbr_sidebar_width_cells".to_string(), "41".to_string());
+            .insert("@ccb_sidebar_width_cells".to_string(), "41".to_string());
         guard.resize_calls.clear();
     }
 

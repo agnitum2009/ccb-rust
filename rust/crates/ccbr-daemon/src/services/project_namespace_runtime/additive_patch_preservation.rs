@@ -75,11 +75,11 @@ pub fn existing_topology_agent_panes(
     for window in &topology_plan.windows {
         for agent_name in &window.agent_names {
             let mut expected: HashMap<&str, &str> = HashMap::new();
-            expected.insert("@ccbr_project_id", project_id);
-            expected.insert("@ccbr_role", "agent");
-            expected.insert("@ccbr_slot", agent_name);
-            expected.insert("@ccbr_window", &window.name);
-            expected.insert("@ccbr_managed_by", "ccbrd");
+            expected.insert("@ccb_project_id", project_id);
+            expected.insert("@ccb_role", "agent");
+            expected.insert("@ccb_slot", agent_name);
+            expected.insert("@ccb_window", &window.name);
+            expected.insert("@ccb_managed_by", "ccbrd");
             let matches = list_panes_by_user_options(backend, &expected);
             if matches.len() == 1 {
                 agent_panes.insert(agent_name.clone(), matches[0].clone());
@@ -216,11 +216,11 @@ mod tests {
                 },
             );
             let mut options = HashMap::new();
-            options.insert("@ccbr_project_id".to_string(), project_id.to_string());
-            options.insert("@ccbr_role".to_string(), "agent".to_string());
-            options.insert("@ccbr_slot".to_string(), agent.to_string());
-            options.insert("@ccbr_window".to_string(), window.to_string());
-            options.insert("@ccbr_managed_by".to_string(), "ccbrd".to_string());
+            options.insert("@ccb_project_id".to_string(), project_id.to_string());
+            options.insert("@ccb_role".to_string(), "agent".to_string());
+            options.insert("@ccb_slot".to_string(), agent.to_string());
+            options.insert("@ccb_window".to_string(), window.to_string());
+            options.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
             state.pane_options.insert(pane_id.to_string(), options);
         });
     }
