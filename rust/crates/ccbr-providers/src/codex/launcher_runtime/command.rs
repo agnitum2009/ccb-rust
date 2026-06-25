@@ -116,6 +116,12 @@ fn codex_args(
     let mut codex_args = provider_start_parts("codex");
     codex_args.push("-c".to_string());
     codex_args.push("disable_paste_burst=true".to_string());
+    // Override developer_instructions with CCBR coordination rules. Unlike AGENTS.md
+    // (which oh-my-codex session_start hook overwrites), the -c flag is part of the
+    // codex launch command and persists every session. This ensures codex agents
+    // always see: use askr/psr/statusr (not ask/ps/status), don't use native subagents.
+    codex_args.push("-c".to_string());
+    codex_args.push(r#"developer_instructions="CCBR workspace. Discover agents via psr or statusr. Communicate via askr AGENT MSG. Do NOT use ask which targets ccb daemon not ccbrd. Do NOT use codex native subagents for CCB inter-agent comms.""#.to_string());
     if command.auto_permission {
         codex_args.extend([
             "--ask-for-approval".to_string(),
