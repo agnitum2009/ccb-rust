@@ -247,7 +247,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
         "pend" => parse_pend(&filtered[1..], project),
         "queue" => Ok(ParsedCommand::Queue(ParsedQueue {
             project,
-            target: get(1, &filtered),
+            target: positional_arg(&filtered[1..], "--detail"),
             detail: has("--detail", &filtered),
         })),
         "trace" => Ok(ParsedCommand::Trace(ParsedTrace {
@@ -264,7 +264,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
         })),
         "inbox" => Ok(ParsedCommand::Inbox(ParsedInbox {
             project,
-            agent_name: get(1, &filtered),
+            agent_name: positional_arg(&filtered[1..], "--detail"),
             detail: has("--detail", &filtered),
         })),
         "ack" => Ok(ParsedCommand::Ack(ParsedAck {
@@ -330,6 +330,16 @@ fn has(s: &str, filtered: &[&String]) -> bool {
 
 fn position(s: &str, filtered: &[&String]) -> Option<usize> {
     filtered.iter().position(|a| a.as_str() == s)
+}
+
+/// Return the first positional argument in `args` that is not equal to
+/// `skip_flag`. Used for commands like `inbox [--detail] <agent>` where the
+/// flag may appear before the positional target.
+fn positional_arg(args: &[&String], skip_flag: &str) -> String {
+    args.iter()
+        .find(|a| a.as_str() != skip_flag)
+        .map(|s| s.to_string())
+        .unwrap_or_default()
 }
 
 fn extract_project(argv: &[String]) -> Option<String> {
@@ -995,5 +1005,37 @@ mod tests {
     fn test_parse_ctx_transfer_send_requires_agent() {
         let args = vec!["ctx-transfer".to_string(), "--send".to_string()];
         assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn test_parse_inbox_detail_flag_before_agent() {
+        let args = vec![
+            "inbox".to_string(),
+            "--detail".to_string(),
+            "agent3".to_string(),
+        ];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Inbox(i) = cmd {
+            assert!(i.detail);
+            assert_eq!(i.agent_name, "agent3");
+        } else {
+            panic!("expected Inbox");
+        }
+    }
+
+    #[test]
+    fn test_parse_queue_detail_flag_before_agent() {
+        let args = vec![
+            "queue".to_string(),
+            "--detail".to_string(),
+            "agent3".to_string(),
+        ];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Queue(q) = cmd {
+            assert!(q.detail);
+            assert_eq!(q.target, "agent3");
+        } else {
+            panic!("expected Queue");
+        }
     }
 }

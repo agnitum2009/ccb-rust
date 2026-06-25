@@ -270,20 +270,45 @@ pub fn render_watch(result: &Value) -> String {
 
 /// Render an inbox response.
 pub fn render_inbox(result: &Value) -> String {
+    // Support both the legacy compact payload shape emitted by older stubs
+    // (agent_name/pending_count/events) and the canonical mailbox control
+    // payload (target/agent/pending_reply_count/items/head) returned by the
+    // daemon. When the daemon returns a summary payload (detail=false) the
+    // items array is empty but the enriched `head` still holds the current
+    // pending event, so fall back to it.
     let agent = result
         .get("agent_name")
         .and_then(|v| v.as_str())
+        .or_else(|| result.get("target").and_then(|v| v.as_str()))
         .unwrap_or("-");
     let pending = result
         .get("pending_count")
         .and_then(|v| v.as_u64())
+        .or_else(|| {
+            result
+                .get("agent")
+                .and_then(|a| a.get("pending_reply_count"))
+                .and_then(|v| v.as_u64())
+        })
+        .or_else(|| result.get("item_count").and_then(|v| v.as_u64()))
         .unwrap_or(0);
     let mut out = format!("Inbox for {} (pending={}):\n", agent, pending);
-    let events = result
+    let mut events: Vec<&Value> = result
         .get("events")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.as_slice())
-        .unwrap_or(&[]);
+        .map(|arr| arr.iter().collect())
+        .or_else(|| {
+            result
+                .get("items")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().collect())
+        })
+        .unwrap_or_default();
+    if events.is_empty() {
+        if let Some(head) = result.get("head").filter(|v| !v.is_null()) {
+            events.push(head);
+        }
+    }
     if events.is_empty() {
         out.push_str("  (no events)\n");
     }
@@ -302,6 +327,11 @@ pub fn render_ack(result: &Value) -> String {
     let event_id = result
         .get("inbound_event_id")
         .and_then(|v| v.as_str())
+        .or_else(|| {
+            result
+                .get("acknowledged_inbound_event_id")
+                .and_then(|v| v.as_str())
+        })
         .unwrap_or("-");
     let status = result
         .get("status")
@@ -778,10 +808,67 @@ mod tests {
     }
 
     #[test]
+    fn test_render_inbox_canonical_mailbox_payload() {
+        // Daemon inbox handler returns the canonical control_queue payload
+        // (target/agent/item_count/items), not the legacy compact shape.
+        let value = serde_json::json!({
+            "target": "agent3",
+            "summary_status": "ok",
+            "agent": {
+                "agent_name": "agent3",
+                "mailbox_id": "mbx_agent3",
+                "mailbox_state": "blocked",
+                "queue_depth": 2,
+                "pending_reply_count": 1,
+                "active_inbound_event_id": null,
+            },
+            "item_count": 1,
+            "head": null,
+            "items": [
+                {
+                    "position": 1,
+                    "inbound_event_id": "iev_089f836ba40b",
+                    "event_type": "task_reply",
+                    "status": "queued",
+                    "priority": 10,
+                    "message_id": "msg_829f933bf8a9",
+                    "attempt_id": "att_5f5adf4f7f2e",
+                    "job_id": "job_209de548753c",
+                    "source_actor": "agent1",
+                    "reply_id": "rep_851d183d015a",
+                    "reply_terminal_status": "completed",
+                }
+            ]
+        });
+        let out = render_inbox(&value);
+        assert!(out.contains("Inbox for agent3"), "missing agent name: {}", out);
+        assert!(out.contains("pending=1"), "missing pending count: {}", out);
+        assert!(
+            out.contains("iev_089f836ba40b"),
+            "missing event id in output: {}",
+            out
+        );
+    }
+
+    #[test]
     fn test_render_ack() {
         let value = serde_json::json!({"agent_name": "claude", "inbound_event_id": "evt-1", "status": "acked"});
         let out = render_ack(&value);
         assert!(out.contains("Acknowledged claude event evt-1"));
+    }
+
+    #[test]
+    fn test_render_ack_canonical_mailbox_payload() {
+        // Daemon ack handler returns the canonical control_queue ack payload.
+        let value = serde_json::json!({
+            "target": "agent3",
+            "agent_name": "agent3",
+            "acknowledged_inbound_event_id": "iev_089f836ba40b",
+            "acknowledged_event_type": "task_reply",
+            "status": "acked",
+        });
+        let out = render_ack(&value);
+        assert!(out.contains("Acknowledged agent3 event iev_089f836ba40b"), "{}", out);
     }
 
     #[test]
