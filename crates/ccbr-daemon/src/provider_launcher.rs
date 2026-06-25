@@ -452,6 +452,31 @@ fn build_codex_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     )
     .map_err(|e| format!("failed to write codex session file: {e}"))?;
 
+    // Seed the isolated codex HOME with auth config from the real HOME.
+    // Without auth.json, codex CLI crashes on startup (no API credentials).
+    let codex_home = runtime_dir.join("home");
+    let _ = std::fs::create_dir_all(&codex_home);
+    if let Ok(home) = std::env::var("HOME") {
+        let real_codex = std::path::Path::new(&home).join(".codex");
+        for file in &["auth.json", "AGENTS.md"] {
+            let src = real_codex.join(file);
+            if src.exists() {
+                let _ = std::fs::copy(&src, codex_home.join(file));
+            }
+        }
+    }
+    // Overwrite malformed config.toml (generated as JSON-like blob by
+    // prepare_launch_context) with a valid minimal TOML so codex CLI
+    // doesn't crash on startup with "invalid key-value pair".
+    let config_toml = codex_home.join("config.toml");
+    if config_toml.exists() {
+        let content = std::fs::read_to_string(&config_toml).unwrap_or_default();
+        if content.trim_start().starts_with('{') {
+            // JSON-like content — replace with valid TOML.
+            let _ = std::fs::write(&config_toml, "");
+        }
+    }
+
     Ok(LaunchResult {
         command: start_cmd,
         session_payload: Some(serde_json::to_value(&session_payload).map_err(|e| e.to_string())?),
