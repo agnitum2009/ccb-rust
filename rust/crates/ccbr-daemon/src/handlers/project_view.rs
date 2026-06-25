@@ -27,16 +27,25 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
         .iter()
         .filter(|e| e.state != "stopped")
         .map(|e| {
+            let is_active = matches!(e.state.as_str(), "busy" | "running" | "active");
+            let (activity_state, activity_symbol, activity_color) = if is_active {
+                ("active", "●", "green")
+            } else {
+                ("idle", "○", "blue")
+            };
             json!({
                 "name": e.agent_name,
                 "provider": e.provider,
                 "window": agent_window.get(&e.agent_name).cloned().unwrap_or_default(),
                 "order": 0,
                 "pane_id": e.pane_id,
-                "active": false,
+                "active": is_active,
                 "queue_depth": 0,
                 "state": e.state,
                 "health": e.health,
+                "activity_state": activity_state,
+                "activity_symbol": activity_symbol,
+                "activity_color": activity_color,
             })
         })
         .collect();
