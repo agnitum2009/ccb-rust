@@ -325,6 +325,14 @@ impl CcbdApp {
                 .record_restart(&agent_name, "supervision_tick");
         }
 
+        // Detect externally-killed tmux panes and respawn the whole project
+        // topology.  This is a coarse but safe recovery: run_start_flow's
+        // stale-pane detection will reject dead pane IDs and recreate fresh
+        // panes for all agents.
+        if let Err(e) = self.respawn_dead_agents() {
+            eprintln!("ccbrd: respawn_dead_agents failed: {e}");
+        }
+
         // Dispatcher tick: promote queued jobs to running and start completion
         // trackers for newly-running jobs.
         let started = self.dispatcher.tick();
@@ -545,6 +553,54 @@ impl CcbdApp {
         }
 
         Ok(result)
+    }
+
+    /// Check whether any agent's tmux pane has died (e.g. external kill-pane)
+    /// and, if so, respawn the whole project topology.  This keeps the
+    /// namespace consistent and avoids reusing phantom pane IDs.
+    fn respawn_dead_agents(&mut self) -> Result<(), String> {
+        let socket_path = self.tmux_socket_path();
+        if !std::path::Path::new(&socket_path).exists() {
+            return Ok(());
+        }
+        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
+        let mut dead_agents: Vec<String> = Vec::new();
+        for entry in self.registry.all_entries() {
+            if let Some(pane_id) = entry.pane_id.as_deref() {
+                if pane_id.is_empty() {
+                    continue;
+                }
+                let probe = backend.tmux_run_capture(&[
+                    "display-message",
+                    "-p",
+                    "-t",
+                    pane_id,
+                    "#{pane_id}",
+                ]);
+                let alive = probe
+                    .map(|s| s.trim().starts_with('%'))
+                    .unwrap_or(false);
+                if !alive {
+                    eprintln!(
+                        "ccbrd: detected dead pane {} for agent {}, will respawn",
+                        pane_id, entry.agent_name
+                    );
+                    dead_agents.push(entry.agent_name.clone());
+                }
+            }
+        }
+        if dead_agents.is_empty() {
+            return Ok(());
+        }
+        // Respawn the whole topology so layouts stay consistent.
+        let all_agents: Vec<String> = self.agent_names();
+        let config_windows = self.current_config.as_ref().and_then(|c| c.windows.clone());
+        eprintln!(
+            "ccbrd: respawning agents after pane death: {:?}",
+            dead_agents
+        );
+        let _result = self.run_start_flow(&all_agents, false, true, config_windows)?;
+        Ok(())
     }
 }
 

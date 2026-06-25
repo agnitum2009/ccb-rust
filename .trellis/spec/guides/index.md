@@ -23,6 +23,7 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Owner Discovery Thinking Guide](./owner-discovery-thinking-guide.md) | Identify source-fact, evidence, receipt, and boundary owners before DDD/cross-center work | DDD-sensitive fields, cross-center contracts, reference-code intake |
 
 ---
 
