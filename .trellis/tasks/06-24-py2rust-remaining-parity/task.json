@@ -35,7 +35,8 @@
     "06-25-py2rust-wave5-parity-audit",
     "06-25-06-25-py2rust-wave5-daemon-restore-jobs",
     "06-25-06-25-py2rust-wave5-mount-ownership-persist",
-    "06-25-06-25-py2rust-wave5-supervision-loop"
+    "06-25-06-25-py2rust-wave5-supervision-loop",
+    "06-25-py2rust-wave5-parity-sweep"
   ],
   "parent": null,
   "relatedFiles": [],

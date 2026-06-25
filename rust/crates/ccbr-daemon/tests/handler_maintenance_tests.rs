@@ -138,7 +138,7 @@ fn test_cleanup_dry_run_reports_orphans_without_removing() {
     let envelope = make_envelope("claude", "hello");
     let receipt = app.dispatcher.submit(&envelope, "claude", None);
     let job_id = receipt.jobs[0].job_id.clone();
-    app.dispatcher.cancel(&job_id);
+    let _ = app.dispatcher.cancel(&job_id);
     assert_eq!(app.dispatcher.job_store.len(), 1);
 
     let resp = call(
@@ -170,7 +170,7 @@ fn test_cleanup_removes_orphans_when_not_dry_run() {
     let envelope = make_envelope("claude", "hello");
     let receipt = app.dispatcher.submit(&envelope, "claude", None);
     let job_id = receipt.jobs[0].job_id.clone();
-    app.dispatcher.cancel(&job_id);
+    let _ = app.dispatcher.cancel(&job_id);
 
     let resp = call(
         &mut app,
