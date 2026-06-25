@@ -33,7 +33,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `project_view` sidebar readback | Python `handlers/project_view.py`, `project_view/**` | Rust `handlers/project_view.rs`, `tools/ccb-agent-sidebar/src/model.rs` | closed | P0 | Rust now emits the sidebar-consumed Python `{view, cache}` shape including project/ccbd/namespace/sidebar/window/agent/comms fields. |
 | `inbox` / `mailbox_head` / `ack` | Python mailbox handlers | Rust mailbox handlers + `ccbr-mailbox` | closed | P0 | Rust uses mailbox-control state for readback and accepts Python `ack.inbound_event_id` while preserving Rust `event_id` alias. |
 | `project_restart_panes` | Python schedules in-place restart callback | Rust `handlers/project_restart.rs` + `run_start_flow` | closed_with_divergence | P0 | Rust now performs synchronous topology recreation via `run_start_flow`; no no-op `scheduled` success remains. |
-| `project_restart_agent` | Python restarts one agent with busy gate | Rust restarts all agents to preserve layout | accepted_divergence_candidate | P1 | Document/verify layout reason; ensure response shape does not mislead Python clients. |
+| `project_restart_agent` | Python restarts one agent with busy gate | Rust restarts all agents to preserve layout | accepted_divergence | P1 | Rust preserves namespace/layout consistency by recreating all agents, but returns the requested agent's `restart_status`/`pane_id` without claiming Python in-place restart. |
 | `shutdown` red X | Python graceful daemon stop | Rust full workspace exit | accepted_local_divergence | P0 closed locally | User confirmed red X means complete workspace exit; Rust must kill tmux session/provider processes. |
 | `stop-all` | Python prepare/finalize project stop | Rust direct stop flow | closed_with_local_divergence | P1 | Rust executes stop flow directly with caller-provided `force`; user-facing `shutdown` owns full workspace exit with forced cleanup. |
 | `project_clear_context` | Python provider clear implementation | Rust handler | closed | P1 | Rust now sends `/clear` to real namespace/registry panes and returns Python-compatible target/result rows. |
@@ -266,3 +266,21 @@ Evidence:
 - `cargo test -p ccbr-daemon test_start_stop_flow -- --test-threads=1`
 - `cargo test -p ccbr-daemon test_shutdown_handler_requests_shutdown -- --test-threads=1`
 - `cargo test -p ccbr-daemon app::tests::test_shutdown_forces_workspace_exit_cleanup --lib -- --test-threads=1`
+
+### `project_restart_agent` — accepted divergence 2026-06-26
+
+Owner finding:
+
+- Python owns the one-agent restart capability, but Rust owns the tmux namespace topology and must keep pane/window identity consistent after external pane death.
+- Restarting only one pane can leave stale namespace layout facts; Rust therefore recreates the whole agent topology for a concrete `agent_name` request.
+
+Fix / acceptance shape:
+
+- `project_restart_agent` rejects missing, `all`, and unknown agents with structured failure rows.
+- For a configured agent, Rust runs `run_start_flow` for all configured agents with `restore=false`, then returns only the requested agent's `restart_status`, `agent_name`, and `pane_id`.
+- Response includes `recreate_reason=manual_restart_agent` and does not claim Python's in-place restart callback behavior.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon project_restart -- --test-threads=1`
+- `cargo test -p ccbr-daemon -- --test-threads=1`
