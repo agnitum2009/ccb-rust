@@ -106,6 +106,7 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
     // Start execution tracking through the provider adapter so the adapter can
     // prepare a provider-specific prompt (e.g. wrapping with CCBR_REQ_ID).
     let mut prompt_text = body.clone();
+    let mut prompt_sent_by_provider = false;
     if !job_id.is_empty() && !provider.is_empty() {
         let completion_job = JobRecord::new(&job_id, &to_agent, &provider)
             .with_request_body(&body)
@@ -132,6 +133,11 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
                     prompt_text = adapter_prompt.clone();
                 }
             }
+            prompt_sent_by_provider = submission
+                .runtime_state
+                .get("prompt_sent")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
         }
         app.dispatcher.mark_running(&job_id);
         if let Some(job) = app.dispatcher.get(&job_id) {
@@ -141,21 +147,25 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
         }
     }
 
-    let socket_path = app
-        .project_namespace
-        .load()
-        .map(|ns| ns.tmux_socket_path.clone());
-    let delivered = if let Some(socket) = socket_path {
-        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket));
-        backend
-            .send_text(&pane_id, &prompt_text)
-            .map_err(|e| format!("failed to send message to pane: {e}"))?;
+    let delivered = if prompt_sent_by_provider {
         true
     } else {
-        false
+        let socket_path = app
+            .project_namespace
+            .load()
+            .map(|ns| ns.tmux_socket_path.clone());
+        if let Some(socket) = socket_path {
+            let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket));
+            backend
+                .send_text(&pane_id, &prompt_text)
+                .map_err(|e| format!("failed to send message to pane: {e}"))?;
+            true
+        } else {
+            false
+        }
     };
 
-    if delivered {
+    if delivered && !prompt_sent_by_provider {
         app.execution.feed_runtime_state(
             &job_id,
             [("prompt_sent".to_string(), Value::Bool(true))]

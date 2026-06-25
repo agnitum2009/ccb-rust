@@ -11,7 +11,8 @@ use crate::render::{
     render_cleanup, render_clear, render_config_validate, render_doctor, render_inbox, render_logs,
     render_maintenance, render_pend, render_ping, render_project_view, render_queue, render_reload,
     render_restart, render_resubmit, render_retry, render_roles, render_shutdown, render_start,
-    render_stop, render_tools, render_trace, render_wait_ready, render_watch, AgentView, ProjectView,
+    render_stop, render_tools, render_trace, render_wait_ready, render_watch, AgentView,
+    ProjectView,
 };
 use crate::services::{socket_path_for_project, DaemonClient};
 use ccbr_terminal::backend::TerminalBackend;
@@ -43,12 +44,25 @@ pub fn stop(client: &dyn DaemonClient, force: bool) -> Result<String, String> {
 fn parse_project_view(result: serde_json::Value) -> Result<ProjectView, String> {
     let view = result.get("view").unwrap_or(&result);
     let ns = view.get("namespace").unwrap_or(view);
-    let agents: Vec<AgentView> = serde_json::from_value(view.get("agents").cloned().unwrap_or_default())
-        .map_err(|e| format!("invalid project view agents: {}", e))?;
+    let agents: Vec<AgentView> =
+        serde_json::from_value(view.get("agents").cloned().unwrap_or_default())
+            .map_err(|e| format!("invalid project view agents: {}", e))?;
     Ok(ProjectView {
-        project_root: ns.get("project_root").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-        project_slug: ns.get("project_slug").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-        daemon_status: ns.get("daemon_status").and_then(|v| v.as_str()).unwrap_or("running").to_string(),
+        project_root: ns
+            .get("project_root")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        project_slug: ns
+            .get("project_slug")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        daemon_status: ns
+            .get("daemon_status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("running")
+            .to_string(),
         agents,
     })
 }
@@ -56,16 +70,14 @@ fn parse_project_view(result: serde_json::Value) -> Result<ProjectView, String> 
 /// Show project status / project view.
 pub fn status(client: &dyn DaemonClient) -> Result<String, String> {
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-    let view: ProjectView =
-        parse_project_view(result)?;
+    let view: ProjectView = parse_project_view(result)?;
     Ok(render_project_view(&view))
 }
 
 /// Show compact agent status (`ps`).
 pub fn ps(client: &dyn DaemonClient, _alive_only: bool) -> Result<String, String> {
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-    let view: ProjectView =
-        parse_project_view(result)?;
+    let view: ProjectView = parse_project_view(result)?;
     Ok(render_agent_status(&view.agents))
 }
 
@@ -146,8 +158,7 @@ fn target_ready(client: &dyn DaemonClient, target: &str) -> Result<bool, String>
             .unwrap_or(false));
     }
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-    let view: ProjectView =
-        parse_project_view(result)?;
+    let view: ProjectView = parse_project_view(result)?;
     if target == "all" {
         return if view.agents.is_empty() {
             Ok(false)

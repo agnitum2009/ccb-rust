@@ -12,11 +12,15 @@
 - CLI: `ccbr ask <target> --from <sender> <message>`
 - Session files: `.ccbr/.codex-<agent>-session` for named Codex agents; do not fall back to `.ccbr/.codex-session` for named agents.
 - Prompt state key consumed by daemon ask delivery: `runtime_state["prompt_text"]`.
+- Prompt dispatch owner for Python-style `submit`: Codex provider execution `start`, not the Rust-only `ask` handler.
 - Provider state keys: `session_path`, `state.log_path`, `state.offset`, `request_anchor`, `anchor_seen`, `reply_buffer`, `last_agent_message`.
 
 ### 3. Contracts
 
 - Wrapped Codex prompts contain `<<BEGIN:req-xxxxxxxx>>` followed by the user body.
+- Python-style `submit` must drive the same provider-owned prompt dispatch path as Python CCB: when heartbeat promotes a queued Codex job to running, provider execution start wraps and sends the prompt.
+- Rust-only `ask` is a convenience endpoint; if provider execution already records `prompt_sent=true`, `ask` must not send the same prompt again.
+- Codex session payloads used for pane dispatch must carry the workspace tmux socket path when a custom tmux socket is used.
 - Codex JSONL is authoritative when `session_path` points to an existing file.
 - `event_msg` with `payload.type = "user_message"` confirms anchor delivery when the text contains the exact `request_anchor`.
 - `event_msg` with `payload.type = "agent_message"` or `response_item` assistant messages may supply reply text.
@@ -29,6 +33,8 @@
 |-----------|-------------------|
 | Named agent session file missing | submission stays unavailable/error; no primary-session fallback |
 | `prompt_text` missing | daemon cannot deliver wrapped prompt; treat as protocol bug |
+| `submit` heartbeat starts Codex job | provider start sends one wrapped prompt to the target pane |
+| provider start records `prompt_sent=true` | Rust-only `ask` reports delivered without duplicate pane send |
 | JSONL exists but has no new terminal event | keep job running; do not complete from pane text |
 | JSONL contains `task_complete.last_agent_message` | complete job and store that text in sender inbox |
 | No JSONL file exists | pane fallback may detect a ready prompt as best-effort completion |
@@ -42,6 +48,8 @@
 ### 6. Tests Required
 
 - Unit: named `.ccbr/.codex-<agent>-session` is chosen and `prompt_text` equals the wrapped prompt.
+- Unit: provider `start` sends the wrapped prompt to a tmux-backed Codex session and records `prompt_sent=true`.
+- Unit: daemon `submit` + heartbeat sends the wrapped prompt through provider execution.
 - Unit: request anchor matching accepts the actual `<<BEGIN:req-...>>` text.
 - Unit: when JSONL exists, pane fallback must not complete before `task_complete`.
 - Live smoke: `ccbr ask agent2 --from agent1 "Reply exactly: TOKEN"` then `ccbr inbox --detail agent1` contains `TOKEN`.
@@ -59,4 +67,3 @@ Codex pane shows a ready prompt, so complete the job from captured pane text.
 ```text
 If Codex JSONL exists, wait for `task_complete` and use structured final-answer text.
 ```
-

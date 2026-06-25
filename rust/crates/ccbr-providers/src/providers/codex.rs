@@ -18,6 +18,7 @@ use ccbr_provider_core::protocol::{
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
 
+use crate::execution::target::resolve_prompt_target_for_session;
 use crate::execution::{
     build_item, no_wrap_requested, passive_submission, request_anchor_from_runtime_state,
     ExecutionAdapter, ProviderPollResult, ProviderRuntimeContext, ProviderSubmission,
@@ -264,6 +265,12 @@ fn start_active_submission(
 
     let pane_id = context
         .and_then(|c| c.runtime_ref.as_deref())
+        .or_else(|| {
+            session
+                .as_ref()
+                .and_then(|s| s.data.get("pane_id"))
+                .and_then(Value::as_str)
+        })
         .unwrap_or("")
         .to_string();
 
@@ -281,6 +288,28 @@ fn start_active_submission(
             &ccbr_provider_core::protocol::make_req_id(&job.job_id),
         )
     };
+
+    let mut prompt_sent = false;
+    let mut send_error: Option<String> = None;
+    let session_supports_pane_delivery = session
+        .as_ref()
+        .and_then(|s| s.data.get("terminal"))
+        .and_then(Value::as_str)
+        .is_some_and(|terminal| terminal == "tmux");
+    if session_supports_pane_delivery && !pane_id.is_empty() {
+        if let Some(session) = session.as_ref() {
+            if let Some(target) = resolve_prompt_target_for_session(&session.data) {
+                match target.send_text(&pane_id, &prompt) {
+                    Ok(()) => {
+                        prompt_sent = true;
+                    }
+                    Err(err) => {
+                        send_error = Some(err);
+                    }
+                }
+            }
+        }
+    }
 
     let diagnostics = serde_json::json!({
         "provider": PROVIDER_NAME,
@@ -371,6 +400,13 @@ fn start_active_submission(
     );
     runtime_state.insert("prompt".to_string(), Value::String(prompt.clone()));
     runtime_state.insert("prompt_text".to_string(), Value::String(prompt));
+    runtime_state.insert("prompt_sent".to_string(), Value::Bool(prompt_sent));
+    if prompt_sent {
+        runtime_state.insert("prompt_sent_at".to_string(), Value::String(now.to_string()));
+    }
+    if let Some(err) = send_error {
+        runtime_state.insert("send_error".to_string(), Value::String(err));
+    }
 
     ProviderSubmission {
         job_id: job.job_id.clone(),
@@ -2268,7 +2304,30 @@ fn expand_tilde(path: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use crate::execution::target::{with_prompt_target_override, PromptTarget};
+
     use super::*;
+
+    #[derive(Default)]
+    struct RecordingPromptTarget {
+        sent: Arc<Mutex<Vec<(String, String)>>>,
+    }
+
+    impl PromptTarget for RecordingPromptTarget {
+        fn send_text(&self, pane_id: &str, text: &str) -> Result<(), String> {
+            self.sent
+                .lock()
+                .unwrap()
+                .push((pane_id.to_string(), text.to_string()));
+            Ok(())
+        }
+
+        fn get_pane_content(&self, _pane_id: &str, _lines: usize) -> Result<String, String> {
+            Ok(String::new())
+        }
+    }
 
     #[test]
     fn test_extract_entry_user_message() {
@@ -2585,6 +2644,69 @@ mod tests {
         assert!(prompt_text.starts_with("<<BEGIN:req-"));
         assert!(prompt_text.contains("hello agent2"));
         assert_eq!(get_str(&submission.runtime_state, "prompt"), prompt_text);
+    }
+
+    #[test]
+    fn test_start_active_submission_sends_wrapped_prompt_to_tmux_session() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("repo");
+        let ccbr_dir = work_dir.join(".ccbr");
+        let agent_root = work_dir.join("agent2-sessions");
+        std::fs::create_dir_all(&ccbr_dir).unwrap();
+        std::fs::create_dir_all(&agent_root).unwrap();
+        std::fs::write(
+            ccbr_dir.join(".codex-agent2-session"),
+            serde_json::json!({
+                "terminal": "tmux",
+                "pane_id": "%7",
+                "codex_session_root": agent_root.to_string_lossy().to_string(),
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let job = JobRecord {
+            job_id: "job_prompt_send".to_string(),
+            agent_name: "agent2".to_string(),
+            provider: "codex".to_string(),
+            target_kind: ccbr_completion::models::TargetKind::Agent,
+            request: ccbr_completion::models::JobRequest {
+                body: "deliver through submit".to_string(),
+                message_type: None,
+            },
+            provider_options: Map::new(),
+            workspace_path: None,
+            provider_instance: None,
+        };
+        let ctx = ProviderRuntimeContext {
+            agent_name: "agent2".to_string(),
+            workspace_path: Some(work_dir.to_string_lossy().to_string()),
+            backend_type: Some("tmux".to_string()),
+            runtime_ref: None,
+            session_ref: None,
+            ..Default::default()
+        };
+        let recorder = RecordingPromptTarget::default();
+        let sent = recorder.sent.clone();
+        let target: Arc<dyn PromptTarget> = Arc::new(recorder);
+
+        let submission = with_prompt_target_override(target, || {
+            start_active_submission(&job, Some(&ctx), "2026-04-04T10:00:00Z")
+        });
+
+        let sent = sent.lock().unwrap();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].0, "%7");
+        assert!(sent[0].1.starts_with("<<BEGIN:req-"));
+        assert!(sent[0].1.contains("deliver through submit"));
+        assert_eq!(get_str(&submission.runtime_state, "prompt_text"), sent[0].1);
+        assert_eq!(
+            submission
+                .runtime_state
+                .get("prompt_sent")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]

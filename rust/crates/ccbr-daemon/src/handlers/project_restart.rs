@@ -79,10 +79,58 @@ pub fn handle_project_restart_agent(app: &mut CcbdApp, payload: &Value) -> Resul
     }))
 }
 
-pub fn handle_project_restart_panes(_app: &mut CcbdApp, _payload: &Value) -> Result<Value, String> {
+pub fn handle_project_restart_panes(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
+    let all_agents: Vec<String> = app.agent_names();
+    if all_agents.is_empty() {
+        return Ok(json!({
+            "status": "failed",
+            "restart_status": "failed",
+            "reason": "no_agents_configured",
+            "agent_names": [],
+            "restart_mode": "recreate_topology",
+            "recreate_reason": "manual_restart_panes",
+        }));
+    }
+
+    let auto_permission = payload
+        .get("auto_permission")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let config_windows = app.current_config.as_ref().and_then(|c| c.windows.clone());
+    let result = app.run_start_flow(
+        &all_agents,
+        false,
+        auto_permission,
+        config_windows,
+        None,
+        None,
+        &[],
+    )?;
+    let any_failed = result
+        .agent_results
+        .iter()
+        .any(|agent| agent.status == "failed");
+    let agent_results: Vec<Value> = result
+        .agent_results
+        .into_iter()
+        .map(|agent| {
+            json!({
+                "agent_name": agent.agent_name,
+                "status": agent.status,
+                "reason": agent.reason,
+                "pane_id": agent.pane_id,
+            })
+        })
+        .collect();
+
     Ok(json!({
-        "status": "scheduled",
-        "restart_mode": "in_place",
+        "status": if any_failed { "failed" } else { "ok" },
+        "restart_status": if any_failed { "failed" } else { "ok" },
+        "reason": if any_failed { "agent_restart_failed" } else { "" },
+        "agent_names": all_agents,
+        "agent_results": agent_results,
+        "restart_mode": "recreate_topology",
+        "actions_taken": result.actions_taken,
         "recreate_reason": "manual_restart_panes",
     }))
 }
@@ -157,5 +205,44 @@ mod tests {
         assert_eq!(result["restart_status"], "ok");
         assert_eq!(result["agent_name"], "agent1");
         assert!(result["pane_id"].is_string());
+    }
+
+    #[test]
+    fn test_restart_panes_without_agents_fails_loudly() {
+        let dir = TempDir::new().unwrap();
+        let mut app = stub_app(&dir);
+        let result = handle_project_restart_panes(&mut app, &json!({}))
+            .expect("handler returns structured failure");
+        assert_eq!(result["status"], "failed");
+        assert_eq!(result["restart_status"], "failed");
+        assert_eq!(result["reason"], "no_agents_configured");
+        assert_eq!(result["restart_mode"], "recreate_topology");
+    }
+
+    #[test]
+    fn test_restart_panes_triggers_start_flow_for_all_agents() {
+        let dir = TempDir::new().unwrap();
+        let mut app = stub_app(&dir);
+        for (index, agent_name) in ["agent1", "agent2"].into_iter().enumerate() {
+            app.registry.register(AgentRuntimeEntry {
+                agent_name: agent_name.into(),
+                provider: "codex".into(),
+                state: "idle".into(),
+                health: "healthy".into(),
+                pane_id: Some(format!("%{index}")),
+                workspace_path: None,
+                runtime_pid: None,
+                session_id: None,
+                restart_count: 0,
+            });
+        }
+
+        let result = handle_project_restart_panes(&mut app, &json!({}))
+            .expect("handler should run start flow");
+        assert_eq!(result["status"], "ok");
+        assert_eq!(result["restart_status"], "ok");
+        assert_eq!(result["restart_mode"], "recreate_topology");
+        assert_eq!(result["agent_results"].as_array().unwrap().len(), 2);
+        assert_ne!(result["status"], "scheduled");
     }
 }

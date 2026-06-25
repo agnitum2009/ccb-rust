@@ -5,6 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 use ccbr_daemon::app::CcbdApp;
+use ccbr_daemon::services::project_namespace::{NamespaceWindow, ProjectNamespace};
+use ccbr_daemon::services::registry::AgentRuntimeEntry;
 use ccbr_daemon::socket_server::SocketServer;
 use ccbr_daemon::start_flow::service::StartFlowService;
 use ccbr_daemon::stop_flow::service::StopFlowService;
@@ -169,7 +171,130 @@ fn test_start_stop_flow() {
     );
 
     let view2 = call(&mut app, "project_view", json!({}));
-    assert_eq!(view2["result"]["view"]["agents"].as_array().unwrap().len(), 0);
+    assert_eq!(
+        view2["result"]["view"]["agents"].as_array().unwrap().len(),
+        0
+    );
+}
+
+#[test]
+fn test_project_view_matches_sidebar_wire_shape() {
+    let dir = TempDir::new().unwrap();
+    let mut app = stub_app(&dir);
+    let config = ccbr_agents::config::build_default_project_config();
+    let project_id = app.project_id().to_string();
+    let tmux_socket_path = app.tmux_socket_path();
+    let tmux_session_name = app.tmux_session_name();
+    let agent_names = config.default_agents.clone();
+
+    for (index, agent_name) in agent_names.iter().enumerate() {
+        let provider = config
+            .agents
+            .get(agent_name)
+            .map(|spec| spec.provider.clone())
+            .unwrap_or_default();
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: agent_name.clone(),
+            provider,
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some(format!("%{}", index + 1)),
+            workspace_path: Some(dir.path().to_string_lossy().to_string()),
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+    }
+    app.current_config = Some(config);
+    app.project_namespace
+        .mount(ProjectNamespace {
+            project_root: dir.path().display().to_string(),
+            project_id: project_id.clone(),
+            tmux_socket_path,
+            tmux_socket_name: "tmux".into(),
+            tmux_session_name,
+            agent_names: agent_names.clone(),
+            windows: vec![
+                NamespaceWindow {
+                    name: "main".into(),
+                    window_id: Some("@1".into()),
+                    agents: agent_names.clone(),
+                },
+                NamespaceWindow {
+                    name: "neovim".into(),
+                    window_id: Some("@2".into()),
+                    agents: vec![],
+                },
+            ],
+            agent_panes: agent_names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| (name.clone(), format!("%{}", index + 1)))
+                .collect(),
+            active_panes: vec!["%1".into()],
+            namespace_epoch: 3,
+            created_at: chrono::Utc::now().to_rfc3339(),
+        })
+        .unwrap();
+
+    let submit = call(
+        &mut app,
+        "submit",
+        json!({
+            "project_id": project_id,
+            "to_agent": "agent1",
+            "from_actor": "user",
+            "body": "work item"
+        }),
+    );
+    assert!(submit["ok"].as_bool().unwrap_or(false));
+
+    let response = call(&mut app, "project_view", json!({"schema_version": 1}));
+    assert!(response["ok"].as_bool().unwrap_or(false));
+    let view = &response["result"]["view"];
+
+    // These fields are consumed by ccb-agent-sidebar for the header, row
+    // grouping, three-panel sizing, and comms action rows.  Missing fields
+    // silently degrade the UI even when the daemon RPC itself succeeds.
+    assert_eq!(view["schema_version"].as_u64(), Some(1));
+    assert_eq!(
+        view["project"]["display_name"].as_str(),
+        dir.path().file_name().and_then(|s| s.to_str())
+    );
+    assert_eq!(view["ccbd"]["state"].as_str(), Some("mounted"));
+    assert_eq!(view["namespace"]["epoch"].as_u64(), Some(3));
+    assert_eq!(view["namespace"]["entry_window"].as_str(), Some("main"));
+    assert_eq!(
+        view["namespace"]["sidebar"]["view"]["agents_height"].as_str(),
+        Some("50%")
+    );
+    assert_eq!(
+        view["namespace"]["sidebar"]["view"]["comms_limit"].as_u64(),
+        Some(5)
+    );
+
+    let windows = view["windows"].as_array().expect("windows array");
+    assert_eq!(windows[0]["name"].as_str(), Some("main"));
+    assert_eq!(windows[0]["kind"].as_str(), Some("agents"));
+    assert_eq!(windows[0]["tmux_window_id"].as_str(), Some("@1"));
+    assert_eq!(windows[1]["name"].as_str(), Some("neovim"));
+    assert_eq!(windows[1]["kind"].as_str(), Some("tool"));
+
+    let agents = view["agents"].as_array().expect("agents array");
+    assert_eq!(agents[0]["name"].as_str(), Some("agent1"));
+    assert_eq!(agents[0]["window"].as_str(), Some("main"));
+    assert_eq!(agents[0]["activity_state"].as_str(), Some("pending"));
+    assert_eq!(agents[0]["activity_source"].as_str(), Some("ccb_job"));
+    assert!(agents[0]["current_job_id"].as_str().is_some());
+    assert_eq!(agents[0]["queue_depth"].as_u64(), Some(1));
+
+    let comms = view["comms"].as_array().expect("comms array");
+    assert_eq!(comms[0]["sender"].as_str(), Some("user"));
+    assert_eq!(comms[0]["target"].as_str(), Some("agent1"));
+    assert_eq!(comms[0]["status"].as_str(), Some("accepted"));
+    assert_eq!(comms[0]["business_status"].as_str(), Some("sending"));
+    assert_eq!(comms[0]["status_label"].as_str(), Some("send"));
+    assert_eq!(comms[0]["body_preview"].as_str(), Some("work item"));
 }
 
 #[test]

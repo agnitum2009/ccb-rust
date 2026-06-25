@@ -26,6 +26,16 @@
 - [ ] Python `ask` skill 经 ccbrd 完成 agent 间通信（A ask B → B 回复 → A inbox 收到）
 - [ ] `cargo test -p ccbr-daemon` 全绿 + Python 客户端互操作集成测试通过
 
+## Owner 对齐补充（2026-06-26）
+
+用户要求基于 `/mnt/g/owner` 方法论重跑一次彻底 owner 对齐：Python `ccb` 7.5.2 是参考能力 owner，Rust `ccbr`/`ccbrd` 是当前实现 owner；对齐目标不是逐行照搬 Python，而是逐个能力 surface 明确 provider/consumer owner、兼容契约、允许的 Rust+DDD 重写边界，以及剩余缺口的补齐顺序。
+
+补充要求：
+- [ ] 产出 owner 对齐矩阵，至少覆盖 `submit/ask`、sidebar/project_view、mailbox/inbox/ack、restart/reload/clear/focus、shutdown/stop-all、provider session/polling。
+- [ ] 对每一项标明 surface：interface、capability、projection/readback、lifecycle gate、runtime integration、policy。
+- [ ] 标明非主张：CodeGraph/Trellis/引用代码只作证据，不作 owner truth；Codex hooks 不得禁用；Python 低性能轮询不作为 Rust 实现 owner。
+- [ ] 按 P0/P1/P2 排序补齐功能缺失，P0 优先修 Python 客户端互操作会撞到的缺口。
+
 ## Notes
 - 这是 ccbr 从"Rust-CLI 可用"升级到"Python 客户端可互操作"的核心里程碑，规模大，建议拆子任务按 RPC 簇推进（sidebar-view / mailbox-comms / namespace / ask-chain 等）。
 - 前置已就位：`ccbr-agent-sidebar` 软链、`run-ccbr.sh`（mouse on + sidebar bootstrap）、dapro-ass `[ui.sidebar]` 配置——线协议通了之后这些即可用。

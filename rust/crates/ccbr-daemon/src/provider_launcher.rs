@@ -469,6 +469,7 @@ fn build_codex_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
         &pane_title_marker,
         &start_cmd,
         &launch_session_id,
+        Some(ctx.socket_path),
     );
 
     let session_path = ccbr_dir(ctx.project_root).join(

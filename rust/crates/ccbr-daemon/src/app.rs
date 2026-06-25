@@ -370,12 +370,6 @@ impl CcbdApp {
                 let _ = self
                     .completion_tracker
                     .start(completion_job, &after_restore);
-                let mut prompt_patch = std::collections::HashMap::new();
-                prompt_patch.insert(
-                    "prompt_text".to_string(),
-                    serde_json::Value::String(job.request.body.clone()),
-                );
-                self.execution.feed_runtime_state(&job.job_id, prompt_patch);
             } else if let Some(decision) = &result.decision {
                 // terminal_pending: finish the job immediately without heartbeat.
                 let status = map_completion_status(decision.status);
@@ -425,12 +419,12 @@ impl CcbdApp {
     pub fn shutdown(&mut self) -> crate::Result<()> {
         // Persist running/non-terminal jobs *before* trying to stop agents so
         // that a slow or stuck stop flow never loses in-flight job memory.
-        // Graceful shutdown leaves provider panes running so a restarted daemon
-        // can adopt them and continue driving in-flight jobs (S3.3 continuity).
+        // User-facing shutdown is a full workspace exit: sidebar close / CLI
+        // shutdown must not leave orphaned provider panes behind.
         let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
         let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
 
-        let result = self.stop_all(false, "shutdown");
+        let result = self.stop_all(true, "shutdown");
         let report = CcbdShutdownReport {
             project_id: self.project_id().to_string(),
             generated_at: chrono::Utc::now().to_rfc3339(),
@@ -618,15 +612,6 @@ impl CcbdApp {
                 ..Default::default()
             };
             let _ = self.execution.start(&completion_job, Some(&ctx));
-            // Feed the prompt text from the job's request body so the adapter's
-            // deferred-prompt dispatch can send it to the provider pane.
-            let mut prompt_patch = std::collections::HashMap::new();
-            prompt_patch.insert(
-                "prompt_text".to_string(),
-                serde_json::Value::String(job.request.body.clone()),
-            );
-            self.execution
-                .feed_runtime_state(&completion_job.job_id, prompt_patch);
         }
 
         // Feed live tmux pane text into active execution submissions so adapters
@@ -893,21 +878,67 @@ impl CcbdApp {
         let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
 
         // 1. pane-border-status top + Python pane_border_format
-        let _ = backend.tmux_run(&["set-option", "-t", &session_name, "pane-border-status", "top"], false, false, None, None);
-        let _ = backend.tmux_run(&[
-            "set-option", "-t", &session_name, "pane-border-format",
-            "#{?{@ccb_agent},#[bold]#{@ccb_agent}#[nobold] ,#[fg=#565f89]#{pane_title}}",
-        ], false, false, None, None);
+        let _ = backend.tmux_run(
+            &[
+                "set-option",
+                "-t",
+                &session_name,
+                "pane-border-status",
+                "top",
+            ],
+            false,
+            false,
+            None,
+            None,
+        );
+        let _ = backend.tmux_run(
+            &[
+                "set-option",
+                "-t",
+                &session_name,
+                "pane-border-format",
+                "#{?{@ccb_agent},#[bold]#{@ccb_agent}#[nobold] ,#[fg=#565f89]#{pane_title}}",
+            ],
+            false,
+            false,
+            None,
+            None,
+        );
 
         // 2. mouse on (per session)
-        let _ = backend.tmux_run(&["set-option", "-t", &session_name, "mouse", "on"], false, false, None, None);
+        let _ = backend.tmux_run(
+            &["set-option", "-t", &session_name, "mouse", "on"],
+            false,
+            false,
+            None,
+            None,
+        );
 
         // 3. Tag agent panes with @ccb_agent + @ccb_role
         for entry in self.registry.all_entries() {
             if let Some(pane_id) = entry.pane_id.as_deref() {
                 if !pane_id.is_empty() {
-                    let _ = backend.tmux_run(&["set-option", "-p", "-t", pane_id, "@ccb_agent", &entry.agent_name], false, false, None, None);
-                    let _ = backend.tmux_run(&["set-option", "-p", "-t", pane_id, "@ccb_role", "agent"], false, false, None, None);
+                    let _ = backend.tmux_run(
+                        &[
+                            "set-option",
+                            "-p",
+                            "-t",
+                            pane_id,
+                            "@ccb_agent",
+                            &entry.agent_name,
+                        ],
+                        false,
+                        false,
+                        None,
+                        None,
+                    );
+                    let _ = backend.tmux_run(
+                        &["set-option", "-p", "-t", pane_id, "@ccb_role", "agent"],
+                        false,
+                        false,
+                        None,
+                        None,
+                    );
                 }
             }
         }

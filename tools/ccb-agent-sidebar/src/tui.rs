@@ -646,18 +646,10 @@ fn comms_height_for(total_height: u16, view: &SidebarViewInfo) -> u16 {
 }
 
 fn tips_height_for(total_height: u16, view: &SidebarViewInfo) -> u16 {
-    view_height_for(
-        total_height,
-        &view.tips_height,
-        DEFAULT_TIPS_HEIGHT_PERCENT,
-    )
+    view_height_for(total_height, &view.tips_height, DEFAULT_TIPS_HEIGHT_PERCENT)
 }
 
-fn view_height_for(
-    total_height: u16,
-    value: &serde_json::Value,
-    default_percent: u16,
-) -> u16 {
+fn view_height_for(total_height: u16, value: &serde_json::Value, default_percent: u16) -> u16 {
     match value {
         serde_json::Value::Number(number) => number
             .as_u64()
@@ -877,7 +869,10 @@ fn tree_title_width(width: u16) -> u16 {
 
 fn tree_controls_line(hover_kill: bool) -> Line<'static> {
     let kill_style = if hover_kill {
-        Style::default().fg(Color::Black).bg(Color::Red).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Red)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
     };
@@ -949,10 +944,7 @@ fn window_row(window: &WindowView) -> ListItem<'static> {
     };
     ListItem::new(Line::from(vec![
         Span::raw(format!("{active} ")),
-        Span::styled(
-            label,
-            Style::default().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled(label, Style::default().add_modifier(Modifier::BOLD)),
     ]))
 }
 
@@ -1555,7 +1547,7 @@ mod tests {
 
         assert_eq!(
             std::fs::read_to_string(&marker).unwrap(),
-            format!("{}|kill\n", project_root.display())
+            format!("{}|shutdown\n", project_root.display())
         );
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -1613,7 +1605,8 @@ mod tests {
     fn configured_sidebar_view_can_adjust_all_three_sections() {
         let mut app = SidebarApp::new("main".into());
         let mut response = sample_response_with_comms(6);
-        response.view.namespace.sidebar.view.agents_height = serde_json::Value::String("40%".into());
+        response.view.namespace.sidebar.view.agents_height =
+            serde_json::Value::String("40%".into());
         response.view.namespace.sidebar.view.comms_height = serde_json::Value::String("20%".into());
         response.view.namespace.sidebar.view.tips_height = serde_json::Value::String("40%".into());
         app.apply_response(response);
@@ -1815,7 +1808,8 @@ mod tests {
     fn mouse_coordinates_map_to_comms_rows() {
         let mut app = SidebarApp::new("main".into());
         let mut response = sample_response_with_comms(3);
-        response.view.namespace.sidebar.view.agents_height = serde_json::Value::String("50%".into());
+        response.view.namespace.sidebar.view.agents_height =
+            serde_json::Value::String("50%".into());
         response.view.namespace.sidebar.view.comms_height = serde_json::Value::String("40%".into());
         response.view.namespace.sidebar.view.tips_height = serde_json::Value::String("10%".into());
         response.view.comms[0].body_preview = "line two".into();

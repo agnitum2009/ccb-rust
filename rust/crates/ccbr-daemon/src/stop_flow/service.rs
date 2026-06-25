@@ -56,6 +56,10 @@ impl StopFlowService {
         let stopped_agents: Vec<String> = agent_names.to_vec();
         let mut killed_panes = Vec::new();
         let mut errors = Vec::new();
+        let mut actions_taken = vec!["stop_flow_executed".to_string()];
+        if force {
+            actions_taken.push("forced_cleanup".to_string());
+        }
 
         if let Some(socket) = socket_path {
             for agent_name in agent_names {
@@ -69,20 +73,25 @@ impl StopFlowService {
             // Only terminate provider panes on forced stops. Graceful shutdown
             // preserves panes so a restarted daemon can adopt running jobs.
             if force {
+                if let Some(session) = session_name {
+                    actions_taken.push(format!("kill_session:{session}"));
+                }
                 match self.mode {
                     StopFlowMode::Tmux => {
                         let backend =
                             ccbr_terminal::TmuxBackend::new(None, Some(socket.to_string()));
-                        for pane in &killed_panes {
-                            if let Err(e) = backend.kill_pane(pane) {
+                        if let Some(session) = session_name {
+                            if let Err(e) = backend.kill_pane(session) {
                                 errors.push(e.to_string());
+                                for pane in &killed_panes {
+                                    if let Err(e) = backend.kill_pane(pane) {
+                                        errors.push(e.to_string());
+                                    }
+                                }
                             }
-                        }
-                        // Fallback: if no pane ids were tracked but a session exists,
-                        // tear down the whole session.
-                        if killed_panes.is_empty() {
-                            if let Some(session) = session_name {
-                                if let Err(e) = backend.kill_pane(session) {
+                        } else {
+                            for pane in &killed_panes {
+                                if let Err(e) = backend.kill_pane(pane) {
                                     errors.push(e.to_string());
                                 }
                             }
@@ -95,10 +104,6 @@ impl StopFlowService {
             }
         }
 
-        let mut actions_taken = vec!["stop_flow_executed".to_string()];
-        if force {
-            actions_taken.push("forced_cleanup".to_string());
-        }
         for agent_name in agent_names {
             registry.mark_stopped(agent_name);
             actions_taken.push(format!("mark_runtime_stopped:{agent_name}"));
@@ -182,5 +187,37 @@ mod tests {
             .actions_taken
             .iter()
             .any(|a| a == "terminate_runtime_pids:0"));
+    }
+
+    #[test]
+    fn test_forced_stop_records_session_cleanup() {
+        let mut registry = AgentRegistry::new();
+        registry.register(AgentRuntimeEntry {
+            agent_name: "agent1".to_string(),
+            provider: "codex".to_string(),
+            state: "running".into(),
+            health: "healthy".into(),
+            pane_id: Some("%1".to_string()),
+            workspace_path: None,
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        let result = StopFlowService::with_stub().execute(
+            &mut registry,
+            Some("/tmp/tmux.sock"),
+            Some("ccbr-project"),
+            &["agent1".to_string()],
+            true,
+        );
+
+        assert!(
+            result
+                .actions_taken
+                .iter()
+                .any(|a| a == "kill_session:ccbr-project"),
+            "forced workspace exit must tear down the outer tmux session, not just agent panes"
+        );
     }
 }

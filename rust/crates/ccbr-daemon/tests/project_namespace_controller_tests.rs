@@ -83,11 +83,7 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
         Some(&"1".to_string())
     );
     assert_eq!(
-        guard
-            .pane_options
-            .get("%2")
-            .unwrap()
-            .get("@ccb_managed_by"),
+        guard.pane_options.get("%2").unwrap().get("@ccb_managed_by"),
         Some(&"ccbrd".to_string())
     );
     let window_key = format!(

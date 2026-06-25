@@ -313,14 +313,29 @@ pub fn render_inbox(result: &Value) -> String {
         out.push_str("  (no events)\n");
     }
     for event in events {
-        let source = event.get("source_actor").and_then(|v| v.as_str()).unwrap_or("?");
-        let reply_preview = event.get("reply_preview").and_then(|v| v.as_str()).unwrap_or("");
-        let status = event.get("reply_terminal_status").and_then(|v| v.as_str()).unwrap_or("pending");
+        let source = event
+            .get("source_actor")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?");
+        let reply_preview = event
+            .get("reply_preview")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let status = event
+            .get("reply_terminal_status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("pending");
         let job_id = event.get("job_id").and_then(|v| v.as_str()).unwrap_or("-");
         if reply_preview.is_empty() {
-            out.push_str(&format!("  [{}] from={} job={} (no reply yet)\n", status, source, job_id));
+            out.push_str(&format!(
+                "  [{}] from={} job={} (no reply yet)\n",
+                status, source, job_id
+            ));
         } else {
-            out.push_str(&format!("  [{}] from={} job={} → \"{}\"\n", status, source, job_id, reply_preview));
+            out.push_str(&format!(
+                "  [{}] from={} job={} → \"{}\"\n",
+                status, source, job_id, reply_preview
+            ));
         }
     }
     out
