@@ -40,7 +40,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `project_reload_config` | Python reload transaction | Rust reload handler | closed | P1 | Rust now returns Python dry-run/apply shape, publishes successful config into runtime read models, and blocks busy removed agents. |
 | `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
 | `get` / `watch` | Python dispatcher handlers | Rust dispatcher handlers | closed | P2 | Rust now returns Python-visible get payloads, fails unknown jobs, consumes `watch.cursor`, and rejects negative cursors. |
-| `queue` / `trace` / `cancel` | Python dispatcher + mailbox-control handlers | Rust dispatcher + mailbox-control handlers | partially_verified | P2 | Existing integration tests cover queue depth, trace readback, and cancel terminalization/mailbox state; no new code in this slice. |
+| `queue` / `trace` / `cancel` | Python dispatcher + mailbox-control handlers | Rust dispatcher + mailbox-control handlers | closed | P2 | Queue/cancel already use mailbox-control/mailbox terminal state; trace now rejects Python-invalid `all`/agent targets and uses mailbox-control trace only. |
 | `resubmit` / `retry` | Python message-bureau lifecycle handlers | Rust dispatcher handlers | closed | P2 | Rust now validates mailbox message/attempt lineage, enqueues retry/resubmit jobs, records new message/attempt records, and returns Python lifecycle payloads. |
 | Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling. |
 
@@ -206,3 +206,25 @@ Evidence:
 
 - `cargo test -p ccbr-daemon handlers::resubmit::tests -- --test-threads=1`
 - `cargo test -p ccbr-daemon handlers::retry::tests -- --test-threads=1`
+
+### `queue` / `trace` / `cancel` — closed 2026-06-26
+
+Owner finding:
+
+- Python `trace` is a message-bureau control surface and accepts only concrete `sub_`, `msg_`, `att_`, `rep_`, or `job_` identifiers.
+- Rust `trace` used mailbox-control for concrete ids, but returned a Rust-local dispatcher job-list fallback for `all` and agent-name targets, which is not Python wire parity.
+- Rust `queue` and `cancel` were already wired through mailbox-control / mailbox terminal recording and covered by integration tests.
+
+Fix:
+
+- Added non-panicking mailbox `try_trace`.
+- Rust `trace` handler now calls mailbox-control trace only and returns Python-style errors for invalid or missing concrete ids.
+- Kept queue/cancel behavior unchanged, with integration tests as closure evidence.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon handlers::trace::tests -- --test-threads=1`
+- `cargo test -p ccbr-daemon test_queue_returns_actual_per_agent_state -- --test-threads=1`
+- `cargo test -p ccbr-daemon test_trace_returns_job_history -- --test-threads=1`
+- `cargo test -p ccbr-daemon test_cancel_updates_mailbox_state -- --test-threads=1`
+- `cargo test -p ccbr-mailbox trace -- --test-threads=1`

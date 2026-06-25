@@ -24,7 +24,8 @@
 - `get` response includes Python-visible fields: `job_id`, `agent_name`, `target_kind`, `target_name`, `provider_instance`, `provider`, `status`, `job`, `snapshot`, `reply`, `completion_reason`, `completion_confidence`, `updated_at`, `visible_reply_source`, `visible_reply_id`, `message_id`, and daemon `generation`.
 - `watch` consumes the Python `cursor` field and rejects negative cursors.
 - `watch` may also accept legacy Rust `start_line` as a compatibility alias.
-- `queue` and `trace` should prefer mailbox-control read models when bureau ids are supplied, with dispatcher runtime fields layered where needed.
+- `queue` should use mailbox-control read models, with dispatcher runtime active-job fields layered where needed.
+- `trace` must use mailbox-control trace only. Python rejects `all` / agent-name trace targets; Rust must not return a dispatcher-local fallback for the Python `trace` op.
 - `cancel` must interrupt active provider panes best-effort, terminalize dispatcher state, and record mailbox terminal state.
 - `resubmit` must resolve the original message from the message bureau, require terminal latest attempts for all target agents, enqueue fresh dispatcher jobs, record a new message with `origin_message_id`, and return `accepted_at`, `original_message_id`, new `message_id`, `submission_id`, and accepted job receipts.
 - `retry` must resolve target as Python does: first `attempt_id`, then `job_id`. It must reject active attempts, reject completed attempts, require the latest attempt for the same message/agent, enqueue one retry job, record a retry attempt, and return `accepted_at`, `target`, `message_id`, `original_attempt_id`, `attempt_id`, `job_id`, `agent_name`, and `status`.
@@ -41,6 +42,8 @@
 | `watch` cursor beyond current lines | Empty lines and cursor preserved |
 | `queue` concrete agent | Response includes actual queue depth and active job id |
 | `trace` concrete job/mailbox id | Response resolves the concrete trace owner |
+| `trace` `all` or agent-name target | Error contains `trace requires <submission_id|message_id|attempt_id|reply_id|job_id>` |
+| `trace` missing concrete job id | Error contains `job not found in message bureau` |
 | `cancel` running job | Job becomes cancelled and mailbox trace records terminal cancellation |
 | `resubmit` unknown message | Error contains `message not found` |
 | `resubmit` active latest attempt | Error contains `message still has active attempts` |
@@ -60,5 +63,8 @@
 - Unit: `handlers::watch::tests`.
 - Unit: `handlers::resubmit::tests`.
 - Unit: `handlers::retry::tests`.
+- Unit: `handlers::trace::tests`.
 - Integration: `test_watch_returns_activity_lines_for_target`.
+- Integration: `test_queue_returns_actual_per_agent_state`, `test_trace_returns_job_history`, `test_cancel_updates_mailbox_state`.
+- Package: `cargo test -p ccbr-mailbox trace -- --test-threads=1`.
 - Package: `cargo test -p ccbr-daemon -- --test-threads=1`.

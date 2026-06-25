@@ -337,6 +337,10 @@ impl MessageBureauControlService {
     }
 
     pub fn trace(&self, target: &str) -> Value {
+        self.try_trace(target).unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    pub fn try_trace(&self, target: &str) -> Result<Value, String> {
         let trace_state = crate::control_trace::TraceState {
             config: self.state.config.clone(),
             mailbox_store: self.state.mailbox_store.clone(),
@@ -347,7 +351,7 @@ impl MessageBureauControlService {
             job_store: self.state.job_store.clone(),
             submission_store: self.state.submission_store.clone(),
         };
-        crate::control_trace::trace(&trace_state, target)
+        crate::control_trace::try_trace(&trace_state, target)
     }
 
     pub fn inbox(&self, agent_name: &str, detail: Option<bool>) -> Value {

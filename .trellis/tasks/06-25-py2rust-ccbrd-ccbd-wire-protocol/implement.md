@@ -91,9 +91,21 @@
     `cargo test -p ccbr-daemon handlers::get::tests -- --test-threads=1`,
     `cargo test -p ccbr-daemon handlers::watch::tests -- --test-threads=1`,
     `cargo test -p ccbr-daemon test_watch_returns_activity_lines_for_target -- --test-threads=1`.
-- `queue/trace/cancel`: existing Rust handlers are wired to mailbox/dispatcher
-  read models and covered by integration tests; keep under final package
-  verification.
+- [x] `queue` / `trace` / `cancel`: verify mailbox-control owner and Python trace shape.
+  - Added trace regressions:
+    `handlers::trace::tests::trace_rejects_legacy_all_target_like_python_handler`,
+    `handlers::trace::tests::trace_missing_job_returns_error_instead_of_panicking`.
+  - Minimal fix: make `trace` use mailbox-control trace only, add non-panicking
+    `try_trace` in `ccbr-mailbox`, and remove the Rust-local dispatcher
+    fallback for `all` / agent-name trace targets. Existing queue/cancel code
+    already used mailbox-control/mailbox terminal state and remained covered by
+    integration tests.
+  - Validation:
+    `cargo test -p ccbr-daemon handlers::trace::tests -- --test-threads=1`,
+    `cargo test -p ccbr-daemon test_queue_returns_actual_per_agent_state -- --test-threads=1`,
+    `cargo test -p ccbr-daemon test_trace_returns_job_history -- --test-threads=1`,
+    `cargo test -p ccbr-daemon test_cancel_updates_mailbox_state -- --test-threads=1`,
+    `cargo test -p ccbr-mailbox trace -- --test-threads=1`.
 - [x] `resubmit` / `retry`: verify Python message-bureau lifecycle payloads.
   - Added handler-level regressions:
     `handlers::resubmit::tests::resubmit_recreates_message_with_python_payload_shape`,

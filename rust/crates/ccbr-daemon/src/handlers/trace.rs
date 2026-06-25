@@ -11,18 +11,44 @@ pub fn handle_trace(app: &mut CcbdApp, payload: &Value) -> Result<Value, String>
     if target.is_empty() {
         return Err("trace requires target".into());
     }
-    // The mailbox trace layer understands concrete bureau ids (submission,
-    // message, attempt, reply, job). For legacy agent-name or "all" targets,
-    // fall back to the dispatcher's job-list trace so the CLI contract is
-    // preserved.
-    if target == "all"
-        || !target.starts_with("sub_")
-            && !target.starts_with("msg_")
-            && !target.starts_with("att_")
-            && !target.starts_with("rep_")
-            && !target.starts_with("job_")
-    {
-        return Ok(app.dispatcher.trace(target));
+    app.mailbox_control.try_trace(target)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::start_flow::service::StartFlowService;
+    use crate::stop_flow::service::StopFlowService;
+    use serde_json::json;
+    use tempfile::TempDir;
+
+    fn app() -> (TempDir, CcbdApp) {
+        let dir = TempDir::new().unwrap();
+        let app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        (dir, app)
     }
-    Ok(app.mailbox_control.trace(target))
+
+    #[test]
+    fn trace_rejects_legacy_all_target_like_python_handler() {
+        let (_dir, mut app) = app();
+
+        let err = handle_trace(&mut app, &json!({"target": "all"})).unwrap_err();
+
+        assert!(
+            err.contains("trace requires <submission_id|message_id|attempt_id|reply_id|job_id>")
+        );
+    }
+
+    #[test]
+    fn trace_missing_job_returns_error_instead_of_panicking() {
+        let (_dir, mut app) = app();
+
+        let err = handle_trace(&mut app, &json!({"target": "job_missing"})).unwrap_err();
+
+        assert!(err.contains("job not found in message bureau"));
+    }
 }

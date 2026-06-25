@@ -20,26 +20,64 @@ pub struct TraceState {
 }
 
 pub fn trace(state: &TraceState, target: &str) -> Value {
+    try_trace(state, target).unwrap_or_else(|e| panic!("{e}"))
+}
+
+pub fn try_trace(state: &TraceState, target: &str) -> Result<Value, String> {
     let identifier = target.trim();
     if identifier.is_empty() {
-        panic!("trace requires target");
+        return Err("trace requires target".to_string());
     }
     if identifier.starts_with("sub_") {
-        return trace_submission(state, identifier);
+        if state.submission_store.get_latest(identifier).is_none() {
+            return Err(format!("submission not found: {identifier}"));
+        }
+        return Ok(trace_submission(state, identifier));
     }
     if identifier.starts_with("msg_") {
-        return trace_message(state, identifier, "message");
+        if state.message_store.get_latest(identifier).is_none() {
+            return Err(format!("message not found: {identifier}"));
+        }
+        return Ok(trace_message(state, identifier, "message"));
     }
     if identifier.starts_with("att_") {
-        return trace_attempt(state, identifier);
+        let Some(attempt) = state.attempt_store.get_latest(identifier) else {
+            return Err(format!("attempt not found: {identifier}"));
+        };
+        if state
+            .message_store
+            .get_latest(&attempt.message_id)
+            .is_none()
+        {
+            return Err(format!("message not found for attempt: {identifier}"));
+        }
+        return Ok(trace_attempt(state, identifier));
     }
     if identifier.starts_with("rep_") {
-        return trace_reply(state, identifier);
+        let Some(reply) = state.reply_store.get_latest(identifier) else {
+            return Err(format!("reply not found: {identifier}"));
+        };
+        if state.attempt_store.get_latest(&reply.attempt_id).is_none()
+            || state.message_store.get_latest(&reply.message_id).is_none()
+        {
+            return Err(format!("trace chain is incomplete for reply: {identifier}"));
+        }
+        return Ok(trace_reply(state, identifier));
     }
     if identifier.starts_with("job_") {
-        return trace_job(state, identifier);
+        let Some(attempt) = state.attempt_store.get_latest_by_job_id(identifier) else {
+            return Err(format!("job not found in message bureau: {identifier}"));
+        };
+        if state
+            .message_store
+            .get_latest(&attempt.message_id)
+            .is_none()
+        {
+            return Err(format!("message not found for job: {identifier}"));
+        }
+        return Ok(trace_job(state, identifier));
     }
-    panic!("trace requires <submission_id|message_id|attempt_id|reply_id|job_id>");
+    Err("trace requires <submission_id|message_id|attempt_id|reply_id|job_id>".to_string())
 }
 
 fn trace_submission(state: &TraceState, submission_id: &str) -> Value {
