@@ -1,7 +1,9 @@
 //! Mirrors Python `test/test_provider_helper_cleanup.py`.
 
 use ccb_agents::models::AgentState;
-use ccb_providers::helper_cleanup::{cleanup_stale_runtime_helper, terminate_helper_manifest_path};
+use ccb_providers::helper_cleanup::{
+    cleanup_stale_runtime_helper, terminate_helper_manifest_path,
+};
 use ccb_providers::helper_manifest::ProviderRuntimeView;
 use ccb_storage::paths::PathLayout;
 

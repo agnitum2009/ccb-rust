@@ -26,7 +26,8 @@ fn records_by_suffix(payload: &serde_json::Map<String, Value>) -> serde_json::Ma
 
 #[test]
 fn test_provider_home_classifier_preserves_secret_precedence_and_unknowns() {
-    let provider_home = Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-state/unknownai/home");
+    let provider_home =
+        Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-state/unknownai/home");
     let secret_path = provider_home.join("auth.json");
     let unknown_path = provider_home.join("notes.txt");
 

@@ -273,6 +273,9 @@ mod tests {
     fn test_ccb_dir_structure() {
         let layout = PathLayout::new("/project");
         assert_eq!(layout.ccb_dir(), Utf8PathBuf::from("/project/.ccb"));
-        assert_eq!(layout.ccbd_dir(), Utf8PathBuf::from("/project/.ccb/ccbd"));
+        assert_eq!(
+            layout.ccbd_dir(),
+            Utf8PathBuf::from("/project/.ccb/ccbd")
+        );
     }
 }

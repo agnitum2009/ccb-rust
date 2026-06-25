@@ -106,7 +106,10 @@ pub fn collect_project_authority_pid_candidates(project_root: &Path) -> HashMap<
     };
     let mut candidates: HashMap<u32, Vec<PathBuf>> = HashMap::new();
     let paths_and_keys: [(PathBuf, &[&str]); 3] = [
-        (layout.ccbd_lease_path().into(), &["ccbd_pid", "keeper_pid"]),
+        (
+            layout.ccbd_lease_path().into(),
+            &["ccbd_pid", "keeper_pid"],
+        ),
         (layout.ccbd_keeper_path().into(), &["keeper_pid"]),
         (
             layout.ccbd_lifecycle_path().into(),

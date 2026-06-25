@@ -202,7 +202,10 @@ mod tests {
 
     #[test]
     fn test_pane_title_marker() {
-        assert_eq!(pane_title_marker("proj123", "claude"), "CCB-claude-proj123");
+        assert_eq!(
+            pane_title_marker("proj123", "claude"),
+            "CCB-claude-proj123"
+        );
         assert_eq!(pane_title_marker("", "claude"), "CCB-claude");
         assert_eq!(
             pane_title_marker("verylongid", "claude"),

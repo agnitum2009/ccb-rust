@@ -492,7 +492,8 @@ mod tests {
 
     #[test]
     fn test_resolve_claude_home_layout_ignores_profile_runtime_home() {
-        let runtime_dir = Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-runtime/claude");
+        let runtime_dir =
+            Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-runtime/claude");
         let mut profile = ResolvedProviderProfile::new("claude", "agent1");
         profile.runtime_home = Some("/custom/runtime/home".to_string());
 
@@ -505,7 +506,8 @@ mod tests {
 
     #[test]
     fn test_resolve_claude_home_layout_maps_provider_runtime_to_state_dir() {
-        let runtime_dir = Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-runtime/claude");
+        let runtime_dir =
+            Utf8PathBuf::from("/tmp/proj/.ccb/agents/agent1/provider-runtime/claude");
         let layout = resolve_claude_home_layout(&runtime_dir, None);
         assert_eq!(
             layout.home_root,

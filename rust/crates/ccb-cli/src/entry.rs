@@ -35,7 +35,7 @@ pub fn run_cli(argv: &[String]) -> i32 {
 
 fn dispatch(cmd: ParsedCommand) -> i32 {
     if let ParsedCommand::Version = cmd {
-        println!("ccbr {}", VERSION);
+        println!("ccb {}", VERSION);
         return 0;
     }
 
@@ -247,7 +247,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
         "pend" => parse_pend(&filtered[1..], project),
         "queue" => Ok(ParsedCommand::Queue(ParsedQueue {
             project,
-            target: get(1, &filtered),
+            target: positional_arg(&filtered[1..], "--detail"),
             detail: has("--detail", &filtered),
         })),
         "trace" => Ok(ParsedCommand::Trace(ParsedTrace {
@@ -264,7 +264,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
         })),
         "inbox" => Ok(ParsedCommand::Inbox(ParsedInbox {
             project,
-            agent_name: get(1, &filtered),
+            agent_name: positional_arg(&filtered[1..], "--detail"),
             detail: has("--detail", &filtered),
         })),
         "ack" => Ok(ParsedCommand::Ack(ParsedAck {
@@ -297,10 +297,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
             project,
             dry_run: has("--dry-run", &filtered),
         })),
-        "restart" => Ok(ParsedCommand::Restart(ParsedRestart {
-            project,
-            agent_name: get(1, &filtered),
-        })),
+        "restart" => parse_restart(&filtered[1..], project),
         "version" | "-v" | "--version" => Ok(ParsedCommand::Version),
         "update" => Ok(ParsedCommand::Update(ParsedUpdate { project })),
         "uninstall" => Ok(ParsedCommand::Uninstall(ParsedUninstall { project })),
@@ -333,6 +330,16 @@ fn has(s: &str, filtered: &[&String]) -> bool {
 
 fn position(s: &str, filtered: &[&String]) -> Option<usize> {
     filtered.iter().position(|a| a.as_str() == s)
+}
+
+/// Return the first positional argument in `args` that is not equal to
+/// `skip_flag`. Used for commands like `inbox [--detail] <agent>` where the
+/// flag may appear before the positional target.
+fn positional_arg(args: &[&String], skip_flag: &str) -> String {
+    args.iter()
+        .find(|a| a.as_str() != skip_flag)
+        .map(|s| s.to_string())
+        .unwrap_or_default()
 }
 
 fn extract_project(argv: &[String]) -> Option<String> {
@@ -408,6 +415,20 @@ fn parse_ask(args: &[&String], project: Option<String>) -> Result<ParsedCommand,
     }))
 }
 
+fn parse_restart(args: &[&String], project: Option<String>) -> Result<ParsedCommand, String> {
+    if args.len() != 1 {
+        return Err("restart requires exactly one agent_name".to_string());
+    }
+    let agent_name = args[0].as_str();
+    if agent_name == "all" {
+        return Err("restart all is not supported".to_string());
+    }
+    Ok(ParsedCommand::Restart(ParsedRestart {
+        project,
+        agent_name: agent_name.to_string(),
+    }))
+}
+
 fn parse_wait(args: &[&String], project: Option<String>) -> Result<ParsedCommand, String> {
     let target = args
         .first()
@@ -438,7 +459,7 @@ fn parse_pend(args: &[&String], project: Option<String>) -> Result<ParsedCommand
 
 fn parse_config(args: &[&String], project: Option<String>) -> Result<ParsedCommand, String> {
     if args.first().map(|s| s.as_str()) != Some("validate") {
-        return Err("config only supports: ccbr config validate".to_string());
+        return Err("config only supports: ccb config validate".to_string());
     }
     Ok(ParsedCommand::ConfigValidate(ParsedConfigValidate {
         project,
@@ -712,9 +733,9 @@ fn parse_start(tokens: &[&String], project: Option<String>) -> Result<ParsedComm
 }
 
 fn print_help() {
-    println!("ccbr {} - CCB multi-agent CLI workspace", VERSION);
+    println!("ccb {} - CCB multi-agent CLI workspace", VERSION);
     println!();
-    println!("Usage: ccbr [OPTIONS] [COMMAND] [ARGS...]");
+    println!("Usage: ccb [OPTIONS] [COMMAND] [ARGS...]");
     println!();
     println!("Options:");
     println!("  -h, --help                 Print this help message");
@@ -896,6 +917,33 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_restart_single_agent() {
+        let args = vec!["restart".to_string(), "agent1".to_string()];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Restart(r) = cmd {
+            assert_eq!(r.agent_name, "agent1");
+        } else {
+            panic!("expected Restart");
+        }
+    }
+
+    #[test]
+    fn test_parse_restart_all_rejected() {
+        let args = vec!["restart".to_string(), "all".to_string()];
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn test_parse_restart_multiple_rejected() {
+        let args = vec![
+            "restart".to_string(),
+            "agent1".to_string(),
+            "agent2".to_string(),
+        ];
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
     fn test_parse_autonew() {
         let args = vec!["autonew".to_string(), "claude".to_string()];
         let cmd = parse_args(&args).unwrap();
@@ -957,5 +1005,37 @@ mod tests {
     fn test_parse_ctx_transfer_send_requires_agent() {
         let args = vec!["ctx-transfer".to_string(), "--send".to_string()];
         assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn test_parse_inbox_detail_flag_before_agent() {
+        let args = vec![
+            "inbox".to_string(),
+            "--detail".to_string(),
+            "agent3".to_string(),
+        ];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Inbox(i) = cmd {
+            assert!(i.detail);
+            assert_eq!(i.agent_name, "agent3");
+        } else {
+            panic!("expected Inbox");
+        }
+    }
+
+    #[test]
+    fn test_parse_queue_detail_flag_before_agent() {
+        let args = vec![
+            "queue".to_string(),
+            "--detail".to_string(),
+            "agent3".to_string(),
+        ];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Queue(q) = cmd {
+            assert!(q.detail);
+            assert_eq!(q.target, "agent3");
+        } else {
+            panic!("expected Queue");
+        }
     }
 }

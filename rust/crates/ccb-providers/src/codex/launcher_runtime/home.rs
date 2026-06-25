@@ -418,7 +418,9 @@ mod tests {
         let runtime = Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-runtime");
         assert_eq!(
             state_dir_for_runtime_dir(&runtime),
-            Some(Utf8PathBuf::from("/repo/.ccb/agents/agent1/provider-state"))
+            Some(Utf8PathBuf::from(
+                "/repo/.ccb/agents/agent1/provider-state"
+            ))
         );
     }
 }

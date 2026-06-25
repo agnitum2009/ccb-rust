@@ -80,10 +80,10 @@ pub fn source_runtime_allowed(argv: &[String], cwd: &Path) -> GuardResult {
                 .unwrap_or(&source_root)
                 .join("test_ccb2")
         });
-    let example_test_binary = source_root.join("ccbr_test");
+    let example_test_binary = source_root.join("ccb_test");
     GuardResult::deny(format!(
         "Refusing to run the CCB source checkout outside an allowed test project.\n\
-         Use the installed release `ccbr` for normal project/work-environment commands.\n\
+         Use the installed release `ccb` for normal project/work-environment commands.\n\
          Use `{}` from \
          `{}` for source-change validation.\n\
          Current directory: {}\n\

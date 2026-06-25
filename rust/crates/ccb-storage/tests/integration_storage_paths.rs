@@ -22,7 +22,10 @@ fn test_path_layout_uses_project_scoped_locations() {
         "project"
     );
     assert_eq!(layout.runtime_marker_status(), "not_required");
-    assert_eq!(layout.config_path(), tmp_path(&tmp, "repo/.ccb/ccb.config"));
+    assert_eq!(
+        layout.config_path(),
+        tmp_path(&tmp, "repo/.ccb/ccb.config")
+    );
     assert_eq!(
         layout.ccbd_lifecycle_path(),
         tmp_path(&tmp, "repo/.ccb/ccbd/lifecycle.json")

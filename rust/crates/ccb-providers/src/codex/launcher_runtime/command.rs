@@ -39,7 +39,7 @@ pub fn build_start_cmd(
     let codex_home_overrides = prepare_codex_home_overrides(
         runtime_dir,
         profile,
-        false,
+        true,
         Some(&project_root_utf8),
         Some(&spec.name),
         workspace_path.as_deref(),

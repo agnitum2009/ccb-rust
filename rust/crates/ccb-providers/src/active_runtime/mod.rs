@@ -2,5 +2,6 @@
 
 pub mod models;
 
+pub mod polling;
 pub mod resume;
 pub mod start;

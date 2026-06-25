@@ -366,7 +366,9 @@ fn test_resolve_ask_sender_prefers_runtime_dir_actor() {
     ] {
         std::env::remove_var(name);
     }
-    let runtime_dir = tmp.path().join(".ccb/agents/agent1/provider-runtime/codex");
+    let runtime_dir = tmp
+        .path()
+        .join(".ccb/agents/agent1/provider-runtime/codex");
     std::fs::create_dir_all(&runtime_dir).unwrap();
     std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
     std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");
@@ -399,7 +401,10 @@ fn test_resolve_ask_sender_prefers_relocated_runtime_dir_actor() {
         "created_at": "2026-05-07T00:00:00Z",
     });
     std::fs::write(
-        before.paths.project_root.join(".ccb/runtime-root-ref.json"),
+        before
+            .paths
+            .project_root
+            .join(".ccb/runtime-root-ref.json"),
         ref_value.to_string(),
     )
     .unwrap();

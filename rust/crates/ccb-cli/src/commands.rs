@@ -547,7 +547,8 @@ pub fn roles(cmd: &ParsedRoles, project_root: &Path) -> Result<String, String> {
                     for entry in entries.flatten() {
                         let path = entry.path();
                         if path.is_dir() {
-                            if let Ok(manifest) = ccb_agents::rolepacks::load_role_manifest(&path) {
+                            if let Ok(manifest) = ccb_agents::rolepacks::load_role_manifest(&path)
+                            {
                                 roles.push(manifest);
                             }
                         }
@@ -614,9 +615,11 @@ pub fn roles(cmd: &ParsedRoles, project_root: &Path) -> Result<String, String> {
         }
         RolesAction::Sync { path } => {
             let sync_path = path.as_deref().unwrap_or(".");
-            let payload =
-                ccb_agents::rolepacks::sync_roles_from_path(std::path::Path::new(sync_path), false)
-                    .map_err(|e| e.to_string())?;
+            let payload = ccb_agents::rolepacks::sync_roles_from_path(
+                std::path::Path::new(sync_path),
+                false,
+            )
+            .map_err(|e| e.to_string())?;
             Ok(render_roles(&serde_json::Value::Object(payload)))
         }
         RolesAction::Doctor { path } => {

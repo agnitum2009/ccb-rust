@@ -212,7 +212,7 @@ pub fn begin_reload_handoff(
     }
     let lease = app.ownership.current();
     let daemon_pid = lease.map(|l| l.owner_pid).unwrap_or(0);
-    let daemon_instance_id = app.socket_path();
+    let daemon_instance_id = lease.map(|l| l.instance_id.clone()).unwrap_or_default();
     let generation = lease.map(|l| l.generation).unwrap_or(0);
     if daemon_pid == 0 || daemon_instance_id.trim().is_empty() || generation == 0 {
         return None;
@@ -292,7 +292,7 @@ fn matches_current_holder(app: &CcbdApp, handoff: &ReloadHandoff) -> bool {
     if lease.owner_pid != handoff.daemon_pid {
         return false;
     }
-    if app.socket_path().trim() != handoff.daemon_instance_id {
+    if lease.instance_id != handoff.daemon_instance_id {
         return false;
     }
     if lease.generation != handoff.generation {
@@ -335,7 +335,10 @@ mod tests {
             StopFlowService::with_stub(),
         );
         let socket_path = app.socket_path();
-        let _ = app.ownership.acquire(std::process::id(), &socket_path);
+        let instance_id = app.daemon_instance_id().to_string();
+        let _ = app
+            .ownership
+            .acquire(std::process::id(), &socket_path, &instance_id);
         app
     }
 

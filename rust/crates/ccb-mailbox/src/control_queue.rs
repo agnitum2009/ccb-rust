@@ -82,10 +82,11 @@ pub fn preview_text(value: &str, limit: usize) -> String {
         .replace('\n', "\\n")
         .trim()
         .to_string();
-    if text.len() <= limit {
+    if text.chars().count() <= limit {
         text
     } else {
-        format!("{}...", text[..limit].trim_end())
+        let truncated: String = text.chars().take(limit).collect();
+        format!("{}...", truncated.trim_end())
     }
 }
 
@@ -875,4 +876,25 @@ fn ack_payload(
         "mailbox": mailbox_payload,
         "reply": reply.reply,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preview_text;
+
+    #[test]
+    fn test_preview_text_ascii() {
+        assert_eq!(preview_text("hello world", 20), "hello world");
+        assert_eq!(preview_text("hello world", 5), "hello...");
+    }
+
+    #[test]
+    fn test_preview_text_multibyte() {
+        let text = "────────────────────────────────────────";
+        let out = preview_text(text, 10);
+        assert!(out.ends_with("..."));
+        assert!(out.chars().count() <= 13); // 10 chars + "..."
+        // Must not panic and must be valid UTF-8.
+        assert!(!out.is_empty());
+    }
 }

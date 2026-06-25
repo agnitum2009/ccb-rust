@@ -54,9 +54,7 @@ Old.
         ccb_release_checker::markdown::readme_release_block(readme, "v1.0.0"),
         Some("- Fixed bug".to_string())
     );
-    assert!(ccb_release_checker::markdown::has_substantive_release_text(
-        Some("- Fixed bug")
-    ));
+    assert!(ccb_release_checker::markdown::has_substantive_release_text(Some("- Fixed bug")));
     let versions = ccb_release_checker::markdown::release_note_versions(readme);
     assert_eq!(versions, vec!["v1.0.0"]);
 }

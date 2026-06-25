@@ -78,7 +78,9 @@ fn to_mailbox_target_kind(
     kind: crate::models::api_models::common::TargetKind,
 ) -> ccb_jobs::models::TargetKind {
     match kind {
-        crate::models::api_models::common::TargetKind::Agent => ccb_jobs::models::TargetKind::Agent,
+        crate::models::api_models::common::TargetKind::Agent => {
+            ccb_jobs::models::TargetKind::Agent
+        }
     }
 }
 

@@ -83,7 +83,11 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
         Some(&"1".to_string())
     );
     assert_eq!(
-        guard.pane_options.get("%2").unwrap().get("@ccb_managed_by"),
+        guard
+            .pane_options
+            .get("%2")
+            .unwrap()
+            .get("@ccb_managed_by"),
         Some(&"ccbd".to_string())
     );
     let window_key = format!(
@@ -114,6 +118,71 @@ fn test_project_namespace_controller_creates_state_and_lifecycle_event() {
     assert_eq!(
         event.details.get("reason"),
         Some(&serde_json::json!("initial_create"))
+    );
+}
+
+#[test]
+fn test_namespace_state_survives_controller_recreate() {
+    let (layout, _tmp) = tmp_layout();
+    let backend = FakeTmuxBackend::new();
+    let mut controller = ProjectNamespaceController::new(
+        &layout,
+        "proj-1",
+        Some(Clock::new(|| "2026-04-03T02:00:00Z".to_string())),
+        Some(backend.backend_factory()),
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    let namespace = controller
+        .ensure(None, None, false, None, None, None)
+        .unwrap();
+
+    // Simulate controller/daemon restart: drop and recreate with no backend.
+    drop(controller);
+
+    let controller2 = ProjectNamespaceController::new(
+        &layout,
+        "proj-1",
+        Some(Clock::new(|| "2026-04-03T02:00:00Z".to_string())),
+        None,
+        None,
+        None,
+        1,
+    )
+    .unwrap();
+
+    let reloaded = controller2
+        .load()
+        .unwrap()
+        .expect("namespace state should survive controller recreate");
+
+    assert_eq!(reloaded.project_id, namespace.project_id);
+    assert_eq!(reloaded.namespace_epoch, namespace.namespace_epoch);
+    assert_eq!(reloaded.tmux_socket_path, namespace.tmux_socket_path);
+    assert_eq!(reloaded.tmux_session_name, namespace.tmux_session_name);
+    assert_eq!(reloaded.control_window_name, namespace.control_window_name);
+    assert_eq!(
+        reloaded.workspace_window_name,
+        namespace.workspace_window_name
+    );
+
+    let state_store = ProjectNamespaceStateStore::new(&layout);
+    let stored = state_store
+        .load()
+        .unwrap()
+        .expect("state store should roundtrip");
+
+    assert_eq!(stored.project_id, namespace.project_id);
+    assert_eq!(stored.namespace_epoch, namespace.namespace_epoch as u64);
+    assert_eq!(stored.tmux_socket_path, namespace.tmux_socket_path);
+    assert_eq!(stored.tmux_session_name, namespace.tmux_session_name);
+    assert_eq!(stored.control_window_name, namespace.control_window_name);
+    assert_eq!(
+        stored.workspace_window_name,
+        namespace.workspace_window_name
     );
 }
 

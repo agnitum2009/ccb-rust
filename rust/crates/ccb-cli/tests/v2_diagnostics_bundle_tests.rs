@@ -195,9 +195,9 @@ fn test_export_diagnostic_bundle_collects_reports_and_log_tails() {
     assert!(entries
         .iter()
         .any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/status.json"));
-    assert!(entries
-        .iter()
-        .any(|e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/activations.jsonl"));
+    assert!(entries.iter().any(
+        |e| e["archive_path"] == "project/.ccb/ccbd/maintenance-heartbeat/activations.jsonl"
+    ));
     assert!(entries
         .iter()
         .any(|e| e["archive_path"] == "project/.ccb/ccbd/artifacts/text/ask-request/large.txt"));
@@ -424,9 +424,10 @@ fn test_export_diagnostic_bundle_includes_provider_state_and_excludes_auth() {
         e["archive_path"] == "project/.ccb/agents/demo/provider-state/codex/home/config.toml"
             && e["status"] == "included"
     }));
-    assert!(entries.iter().all(
-        |e| e["archive_path"] != "project/.ccb/agents/demo/provider-state/codex/home/auth.json"
-    ));
+    assert!(entries
+        .iter()
+        .all(|e| e["archive_path"]
+            != "project/.ccb/agents/demo/provider-state/codex/home/auth.json"));
     assert!(entries.iter().all(|e| e["archive_path"]
         != "project/.ccb/agents/demo/provider-state/codex/home/.tmp/plugins/.agents/plugins/marketplace.json"));
 
@@ -638,10 +639,8 @@ fn test_export_diagnostic_bundle_excludes_gemini_auth_artifacts() {
     }));
     assert!(entries.iter().all(|e| e["archive_path"]
         != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/oauth_creds.json"));
-    assert!(entries
-        .iter()
-        .all(|e| e["archive_path"]
-            != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/.env"));
+    assert!(entries.iter().all(|e| e["archive_path"]
+        != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/.env"));
     assert!(entries.iter().all(|e| e["archive_path"]
         != "project/.ccb/agents/demo/provider-state/gemini/home/.gemini/google_accounts.json"));
     assert!(!members.contains(&format!(

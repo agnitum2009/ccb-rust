@@ -21,9 +21,9 @@ pub fn initialize_state<C>(
 ) where
     C: OpenCodeCommunicatorState,
 {
-    let session_info = comm
-        .load_session_info()
-        .expect("No active OpenCode session found. Add opencode to ccb.config and run `ccb` first");
+    let session_info = comm.load_session_info().expect(
+        "No active OpenCode session found. Add opencode to ccb.config and run `ccb` first",
+    );
     comm.set_session_info(session_info.clone());
 
     comm.set_ccb_session_id(

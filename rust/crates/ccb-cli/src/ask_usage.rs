@@ -90,3 +90,39 @@ pub fn write_ask_usage<W: Write>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ask_usage_includes_expected_options_and_examples() {
+        let mut buf = Vec::new();
+        write_ask_usage(
+            &mut buf,
+            "ask",
+            None,
+            Some("`ask` is a compatibility alias for `ccb ask`."),
+        )
+        .unwrap();
+        let text = String::from_utf8(buf).unwrap();
+        assert!(text.contains(
+            "ask [--compact] [--silence] [--callback] [--artifact-request] [--artifact-reply] <target> [--] <message...>"
+        ));
+        assert!(text.contains("--compact request a distilled reply"));
+        assert!(text.contains("--silence request silent-on-success"));
+        assert!(text.contains("--callback route the result back"));
+        assert!(text.contains("--artifact-request force the request body"));
+        assert!(text.contains("--artifact-reply force the final reply"));
+        assert!(text.contains("--artifact-io enable both"));
+        assert!(text.contains("nested asks from active tasks must use --callback or --silence"));
+        assert!(text.contains("ask --compact agent1 review latest diff"));
+        assert!(text.contains("ask --silence agent1 run smoke check"));
+        assert!(text.contains("ask --callback agent2 collect evidence for this task"));
+        assert!(text.contains("ask --callback --artifact-reply agent2 collect long evidence"));
+        assert!(text.contains("ask get <job_id>    diagnostics-only"));
+        assert!(text.contains("`ask` is a compatibility alias for `ccb ask`."));
+        assert!(!text.contains("--task-id"));
+        assert!(!text.contains("[from <sender>]"));
+    }
+}

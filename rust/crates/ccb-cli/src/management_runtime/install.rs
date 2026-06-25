@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -464,4 +465,118 @@ fn expand_user(path: &str) -> String {
         }
     }
     path.to_string()
+}
+
+/// Normalize a path lexically without requiring the path to exist.
+///
+/// Mirrors Python `Path.resolve(strict=False)` for the common case where
+/// intermediate symlinks do not need to be followed.
+fn normalize_path_lexical(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Prefix(_) | std::path::Component::RootDir => {
+                normalized.push(component.as_os_str());
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            std::path::Component::Normal(name) => {
+                normalized.push(name);
+            }
+        }
+    }
+    normalized
+}
+
+/// Safely extract a tar archive into `target_dir`.
+///
+/// Mirrors Python `safe_extract_tar(archive, destination)`. Rejects absolute
+/// entry paths, paths that escape `target_dir`, and unsafe symlink/hardlink
+/// targets.
+///
+/// # Errors
+///
+/// Returns `io::ErrorKind::InvalidData` when an entry path or symlink/hardlink
+/// target is absolute or escapes `target_dir`. Other `io::Error` variants are
+/// returned for tar parsing or filesystem failures.
+pub fn safe_extract_tar<R: io::Read>(
+    archive: &mut tar::Archive<R>,
+    target_dir: &Path,
+) -> io::Result<()> {
+    std::fs::create_dir_all(target_dir)?;
+    let root = target_dir.canonicalize()?;
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let entry_path = entry.path()?.to_path_buf();
+
+        let dest = normalize_path_lexical(&root.join(&entry_path));
+        if !dest.starts_with(&root) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Unsafe tar entry path: {}", entry_path.display()),
+            ));
+        }
+
+        let entry_type = entry.header().entry_type();
+        if entry_type == tar::EntryType::Symlink || entry_type == tar::EntryType::Link {
+            if let Some(link_target) = entry.link_name()?.map(|p| p.to_path_buf()) {
+                let link_target_str = link_target.to_string_lossy().to_string();
+                if link_target.is_absolute() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "Unsafe tar link target: {} -> {}",
+                            entry_path.display(),
+                            link_target_str
+                        ),
+                    ));
+                }
+                let entry_parent = root
+                    .join(&entry_path)
+                    .parent()
+                    .unwrap_or(&root)
+                    .to_path_buf();
+                let resolved = normalize_path_lexical(&entry_parent.join(&link_target));
+                if !resolved.starts_with(&root) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "Unsafe tar link target: {} -> {}",
+                            entry_path.display(),
+                            link_target_str
+                        ),
+                    ));
+                }
+            }
+        }
+
+        entry.unpack_in(&root)?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_lf_bytes_converts_crlf() {
+        assert_eq!(normalize_lf_bytes(b"a\r\nb"), b"a\nb");
+        assert_eq!(normalize_lf_bytes(b"\r\n\r\n"), b"\n\n");
+    }
+
+    #[test]
+    fn normalize_lf_bytes_converts_bare_cr() {
+        assert_eq!(normalize_lf_bytes(b"a\rb"), b"a\nb");
+        assert_eq!(normalize_lf_bytes(b"\r\r"), b"\n\n");
+    }
+
+    #[test]
+    fn normalize_lf_bytes_leaves_lf_unchanged() {
+        assert_eq!(normalize_lf_bytes(b"a\nb"), b"a\nb");
+        assert_eq!(normalize_lf_bytes(b"plain"), b"plain");
+    }
 }

@@ -150,7 +150,9 @@ fn test_build_runtime_launcher() {
 
 #[test]
 fn test_launch_context_and_payload() {
-    use ccb_providers::opencode::{build_session_payload, build_start_cmd, prepare_launch_context};
+    use ccb_providers::opencode::{
+        build_session_payload, build_start_cmd, prepare_launch_context,
+    };
     let tmp = TempDir::new().unwrap();
     let runtime_dir = tmp.path().join("runtime");
     let ctx = prepare_launch_context(

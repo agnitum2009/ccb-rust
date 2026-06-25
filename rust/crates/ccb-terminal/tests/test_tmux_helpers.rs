@@ -41,7 +41,10 @@ fn test_tmux_socket_name_helpers() {
     assert_eq!(normalize_socket_name(None), None);
     assert_eq!(normalize_socket_name(Some("")), None);
     assert_eq!(normalize_socket_name(Some("default")), None);
-    assert_eq!(normalize_socket_name(Some("ccb")), Some("ccb".to_string()));
+    assert_eq!(
+        normalize_socket_name(Some("ccb")),
+        Some("ccb".to_string())
+    );
     assert_eq!(socket_name_from_tmux_env(None), None);
     assert_eq!(socket_name_from_tmux_env(Some("")), None);
     assert_eq!(
@@ -76,7 +79,10 @@ fn test_pane_id_by_title_marker_output() {
     assert_eq!(pane_id_by_title_marker_output(stdout, "missing"), None);
 
     let ambiguous = "%1\tCCB-codex-a1b2c3d4\n%2\tCCB-codex-e5f6g7h8\n";
-    assert_eq!(pane_id_by_title_marker_output(ambiguous, "CCB-codex"), None);
+    assert_eq!(
+        pane_id_by_title_marker_output(ambiguous, "CCB-codex"),
+        None
+    );
 
     let exact = "%1\tCCB-codex\n%2\tCCB-codex-a1b2c3d4\n";
     assert_eq!(

@@ -201,7 +201,9 @@ mod tests {
         ] {
             std::env::remove_var(name);
         }
-        let runtime_dir = tmp.path().join(".ccb/agents/agent1/provider-runtime/codex");
+        let runtime_dir = tmp
+            .path()
+            .join(".ccb/agents/agent1/provider-runtime/codex");
         std::fs::create_dir_all(&runtime_dir).unwrap();
         std::env::set_var("CODEX_RUNTIME_DIR", runtime_dir.as_os_str());
         std::env::set_var("CCB_SESSION_ID", "legacy-session-without-actor");

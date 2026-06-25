@@ -98,9 +98,9 @@ fn find_ccb_binary() -> Option<PathBuf> {
         exe = resolved;
     }
     let dir = exe.parent()?;
-    let ccbr = dir.join("ccbr");
-    if ccbr.is_file() {
-        return Some(ccbr);
+    let ccb = dir.join("ccb");
+    if ccb.is_file() {
+        return Some(ccb);
     }
     let ccb = dir.join("ccb");
     if ccb.is_file() {

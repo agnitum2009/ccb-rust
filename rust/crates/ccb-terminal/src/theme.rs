@@ -588,7 +588,10 @@ mod tests {
     #[test]
     fn test_tmux_theme_profile_override() {
         let mut env = HashMap::new();
-        env.insert("CCB_TMUX_THEME_PROFILE".to_string(), "contrast".to_string());
+        env.insert(
+            "CCB_TMUX_THEME_PROFILE".to_string(),
+            "contrast".to_string(),
+        );
         assert_eq!(tmux_theme_profile(Some(&env)), "contrast");
     }
 

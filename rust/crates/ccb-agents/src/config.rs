@@ -80,7 +80,8 @@ pub const ALLOWED_PROVIDER_PROFILE_KEYS: &[&str] = &[
     "inherit_memory",
 ];
 
-pub const DEFAULT_WINDOW_LAYOUT: &str = "agent1:codex, agent2:codex, agent3:claude, ccb_self:codex";
+pub const DEFAULT_WINDOW_LAYOUT: &str =
+    "agent1:codex, agent2:codex, agent3:claude, ccb_self:codex";
 pub const DEFAULT_TOOL_WINDOW_COMMAND: &str = "ccb-nvim";
 
 #[derive(Debug, Clone)]

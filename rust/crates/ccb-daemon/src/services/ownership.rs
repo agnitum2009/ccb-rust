@@ -4,26 +4,34 @@ use serde::{Deserialize, Serialize};
 pub struct OwnershipRecord {
     pub owner_pid: u32,
     pub socket_path: String,
+    pub instance_id: String,
     pub acquired_at: String,
     pub generation: u32,
 }
 
 pub struct OwnershipService {
     ownership: Option<OwnershipRecord>,
+    last_generation: u32,
 }
 
 impl OwnershipService {
     pub fn new() -> Self {
-        Self { ownership: None }
+        Self {
+            ownership: None,
+            last_generation: 0,
+        }
     }
 
-    pub fn acquire(&mut self, pid: u32, socket_path: &str) -> OwnershipRecord {
+    pub fn acquire(&mut self, pid: u32, socket_path: &str, instance_id: &str) -> OwnershipRecord {
+        let generation = self.last_generation + 1;
         let record = OwnershipRecord {
             owner_pid: pid,
             socket_path: socket_path.into(),
+            instance_id: instance_id.into(),
             acquired_at: chrono::Utc::now().to_rfc3339(),
-            generation: self.ownership.as_ref().map_or(1, |o| o.generation + 1),
+            generation,
         };
+        self.last_generation = generation;
         self.ownership = Some(record.clone());
         record
     }

@@ -383,7 +383,10 @@ mod tests {
         assert_eq!(normalize_socket_name(None), None);
         assert_eq!(normalize_socket_name(Some("")), None);
         assert_eq!(normalize_socket_name(Some("default")), None);
-        assert_eq!(normalize_socket_name(Some("ccb")), Some("ccb".to_string()));
+        assert_eq!(
+            normalize_socket_name(Some("ccb")),
+            Some("ccb".to_string())
+        );
         assert_eq!(socket_name_from_tmux_env(None), None);
         assert_eq!(socket_name_from_tmux_env(Some("")), None);
         assert_eq!(

@@ -123,7 +123,9 @@ fn build_unix_installer_env_marks_source_repo_root() {
         .get("CCB_GIT_COMMIT")
         .expect("CCB_GIT_COMMIT should be set");
     assert!(!commit.is_empty(), "CCB_GIT_COMMIT should not be empty");
-    let date = env.get("CCB_GIT_DATE").expect("CCB_GIT_DATE should be set");
+    let date = env
+        .get("CCB_GIT_DATE")
+        .expect("CCB_GIT_DATE should be set");
     assert_eq!(date.len(), 10, "CCB_GIT_DATE should be YYYY-MM-DD");
 }
 

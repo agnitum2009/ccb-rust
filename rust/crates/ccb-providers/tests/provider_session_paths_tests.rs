@@ -101,7 +101,10 @@ fn test_session_file_for_runtime_dir_finds_local_ccb_first() {
         .join("claude");
     std::fs::create_dir_all(&runtime_dir).unwrap();
 
-    assert_eq!(find_project_ccb_dir(&runtime_dir), Some(local_ccb.clone()));
+    assert_eq!(
+        find_project_ccb_dir(&runtime_dir),
+        Some(local_ccb.clone())
+    );
     assert_eq!(
         session_file_for_runtime_dir("claude", &runtime_dir),
         Some(local_ccb.join(".claude-reviewer-session"))

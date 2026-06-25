@@ -171,7 +171,10 @@ impl ProjectNamespaceController {
             ccbd_socket_path: self.layout.ccbd_socket_path().to_string(),
             ccbd_tmux_socket_path: self.layout.ccbd_tmux_socket_path().to_string(),
             ccbd_tmux_session_name: self.layout.ccbd_tmux_session_name(),
-            ccbd_tmux_control_window_name: self.layout.ccbd_tmux_control_window_name().to_string(),
+            ccbd_tmux_control_window_name: self
+                .layout
+                .ccbd_tmux_control_window_name()
+                .to_string(),
             ccbd_tmux_workspace_window_name: self
                 .layout
                 .ccbd_tmux_workspace_window_name()

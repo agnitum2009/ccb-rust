@@ -1295,7 +1295,10 @@ fn write_test_file(path: &Path, text: &str) {
 }
 
 fn assert_single_runtime_coordination(text: &str) {
-    assert_eq!(text.matches("## CCB Runtime Coordination Rules").count(), 1);
+    assert_eq!(
+        text.matches("## CCB Runtime Coordination Rules").count(),
+        1
+    );
     assert_eq!(text.matches("command ask \"$TARGET\"").count(), 1);
 }
 

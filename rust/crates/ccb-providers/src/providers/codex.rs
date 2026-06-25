@@ -452,7 +452,9 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     let mut poll = build_poll_state(&submission);
     let session_path = poll.session_path.clone();
     if session_path.is_empty() {
-        return None;
+        // Fallback: detect turn completion from pane text when no session
+        // log path is available (live mode without structured log access).
+        return poll_pane_text_completion_codex(&submission, now);
     }
 
     let state = submission
@@ -495,7 +497,11 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     );
     current_state.insert("offset".to_string(), Value::Number(new_offset.into()));
 
-    finalize_poll_result(&submission, poll, Value::Object(current_state), now)
+    let result = finalize_poll_result(&submission, poll, Value::Object(current_state), now);
+    // When the structured session log yields no progress (empty or missing
+    // entries), fall back to pane-text turn-boundary detection so live codex
+    // panes can complete even without a writable/structured log.
+    result.or_else(|| poll_pane_text_completion_codex(&submission, now))
 }
 
 #[derive(Debug, Clone)]
@@ -515,6 +521,66 @@ struct CodexPollState {
     terminal_reason: String,
     items: Vec<CompletionItem>,
     reached_terminal: bool,
+}
+
+/// Detect turn completion from pane text for codex (live mode fallback).
+/// If the pane shows codex's ready prompt (›) after prompt was sent,
+/// the turn is complete.
+fn poll_pane_text_completion_codex(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let buffer = get_str(&submission.runtime_state, "reply_buffer");
+    if buffer.is_empty() {
+        return None;
+    }
+
+    // Dismiss codex startup dialogs (trust prompt) before checking completion.
+    let lowered = buffer.to_lowercase();
+    if lowered.contains("do you trust") || lowered.contains("press enter to continue") {
+        // Send Enter key directly via raw tmux (send_text's sanitize_text
+        // strips empty/whitespace, making it a no-op for just Enter).
+        let socket = get_str(&submission.runtime_state, "socket_path");
+        let pane_id = get_str(&submission.runtime_state, "pane_id");
+        if !socket.is_empty() && !pane_id.is_empty() {
+            let backend = ccb_terminal::TmuxBackend::new(None, Some(socket.to_string()));
+            let _ = backend.tmux_run(&["send-keys", "-t", &pane_id, "Enter"], false, false, None, None);
+        }
+        return None; // Re-check next poll after Enter.
+    }
+
+    // Codex ready prompt is › (U+203A) on its own — turn complete.
+    if !buffer.contains('›') {
+        return None;
+    }
+
+    let provider_turn_ref = get_str(&submission.runtime_state, "request_anchor");
+    let provider_turn_ref = if provider_turn_ref.is_empty() {
+        submission.job_id.clone()
+    } else {
+        provider_turn_ref.to_string()
+    };
+
+    let decision = CompletionDecision {
+        terminal: true,
+        status: CompletionStatus::Completed,
+        reason: Some("pane_text_turn_boundary".to_string()),
+        confidence: Some(CompletionConfidence::Observed),
+        reply: buffer.trim().to_string(),
+        anchor_seen: true,
+        reply_started: true,
+        reply_stable: true,
+        provider_turn_ref: Some(provider_turn_ref),
+        source_cursor: None,
+        finished_at: Some(now.to_string()),
+        diagnostics: serde_json::Map::new(),
+    };
+
+    let mut updated = submission.clone();
+    updated
+        .runtime_state
+        .insert("turn_boundary_detected".to_string(), Value::Bool(true));
+    Some(ProviderPollResult::new(updated, Vec::new(), Some(decision)))
 }
 
 fn build_poll_state(submission: &ProviderSubmission) -> CodexPollState {
@@ -2256,5 +2322,126 @@ mod tests {
             Some("/a/b".to_string())
         );
         assert_eq!(extract_env_assignment("BAR=/a/b", "FOO"), None);
+    }
+
+    #[test]
+    fn test_log_matches_work_dir_matches_canonical_cwd() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("repo");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        let log_path = tmp.path().join("session.jsonl");
+        let mut file = std::fs::File::create(&log_path).unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+            work_dir.to_string_lossy()
+        )
+        .unwrap();
+        assert!(log_matches_work_dir(
+            &log_path,
+            &normalize_work_dir(&work_dir).unwrap()
+        ));
+    }
+
+    #[test]
+    fn test_anchor_fallback_log_does_not_switch_when_current_log_has_unread_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let work_dir = tmp.path().join("repo");
+        std::fs::create_dir_all(&work_dir).unwrap();
+        let session_root = work_dir.join("sessions");
+        std::fs::create_dir(&session_root).unwrap();
+
+        let current_log = session_root.join("current.jsonl");
+        {
+            let mut file = std::fs::File::create(&current_log).unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+                work_dir.to_string_lossy()
+            )
+            .unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"response_item","payload":{{"type":"message","role":"assistant","content":[{{"type":"output_text","text":"no anchor yet"}}]}}}}"#
+            )
+            .unwrap();
+        }
+
+        let fallback_log = session_root.join("550e8400-e29b-41d4-a716-446655440000.jsonl");
+        let anchor = request_anchor_for_job("j-no-switch");
+        {
+            let mut file = std::fs::File::create(&fallback_log).unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"session_meta","payload":{{"cwd":"{}"}}}}"#,
+                work_dir.to_string_lossy()
+            )
+            .unwrap();
+            writeln!(
+                file,
+                r#"{{"type":"event_msg","payload":{{"type":"user_message","message":"{prefix} {anchor}"}}}}"#,
+                prefix = REQ_ID_PREFIX,
+                anchor = anchor
+            )
+            .unwrap();
+        }
+
+        let session = CodexProjectSession {
+            session_file: work_dir.join(".codex-session"),
+            data: {
+                let mut m = HashMap::new();
+                m.insert(
+                    "codex_session_root".to_string(),
+                    Value::String(session_root.to_string_lossy().to_string()),
+                );
+                m.insert(
+                    "codex_session_path".to_string(),
+                    Value::String(current_log.to_string_lossy().to_string()),
+                );
+                m
+            },
+        };
+
+        let job = JobRecord {
+            job_id: "j-no-switch".to_string(),
+            agent_name: "agent1".to_string(),
+            provider: "codex".to_string(),
+            target_kind: ccb_completion::models::TargetKind::Agent,
+            request: ccb_completion::models::JobRequest {
+                body: "hello".to_string(),
+                message_type: None,
+            },
+            provider_options: Map::new(),
+            workspace_path: None,
+            provider_instance: None,
+        };
+        let ctx = ProviderRuntimeContext {
+            agent_name: "agent1".to_string(),
+            workspace_path: Some(work_dir.to_string_lossy().to_string()),
+            backend_type: Some("tmux".to_string()),
+            runtime_ref: Some("%1".to_string()),
+            session_ref: None,
+            ..Default::default()
+        };
+        let submission = start_active_submission(&job, Some(&ctx), "2026-04-04T10:00:00Z");
+        let state = submission.runtime_state.clone();
+        let poll_state = state
+            .get("state")
+            .and_then(|v| v.as_object())
+            .cloned()
+            .unwrap_or_default();
+
+        let result = anchor_fallback_log(
+            &submission,
+            &state,
+            &poll_state,
+            &session,
+            &work_dir,
+            &current_log,
+        );
+        assert!(
+            result.is_none(),
+            "expected no fallback while current log has unread data"
+        );
     }
 }

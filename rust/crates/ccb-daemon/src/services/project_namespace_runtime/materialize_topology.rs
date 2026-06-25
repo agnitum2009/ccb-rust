@@ -172,7 +172,10 @@ pub fn existing_topology_agent_panes(
     for window in &topology_plan.windows {
         for agent_name in &window.agent_names {
             let mut expected = HashMap::new();
-            expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
+            expected.insert(
+                "@ccb_project_id".to_string(),
+                controller.project_id.clone(),
+            );
             expected.insert("@ccb_role".to_string(), "agent".to_string());
             expected.insert("@ccb_slot".to_string(), agent_name.clone());
             expected.insert("@ccb_window".to_string(), window.name.clone());
@@ -202,7 +205,10 @@ pub fn topology_active_panes(
     let mut panes: Vec<String> = Vec::new();
     for role in ["sidebar", "agent", "tool"] {
         let mut expected = HashMap::new();
-        expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
+        expected.insert(
+            "@ccb_project_id".to_string(),
+            controller.project_id.clone(),
+        );
         expected.insert("@ccb_role".to_string(), role.to_string());
         expected.insert("@ccb_managed_by".to_string(), "ccbd".to_string());
 
@@ -272,7 +278,10 @@ pub fn topology_recreate_reason(
     if topology_plan.sidebar_enabled {
         for window in &topology_plan.windows {
             let mut expected = HashMap::new();
-            expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
+            expected.insert(
+                "@ccb_project_id".to_string(),
+                controller.project_id.clone(),
+            );
             expected.insert("@ccb_role".to_string(), "sidebar".to_string());
             expected.insert("@ccb_sidebar_instance".to_string(), window.name.clone());
             expected.insert("@ccb_managed_by".to_string(), "ccbd".to_string());
@@ -293,7 +302,10 @@ pub fn topology_recreate_reason(
 
     for window_name in expected_tools {
         let mut expected = HashMap::new();
-        expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
+        expected.insert(
+            "@ccb_project_id".to_string(),
+            controller.project_id.clone(),
+        );
         expected.insert("@ccb_role".to_string(), "tool".to_string());
         expected.insert("@ccb_slot".to_string(), format!("tool:{window_name}"));
         expected.insert("@ccb_window".to_string(), window_name.clone());

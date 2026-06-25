@@ -223,7 +223,11 @@ mod tests {
         let spec = spec("agent1", WorkspaceMode::GitWorktree);
         let ctx = ctx("/tmp/project", "pid");
         let plan = WorkspacePlanner::new().plan(&spec, &ctx).unwrap();
-        assert!(plan.branch_name.as_ref().unwrap().starts_with("ccb/agent1"));
+        assert!(plan
+            .branch_name
+            .as_ref()
+            .unwrap()
+            .starts_with("ccb/agent1"));
     }
 
     #[test]

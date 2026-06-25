@@ -115,7 +115,8 @@ pub fn resolve_project_root(cwd: &Path, project_flag: Option<&str>) -> Result<Pa
             Some(parent) => current = parent.to_path_buf(),
             None => {
                 return Err(
-                    "not inside a CCB project (no .ccb directory found); use --project".to_string(),
+                    "not inside a CCB project (no .ccb directory found); use --project"
+                        .to_string(),
                 )
             }
         }

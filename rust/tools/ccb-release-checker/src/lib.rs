@@ -14,7 +14,8 @@ pub const EXPECTED_ASSETS: &[&str] = &[
     "ccb-macos-universal.tar.gz",
     "SHA256SUMS",
 ];
-pub const CHECKSUMMED_ASSETS: &[&str] = &["ccb-linux-x86_64.tar.gz", "ccb-macos-universal.tar.gz"];
+pub const CHECKSUMMED_ASSETS: &[&str] =
+    &["ccb-linux-x86_64.tar.gz", "ccb-macos-universal.tar.gz"];
 pub const REQUIRED_TAG_WORKFLOWS: &[&str] = &["Release Artifacts"];
 pub const RELEASE_RUN_LIMIT: usize = 50;
 pub const BRANCH_VALIDATION_WORKFLOWS: &[&str] = &[

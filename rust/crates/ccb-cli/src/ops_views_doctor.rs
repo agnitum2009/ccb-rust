@@ -99,7 +99,10 @@ pub fn render_doctor(payload: &Value) -> Vec<String> {
             "ccbd_effective_socket_path_bytes: {}",
             field(ccbd, "effective_socket_path_bytes")
         ),
-        format!("ccbd_socket_root_kind: {}", field(ccbd, "socket_root_kind")),
+        format!(
+            "ccbd_socket_root_kind: {}",
+            field(ccbd, "socket_root_kind")
+        ),
         format!(
             "ccbd_socket_fallback_reason: {}",
             field(ccbd, "socket_fallback_reason")
@@ -108,7 +111,10 @@ pub fn render_doctor(payload: &Value) -> Vec<String> {
             "ccbd_socket_filesystem_hint: {}",
             field(ccbd, "socket_filesystem_hint")
         ),
-        format!("ccbd_tmux_socket_path: {}", field(ccbd, "tmux_socket_path")),
+        format!(
+            "ccbd_tmux_socket_path: {}",
+            field(ccbd, "tmux_socket_path")
+        ),
         format!(
             "ccbd_tmux_preferred_socket_path: {}",
             field(ccbd, "tmux_preferred_socket_path")
@@ -362,7 +368,10 @@ pub fn render_doctor(payload: &Value) -> Vec<String> {
             "ccbd_startup_last_agent_results_text: {}",
             field(ccbd, "startup_last_agent_results_text")
         ),
-        format!("ccbd_shutdown_last_at: {}", field(ccbd, "shutdown_last_at")),
+        format!(
+            "ccbd_shutdown_last_at: {}",
+            field(ccbd, "shutdown_last_at")
+        ),
         format!(
             "ccbd_shutdown_last_trigger: {}",
             field(ccbd, "shutdown_last_trigger")

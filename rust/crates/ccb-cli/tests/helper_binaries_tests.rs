@@ -18,7 +18,7 @@ fn ask_version_introspection() {
     assert!(output.status.success(), "ask --version should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("ccbr 7.5.2"),
+        stdout.contains("ccb 7.5.2"),
         "unexpected version output: {stdout}"
     );
 }
@@ -32,7 +32,7 @@ fn autonew_version_introspection() {
     assert!(output.status.success(), "autonew --version should succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("ccbr 7.5.2"),
+        stdout.contains("ccb 7.5.2"),
         "unexpected version output: {stdout}"
     );
 }
@@ -49,7 +49,7 @@ fn ctx_transfer_version_introspection() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("ccbr 7.5.2"),
+        stdout.contains("ccb 7.5.2"),
         "unexpected version output: {stdout}"
     );
 }

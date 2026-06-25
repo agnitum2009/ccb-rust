@@ -23,7 +23,7 @@ use ccb_completion::{CompletionRegistry, CompletionTrackerService};
 use ccb_jobs::JobStore;
 use ccb_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
 use ccb_provider_core::catalog::{build_default_provider_catalog, ProviderCatalog};
-use ccb_providers::execution::ExecutionService;
+use ccb_providers::execution::{ExecutionService, ProviderRuntimeContext};
 
 fn load_agent_registry(
     layout: &ccb_storage::paths::PathLayout,
@@ -91,6 +91,7 @@ pub struct CcbdApp {
     pub last_shutdown_report: Option<CcbdShutdownReport>,
     pub current_config: Option<ccb_agents::models::ProjectConfig>,
     pub completion_tracker: CompletionTrackerService<ProviderCatalog>,
+    pub daemon_instance_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +145,7 @@ impl CcbdApp {
         let (registry, agent_names) = load_agent_registry(&layout, config.as_ref());
         let config_value = config.as_ref().and_then(|c| serde_json::to_value(c).ok());
         let socket_path = layout.ccbd_socket_path().as_str().to_string();
+        let daemon_instance_id = uuid::Uuid::new_v4().simple().to_string();
         let shared_job_store = JobStore::new(&layout);
 
         let mailbox = MessageBureauFacade::new(
@@ -190,6 +192,7 @@ impl CcbdApp {
             last_startup_report: None,
             last_shutdown_report: None,
             current_config,
+            daemon_instance_id,
         }
     }
 
@@ -199,6 +202,10 @@ impl CcbdApp {
 
     pub fn socket_path(&self) -> String {
         self.layout.ccbd_socket_path().as_str().to_string()
+    }
+
+    pub fn daemon_instance_id(&self) -> &str {
+        &self.daemon_instance_id
     }
 
     pub fn tmux_socket_path(&self) -> String {
@@ -220,9 +227,10 @@ impl CcbdApp {
     /// Start the daemon: acquire ownership and write a startup report.
     pub fn start(&mut self) -> crate::Result<()> {
         let socket_path = self.socket_path();
+        let instance_id = self.daemon_instance_id().to_string();
         let generation = self
             .ownership
-            .acquire(std::process::id(), &socket_path)
+            .acquire(std::process::id(), &socket_path, &instance_id)
             .generation;
 
         let report = CcbdStartupReport {
@@ -321,9 +329,32 @@ impl CcbdApp {
         // trackers for newly-running jobs.
         let started = self.dispatcher.tick();
         let now = chrono::Utc::now().to_rfc3339();
-        for job in started {
+        // Clone job records to avoid borrow conflicts when accessing
+        // self.registry + self.execution inside the loop.
+        let started_jobs: Vec<_> = started.iter().cloned().collect();
+        for job in &started_jobs {
             let completion_job = to_completion_job_record(job);
             let _ = self.completion_tracker.start(&completion_job, &now);
+            // Register with execution service so heartbeat poll() can track
+            // provider output and drive completion detection.
+            let entry = self.registry.get(&job.agent_name);
+            let ctx = ProviderRuntimeContext {
+                agent_name: job.agent_name.clone(),
+                workspace_path: entry.and_then(|e| e.workspace_path.clone()),
+                backend_type: Some("tmux".to_string()),
+                runtime_ref: entry.and_then(|e| e.pane_id.clone()),
+                ..Default::default()
+            };
+            let _ = self.execution.start(&completion_job, Some(&ctx));
+            // Feed the prompt text from the job's request body so the adapter's
+            // deferred-prompt dispatch can send it to the provider pane.
+            let mut prompt_patch = std::collections::HashMap::new();
+            prompt_patch.insert(
+                "prompt_text".to_string(),
+                serde_json::Value::String(job.request.body.clone()),
+            );
+            self.execution
+                .feed_runtime_state(&completion_job.job_id, prompt_patch);
         }
 
         // Feed live tmux pane text into active execution submissions so adapters
@@ -525,7 +556,7 @@ impl CcbdApp {
         if !std::path::Path::new(&socket_path).exists() {
             return;
         }
-        let backend = ccb_terminal::TmuxBackend::new(None, Some(socket_path));
+        let backend = ccb_terminal::TmuxBackend::new(None, Some(socket_path.clone()));
         let contexts = self.execution.active_contexts();
         for (job_id, context) in contexts {
             let pane_id = context.runtime_ref.unwrap_or_default();
@@ -538,6 +569,8 @@ impl CcbdApp {
             let text = ccb_terminal::TmuxBackend::strip_ansi(&text);
             let mut patch = std::collections::HashMap::new();
             patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
+            patch.insert("socket_path".to_string(), serde_json::Value::String(socket_path.clone()));
+            patch.insert("pane_id".to_string(), serde_json::Value::String(pane_id.clone()));
             self.execution.feed_runtime_state(&job_id, patch);
         }
     }

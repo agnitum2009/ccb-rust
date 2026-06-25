@@ -164,7 +164,10 @@ where
         .get("reason")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown");
-    Err(CcbdServiceError(format!("ccbd is unavailable: {}", reason)))
+    Err(CcbdServiceError(format!(
+        "ccbd is unavailable: {}",
+        reason
+    )))
 }
 
 /// Check if should wait for or recover daemon state.

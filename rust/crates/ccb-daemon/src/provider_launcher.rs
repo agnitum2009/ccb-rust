@@ -160,7 +160,9 @@ fn build_generic_launch(ctx: &LaunchContext, provider: &str) -> Result<LaunchRes
 }
 
 fn build_deepseek_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
-    use ccb_providers::deepseek::{build_session_payload, build_start_cmd, prepare_launch_context};
+    use ccb_providers::deepseek::{
+        build_session_payload, build_start_cmd, prepare_launch_context,
+    };
 
     let runtime_dir = Path::new(ctx.project_root)
         .join(".ccb")
@@ -337,7 +339,9 @@ fn build_mimo_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
 }
 
 fn build_opencode_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
-    use ccb_providers::opencode::{build_session_payload, build_start_cmd, prepare_launch_context};
+    use ccb_providers::opencode::{
+        build_session_payload, build_start_cmd, prepare_launch_context,
+    };
 
     let runtime_dir = Path::new(ctx.project_root)
         .join(".ccb")
@@ -448,6 +452,31 @@ fn build_codex_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     )
     .map_err(|e| format!("failed to write codex session file: {e}"))?;
 
+    // Seed the isolated codex HOME with auth config from the real HOME.
+    // Without auth.json, codex CLI crashes on startup (no API credentials).
+    let codex_home = runtime_dir.join("home");
+    let _ = std::fs::create_dir_all(&codex_home);
+    if let Ok(home) = std::env::var("HOME") {
+        let real_codex = std::path::Path::new(&home).join(".codex");
+        for file in &["auth.json", "AGENTS.md"] {
+            let src = real_codex.join(file);
+            if src.exists() {
+                let _ = std::fs::copy(&src, codex_home.join(file));
+            }
+        }
+    }
+    // Overwrite malformed config.toml (generated as JSON-like blob by
+    // prepare_launch_context) with a valid minimal TOML so codex CLI
+    // doesn't crash on startup with "invalid key-value pair".
+    let config_toml = codex_home.join("config.toml");
+    if config_toml.exists() {
+        let content = std::fs::read_to_string(&config_toml).unwrap_or_default();
+        if content.trim_start().starts_with('{') {
+            // JSON-like content — replace with valid TOML.
+            let _ = std::fs::write(&config_toml, "");
+        }
+    }
+
     Ok(LaunchResult {
         command: start_cmd,
         session_payload: Some(serde_json::to_value(&session_payload).map_err(|e| e.to_string())?),
@@ -458,7 +487,7 @@ fn build_codex_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
 fn build_claude_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
     use ccb_providers::claude::launcher_runtime::resolve_claude_restore_target;
     use ccb_providers::claude::{build_claude_start_cmd, ClaudeStartCommand};
-    build_simple_provider_launch(
+    let result = build_simple_provider_launch(
         ctx,
         "claude",
         |spec, runtime_dir, launch_session_id, prepared_state| {
@@ -480,7 +509,34 @@ fn build_claude_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
                 resolve_claude_restore_target(spec, runtime_dir, ctx.restore, Some(workspace_utf8));
             Some(target.run_cwd.to_string())
         },
-    )
+    )?;
+
+    // Seed the isolated Claude HOME with essential config from the real HOME.
+    // Without this, Claude treats the isolated HOME as a first-run and shows
+    // a "Press Enter to continue…" security screen that blocks the prompt.
+    // The .claude.json file contains hasCompletedOnboarding + auth markers
+    // that skip the first-run screen (mirrors Python prepare_claude_home_overrides).
+    let runtime_home = runtime_dir_for_agent(ctx.project_root, ctx.agent_name).join("home");
+    let claude_config = runtime_home.join(".claude");
+    let _ = std::fs::create_dir_all(&claude_config);
+    if let Ok(home) = std::env::var("HOME") {
+        let real_home = std::path::Path::new(&home);
+        // Copy .claude.json (HOME root) — contains onboarding completion markers.
+        let claude_json_src = real_home.join(".claude.json");
+        if claude_json_src.exists() {
+            let _ = std::fs::copy(&claude_json_src, runtime_home.join(".claude.json"));
+        }
+        // Copy .claude/ config files.
+        let real_claude = real_home.join(".claude");
+        for file in &[".credentials.json", "settings.json"] {
+            let src = real_claude.join(file);
+            if src.exists() {
+                let _ = std::fs::copy(&src, claude_config.join(file));
+            }
+        }
+    }
+
+    Ok(result)
 }
 
 fn build_gemini_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
@@ -856,7 +912,10 @@ mod tests {
         let root = Path::new("/tmp/proj");
         let ws = Path::new("/tmp/ws");
         let path = default_session_path("gemini", "gemini", root, ws).unwrap();
-        assert_eq!(path, PathBuf::from("/tmp/proj/.ccb/.gemini-gemini-session"));
+        assert_eq!(
+            path,
+            PathBuf::from("/tmp/proj/.ccb/.gemini-gemini-session")
+        );
     }
 
     #[test]

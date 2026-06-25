@@ -38,7 +38,7 @@ pub const EXCLUDES: &[&str] = &[
 ];
 
 /// Rust binaries that must be built, packaged, and installed from the release artifact.
-pub const REQUIRED_BINARIES: &[&str] = &["ccbr", "ccbd", "ask", "autonew", "ctx-transfer"];
+pub const REQUIRED_BINARIES: &[&str] = &["ccb", "ccbd", "ask", "autonew", "ctx-transfer"];
 
 const HOST_SYSTEMS: &[(&str, &str)] = &[("linux", "Linux"), ("macos", "Darwin")];
 
@@ -684,7 +684,7 @@ fn install_rust_binaries_into_release_tree(artifact_root: &Path, release_dir: &P
 
     for name in REQUIRED_BINARIES {
         let source = release_dir.join(name);
-        let dest = if *name == "ccbr" {
+        let dest = if *name == "ccb" {
             artifact_root.join(name)
         } else {
             bin_dir.join(name)

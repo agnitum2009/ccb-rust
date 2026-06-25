@@ -1280,8 +1280,9 @@ mod tests {
     #[test]
     fn test_extract_reply_with_echo_and_model_done() {
         let req_id = "<<BEGIN:req-12345678>>";
-        let text =
-            format!("CCB_REQ_ID: {req_id}\nhello\nCCB_DONE: {req_id}\nworld\nCCB_DONE: {req_id}");
+        let text = format!(
+            "CCB_REQ_ID: {req_id}\nhello\nCCB_DONE: {req_id}\nworld\nCCB_DONE: {req_id}"
+        );
         let (reply, done) = extract_reply_for_req(&text, req_id);
         assert!(done);
         assert_eq!(reply, "world");
