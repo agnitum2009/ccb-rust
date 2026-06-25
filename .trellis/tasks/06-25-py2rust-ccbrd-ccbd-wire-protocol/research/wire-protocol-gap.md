@@ -41,7 +41,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
 | `get` / `watch` | Python dispatcher handlers | Rust dispatcher handlers | closed | P2 | Rust now returns Python-visible get payloads, fails unknown jobs, consumes `watch.cursor`, and rejects negative cursors. |
 | `queue` / `trace` / `cancel` | Python dispatcher + mailbox-control handlers | Rust dispatcher + mailbox-control handlers | partially_verified | P2 | Existing integration tests cover queue depth, trace readback, and cancel terminalization/mailbox state; no new code in this slice. |
-| `resubmit` / `retry` | Python message-bureau lifecycle handlers | Rust dispatcher handlers | open | P2 | Rust still has thin/stub payloads and needs message-bureau lineage parity before closure. |
+| `resubmit` / `retry` | Python message-bureau lifecycle handlers | Rust dispatcher handlers | closed | P2 | Rust now validates mailbox message/attempt lineage, enqueues retry/resubmit jobs, records new message/attempt records, and returns Python lifecycle payloads. |
 | Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling. |
 
 ## Non-claims
@@ -189,3 +189,20 @@ Evidence:
 - `cargo test -p ccbr-daemon handlers::get::tests -- --test-threads=1`
 - `cargo test -p ccbr-daemon handlers::watch::tests -- --test-threads=1`
 - `cargo test -p ccbr-daemon test_watch_returns_activity_lines_for_target -- --test-threads=1`
+
+### `resubmit` / `retry` — closed 2026-06-26
+
+Owner finding:
+
+- Python `resubmit` and `retry` are message-bureau lifecycle operations, not dispatcher-only acknowledgement stubs.
+- Rust handlers accepted the RPCs but returned thin `resubmitted` / `retried` / `noop` payloads that did not validate message/attempt lineage and did not create Python-visible bureau records.
+
+Fix:
+
+- Rust `resubmit` now resolves the original message, requires terminal latest attempts for every target agent, enqueues fresh dispatcher jobs, records a new bureau message with `origin_message_id`, and returns `accepted_at`, `original_message_id`, new `message_id`, `submission_id`, and accepted job receipts.
+- Rust `retry` now resolves target by `attempt_id` then `job_id`, rejects active/completed/non-latest attempts, enqueues one retry job, records a retry attempt, supports Python's `continue` body when terminal progress was already observed, and returns Python lifecycle fields.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon handlers::resubmit::tests -- --test-threads=1`
+- `cargo test -p ccbr-daemon handlers::retry::tests -- --test-threads=1`

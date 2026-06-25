@@ -446,6 +446,52 @@ impl JobDispatcher {
         }
     }
 
+    /// Enqueue a job that was planned by a higher-level mailbox lifecycle
+    /// operation such as Python-compatible `resubmit` or `retry`.
+    ///
+    /// The mailbox bureau owns message/attempt lineage; this method owns only
+    /// the dispatcher job record, pending state, and shared job-store
+    /// persistence.
+    pub fn enqueue_planned_job(
+        &mut self,
+        envelope: MessageEnvelope,
+        provider: String,
+        workspace_path: Option<String>,
+        submission_id: Option<String>,
+        accepted_at: &str,
+    ) -> (JobRecord, AcceptedJobReceipt) {
+        let status = self.initial_status(&envelope.to_agent);
+        let job_id = self.new_id("job");
+        let job = JobRecord {
+            job_id: job_id.clone(),
+            submission_id,
+            agent_name: envelope.to_agent.clone(),
+            provider,
+            request: envelope.clone(),
+            status,
+            terminal_decision: None,
+            cancel_requested_at: None,
+            created_at: accepted_at.to_string(),
+            updated_at: accepted_at.to_string(),
+            workspace_path,
+            target_kind: TargetKind::Agent,
+            target_name: envelope.to_agent.clone(),
+        };
+        self.job_store.push(job.clone());
+        self.persist_job_to_mailbox(&job);
+        self.state.rebuild(&self.job_store);
+        let receipt = AcceptedJobReceipt {
+            job_id,
+            agent_name: envelope.to_agent.clone(),
+            status,
+            accepted_at: accepted_at.to_string(),
+            target_kind: TargetKind::Agent,
+            target_name: envelope.to_agent,
+            provider_instance: None,
+        };
+        (job, receipt)
+    }
+
     /// Cancel a job, mirroring Python `cancel_job` semantics with one Rust-only
     /// UX adjustment: cancelling an unknown job is treated as idempotent success.
     ///

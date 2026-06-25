@@ -94,8 +94,20 @@
 - `queue/trace/cancel`: existing Rust handlers are wired to mailbox/dispatcher
   read models and covered by integration tests; keep under final package
   verification.
-- `resubmit/retry`: still P2 residual; Rust thin/stub payloads do not yet
-  match Python message-bureau lifecycle payloads.
+- [x] `resubmit` / `retry`: verify Python message-bureau lifecycle payloads.
+  - Added handler-level regressions:
+    `handlers::resubmit::tests::resubmit_recreates_message_with_python_payload_shape`,
+    `handlers::resubmit::tests::resubmit_missing_message_fails_like_python_handler`,
+    `handlers::retry::tests::retry_recreates_attempt_with_python_payload_shape`,
+    `handlers::retry::tests::retry_missing_target_fails_like_python_handler`,
+    `handlers::retry::tests::retry_active_attempt_is_rejected`.
+  - Minimal fix: replace thin `resubmitted/retried/noop` stubs with mailbox
+    owner-backed message/attempt lineage validation, dispatcher job enqueue,
+    `record_submission` / `record_retry_attempt`, Python error conditions, and
+    Python lifecycle response fields.
+  - Validation:
+    `cargo test -p ccbr-daemon handlers::resubmit::tests -- --test-threads=1`,
+    `cargo test -p ccbr-daemon handlers::retry::tests -- --test-threads=1`.
 
 ## Phase D — Validation
 

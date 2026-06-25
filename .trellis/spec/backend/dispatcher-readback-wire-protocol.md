@@ -26,7 +26,8 @@
 - `watch` may also accept legacy Rust `start_line` as a compatibility alias.
 - `queue` and `trace` should prefer mailbox-control read models when bureau ids are supplied, with dispatcher runtime fields layered where needed.
 - `cancel` must interrupt active provider panes best-effort, terminalize dispatcher state, and record mailbox terminal state.
-- `resubmit` and `retry` must use message-bureau lineage before they can be marked fully closed; thin acknowledgement stubs are not enough for Python parity.
+- `resubmit` must resolve the original message from the message bureau, require terminal latest attempts for all target agents, enqueue fresh dispatcher jobs, record a new message with `origin_message_id`, and return `accepted_at`, `original_message_id`, new `message_id`, `submission_id`, and accepted job receipts.
+- `retry` must resolve target as Python does: first `attempt_id`, then `job_id`. It must reject active attempts, reject completed attempts, require the latest attempt for the same message/agent, enqueue one retry job, record a retry attempt, and return `accepted_at`, `target`, `message_id`, `original_attempt_id`, `attempt_id`, `job_id`, `agent_name`, and `status`.
 
 ### 4. Validation & Error Matrix
 
@@ -41,6 +42,11 @@
 | `queue` concrete agent | Response includes actual queue depth and active job id |
 | `trace` concrete job/mailbox id | Response resolves the concrete trace owner |
 | `cancel` running job | Job becomes cancelled and mailbox trace records terminal cancellation |
+| `resubmit` unknown message | Error contains `message not found` |
+| `resubmit` active latest attempt | Error contains `message still has active attempts` |
+| `retry` missing target | Error contains `retry requires target` |
+| `retry` active attempt | Error contains `attempt is still active` |
+| `retry` failed latest attempt | Response includes new attempt/job ids and Python lifecycle fields |
 
 ### 5. Good / Base / Bad Cases
 
@@ -52,12 +58,7 @@
 
 - Unit: `handlers::get::tests`.
 - Unit: `handlers::watch::tests`.
+- Unit: `handlers::resubmit::tests`.
+- Unit: `handlers::retry::tests`.
 - Integration: `test_watch_returns_activity_lines_for_target`.
 - Package: `cargo test -p ccbr-daemon -- --test-threads=1`.
-
-### 7. Pending surfaces
-
-- `resubmit` needs full message-bureau resubmission payload parity:
-  `accepted_at`, `original_message_id`, new `message_id`, `submission_id`, and `jobs`.
-- `retry` needs full attempt-lineage validation/payload parity:
-  `accepted_at`, `target`, `message_id`, `original_attempt_id`, `attempt_id`, `job_id`, `agent_name`, and `status`.
