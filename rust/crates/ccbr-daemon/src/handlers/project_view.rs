@@ -9,6 +9,18 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
         .unwrap_or(1);
 
     let ns = app.project_namespace.load();
+    // agent -> window name mapping. The sidebar groups agents under windows by
+    // the `window` field (Python `_agent_view` returns `'window': window_name`),
+    // so each agent object must carry its window name.
+    let mut agent_window: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    if let Some(n) = ns.as_ref() {
+        for w in &n.windows {
+            for a in &w.agents {
+                agent_window.insert(a.clone(), w.name.clone());
+            }
+        }
+    }
     let agents: Vec<Value> = app
         .registry
         .all_entries()
@@ -17,10 +29,14 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
         .map(|e| {
             json!({
                 "name": e.agent_name,
+                "provider": e.provider,
+                "window": agent_window.get(&e.agent_name).cloned().unwrap_or_default(),
+                "order": 0,
+                "pane_id": e.pane_id,
+                "active": false,
+                "queue_depth": 0,
                 "state": e.state,
                 "health": e.health,
-                "pane_id": e.pane_id,
-                "provider": e.provider,
             })
         })
         .collect();
