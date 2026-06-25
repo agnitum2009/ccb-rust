@@ -78,7 +78,24 @@
   - Validation:
     `cargo test -p ccbr-daemon project_focus -- --test-threads=1`,
     `cargo test -p ccbr-daemon -- --test-threads=1`.
-- `watch/get/trace/queue`: verify Python response envelopes and empty/error cases.
+- [x] `get` / `watch`: verify Python response envelopes and empty/error cases.
+  - Added regressions:
+    `handlers::get::tests::get_returns_python_result_payload_shape`,
+    `handlers::get::tests::get_unknown_job_fails_like_python_handler`,
+    `handlers::watch::tests::watch_uses_python_cursor_payload`,
+    `handlers::watch::tests::watch_rejects_negative_cursor`.
+  - Minimal fix: make `get` return Python-visible job/readback fields and
+    fail on unknown jobs; make `watch` consume Python `cursor` and reject
+    negative cursors while preserving `start_line` as a legacy alias.
+  - Validation:
+    `cargo test -p ccbr-daemon handlers::get::tests -- --test-threads=1`,
+    `cargo test -p ccbr-daemon handlers::watch::tests -- --test-threads=1`,
+    `cargo test -p ccbr-daemon test_watch_returns_activity_lines_for_target -- --test-threads=1`.
+- `queue/trace/cancel`: existing Rust handlers are wired to mailbox/dispatcher
+  read models and covered by integration tests; keep under final package
+  verification.
+- `resubmit/retry`: still P2 residual; Rust thin/stub payloads do not yet
+  match Python message-bureau lifecycle payloads.
 
 ## Phase D — Validation
 

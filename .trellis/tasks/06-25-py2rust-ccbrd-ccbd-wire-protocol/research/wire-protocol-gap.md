@@ -39,7 +39,9 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `project_clear_context` | Python provider clear implementation | Rust handler | closed | P1 | Rust now sends `/clear` to real namespace/registry panes and returns Python-compatible target/result rows. |
 | `project_reload_config` | Python reload transaction | Rust reload handler | closed | P1 | Rust now returns Python dry-run/apply shape, publishes successful config into runtime read models, and blocks busy removed agents. |
 | `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
-| `watch/get/queue/trace/resubmit/retry/cancel` | Python dispatcher handlers | Rust dispatcher handlers | unknown | P2 | Matrix response envelopes and edge cases. |
+| `get` / `watch` | Python dispatcher handlers | Rust dispatcher handlers | closed | P2 | Rust now returns Python-visible get payloads, fails unknown jobs, consumes `watch.cursor`, and rejects negative cursors. |
+| `queue` / `trace` / `cancel` | Python dispatcher + mailbox-control handlers | Rust dispatcher + mailbox-control handlers | partially_verified | P2 | Existing integration tests cover queue depth, trace readback, and cancel terminalization/mailbox state; no new code in this slice. |
+| `resubmit` / `retry` | Python message-bureau lifecycle handlers | Rust dispatcher handlers | open | P2 | Rust still has thin/stub payloads and needs message-bureau lineage parity before closure. |
 | Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling. |
 
 ## Non-claims
@@ -168,3 +170,22 @@ Evidence:
 
 - `cargo test -p ccbr-daemon --test reload_tests -- --test-threads=1`
 - `cargo test -p ccbr-daemon project_reload -- --test-threads=1`
+
+### `get` / `watch` — closed 2026-06-26
+
+Owner finding:
+
+- Python `get` returns a rich job readback payload and raises `job not found`; Rust returned a reduced summary and `status=unknown`.
+- Python `watch` reads `cursor`; Rust read only `start_line`, so Python clients would always restart from line 0. Python also rejects negative cursors.
+
+Fix:
+
+- Rust `get` now emits Python-visible fields including `job`, `snapshot`, visible reply fields, completion reason/confidence, target/provider fields, and message id placeholder.
+- Rust `get` now errors on unknown jobs/agents.
+- Rust `watch` accepts `cursor`, keeps `start_line` as an alias, and rejects negative cursor values.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon handlers::get::tests -- --test-threads=1`
+- `cargo test -p ccbr-daemon handlers::watch::tests -- --test-threads=1`
+- `cargo test -p ccbr-daemon test_watch_returns_activity_lines_for_target -- --test-threads=1`
