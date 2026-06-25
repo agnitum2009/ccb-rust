@@ -83,3 +83,76 @@ pub fn handle_project_restart_panes(_app: &mut CcbdApp, _payload: &Value) -> Res
         "recreate_reason": "manual_restart_panes",
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::CcbdApp;
+    use crate::services::registry::AgentRuntimeEntry;
+    use crate::start_flow::service::StartFlowService;
+    use crate::stop_flow::service::StopFlowService;
+    use serde_json::json;
+    use tempfile::TempDir;
+
+    fn stub_app(dir: &TempDir) -> CcbdApp {
+        CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        )
+    }
+
+    #[test]
+    fn test_restart_agent_missing_name_fails() {
+        let dir = TempDir::new().unwrap();
+        let mut app = stub_app(&dir);
+        let result = handle_project_restart_agent(&mut app, &json!({}))
+            .expect("handler returns structured failure");
+        assert_eq!(result["status"], "failed");
+        assert_eq!(result["reason"], "missing_agent");
+    }
+
+    #[test]
+    fn test_restart_all_unsupported() {
+        let dir = TempDir::new().unwrap();
+        let mut app = stub_app(&dir);
+        let result = handle_project_restart_agent(&mut app, &json!({"agent_name": "all"}))
+            .expect("handler returns structured failure");
+        assert_eq!(result["status"], "failed");
+        assert_eq!(result["reason"], "restart_all_unsupported");
+    }
+
+    #[test]
+    fn test_restart_unknown_agent_fails() {
+        let dir = TempDir::new().unwrap();
+        let mut app = stub_app(&dir);
+        let result = handle_project_restart_agent(&mut app, &json!({"agent_name": "ghost"}))
+            .expect("handler returns structured failure");
+        assert_eq!(result["status"], "failed");
+        assert_eq!(result["reason"], "agent not configured");
+    }
+
+    #[test]
+    fn test_restart_known_agent_triggers_start_flow() {
+        let dir = TempDir::new().unwrap();
+        let mut app = stub_app(&dir);
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%0".into()),
+            workspace_path: None,
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        let result = handle_project_restart_agent(&mut app, &json!({"agent_name": "agent1"}))
+            .expect("handler succeeds");
+        assert_eq!(result["status"], "ok");
+        assert_eq!(result["restart_status"], "ok");
+        assert_eq!(result["agent_name"], "agent1");
+        assert!(result["pane_id"].is_string());
+    }
+}

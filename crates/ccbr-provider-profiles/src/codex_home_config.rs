@@ -163,7 +163,7 @@ pub fn materialize_codex_home_config(
         write_managed_config_stub(&target_config, project_root, workspace_path)?;
     }
 
-    materialize_auth_file(
+    let _auth_result = materialize_auth_file(
         &source_home.join("auth.json"),
         &target_home.join("auth.json"),
         profile,
@@ -685,20 +685,50 @@ fn source_config_valid(config_path: &Utf8Path) -> bool {
     text.parse::<toml::Value>().is_ok()
 }
 
+/// Result of materializing an `auth.json` file for a managed Codex home.
+///
+/// Mirrors the diagnostic surface Python produces when Codex credentials are
+/// missing, so callers can fail fast with a path and remediation hint instead
+/// of letting the provider CLI crash with an opaque 401.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthMaterializationResult {
+    pub target_path: Utf8PathBuf,
+    pub present: bool,
+    pub message: String,
+}
+
+/// Format the user-facing error when Codex credentials cannot be located.
+pub fn format_codex_auth_missing_error(auth_path: &Utf8Path) -> String {
+    format!(
+        "no Codex credentials were found at {} - run `codex login` or provide an API key through the profile env / OPENAI_API_KEY",
+        auth_path
+    )
+}
+
 fn materialize_auth_file(
     source: &Utf8Path,
     target: &Utf8Path,
     profile: Option<&ProviderProfileSpec>,
     authority: Option<&CodexApiAuthority>,
-) -> crate::Result<()> {
+) -> crate::Result<AuthMaterializationResult> {
+    let target_path = target.to_path_buf();
     if authority.is_some() {
         let key = explicit_api_key(profile);
         if !key.is_empty() {
             write_auth_file(target, &key)?;
-        } else {
-            let _ = fs::remove_file(target);
+            return Ok(AuthMaterializationResult {
+                target_path,
+                present: true,
+                message: String::new(),
+            });
         }
-        return Ok(());
+        let _ = fs::remove_file(target);
+        let message = format_codex_auth_missing_error(&target_path);
+        return Ok(AuthMaterializationResult {
+            target_path,
+            present: false,
+            message,
+        });
     }
     sync_auth_file(source, target, profile)
 }
@@ -707,12 +737,23 @@ fn sync_auth_file(
     source: &Utf8Path,
     target: &Utf8Path,
     profile: Option<&ProviderProfileSpec>,
-) -> crate::Result<()> {
+) -> crate::Result<AuthMaterializationResult> {
+    let target_path = target.to_path_buf();
     if !inherits_auth(profile) || !source.is_file() {
         let _ = fs::remove_file(target);
-        return Ok(());
+        let message = format_codex_auth_missing_error(&target_path);
+        return Ok(AuthMaterializationResult {
+            target_path,
+            present: false,
+            message,
+        });
     }
-    sync_file(source, target)
+    sync_file(source, target)?;
+    Ok(AuthMaterializationResult {
+        target_path,
+        present: true,
+        message: String::new(),
+    })
 }
 
 fn write_auth_file(target: &Utf8Path, api_key: &str) -> crate::Result<()> {
@@ -1661,5 +1702,94 @@ mod tests {
         copy_inherited_tree(source, target, true, "test-label").unwrap();
         assert!(target.join("demo/SKILL.md").is_file());
         assert!(Utf8Path::from_path(&marker_path).unwrap().is_file());
+    }
+
+    #[test]
+    fn test_materialize_auth_file_writes_key_when_authority_set() {
+        let dir = TempDir::new().unwrap();
+        let source_path = dir.path().join("source");
+        let home_path = dir.path().join("target");
+        let auth_path = home_path.join("auth.json");
+        let source = Utf8Path::from_path(&source_path).unwrap();
+        let target = Utf8Path::from_path(&auth_path).unwrap();
+        fs::create_dir_all(source).unwrap();
+        let mut env = HashMap::new();
+        env.insert("OPENAI_API_KEY".into(), "sk-test".into());
+        let profile = ProviderProfileSpec {
+            inherit_api: false,
+            env,
+            ..Default::default()
+        };
+        let authority = CodexApiAuthority {
+            provider_id: "custom".into(),
+            base_url: "https://api.example.test".into(),
+            wire_api: "responses".into(),
+            requires_openai_auth: true,
+        };
+        let result = materialize_auth_file(source, target, Some(&profile), Some(&authority))
+            .unwrap();
+        assert!(result.present);
+        assert!(target.is_file());
+        let text = fs::read_to_string(target).unwrap();
+        assert!(text.contains("sk-test"));
+    }
+
+    #[test]
+    fn test_materialize_auth_file_diagnoses_missing_key_when_authority_set() {
+        let dir = TempDir::new().unwrap();
+        let source_path = dir.path().join("source");
+        let home_path = dir.path().join("target");
+        let auth_path = home_path.join("auth.json");
+        let source = Utf8Path::from_path(&source_path).unwrap();
+        let target = Utf8Path::from_path(&auth_path).unwrap();
+        fs::create_dir_all(source).unwrap();
+        let profile = ProviderProfileSpec::default();
+        let authority = CodexApiAuthority {
+            provider_id: "custom".into(),
+            base_url: "https://api.example.test".into(),
+            wire_api: "responses".into(),
+            requires_openai_auth: true,
+        };
+        let result = materialize_auth_file(source, target, Some(&profile), Some(&authority))
+            .unwrap();
+        assert!(!result.present);
+        assert!(!target.exists());
+        assert!(
+            result.message.contains("no Codex credentials were found"),
+            "diagnostic should be user-facing, got: {}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn test_sync_auth_file_diagnoses_missing_source_auth() {
+        let dir = TempDir::new().unwrap();
+        let source_path = dir.path().join("source");
+        let home_path = dir.path().join("target");
+        let auth_path = home_path.join("auth.json");
+        let source = Utf8Path::from_path(&source_path).unwrap();
+        let target = Utf8Path::from_path(&auth_path).unwrap();
+        fs::create_dir_all(source).unwrap();
+        let profile = ProviderProfileSpec::default();
+        let result = sync_auth_file(
+            &source.join("auth.json"),
+            target,
+            Some(&profile),
+        )
+        .unwrap();
+        assert!(!result.present);
+        assert!(
+            result.message.contains("no Codex credentials were found"),
+            "diagnostic should be user-facing, got: {}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn test_format_codex_auth_missing_error_includes_path_and_hint() {
+        let path = Utf8Path::new("/tmp/codex/home/auth.json");
+        let msg = format_codex_auth_missing_error(path);
+        assert!(msg.contains("/tmp/codex/home/auth.json"));
+        assert!(msg.contains("codex login") || msg.contains("OPENAI_API_KEY"));
     }
 }

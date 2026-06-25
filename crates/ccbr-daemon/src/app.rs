@@ -91,6 +91,7 @@ pub struct CcbdApp {
     pub last_shutdown_report: Option<CcbdShutdownReport>,
     pub current_config: Option<ccbr_agents::models::ProjectConfig>,
     pub completion_tracker: CompletionTrackerService<ProviderCatalog>,
+    pub job_heartbeat: crate::services::job_heartbeat_runtime::JobHeartbeatRuntimeService,
     pub daemon_instance_id: String,
 }
 
@@ -184,6 +185,7 @@ impl CcbdApp {
                 build_default_provider_catalog(false, false),
                 CompletionRegistry,
             ),
+            job_heartbeat: crate::services::job_heartbeat_runtime::JobHeartbeatRuntimeService::with_defaults(),
             mailbox,
             mailbox_control,
             ownership: OwnershipService::new(),
@@ -247,6 +249,11 @@ impl CcbdApp {
         self.last_startup_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
 
+        // Restore running jobs from the previous daemon instance so trace shows
+        // them and heartbeat/comms_recover can continue driving them.
+        let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
+        self.dispatcher.restore_running_jobs(&running_jobs_path);
+
         self.lifecycle
             .record(crate::services::lifecycle::LifecycleReport {
                 project_id: self.project_id().to_string(),
@@ -283,6 +290,12 @@ impl CcbdApp {
         let report_path = self.layout.ccbrd_shutdown_report_path();
         self.last_shutdown_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
+
+        // Persist running/non-terminal jobs so the next daemon instance can
+        // restore job memory (S3.3 daemon restart job continuity).
+        let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
+        let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
+
         self.ownership.release();
         self.project_namespace.unmount().ok();
         Ok(())
@@ -425,6 +438,47 @@ impl CcbdApp {
                 }
             }
         }
+
+        // Job heartbeat timeout: terminalize running jobs that have made no
+        // progress for too many heartbeat notices, mirroring Python
+        // `lib/ccbd/services/job_heartbeat_runtime/tick.py`.
+        let running_jobs: Vec<_> = self
+            .dispatcher
+            .job_store
+            .iter()
+            .filter(|j| j.status == crate::models::api_models::common::JobStatus::Running)
+            .cloned()
+            .collect();
+        for job in running_jobs {
+            let tick_job = crate::tick::Job {
+                job_id: job.job_id.clone(),
+                agent_name: job.agent_name.clone(),
+                updated_at: Some(job.updated_at.clone()),
+                request: crate::tick::JobRequest {
+                    from_actor: job.request.from_actor.clone(),
+                },
+            };
+            let mut adapter =
+                crate::services::job_heartbeat_runtime::JobHeartbeatDispatcherAdapter {
+                    dispatcher: &mut self.dispatcher,
+                };
+            let timeout_finished_at = chrono::Utc::now().to_rfc3339();
+            match crate::tick::tick_job_heartbeat(&self.job_heartbeat, &mut adapter, &tick_job) {
+                Ok(false) => {
+                    // Timeout terminalized the job; record mailbox terminal state.
+                    crate::services::job_heartbeat_runtime::record_terminal_timeout(
+                        &self.dispatcher,
+                        &self.mailbox,
+                        &job.job_id,
+                        &timeout_finished_at,
+                    );
+                }
+                Ok(true) => {}
+                Err(e) => {
+                    eprintln!("ccbrd: heartbeat tick failed for {}: {e}", job.job_id);
+                }
+            }
+        }
     }
 
     /// Dispatch a single RPC request string.
@@ -564,23 +618,27 @@ impl CcbdApp {
             return Ok(());
         }
         let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
+        self.respawn_dead_agents_with_checker(|pane_id| {
+            backend
+                .tmux_run_capture(&["display-message", "-p", "-t", pane_id, "#{pane_id}"])
+                .map(|s| s.trim().starts_with('%'))
+                .unwrap_or(false)
+        })
+    }
+
+    /// Testable core of `respawn_dead_agents`: given a predicate that reports
+    /// whether a pane id is alive, collect dead agents and respawn.
+    fn respawn_dead_agents_with_checker<F>(&mut self, mut is_alive: F) -> Result<(), String>
+    where
+        F: FnMut(&str) -> bool,
+    {
         let mut dead_agents: Vec<String> = Vec::new();
         for entry in self.registry.all_entries() {
             if let Some(pane_id) = entry.pane_id.as_deref() {
                 if pane_id.is_empty() {
                     continue;
                 }
-                let probe = backend.tmux_run_capture(&[
-                    "display-message",
-                    "-p",
-                    "-t",
-                    pane_id,
-                    "#{pane_id}",
-                ]);
-                let alive = probe
-                    .map(|s| s.trim().starts_with('%'))
-                    .unwrap_or(false);
-                if !alive {
+                if !is_alive(pane_id) {
                     eprintln!(
                         "ccbrd: detected dead pane {} for agent {}, will respawn",
                         pane_id, entry.agent_name
@@ -748,5 +806,141 @@ main = "agent1:codex"
             .expect("agent1 should be registered");
         assert_eq!(entry.provider, "codex");
         assert_eq!(app.dispatcher.agent_names, vec!["agent1"]);
+    }
+
+    #[test]
+    fn test_respawn_dead_agents_with_checker_triggers_start_flow() {
+        let dir = TempDir::new().unwrap();
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%42".into()),
+            workspace_path: None,
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        // All panes considered dead -> should trigger a start flow respawn.
+        app.respawn_dead_agents_with_checker(|_pane_id| false)
+            .expect("respawn should succeed with stub backend");
+
+        let entry = app.registry.get("agent1").expect("agent1 still registered");
+        assert!(
+            entry.pane_id.as_deref() != Some("%42"),
+            "pane id should be updated after respawn, got {:?}",
+            entry.pane_id
+        );
+    }
+
+    #[test]
+    fn test_respawn_dead_agents_with_checker_no_op_when_alive() {
+        let dir = TempDir::new().unwrap();
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%42".into()),
+            workspace_path: None,
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        // All panes considered alive -> no start flow, pane id unchanged.
+        app.respawn_dead_agents_with_checker(|_pane_id| true)
+            .expect("respawn check should succeed");
+
+        let entry = app.registry.get("agent1").expect("agent1 still registered");
+        assert_eq!(entry.pane_id.as_deref(), Some("%42"));
+    }
+
+    #[test]
+    fn test_shutdown_persists_and_start_restores_running_jobs() {
+        use crate::models::api_models::common::JobStatus;
+        use crate::models::api_models::messages::MessageEnvelope;
+        use crate::models::api_models::records::JobRecord;
+
+        let dir = TempDir::new().unwrap();
+        let ccbr_dir = dir.path().join(".ccbr");
+        std::fs::create_dir_all(&ccbr_dir).unwrap();
+        std::fs::write(
+            ccbr_dir.join("ccbr.config"),
+            r#"version = 2
+default_agents = ["agent1"]
+
+[agents.agent1]
+provider = "codex"
+target = "agent1"
+"#,
+        )
+        .unwrap();
+
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+
+        // Inject a running job directly into the dispatcher.
+        let job = JobRecord {
+            job_id: "job-1".into(),
+            submission_id: None,
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            request: MessageEnvelope {
+                project_id: "proj-1".into(),
+                to_agent: "agent1".into(),
+                from_actor: "user".into(),
+                body: "keep running".into(),
+                task_id: None,
+                reply_to: None,
+                message_type: "ask".into(),
+                delivery_scope: crate::models::api_models::common::DeliveryScope::Single,
+                silence_on_success: false,
+                route_options: serde_json::json!({}),
+                body_artifact: None,
+            },
+            status: JobStatus::Running,
+            terminal_decision: None,
+            cancel_requested_at: None,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            updated_at: chrono::Utc::now().to_rfc3339(),
+            workspace_path: None,
+            target_kind: crate::models::api_models::common::TargetKind::Agent,
+            target_name: "agent1".into(),
+        };
+        app.dispatcher.job_store.push(job);
+        app.dispatcher.state.rebuild(&app.dispatcher.job_store.clone());
+
+        app.shutdown().expect("shutdown should succeed");
+
+        // Simulate a fresh daemon instance in the same project.
+        let mut restarted = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        restarted.start().expect("start should succeed");
+
+        let restored = restarted
+            .dispatcher
+            .get("job-1")
+            .expect("running job should be restored");
+        assert_eq!(restored.status, JobStatus::Running);
+        assert_eq!(restored.agent_name, "agent1");
     }
 }

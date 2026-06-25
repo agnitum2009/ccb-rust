@@ -1,14 +1,12 @@
 //! Mirrors Python `lib/ccbrd/services/job_heartbeat_runtime/tick.py`.
 //! 1:1 file alignment stub.
 
-use std::collections::HashMap;
-
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// Main entry point for ticking job heartbeat
 pub fn tick_job_heartbeat(
     service: &dyn HeartbeatService,
-    dispatcher: &dyn Dispatcher,
+    dispatcher: &mut dyn Dispatcher,
     job: &Job,
 ) -> Result<bool> {
     let context = build_heartbeat_tick_context(service, dispatcher, job)?;
@@ -30,7 +28,7 @@ pub fn tick_job_heartbeat(
 /// Build heartbeat tick context from job state
 pub fn build_heartbeat_tick_context(
     service: &dyn HeartbeatService,
-    dispatcher: &dyn Dispatcher,
+    dispatcher: &mut dyn Dispatcher,
     job: &Job,
 ) -> Result<Option<HeartbeatTickContext>> {
     let snapshot = dispatcher.get_snapshot(&job.job_id)?;
@@ -76,7 +74,7 @@ pub fn build_heartbeat_tick_context(
 /// Handle heartbeat reset action
 pub fn handle_reset_heartbeat(
     service: &dyn HeartbeatService,
-    dispatcher: &dyn Dispatcher,
+    dispatcher: &mut dyn Dispatcher,
     job: &Job,
     context: &HeartbeatTickContext,
 ) -> Result<bool> {
@@ -111,7 +109,7 @@ pub fn heartbeat_timeout_due(
 /// Record internal heartbeat observation
 pub fn record_internal_heartbeat(
     service: &dyn HeartbeatService,
-    dispatcher: &dyn Dispatcher,
+    dispatcher: &mut dyn Dispatcher,
     job: &Job,
     context: &HeartbeatTickContext,
 ) -> Result<bool> {
@@ -134,7 +132,7 @@ pub fn record_internal_heartbeat(
 /// Terminalize heartbeat timeout (finalize job as timed out)
 pub fn terminalize_heartbeat_timeout(
     service: &dyn HeartbeatService,
-    dispatcher: &dyn Dispatcher,
+    dispatcher: &mut dyn Dispatcher,
     job: &Job,
     context: &HeartbeatTickContext,
 ) -> Result<bool> {
@@ -186,7 +184,7 @@ pub trait Dispatcher {
         payload: serde_json::Value,
         timestamp: &str,
     ) -> Result<()>;
-    fn complete(&self, job_id: &str, decision: serde_json::Value) -> Result<()>;
+    fn complete(&mut self, job_id: &str, decision: serde_json::Value) -> Result<()>;
 }
 
 #[derive(Debug, Clone)]
@@ -209,34 +207,92 @@ pub struct JobSnapshot {
 
 #[derive(Debug, Clone)]
 pub struct HeartbeatState {
-    pub data: HashMap<String, String>,
+    pub subject_kind: String,
+    pub subject_id: String,
+    pub owner: String,
+    pub last_progress_at: String,
+    pub last_notice_at: Option<String>,
+    pub heartbeat_started_at: Option<String>,
+    pub notice_count: u32,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct HeartbeatPolicy {
     pub timeout_seconds: u64,
-    pub max_notices: u32,
+    pub repeat_interval_seconds: u64,
+    pub max_notices: Option<u32>,
 }
 
 pub fn evaluate_heartbeat(
-    _policy: &HeartbeatPolicy,
-    _subject_kind: &str,
-    _subject_id: &str,
-    _owner: &str,
+    policy: &HeartbeatPolicy,
+    subject_kind: &str,
+    subject_id: &str,
+    owner: &str,
     observed_last_progress_at: &str,
-    _now: &str,
-    _state: Option<&HeartbeatState>,
+    now: &str,
+    state: Option<&HeartbeatState>,
 ) -> Result<(HeartbeatState, HeartbeatDecision)> {
-    // Simplified stub implementation
-    let decision = HeartbeatDecision {
-        action: HeartbeatAction::Observe,
-        notice_due: true,
-        notice_count: 0,
-        last_progress_at: observed_last_progress_at.to_string(),
-    };
+    let engine_policy = ccbr_heartbeat::models::HeartbeatPolicy::new(
+        policy.timeout_seconds as f64,
+        policy.repeat_interval_seconds as f64,
+        policy.max_notices,
+    )
+    .map_err(|e| format!("invalid heartbeat policy: {e}"))?;
+
+    let engine_state = state.as_ref().map(|s| ccbr_heartbeat::models::HeartbeatState {
+        subject_kind: s.subject_kind.clone(),
+        subject_id: s.subject_id.clone(),
+        owner: s.owner.clone(),
+        last_progress_at: s.last_progress_at.clone(),
+        last_notice_at: s.last_notice_at.clone(),
+        heartbeat_started_at: s.heartbeat_started_at.clone(),
+        notice_count: s.notice_count,
+        updated_at: s.updated_at.clone(),
+    });
+
+    let (next_engine_state, engine_decision) = ccbr_heartbeat::engine::evaluate_heartbeat(
+        &engine_policy,
+        subject_kind,
+        subject_id,
+        owner,
+        observed_last_progress_at,
+        now,
+        engine_state.as_ref(),
+    );
+
     let next_state = HeartbeatState {
-        data: HashMap::new(),
+        subject_kind: next_engine_state.subject_kind,
+        subject_id: next_engine_state.subject_id,
+        owner: next_engine_state.owner,
+        last_progress_at: next_engine_state.last_progress_at,
+        last_notice_at: next_engine_state.last_notice_at,
+        heartbeat_started_at: next_engine_state.heartbeat_started_at,
+        notice_count: next_engine_state.notice_count,
+        updated_at: next_engine_state.updated_at,
     };
+
+    let limit_reached = policy
+        .max_notices
+        .map(|limit| engine_decision.notice_count >= limit)
+        .unwrap_or(false);
+
+    let action = match engine_decision.action {
+        ccbr_heartbeat::models::HeartbeatAction::Reset => HeartbeatAction::Reset,
+        ccbr_heartbeat::models::HeartbeatAction::Idle if limit_reached => HeartbeatAction::Timeout,
+        ccbr_heartbeat::models::HeartbeatAction::Idle => HeartbeatAction::Observe,
+        ccbr_heartbeat::models::HeartbeatAction::Enter => HeartbeatAction::Observe,
+        ccbr_heartbeat::models::HeartbeatAction::Repeat => HeartbeatAction::Observe,
+    };
+
+    let decision = HeartbeatDecision {
+        action,
+        notice_due: engine_decision.action != ccbr_heartbeat::models::HeartbeatAction::Idle
+            || limit_reached,
+        notice_count: engine_decision.notice_count,
+        last_progress_at: engine_decision.last_progress_at,
+    };
+
     Ok((next_state, decision))
 }
 

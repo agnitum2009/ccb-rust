@@ -683,6 +683,25 @@ fn runtime_dir_for_agent(project_root: &str, agent_name: &str) -> PathBuf {
         .join(agent_name)
 }
 
+/// Return the expected auth.json path inside the isolated runtime home for a
+/// provider, if one is known.  Returns `None` for providers that do not use a
+/// project-local auth.json (e.g. opencode).
+pub fn provider_runtime_auth_path(
+    provider: &str,
+    project_root: &str,
+    agent_name: &str,
+) -> Option<PathBuf> {
+    let home = runtime_dir_for_agent(project_root, agent_name).join("home");
+    match provider {
+        "codex" => Some(home.join("auth.json")),
+        "claude" => Some(home.join(".config").join("claude-code").join("auth.json")),
+        "gemini" => Some(home.join(".gemini").join("auth.json")),
+        "agy" => Some(home.join(".antigravity").join("auth.json")),
+        "droid" => Some(home.join(".droid").join("auth.json")),
+        _ => None,
+    }
+}
+
 fn ccbr_dir(project_root: &str) -> PathBuf {
     Path::new(project_root).join(".ccbr")
 }
