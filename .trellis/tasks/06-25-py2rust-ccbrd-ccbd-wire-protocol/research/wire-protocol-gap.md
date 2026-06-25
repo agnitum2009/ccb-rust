@@ -36,7 +36,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `project_restart_agent` | Python restarts one agent with busy gate | Rust restarts all agents to preserve layout | accepted_divergence_candidate | P1 | Document/verify layout reason; ensure response shape does not mislead Python clients. |
 | `shutdown` red X | Python graceful daemon stop | Rust full workspace exit | accepted_local_divergence | P0 closed locally | User confirmed red X means complete workspace exit; Rust must kill tmux session/provider processes. |
 | `stop-all` | Python prepare/finalize project stop | Rust direct stop flow | partially_verified | P1 | Verify force=false/true response and lifecycle effects. |
-| `project_clear_context` | Python provider clear implementation | Rust handler | unknown | P1 | Compare response and provider coverage. |
+| `project_clear_context` | Python provider clear implementation | Rust handler | closed | P1 | Rust now sends `/clear` to real namespace/registry panes and returns Python-compatible target/result rows. |
 | `project_reload_config` | Python reload transaction | Rust reload handler | unknown | P1 | Compare additive/reload/blocked cases. |
 | `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
 | `watch/get/queue/trace/resubmit/retry/cancel` | Python dispatcher handlers | Rust dispatcher handlers | unknown | P2 | Matrix response envelopes and edge cases. |
@@ -130,3 +130,21 @@ Evidence:
 
 - `cargo test -p ccbr-daemon project_focus -- --test-threads=1`
 - `cargo test -p ccbr-daemon -- --test-threads=1`
+
+### `project_clear_context` — closed 2026-06-26
+
+Owner finding:
+
+- Python `project_clear_context` is a runtime-integration command, not a readback-only acknowledgement: it resolves requested agents, opens the project tmux namespace, verifies panes, and sends a provider clear sequence.
+- Rust returned `status=ok` with empty `results`, so Python/sidebar clients would see a misleading successful no-op.
+
+Fix:
+
+- Rust now normalizes empty/`all`/deduped agent targets and rejects unknown or mixed `all` requests.
+- Rust resolves panes from the mounted project namespace first and falls back to the agent registry.
+- Rust sends `C-u`, literal `/clear`, and `Enter` to each live pane, preserving the Python OpenCode 300ms delayed submit.
+- Per-agent result rows report `cleared`, `skipped`, or `failed` with Python-compatible reason fields.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon project_clear -- --test-threads=1`

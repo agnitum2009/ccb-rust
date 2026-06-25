@@ -42,7 +42,17 @@
 
 ## Phase C — P1 parity gaps
 
-- `project_clear_context`: verify provider-specific clear semantics and structured response.
+- [x] `project_clear_context`: verify provider-specific clear semantics and structured response.
+  - Added handler-level regressions:
+    `project_clear_context_targets_all_agent_panes_with_provider_clear`,
+    `project_clear_context_dedupes_requested_agents_and_rejects_unknown`,
+    `project_clear_context_reports_missing_panes`.
+  - Minimal fix: replace no-op success with real namespace-backed pane
+    resolution, Python-compatible target normalization, `/clear` send-key
+    sequence, OpenCode delayed submit, and per-agent `cleared/skipped/failed`
+    results.
+  - Validation:
+    `cargo test -p ccbr-daemon project_clear -- --test-threads=1`.
 - `project_reload_config`: verify additive/reload shape vs Python.
 - [x] `project_focus_*`: verify tmux targeting and response shape.
   - Added handler-level planning regressions:
