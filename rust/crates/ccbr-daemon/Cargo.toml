@@ -22,6 +22,7 @@ ccbr-jobs = { workspace = true }
 ccbr-agents = { workspace = true }
 ccbr-providers = { workspace = true }
 ccbr-completion = { workspace = true }
+ccbr-heartbeat = { workspace = true }
 ccbr-provider-profiles = { workspace = true }
 ccbr-provider-sessions = { workspace = true }
 ccbr-workspace = { workspace = true }

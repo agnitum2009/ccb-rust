@@ -91,6 +91,7 @@ pub struct CcbdApp {
     pub last_shutdown_report: Option<CcbdShutdownReport>,
     pub current_config: Option<ccbr_agents::models::ProjectConfig>,
     pub completion_tracker: CompletionTrackerService<ProviderCatalog>,
+    pub job_heartbeat: crate::services::job_heartbeat_runtime::JobHeartbeatRuntimeService,
     pub daemon_instance_id: String,
 }
 
@@ -184,6 +185,7 @@ impl CcbdApp {
                 build_default_provider_catalog(false, false),
                 CompletionRegistry,
             ),
+            job_heartbeat: crate::services::job_heartbeat_runtime::JobHeartbeatRuntimeService::with_defaults(),
             mailbox,
             mailbox_control,
             ownership: OwnershipService::new(),
@@ -433,6 +435,47 @@ impl CcbdApp {
                             true,
                         );
                     }
+                }
+            }
+        }
+
+        // Job heartbeat timeout: terminalize running jobs that have made no
+        // progress for too many heartbeat notices, mirroring Python
+        // `lib/ccbd/services/job_heartbeat_runtime/tick.py`.
+        let running_jobs: Vec<_> = self
+            .dispatcher
+            .job_store
+            .iter()
+            .filter(|j| j.status == crate::models::api_models::common::JobStatus::Running)
+            .cloned()
+            .collect();
+        for job in running_jobs {
+            let tick_job = crate::tick::Job {
+                job_id: job.job_id.clone(),
+                agent_name: job.agent_name.clone(),
+                updated_at: Some(job.updated_at.clone()),
+                request: crate::tick::JobRequest {
+                    from_actor: job.request.from_actor.clone(),
+                },
+            };
+            let mut adapter =
+                crate::services::job_heartbeat_runtime::JobHeartbeatDispatcherAdapter {
+                    dispatcher: &mut self.dispatcher,
+                };
+            let timeout_finished_at = chrono::Utc::now().to_rfc3339();
+            match crate::tick::tick_job_heartbeat(&self.job_heartbeat, &mut adapter, &tick_job) {
+                Ok(false) => {
+                    // Timeout terminalized the job; record mailbox terminal state.
+                    crate::services::job_heartbeat_runtime::record_terminal_timeout(
+                        &self.dispatcher,
+                        &self.mailbox,
+                        &job.job_id,
+                        &timeout_finished_at,
+                    );
+                }
+                Ok(true) => {}
+                Err(e) => {
+                    eprintln!("ccbrd: heartbeat tick failed for {}: {e}", job.job_id);
                 }
             }
         }
