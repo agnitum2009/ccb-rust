@@ -1,4 +1,17 @@
-# Handoff — Wave 4 Layer 2 Live E2E 剩余 → kimi2.7
+> ✅ **已闭环（2026-06-25，glm5.2 续作）** — A/B/C/D 四项全部解决。下方"剩余任务"仅作历史记录。
+>
+> | 项 | 终态 | 证据 |
+> |---|---|---|
+> | A · P0 Codex trust | ✅ live 通过 | codex pane 无 trust dialog，直入工作态；隔离 HOME config.toml `trust_level="trusted"` + `--dangerously-bypass-hook-trust` |
+> | B · P1 inbox reply | ✅ live 通过 | 中文回复 `收到确认` 无 panic；`inbox --detail` 规范 task_reply 载荷渲染、`--detail` 前置 parser、`ack`（`status: acked`）全正常 |
+> | C · ccb-legacy 同步 | ✅ 完成（重定义） | 经澄清"ccbr 与 ccb-legacy 仅命名不同、双生血系永不合并"→ HEAD rust/ 反向重命名 `ccbr→ccb` 同步；提交 `547e91e5`；`cargo check` 干净；与 HEAD 分叉为独立血系 |
+> | D · 产品仓 ff-push | ✅ 早已完成 | `agnitum2009/ccb-rust` master @ `6ebd89e`（P0+P1），local == origin/master |
+>
+> 下方的"剩余任务/关键代码位置/运行方式"保留作历史参考。
+
+---
+
+# Handoff — Wave 4 Layer 2 Live E2E 剩余 → kimi2.7（历史记录）
 
 > Prepared for: **kimi2.7** | From: glm5.2 | Branch: `python-rust/rolepacks-versioning-translation`
 > Product repo: `agnitum2009/ccb-rust` (master @ `412512d`)

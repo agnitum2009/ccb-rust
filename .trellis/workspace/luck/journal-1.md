@@ -375,3 +375,42 @@ Closed Wave 4 Layer 1 mock-boundary integration parity: P0-a/b reload handoff an
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Wave 4 Layer 2 live e2e — A/B live 验证 + ccb-legacy 反向重命名同步
+
+**Date**: 2026-06-25
+**Task**: 06-25-py2rust-wave4-layer2-live-e2e (Wave 4 Layer 2: live e2e 真实 tmux + 真实 provider CLI)
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+继承 glm5.2 角色，对 HANDOFF-KIMI.md 列出的剩余 4 项做终态裁决与闭环。A (P0 Codex trust) 与 B (P1 inbox reply) 在真实 tmux + 真实 provider CLI 环境 live 验证通过——非仅"声称已修复"。C (ccb-legacy 同步) 经用户澄清后重定义为"全树反向重命名同步"（ccbr→ccb，双生血系永不合并、仅命名不同）并完成。D (产品仓 ff-push) 确认上会话已完成。
+
+### Main Changes
+
+- **A live 验证**：构建 debug ccbrd/ccbr → 干净重启 daemon + start（/mnt/d/dapro-ass，3 agent）→ codex pane 直接进入工作态，无 "Do you trust this directory?" dialog；隔离 HOME config.toml 已 `trust_level="trusted"` + `--dangerously-bypass-hook-trust`。
+- **B live 验证**：`ask agent3 "请只回复四个字：收到确认"` → job completed → claude 精确回复 `收到确认`（多字节 UTF-8，daemon 全程无 panic）；`inbox --detail agent3` 正确渲染规范 task_reply 载荷（reply_id/preview/source_actor）；`--detail` 前置 parser 正常；`ack` 返回 `status: acked` 正确解析。
+- **C ccb-legacy 同步**：HEAD rust/ 反向重命名（`ccbr→ccb`、`CCBR→CCB`，内容+路径）→ ccb-legacy；`cargo check --workspace` 干净（24.7s）；提交 `547e91e5`，叠在 0961a254 上；25 crate 对齐、Layer2 P0/P1 修复标记在位、零 ccbr 泄漏；ccb-legacy 与 HEAD 分叉为独立血系（不再互为祖先）。
+- **D 确认**：产品仓 `agnitum2009/ccb-rust` master @ `6ebd89e`（P0+P1），local == origin/master，上会话已 ff-push。
+
+### Git Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| `547e91e5` | ccb-legacy | sync(ccb-legacy): mirror ccbr HEAD rust/ reverse-renamed (ccbr->ccb) |
+
+### Testing
+
+- [OK] `cargo check --workspace`（反向重命名 ccb-* 树，24.7s，exit 0）
+- [OK] codex trust dialog live 绕过（pane 实证 + config 物化核验）
+- [OK] inbox reply delivery live（ask → completed → inbox 规范载荷渲染 + ack 解析 + UTF-8 无 panic）
+- [OK] ccb-legacy 与 HEAD 血系独立性（`merge-base --is-ancestor` = false）
+
+### Status
+
+[OK] **A/B/C/D 四项闭环**。注：PRD 的 S1–S4 分级验收标准仍为 TBD；本轮按 HANDOFF 的实际交付物（A/B/C/D）闭环。
+
+### Next Steps
+
+- 可选 follow-up：S3（多 agent + 恢复）/S4（edge）穷尽 live 覆盖；ccb-legacy 非 rust/ 部分（docs/scripts）是否需同步另议。
