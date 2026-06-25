@@ -172,10 +172,7 @@ pub fn existing_topology_agent_panes(
     for window in &topology_plan.windows {
         for agent_name in &window.agent_names {
             let mut expected = HashMap::new();
-            expected.insert(
-                "@ccb_project_id".to_string(),
-                controller.project_id.clone(),
-            );
+            expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
             expected.insert("@ccb_role".to_string(), "agent".to_string());
             expected.insert("@ccb_slot".to_string(), agent_name.clone());
             expected.insert("@ccb_window".to_string(), window.name.clone());
@@ -205,10 +202,7 @@ pub fn topology_active_panes(
     let mut panes: Vec<String> = Vec::new();
     for role in ["sidebar", "agent", "tool"] {
         let mut expected = HashMap::new();
-        expected.insert(
-            "@ccb_project_id".to_string(),
-            controller.project_id.clone(),
-        );
+        expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
         expected.insert("@ccb_role".to_string(), role.to_string());
         expected.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
 
@@ -278,10 +272,7 @@ pub fn topology_recreate_reason(
     if topology_plan.sidebar_enabled {
         for window in &topology_plan.windows {
             let mut expected = HashMap::new();
-            expected.insert(
-                "@ccb_project_id".to_string(),
-                controller.project_id.clone(),
-            );
+            expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
             expected.insert("@ccb_role".to_string(), "sidebar".to_string());
             expected.insert("@ccb_sidebar_instance".to_string(), window.name.clone());
             expected.insert("@ccb_managed_by".to_string(), "ccbrd".to_string());
@@ -302,10 +293,7 @@ pub fn topology_recreate_reason(
 
     for window_name in expected_tools {
         let mut expected = HashMap::new();
-        expected.insert(
-            "@ccb_project_id".to_string(),
-            controller.project_id.clone(),
-        );
+        expected.insert("@ccb_project_id".to_string(), controller.project_id.clone());
         expected.insert("@ccb_role".to_string(), "tool".to_string());
         expected.insert("@ccb_slot".to_string(), format!("tool:{window_name}"));
         expected.insert("@ccb_window".to_string(), window_name.clone());
@@ -725,7 +713,7 @@ fn _list_sidebar_geometry_records(
             "list-panes",
             "-a",
             "-F",
-            "#{session_name}\t#{pane_id}\t#{window_width}\t#{pane_width}\t#{@ccbr_project_id}\t#{@ccbr_role}\t#{@ccbr_sidebar_instance}\t#{@ccbr_managed_by}",
+            "#{session_name}\t#{pane_id}\t#{window_width}\t#{pane_width}\t#{@ccb_project_id}\t#{@ccb_role}\t#{@ccb_sidebar_instance}\t#{@ccb_managed_by}",
         ],
         false,
         true,
@@ -1012,7 +1000,7 @@ pub(crate) fn apply_project_tmux_ui(
     let socket = shell_quote(tmux_socket_path);
     let session = shell_quote(tmux_session_name);
     let resize_hook = format!(
-        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccbr_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccbr __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-pane \"#{{pane_id}}\" --project-id \"#{{@ccbr_project_id}}\" >/dev/null 2>&1 || true'"
+        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccb_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccbr __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-pane \"#{{pane_id}}\" --project-id \"#{{@ccb_project_id}}\" >/dev/null 2>&1 || true'"
     );
     let _ = backend._tmux_run(
         &[
@@ -1042,7 +1030,7 @@ pub(crate) fn apply_project_tmux_ui(
     );
 
     let window_hook = format!(
-        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccbr_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccbr __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-window \"#{{window_id}}\" --project-id \"#{{@ccbr_project_id}}\" --from-stored-width >/dev/null 2>&1 || true'"
+        "run-shell -b 'current_session=\"#{{session_name}}\"; [ \"$current_session\" = {session} ] || exit 0; guard=$(tmux -S {socket} show-option -qv -t {session} @ccb_sidebar_sync_guard 2>/dev/null || true); [ \"$guard\" = \"1\" ] && exit 0; ccbr __sidebar-resize-sync --tmux-socket {socket} --session {session} --source-window \"#{{window_id}}\" --project-id \"#{{@ccb_project_id}}\" --from-stored-width >/dev/null 2>&1 || true'"
     );
     let _ = backend._tmux_run(
         &["set-hook", "-g", "window-resized", &window_hook],
