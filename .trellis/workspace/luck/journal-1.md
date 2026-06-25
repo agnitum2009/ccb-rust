@@ -414,3 +414,15 @@ Closed Wave 4 Layer 1 mock-boundary integration parity: P0-a/b reload handoff an
 ### Next Steps
 
 - 可选 follow-up：S3（多 agent + 恢复）/S4（edge）穷尽 live 覆盖；ccb-legacy 非 rust/ 部分（docs/scripts）是否需同步另议。
+
+
+## Session 10: Wave 5 parity 主线收官 + 3 P0 归档 + live e2e 稳定化
+
+**Date**: 2026-06-25
+**Task**: py2rust parity 主线（父 06-24-py2rust-remaining-parity → 18/18 done）
+
+### Summary
+Wave 5 最后 3 个 P0（daemon-restore-jobs / mount-ownership-persist / supervision-loop）经 glm5.2 审核：代码+测试+同步+restore live e2e 通过（commit 8a73cefe；ccb-legacy 96189178；产品仓 ebd79b6）。审核发现 restore-jobs live e2e(live_e2e_v2) flaky(8 次才 1 过)。核查确认 daemon restore 代码本身扎实（shutdown 先持久化 running-jobs.json 再 stop_all；start 同步 restore + 重注册到 execution/completion_tracker + feed prompt_text），flakiness 源于测试 harness 竞态（anchor 提取等文件而非等非空、step6 固定 sleep 而非轮询）。glm5.2 修 harness（anchor 轮询至非空、step6 轮询至 running）+ 重跑 → 首次即 LIVE_E2E_PASSED。3 P0 + 父任务归档，parity 主线收官。
+
+### Status
+[OK] **parity 主线完成**：Python→Rust 1:1，ccbr 原样可运行如 ccb。父任务 18/18 done。

@@ -128,14 +128,17 @@ for i in $(seq 1 30); do
   fi
   sleep 0.2
 done
-if [ ! -f "$EXEC_STATE" ]; then
-  log "ERROR: execution state not found at $EXEC_STATE"
-  exit 1
-fi
-ANCHOR=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('submission',{}).get('runtime_state',{}).get('request_anchor',''))" "$EXEC_STATE")
+ANCHOR=""
+for i in $(seq 1 60); do
+  if [ -f "$EXEC_STATE" ]; then
+    ANCHOR=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('submission',{}).get('runtime_state',{}).get('request_anchor',''))" "$EXEC_STATE" 2>/dev/null || true)
+    [ -n "$ANCHOR" ] && break
+  fi
+  sleep 0.2
+done
 if [ -z "$ANCHOR" ]; then
-  log "ERROR: could not extract request_anchor from execution state"
-  cat "$EXEC_STATE" | tee -a "$SCRIPT_DIR/exec_state.log"
+  log "ERROR: could not extract request_anchor from execution state (waited ~12s)"
+  [ -f "$EXEC_STATE" ] && cat "$EXEC_STATE" | tee -a "$SCRIPT_DIR/exec_state.log"
   exit 1
 fi
 USER_TEXT="req- ${ANCHOR}"
@@ -177,10 +180,15 @@ sleep 2
 
 # 8. Trace must show the same job still running.
 log "step6: trace after restart"
-run_ccbr trace codex | tee "$SCRIPT_DIR/step6_trace_after_restart.log"
-AFTER_JOB_ID=$(get_job_id)
-AFTER_STATUS=$(grep "$JOB_ID" "$SCRIPT_DIR/step6_trace_after_restart.log" | awk '{print $3}' | tr -d '[]' || true)
-log "after restart: job_id=$AFTER_JOB_ID status=$AFTER_STATUS"
+AFTER_JOB_ID=""; AFTER_STATUS=""
+for i in $(seq 1 20); do
+  run_ccbr trace codex > "$SCRIPT_DIR/step6_trace_after_restart.log" 2>/dev/null || true
+  AFTER_JOB_ID=$(get_job_id)
+  AFTER_STATUS=$(grep "$JOB_ID" "$SCRIPT_DIR/step6_trace_after_restart.log" | awk '{print $3}' | tr -d '[]' || true)
+  log "step6 poll $i: job_id=$AFTER_JOB_ID status=$AFTER_STATUS"
+  [ "$AFTER_JOB_ID" = "$JOB_ID" ] && [ "${AFTER_STATUS:-}" = "running" ] && break
+  sleep 0.5
+done
 
 if [ "$AFTER_JOB_ID" != "$JOB_ID" ]; then
   log "ERROR: job did not survive restart (expected $JOB_ID, got $AFTER_JOB_ID)"
