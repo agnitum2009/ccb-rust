@@ -25,6 +25,7 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
         })
         .collect();
 
+    let namespace_mounted = ns.is_some();
     let windows = ns.map(|n| {
         n.windows
             .iter()
@@ -38,15 +39,30 @@ pub fn handle_project_view(app: &mut CcbdApp, payload: &Value) -> Result<Value, 
             .collect::<Vec<_>>()
     });
 
+    // Python wire shape: build_response returns {view, cache, schema_version}
+    // with agents/windows/comms nested under `view`. The sidebar reads
+    // response["view"]["agents"] etc., so the view payload must be wrapped.
+    let generated_at = chrono::Utc::now().to_rfc3339();
     Ok(json!({
         "schema_version": schema_version,
-        "project_root": app.project_root,
-        "project_slug": app.layout.project_slug(),
-        "project_id": app.project_id(),
-        "agents": agents,
-        "daemon_status": if app.is_shutdown_requested() { "stopping" } else { "running" },
-        "windows": windows.unwrap_or_default(),
-        "comms": [],
+        "view": {
+            "generated_at": generated_at,
+            "namespace": {
+                "mounted": namespace_mounted,
+                "project_root": app.project_root,
+                "project_id": app.project_id(),
+                "project_slug": app.layout.project_slug(),
+                "daemon_status": if app.is_shutdown_requested() { "stopping" } else { "running" },
+            },
+            "windows": windows.unwrap_or_default(),
+            "agents": agents,
+            "comms": [],
+        },
+        "cache": {
+            "generated_at": generated_at,
+            "ttl_ms": 0,
+            "sequence": 0,
+        },
     }))
 }
 

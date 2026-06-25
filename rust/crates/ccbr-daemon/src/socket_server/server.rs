@@ -90,6 +90,7 @@ impl SocketServer {
         if reader.read_line(&mut line).is_err() {
             return;
         }
+        tracing::info!("CCBRD_RPC_RECV: {}", line.trim());
         let response = match app.lock() {
             Ok(mut app) => app.handle_rpc(&line),
             Err(e) => {

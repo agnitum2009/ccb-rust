@@ -157,7 +157,7 @@ fn test_start_stop_flow() {
     // Project view should now show the agents.
     let view = call(&mut app, "project_view", json!({}));
     assert!(view.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
-    let agents = view["result"]["agents"].as_array().unwrap();
+    let agents = view["result"]["view"]["agents"].as_array().unwrap();
     assert_eq!(agents.len(), 2);
 
     // Stop all should clear them.
@@ -169,7 +169,7 @@ fn test_start_stop_flow() {
     );
 
     let view2 = call(&mut app, "project_view", json!({}));
-    assert_eq!(view2["result"]["agents"].as_array().unwrap().len(), 0);
+    assert_eq!(view2["result"]["view"]["agents"].as_array().unwrap().len(), 0);
 }
 
 #[test]

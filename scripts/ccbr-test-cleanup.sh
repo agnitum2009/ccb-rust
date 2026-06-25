@@ -8,6 +8,8 @@ REPO="${CCBR_REPO:-/home/agnitum/ccb}"
 
 # 1. kill 所有 ccbr 测试 tmux server（runtime socket 上的会话）
 for s in "$RUNTIME"/tmux-*.sock; do [ -S "$s" ] && tmux -S "$s" kill-server 2>/dev/null; done
+# kill leaked debug ccbrd test daemons (script bash cmdline不含此模式，不会自匹配)
+pkill -f "target/debug/ccbrd" 2>/dev/null || true
 # 2. 删死 ccbrd / tmux socket 文件
 rm -f "$RUNTIME"/ccbrd-*.sock "$RUNTIME"/tmux-*.sock 2>/dev/null
 # 3. 删 /tmp 下 ccbr 测试日志/pid（不含 ccb-* —— 那是 Python 生产）
