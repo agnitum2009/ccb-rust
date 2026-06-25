@@ -564,23 +564,27 @@ impl CcbdApp {
             return Ok(());
         }
         let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
+        self.respawn_dead_agents_with_checker(|pane_id| {
+            backend
+                .tmux_run_capture(&["display-message", "-p", "-t", pane_id, "#{pane_id}"])
+                .map(|s| s.trim().starts_with('%'))
+                .unwrap_or(false)
+        })
+    }
+
+    /// Testable core of `respawn_dead_agents`: given a predicate that reports
+    /// whether a pane id is alive, collect dead agents and respawn.
+    fn respawn_dead_agents_with_checker<F>(&mut self, mut is_alive: F) -> Result<(), String>
+    where
+        F: FnMut(&str) -> bool,
+    {
         let mut dead_agents: Vec<String> = Vec::new();
         for entry in self.registry.all_entries() {
             if let Some(pane_id) = entry.pane_id.as_deref() {
                 if pane_id.is_empty() {
                     continue;
                 }
-                let probe = backend.tmux_run_capture(&[
-                    "display-message",
-                    "-p",
-                    "-t",
-                    pane_id,
-                    "#{pane_id}",
-                ]);
-                let alive = probe
-                    .map(|s| s.trim().starts_with('%'))
-                    .unwrap_or(false);
-                if !alive {
+                if !is_alive(pane_id) {
                     eprintln!(
                         "ccbrd: detected dead pane {} for agent {}, will respawn",
                         pane_id, entry.agent_name
@@ -748,5 +752,65 @@ main = "agent1:codex"
             .expect("agent1 should be registered");
         assert_eq!(entry.provider, "codex");
         assert_eq!(app.dispatcher.agent_names, vec!["agent1"]);
+    }
+
+    #[test]
+    fn test_respawn_dead_agents_with_checker_triggers_start_flow() {
+        let dir = TempDir::new().unwrap();
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%42".into()),
+            workspace_path: None,
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        // All panes considered dead -> should trigger a start flow respawn.
+        app.respawn_dead_agents_with_checker(|_pane_id| false)
+            .expect("respawn should succeed with stub backend");
+
+        let entry = app.registry.get("agent1").expect("agent1 still registered");
+        assert!(
+            entry.pane_id.as_deref() != Some("%42"),
+            "pane id should be updated after respawn, got {:?}",
+            entry.pane_id
+        );
+    }
+
+    #[test]
+    fn test_respawn_dead_agents_with_checker_no_op_when_alive() {
+        let dir = TempDir::new().unwrap();
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        app.registry.register(AgentRuntimeEntry {
+            agent_name: "agent1".into(),
+            provider: "codex".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%42".into()),
+            workspace_path: None,
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+
+        // All panes considered alive -> no start flow, pane id unchanged.
+        app.respawn_dead_agents_with_checker(|_pane_id| true)
+            .expect("respawn check should succeed");
+
+        let entry = app.registry.get("agent1").expect("agent1 still registered");
+        assert_eq!(entry.pane_id.as_deref(), Some("%42"));
     }
 }
