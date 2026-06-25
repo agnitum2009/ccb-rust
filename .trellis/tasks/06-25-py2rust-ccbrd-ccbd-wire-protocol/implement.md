@@ -53,7 +53,20 @@
     results.
   - Validation:
     `cargo test -p ccbr-daemon project_clear -- --test-threads=1`.
-- `project_reload_config`: verify additive/reload shape vs Python.
+- [x] `project_reload_config`: verify additive/reload shape vs Python.
+  - Added payload-wrapper regressions:
+    `non_dry_run_apply_payload_matches_python_reload_shape`,
+    `published_reload_payload_is_marked_mutating_without_errors`.
+  - Updated reload integration coverage to assert Python `published/blocked`
+    apply shape, invalid-config non-dry-run diagnostics, registry/dispatcher
+    read-model sync, and busy-agent remove blocking.
+  - Minimal fix: route non-dry-run handler through the Python-aligned additive
+    reload apply service, flatten apply payload fields at the socket boundary,
+    publish successful config into Rust runtime read models, and implement the
+    pre-namespace unload blocker for busy/outstanding removed agents.
+  - Validation:
+    `cargo test -p ccbr-daemon --test reload_tests -- --test-threads=1`,
+    `cargo test -p ccbr-daemon project_reload -- --test-threads=1`.
 - [x] `project_focus_*`: verify tmux targeting and response shape.
   - Added handler-level planning regressions:
     `focus_agent_plans_window_and_pane_selection`,

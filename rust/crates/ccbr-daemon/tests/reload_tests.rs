@@ -252,13 +252,17 @@ main = "agent1:codex; agent2:claude"
     let resp = call(&mut app, "project_reload_config", json!({"dry_run": false}));
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     let result = resp.get("result").unwrap();
-    assert_eq!(result["status"].as_str(), Some("ok"));
+    assert_eq!(result["status"].as_str(), Some("published"));
     assert_eq!(result["plan_class"].as_str(), Some("add_agent"));
-    assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["added_agents"]
+    assert_eq!(result["dry_run"].as_bool(), Some(false));
+    assert_eq!(result["mutation_enabled"].as_bool(), Some(true));
+    assert_eq!(result["safe_to_apply"].as_bool(), Some(true));
+    assert!(result["operations"]
         .as_array()
         .unwrap()
-        .contains(&json!("agent2")));
+        .iter()
+        .any(|operation| operation["op"] == "add_agent" && operation["agent"] == "agent2"));
+    assert_eq!(result["errors"], json!([]));
 
     let entry = app
         .registry
@@ -299,13 +303,16 @@ main = "agent1:codex; agent2:claude"
     let resp = call(&mut app, "project_reload_config", json!({"dry_run": false}));
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     let result = resp.get("result").unwrap();
-    assert_eq!(result["status"].as_str(), Some("ok"));
+    assert_eq!(result["status"].as_str(), Some("published"));
     assert_eq!(result["plan_class"].as_str(), Some("remove_agent"));
-    assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["removed_agents"]
+    assert_eq!(result["dry_run"].as_bool(), Some(false));
+    assert_eq!(result["mutation_enabled"].as_bool(), Some(true));
+    assert_eq!(result["safe_to_apply"].as_bool(), Some(true));
+    assert!(result["operations"]
         .as_array()
         .unwrap()
-        .contains(&json!("agent2")));
+        .iter()
+        .any(|operation| operation["op"] == "remove_agent" && operation["agent"] == "agent2"));
 
     assert!(app.registry.get("agent2").is_none());
     assert!(!app.dispatcher.agent_names.contains(&"agent2".to_string()));
@@ -335,10 +342,11 @@ main = "agent1:claude"
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     let result = resp.get("result").unwrap();
     assert_eq!(result["status"].as_str(), Some("blocked"));
-    assert_eq!(result["applied"].as_bool(), Some(false));
-    let blocker = result["blocker"].as_str().unwrap();
+    assert_eq!(result["mutation_enabled"].as_bool(), Some(false));
+    assert_eq!(result["safe_to_apply"].as_bool(), Some(false));
+    let blocker = result["diagnostics"]["reason"].as_str().unwrap();
     assert!(
-        blocker.contains("unsupported plan_class") || blocker.contains("future-safe"),
+        blocker == "unsupported_plan_class" || blocker == "plan_not_future_safe",
         "unexpected blocker: {blocker}"
     );
 }
@@ -374,13 +382,14 @@ secondary = "agent2:claude"
     let resp = call(&mut app, "project_reload_config", json!({"dry_run": false}));
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     let result = resp.get("result").unwrap();
-    assert_eq!(result["status"].as_str(), Some("ok"));
+    assert_eq!(result["status"].as_str(), Some("published"));
     assert_eq!(result["plan_class"].as_str(), Some("add_window"));
-    assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["added_windows"]
+    assert_eq!(result["mutation_enabled"].as_bool(), Some(true));
+    assert!(result["operations"]
         .as_array()
         .unwrap()
-        .contains(&json!("secondary")));
+        .iter()
+        .any(|operation| operation["op"] == "add_window" && operation["window"] == "secondary"));
 
     let ns = app
         .project_namespace
@@ -414,18 +423,20 @@ main = "agent1:codex; agent2:claude"
 
     mount_stub_namespace(&mut app);
 
-    // Simulate a busy agent2 by giving it a pane.
+    // Simulate a busy agent2; Python blocks removal before namespace mutation.
     app.registry.update_pane_id("agent2", "%42");
+    app.registry.set_state("agent2", "busy", "healthy");
 
     write_config(&dir, &base_config());
 
     let resp = call(&mut app, "project_reload_config", json!({"dry_run": false}));
     assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
     let result = resp.get("result").unwrap();
-    assert_eq!(result["status"].as_str(), Some("ok"));
+    assert_eq!(result["status"].as_str(), Some("blocked"));
     assert_eq!(result["plan_class"].as_str(), Some("remove_agent"));
-    assert_eq!(result["applied"].as_bool(), Some(true));
-    assert!(result["removed_agents"].as_array().unwrap().is_empty());
+    assert_eq!(result["stage"].as_str(), Some("plan"));
+    assert_eq!(result["mutation_enabled"].as_bool(), Some(false));
+    assert_eq!(result["diagnostics"]["reason"].as_str(), Some("agent_busy"));
     assert!(app.registry.get("agent2").is_some());
 }
 
@@ -455,4 +466,40 @@ main = "agent1"
     assert_eq!(result["status"].as_str(), Some("invalid_config"));
     assert!(!result["errors"].as_array().unwrap().is_empty());
     assert_eq!(result["future_safe_to_apply"].as_bool(), Some(false));
+}
+
+#[test]
+fn test_reload_non_dry_run_invalid_config_uses_python_error_shape() {
+    let dir = TempDir::new().unwrap();
+    write_config(&dir, &base_config());
+    let mut app = stub_app(&dir);
+
+    write_config(
+        &dir,
+        r#"version = 2
+default_agents = ["agent1"]
+
+[agents.agent1]
+target = "agent1"
+
+[windows]
+main = "agent1"
+"#,
+    );
+
+    let resp = call(&mut app, "project_reload_config", json!({"dry_run": false}));
+    assert!(resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false));
+    let result = resp.get("result").unwrap();
+    assert_eq!(result["status"].as_str(), Some("invalid_config"));
+    assert_eq!(result["dry_run"].as_bool(), Some(false));
+    assert_eq!(result["mutation_enabled"].as_bool(), Some(false));
+    assert_eq!(result["safe_to_apply"].as_bool(), Some(false));
+    assert_eq!(
+        result["diagnostics"]["reason"].as_str(),
+        Some("invalid_config")
+    );
+    assert_eq!(
+        result["diagnostics"]["graph_published"].as_bool(),
+        Some(false)
+    );
 }

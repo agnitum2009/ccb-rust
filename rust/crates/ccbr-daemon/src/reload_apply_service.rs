@@ -363,6 +363,7 @@ impl CcbdApp {
 
     pub(crate) fn publish_service_graph(&mut self, graph: &ServiceGraph) {
         self.current_config = Some(graph.config.clone());
+        sync_runtime_read_models(self, &graph.config);
     }
 
     pub(crate) fn start_maintenance_lock(&self) -> Option<&std::sync::Mutex<()>> {
@@ -378,6 +379,70 @@ impl CcbdApp {
     pub(crate) fn lifecycle_store_state(&self) -> Option<Value> {
         self.lifecycle.load().map(|l| l.to_record())
     }
+}
+
+fn sync_runtime_read_models(app: &mut CcbdApp, config: &ProjectConfig) {
+    let mut agent_names = if config.default_agents.is_empty() {
+        let mut names: Vec<String> = config.agents.keys().cloned().collect();
+        names.sort();
+        names
+    } else {
+        config.default_agents.clone()
+    };
+    agent_names.retain(|name| config.agents.contains_key(name));
+    for name in config.agents.keys() {
+        if !agent_names.iter().any(|item| item == name) {
+            agent_names.push(name.clone());
+        }
+    }
+
+    let existing: Vec<String> = app
+        .registry
+        .all_entries()
+        .into_iter()
+        .map(|entry| entry.agent_name.clone())
+        .collect();
+    for name in existing {
+        if !config.agents.contains_key(&name) {
+            app.registry.remove(&name);
+        }
+    }
+
+    for name in &agent_names {
+        let Some(spec) = config.agents.get(name) else {
+            continue;
+        };
+        if let Some(entry) = app.registry.get_mut(name) {
+            entry.provider = spec.provider.clone();
+            if entry.workspace_path.is_none() {
+                entry.workspace_path = Some(
+                    spec.workspace_path
+                        .clone()
+                        .unwrap_or_else(|| app.project_root.to_string_lossy().to_string()),
+                );
+            }
+        } else {
+            app.registry
+                .register(crate::services::registry::AgentRuntimeEntry {
+                    agent_name: name.clone(),
+                    provider: spec.provider.clone(),
+                    state: "registered".into(),
+                    health: "unknown".into(),
+                    pane_id: None,
+                    workspace_path: Some(
+                        spec.workspace_path
+                            .clone()
+                            .unwrap_or_else(|| app.project_root.to_string_lossy().to_string()),
+                    ),
+                    runtime_pid: None,
+                    session_id: None,
+                    restart_count: 0,
+                });
+        }
+    }
+
+    app.dispatcher.agent_names = agent_names;
+    app.dispatcher.state.rebuild(&app.dispatcher.job_store);
 }
 
 #[cfg(test)]

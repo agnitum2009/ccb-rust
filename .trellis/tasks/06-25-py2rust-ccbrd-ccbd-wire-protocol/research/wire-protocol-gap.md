@@ -37,7 +37,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `shutdown` red X | Python graceful daemon stop | Rust full workspace exit | accepted_local_divergence | P0 closed locally | User confirmed red X means complete workspace exit; Rust must kill tmux session/provider processes. |
 | `stop-all` | Python prepare/finalize project stop | Rust direct stop flow | partially_verified | P1 | Verify force=false/true response and lifecycle effects. |
 | `project_clear_context` | Python provider clear implementation | Rust handler | closed | P1 | Rust now sends `/clear` to real namespace/registry panes and returns Python-compatible target/result rows. |
-| `project_reload_config` | Python reload transaction | Rust reload handler | unknown | P1 | Compare additive/reload/blocked cases. |
+| `project_reload_config` | Python reload transaction | Rust reload handler | closed | P1 | Rust now returns Python dry-run/apply shape, publishes successful config into runtime read models, and blocks busy removed agents. |
 | `project_focus_window/agent` | Python tmux focus service | Rust focus handlers | closed | P1 | Rust now validates namespace epoch, selects tmux window/pane, returns Python-style `focused` response, and refreshes sidebars best-effort. |
 | `watch/get/queue/trace/resubmit/retry/cancel` | Python dispatcher handlers | Rust dispatcher handlers | unknown | P2 | Matrix response envelopes and edge cases. |
 | Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling. |
@@ -148,3 +148,23 @@ Fix:
 Evidence:
 
 - `cargo test -p ccbr-daemon project_clear -- --test-threads=1`
+
+### `project_reload_config` — closed 2026-06-26
+
+Owner finding:
+
+- Python `project_reload_config` dry-run returns a plan, while non-dry-run returns a flattened apply payload with `published/blocked/noop/failed` status, mutation flags, operations, and diagnostics-derived errors.
+- Rust had two reload paths: a Python-aligned additive apply service existed, but the RPC handler still used a Rust-local lightweight transaction returning `{status:"ok", applied:true}` and did not keep registry/dispatcher read models aligned with the published config.
+- Rust also had an empty pre-namespace unload blocker, so removing a busy agent could publish when Python would block.
+
+Fix:
+
+- Non-dry-run handler now uses the additive reload apply service and wraps the result with Python `project_reload_payload.py`-style fields.
+- Published reloads call the service-graph publish path so `current_config`, registry, and dispatcher agent lists reflect the new config.
+- Removed-agent reloads block when the target has outstanding dispatcher work or a busy/running/active runtime state.
+- Invalid non-dry-run configs return `dry_run=false`, `mutation_enabled=false`, `safe_to_apply=false`, and `diagnostics.reason=invalid_config`.
+
+Evidence:
+
+- `cargo test -p ccbr-daemon --test reload_tests -- --test-threads=1`
+- `cargo test -p ccbr-daemon project_reload -- --test-threads=1`
