@@ -331,10 +331,7 @@ impl CcbdApp {
         let now = chrono::Utc::now().to_rfc3339();
         // Clone job records to avoid borrow conflicts when accessing
         // self.registry + self.execution inside the loop.
-        let started_jobs: Vec<_> = started
-            .iter()
-            .map(|j| j.clone())
-            .collect();
+        let started_jobs: Vec<_> = started.iter().cloned().collect();
         for job in &started_jobs {
             let completion_job = to_completion_job_record(job);
             let _ = self.completion_tracker.start(&completion_job, &now);
@@ -368,10 +365,6 @@ impl CcbdApp {
         // Also ingest provider items into the completion tracker so the
         // orchestrator can settle on a terminal decision.
         let updates = self.execution.poll();
-        eprintln!("DEBUG heartbeat: poll_updates={} active_contexts={}", updates.len(), self.execution.active_contexts().len());
-        for u in &updates {
-            eprintln!("DEBUG heartbeat: job={} items={} decision={:?}", u.job_id, u.items.len(), u.decision.as_ref().map(|d| (&d.status, d.terminal)));
-        }
         for update in updates {
             // Ensure every running job has a tracker (handles restore/restart).
             if self.completion_tracker.current(&update.job_id).is_none() {
