@@ -789,6 +789,61 @@ fn test_codex_launcher_migrates_legacy_session_path_to_provider_state_layout() {
     assert!(!log_path.exists());
 }
 
+#[test]
+fn test_codex_launcher_build_start_cmd_materializes_project_trust_config() {
+    let tmp = tempfile::tempdir().unwrap();
+    let project = tmp.path().join("repo");
+    let workspace = project.join("workspace");
+    std::fs::create_dir_all(&workspace).unwrap();
+    let runtime_dir = project
+        .join(".ccbr")
+        .join("agents")
+        .join("agent1")
+        .join("provider-runtime")
+        .join("codex");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+    unsafe { std::env::remove_var("CODEX_HOME") };
+
+    let s = spec("agent1");
+    let command = codex_start_command(false, false);
+    let mut prepared = prepared_state(&runtime_dir, "agent1");
+    prepared.workspace_path = workspace.to_string_lossy().to_string();
+
+    let _ = build_start_cmd(
+        &command,
+        &s,
+        &camino::Utf8PathBuf::from_path_buf(runtime_dir.clone()).unwrap(),
+        "sess-trust",
+        Some(&prepared),
+    )
+    .unwrap();
+
+    let codex_home = runtime_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("provider-state")
+        .join("codex")
+        .join("home");
+    let config_toml = codex_home.join("config.toml");
+    assert!(config_toml.is_file(), "config.toml should be materialized");
+    let text = std::fs::read_to_string(&config_toml).unwrap();
+    assert!(
+        text.contains("trust_level = \"trusted\""),
+        "config.toml should mark project paths as trusted: {text}"
+    );
+    let resolved_project = project.canonicalize().unwrap_or_else(|_| project.clone());
+    let resolved_workspace = workspace.canonicalize().unwrap_or_else(|_| workspace.clone());
+    let project_escaped = serde_json::to_string(&resolved_project.to_string_lossy().to_string()).unwrap();
+    let workspace_escaped = serde_json::to_string(&resolved_workspace.to_string_lossy().to_string()).unwrap();
+    assert!(
+        text.contains(&format!("[projects.{project_escaped}]"))
+            || text.contains(&format!("[projects.{workspace_escaped}]")),
+        "config.toml should contain a projects table for the project/workspace: {text}"
+    );
+}
+
 fn shlex_quote(s: &str) -> String {
     if s.is_empty() {
         return "''".to_string();

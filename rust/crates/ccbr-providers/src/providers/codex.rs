@@ -497,7 +497,11 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     );
     current_state.insert("offset".to_string(), Value::Number(new_offset.into()));
 
-    finalize_poll_result(&submission, poll, Value::Object(current_state), now)
+    let result = finalize_poll_result(&submission, poll, Value::Object(current_state), now);
+    // When the structured session log yields no progress (empty or missing
+    // entries), fall back to pane-text turn-boundary detection so live codex
+    // panes can complete even without a writable/structured log.
+    result.or_else(|| poll_pane_text_completion_codex(&submission, now))
 }
 
 #[derive(Debug, Clone)]

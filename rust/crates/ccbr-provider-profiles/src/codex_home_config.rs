@@ -1087,9 +1087,12 @@ fn codex_activity_hook_command(
     runtime_dir: &Utf8Path,
     workspace_path: &Utf8Path,
 ) -> String {
+    let hook_path = resolve_provider_activity_hook_path()
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| "bin/ccbr-provider-activity-hook".into());
     let parts: Vec<String> = vec![
         "python".into(),
-        "bin/ccbr-provider-activity-hook".into(),
+        hook_path,
         "--provider".into(),
         "codex".into(),
         "--project-id".into(),
@@ -1106,6 +1109,44 @@ fn codex_activity_hook_command(
         .map(|p| shell_escape::unix::escape(p.into()))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Locate the absolute path to the CCB provider activity hook script.
+///
+/// Mirrors Python's use of `Path(__file__).resolve().parents[2] / 'bin'`.
+/// At runtime the hook must be reachable from Codex's working directory,
+/// so a relative path only works when the project root happens to be the CCB
+/// install root. This helper falls back through runtime, build-time and
+/// relative locations.
+fn resolve_provider_activity_hook_path() -> Option<Utf8PathBuf> {
+    let hook_name = "ccb-provider-activity-hook";
+
+    // 1. Build-time crate workspace parent. This is the canonical CCB install
+    // root where `bin/` and `lib/` live side-by-side, so the hook script can
+    // resolve its Python dependencies. In release installs this is the install
+    // prefix; in development it is the repository root.
+    let manifest_dir = Utf8Path::new(env!("CARGO_MANIFEST_DIR"));
+    // ccbr-provider-profiles lives at <repo>/rust/crates/ccbr-provider-profiles.
+    let install_candidate = manifest_dir
+        .parent()?
+        .parent()?
+        .parent()?
+        .join("bin")
+        .join(hook_name);
+    if install_candidate.is_file() {
+        return Some(install_candidate);
+    }
+
+    // 2. Same directory as the running executable (standalone release layout).
+    if let Ok(exe) = std::env::current_exe() {
+        let exe_dir = exe.parent()?;
+        let candidate = exe_dir.join(hook_name);
+        if candidate.is_file() {
+            return Utf8PathBuf::from_path_buf(candidate).ok();
+        }
+    }
+
+    None
 }
 
 fn codex_activity_hook_events(command: &str) -> HashMap<String, Vec<serde_json::Value>> {
@@ -1171,10 +1212,8 @@ fn merge_codex_activity_hook_state(
         Some(toml::Value::Table(t)) => t.clone(),
         _ => toml::map::Map::new(),
     };
-    hooks_table.insert(
-        "state".into(),
-        toml::Value::String(serde_json::to_string(&state_table)?),
-    );
+    let state_toml = json_map_to_toml_table(&state_table);
+    hooks_table.insert("state".into(), toml::Value::Table(state_toml));
     let mut new_payload = payload.clone();
     new_payload.insert("hooks".into(), toml::Value::Table(hooks_table));
     let text = render_toml_document(&new_payload)?;
@@ -1208,10 +1247,7 @@ fn replace_managed_codex_activity_state_block(
     let block = {
         let mut table = toml::map::Map::new();
         let mut hooks = toml::map::Map::new();
-        hooks.insert(
-            "state".into(),
-            toml::Value::String(serde_json::to_string(state_table).unwrap_or_default()),
-        );
+        hooks.insert("state".into(), toml::Value::Table(json_map_to_toml_table(state_table)));
         table.insert("hooks".into(), toml::Value::Table(hooks));
         render_toml_document(&table)
             .unwrap_or_default()
@@ -1228,6 +1264,33 @@ fn replace_managed_codex_activity_state_block(
     result.push_str(end);
     result.push('\n');
     result.trim_start().to_string()
+}
+
+fn json_map_to_toml_table(map: &serde_json::Map<String, serde_json::Value>) -> toml::map::Map<String, toml::Value> {
+    map.iter()
+        .map(|(key, value)| {
+            let inner = match value {
+                serde_json::Value::Object(obj) => obj
+                    .iter()
+                    .map(|(inner_key, inner_value)| {
+                        let toml_value = match inner_value {
+                            serde_json::Value::Bool(b) => toml::Value::Boolean(*b),
+                            serde_json::Value::String(s) => toml::Value::String(s.clone()),
+                            serde_json::Value::Number(n) => n
+                                .as_i64()
+                                .map(toml::Value::Integer)
+                                .or_else(|| n.as_f64().map(toml::Value::Float))
+                                .unwrap_or_else(|| toml::Value::String(inner_value.to_string())),
+                            _ => toml::Value::String(inner_value.to_string()),
+                        };
+                        (inner_key.clone(), toml_value)
+                    })
+                    .collect(),
+                _ => toml::map::Map::new(),
+            };
+            (key.clone(), toml::Value::Table(inner))
+        })
+        .collect()
 }
 
 fn codex_hook_event_label(event_name: &str) -> String {
@@ -1510,7 +1573,7 @@ fn expand_tilde(raw: &str) -> String {
 
 fn render_toml_document(payload: &toml::map::Map<String, toml::Value>) -> crate::Result<String> {
     let value = toml::Value::Table(payload.clone());
-    let mut text = value.to_string();
+    let mut text = toml::ser::to_string_pretty(&value)?;
     if !text.is_empty() && !text.ends_with('\n') {
         text.push('\n');
     }
