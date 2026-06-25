@@ -113,7 +113,14 @@ enum ExitAction {
 }
 
 fn run_ccb_kill(project_root: &Path) -> io::Result<()> {
-    run_ccb_kill_with_program(ccb_program(), project_root)
+    // Detect ccbr workspace (.ccbr/) vs ccb workspace (.ccb/) → use matching CLI.
+    // This ensures the sidebar's X button (KillProject) calls the correct daemon.
+    let program = if project_root.join(".ccbr").exists() {
+        PathBuf::from("ccbr")
+    } else {
+        ccb_program()
+    };
+    run_ccb_kill_with_program(program, project_root)
 }
 
 fn run_ccb_kill_with_program(program: PathBuf, project_root: &Path) -> io::Result<()> {
