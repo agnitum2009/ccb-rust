@@ -834,9 +834,13 @@ fn test_codex_launcher_build_start_cmd_materializes_project_trust_config() {
         "config.toml should mark project paths as trusted: {text}"
     );
     let resolved_project = project.canonicalize().unwrap_or_else(|_| project.clone());
-    let resolved_workspace = workspace.canonicalize().unwrap_or_else(|_| workspace.clone());
-    let project_escaped = serde_json::to_string(&resolved_project.to_string_lossy().to_string()).unwrap();
-    let workspace_escaped = serde_json::to_string(&resolved_workspace.to_string_lossy().to_string()).unwrap();
+    let resolved_workspace = workspace
+        .canonicalize()
+        .unwrap_or_else(|_| workspace.clone());
+    let project_escaped =
+        serde_json::to_string(&resolved_project.to_string_lossy().to_string()).unwrap();
+    let workspace_escaped =
+        serde_json::to_string(&resolved_workspace.to_string_lossy().to_string()).unwrap();
     assert!(
         text.contains(&format!("[projects.{project_escaped}]"))
             || text.contains(&format!("[projects.{workspace_escaped}]")),

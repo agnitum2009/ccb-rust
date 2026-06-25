@@ -4,6 +4,7 @@ pub mod health;
 pub mod health_assessment;
 pub mod health_monitor_runtime;
 pub mod job_heartbeat;
+pub mod job_heartbeat_runtime;
 pub mod lifecycle;
 pub mod mount;
 pub mod ownership;

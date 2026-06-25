@@ -89,28 +89,30 @@ fn test_python_shape_ping() {
 fn test_ping_all_targets_shape() {
     let dir = TempDir::new().unwrap();
     let mut app = stub_app_with_config(&dir, &["claude", "gemini"]);
-    app.registry.register(ccb_daemon::services::registry::AgentRuntimeEntry {
-        agent_name: "claude".into(),
-        provider: "claude".into(),
-        state: "idle".into(),
-        health: "healthy".into(),
-        pane_id: Some("%1".into()),
-        workspace_path: Some(dir.path().to_string_lossy().to_string()),
-        runtime_pid: None,
-        session_id: None,
-        restart_count: 0,
-    });
-    app.registry.register(ccb_daemon::services::registry::AgentRuntimeEntry {
-        agent_name: "gemini".into(),
-        provider: "gemini".into(),
-        state: "idle".into(),
-        health: "healthy".into(),
-        pane_id: Some("%2".into()),
-        workspace_path: Some(dir.path().to_string_lossy().to_string()),
-        runtime_pid: None,
-        session_id: None,
-        restart_count: 0,
-    });
+    app.registry
+        .register(ccb_daemon::services::registry::AgentRuntimeEntry {
+            agent_name: "claude".into(),
+            provider: "claude".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%1".into()),
+            workspace_path: Some(dir.path().to_string_lossy().to_string()),
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
+    app.registry
+        .register(ccb_daemon::services::registry::AgentRuntimeEntry {
+            agent_name: "gemini".into(),
+            provider: "gemini".into(),
+            state: "idle".into(),
+            health: "healthy".into(),
+            pane_id: Some("%2".into()),
+            workspace_path: Some(dir.path().to_string_lossy().to_string()),
+            runtime_pid: None,
+            session_id: None,
+            restart_count: 0,
+        });
 
     let all = call(&mut app, "ping", json!({"target": "all"}));
     assert!(all["ok"].as_bool().unwrap_or(false));

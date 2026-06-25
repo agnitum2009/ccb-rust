@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::provider_launcher::{LaunchContext, ProviderLauncher};
+use crate::provider_launcher::{LaunchContext, Launcher, NoOpLauncher, ProviderLauncher};
 use crate::services::project_namespace::{NamespaceWindow, ProjectNamespace};
 use crate::services::registry::AgentRegistry;
 use crate::terminal_adapter::DaemonLayoutBackend;
@@ -37,14 +37,12 @@ pub enum StartFlowMode {
 pub struct StartFlowService {
     mode: StartFlowMode,
     stub_pane_counter: AtomicUsize,
+    launcher: Box<dyn Launcher>,
 }
 
 impl StartFlowService {
     pub fn new(mode: StartFlowMode) -> Self {
-        Self {
-            mode,
-            stub_pane_counter: AtomicUsize::new(0),
-        }
+        Self::with_launcher(mode, ProviderLauncher::new())
     }
 
     pub fn with_tmux() -> Self {
@@ -52,7 +50,15 @@ impl StartFlowService {
     }
 
     pub fn with_stub() -> Self {
-        Self::new(StartFlowMode::Stub)
+        Self::with_launcher(StartFlowMode::Stub, NoOpLauncher)
+    }
+
+    pub fn with_launcher(mode: StartFlowMode, launcher: impl Launcher + 'static) -> Self {
+        Self {
+            mode,
+            stub_pane_counter: AtomicUsize::new(0),
+            launcher: Box::new(launcher),
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -68,6 +74,9 @@ impl StartFlowService {
         auto_permission: bool,
         namespace_agent_panes: Option<&HashMap<String, String>>,
         config_windows: Option<Vec<WindowSpec>>,
+        terminal_size: Option<(u32, u32)>,
+        startup_timeout_s: Option<f64>,
+        startup_args: &[String],
     ) -> Result<(StartFlowResult, ProjectNamespace), String> {
         if agent_names.is_empty() {
             return Err("agent_names must not be empty".to_string());
@@ -78,6 +87,15 @@ impl StartFlowService {
         }
         if auto_permission {
             actions_taken.push("auto_permission_enabled".to_string());
+        }
+        if terminal_size.is_some() {
+            actions_taken.push("terminal_size_forwarded".to_string());
+        }
+        if startup_timeout_s.is_some() {
+            actions_taken.push("startup_timeout_forwarded".to_string());
+        }
+        if !startup_args.is_empty() {
+            actions_taken.push(format!("startup_args:{}", startup_args.len()));
         }
 
         let mut reused_panes: HashMap<String, String> = namespace_agent_panes
@@ -197,12 +215,17 @@ impl StartFlowService {
                 // Panes created by the layout may close before the provider
                 // command is respawned into them (default shell exits).
                 let _ = backend.tmux_run(
-                    &["set-option", "-t", tmux_session_name, "remain-on-exit", "on"],
+                    &[
+                        "set-option",
+                        "-t",
+                        tmux_session_name,
+                        "remain-on-exit",
+                        "on",
+                    ],
                     false,
                     false,
                 );
 
-                let launcher = ProviderLauncher::new();
                 for agent_name in agent_names {
                     let pane_id = all_panes.get(agent_name).cloned();
                     let (status, reason) = if let Some(pane_id) = pane_id.as_deref() {
@@ -227,11 +250,13 @@ impl StartFlowService {
                                 socket_path: tmux_socket_path,
                                 restore,
                                 command_template: None,
-                                startup_args: &[],
+                                startup_args,
                                 auto_permission,
                                 spec: None,
+                                terminal_size,
+                                startup_timeout_s,
                             };
-                            match launcher.launch(&ctx) {
+                            match self.launcher.launch(&ctx) {
                                 Ok(_) => ("started".to_string(), None),
                                 Err(e) => ("failed".to_string(), Some(e)),
                             }
@@ -257,10 +282,22 @@ impl StartFlowService {
                     actions_taken.push(format!("use_namespace_topology:{}", names.join(",")));
                     for agent_name in agent_names {
                         if let Some(pane_id) = panes.get(agent_name).cloned() {
+                            let status = self.launch_agent(
+                                agent_name,
+                                &pane_id,
+                                project_id,
+                                project_root.as_str(),
+                                registry,
+                                restore,
+                                auto_permission,
+                                terminal_size,
+                                startup_timeout_s,
+                                startup_args,
+                            );
                             results.push(StartAgentResult {
                                 agent_name: agent_name.clone(),
-                                status: "started".to_string(),
-                                reason: None,
+                                status: status.0,
+                                reason: status.1,
                                 pane_id: Some(pane_id),
                             });
                         }
@@ -286,10 +323,22 @@ impl StartFlowService {
                             format!("%{id}")
                         };
                         panes.insert(agent_name.clone(), pane_id.clone());
+                        let status = self.launch_agent(
+                            agent_name,
+                            &pane_id,
+                            project_id,
+                            project_root.as_str(),
+                            registry,
+                            restore,
+                            auto_permission,
+                            terminal_size,
+                            startup_timeout_s,
+                            startup_args,
+                        );
                         results.push(StartAgentResult {
                             agent_name: agent_name.clone(),
-                            status: "started".to_string(),
-                            reason: None,
+                            status: status.0,
+                            reason: status.1,
                             pane_id: Some(pane_id),
                         });
                     }
@@ -349,6 +398,50 @@ impl StartFlowService {
         Ok((result, namespace))
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn launch_agent(
+        &self,
+        agent_name: &str,
+        pane_id: &str,
+        project_id: &str,
+        project_root: &str,
+        registry: &AgentRegistry,
+        restore: bool,
+        auto_permission: bool,
+        terminal_size: Option<(u32, u32)>,
+        startup_timeout_s: Option<f64>,
+        startup_args: &[String],
+    ) -> (String, Option<String>) {
+        let entry = registry.get(agent_name);
+        let provider = entry.map(|e| e.provider.as_str()).unwrap_or("");
+        let workspace_path = entry
+            .and_then(|e| e.workspace_path.as_deref())
+            .unwrap_or(project_root);
+        if provider.is_empty() {
+            return ("failed".into(), Some("no provider configured".into()));
+        }
+        let ctx = LaunchContext {
+            provider,
+            agent_name,
+            project_id,
+            project_root,
+            workspace_path,
+            pane_id,
+            socket_path: "",
+            restore,
+            command_template: None,
+            startup_args,
+            auto_permission,
+            spec: None,
+            terminal_size,
+            startup_timeout_s,
+        };
+        match self.launcher.launch(&ctx) {
+            Ok(_) => ("started".into(), None),
+            Err(e) => ("failed".into(), Some(e)),
+        }
+    }
+
     pub fn to_record(&self, result: &StartFlowResult) -> serde_json::Value {
         serde_json::json!({
             "status": result.status,
@@ -393,6 +486,9 @@ mod tests {
                 false,
                 None,
                 None,
+                None,
+                None,
+                &[],
             )
             .unwrap();
 
@@ -429,6 +525,9 @@ mod tests {
                 false,
                 Some(&reused),
                 None,
+                None,
+                None,
+                &[],
             )
             .unwrap();
 
@@ -465,6 +564,9 @@ mod tests {
                 false,
                 Some(&reused),
                 None,
+                None,
+                None,
+                &[],
             )
             .unwrap();
 
@@ -505,6 +607,9 @@ mod tests {
                 false,
                 None,
                 None,
+                None,
+                None,
+                &[],
             )
             .unwrap();
 

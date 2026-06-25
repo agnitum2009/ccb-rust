@@ -66,10 +66,9 @@ fn build_ccbd_payload(
         .and_then(|ns| ns.windows.first())
         .map(|w| w.name.clone())
         .unwrap_or_else(|| "workspace".to_string());
-    let namespace_ui_attachable = namespace.map(|ns| {
-        !ns.tmux_socket_path.is_empty()
-            && !ns.tmux_session_name.is_empty()
-    }).unwrap_or(false);
+    let namespace_ui_attachable = namespace
+        .map(|ns| !ns.tmux_socket_path.is_empty() && !ns.tmux_session_name.is_empty())
+        .unwrap_or(false);
     let namespace_tmux_socket_path = namespace
         .map(|ns| ns.tmux_socket_path.clone())
         .unwrap_or_default();
@@ -85,13 +84,24 @@ fn build_ccbd_payload(
         .map(|p| serde_json::json!(p))
         .unwrap_or_else(|| json!({"recovery_restore": false, "auto_permission": false}));
 
+    let lifecycle = app.lifecycle.load();
+    let phase = lifecycle
+        .as_ref()
+        .map(|l| l.phase.clone())
+        .unwrap_or_else(|| ccbd_state(app, inspection).to_string());
+    let desired_state = lifecycle
+        .as_ref()
+        .map(|l| Value::String(l.desired_state.clone()))
+        .unwrap_or(Value::Null);
+
     json!({
         "pong": true,
         "target": "ccbd",
         "status": "ok",
         "project_id": project_id,
+        "phase": phase,
         "mount_state": ccbd_state(app, inspection),
-        "desired_state": Value::Null,
+        "desired_state": desired_state,
         "health": inspection.health(),
         "generation": inspection.generation,
         "socket_path": app.socket_path(),
@@ -110,12 +120,12 @@ fn build_ccbd_payload(
             "heartbeat_fresh": inspection.socket_connectable,
             "takeover_allowed": false,
             "reason": Value::Null,
-            "startup_id": Value::Null,
-            "startup_stage": Value::Null,
-            "last_progress_at": Value::Null,
-            "startup_deadline_at": Value::Null,
-            "last_failure_reason": Value::Null,
-            "shutdown_intent": if app.is_shutdown_requested() { Value::String("requested".into()) } else { Value::Null },
+            "startup_id": lifecycle.as_ref().and_then(|l| l.startup_id.clone()).map(Value::String).unwrap_or(Value::Null),
+            "startup_stage": lifecycle.as_ref().and_then(|l| l.startup_stage.clone()).map(Value::String).unwrap_or(Value::Null),
+            "last_progress_at": lifecycle.as_ref().and_then(|l| l.last_progress_at.clone()).map(Value::String).unwrap_or(Value::Null),
+            "startup_deadline_at": lifecycle.as_ref().and_then(|l| l.startup_deadline_at.clone()).map(Value::String).unwrap_or(Value::Null),
+            "last_failure_reason": lifecycle.as_ref().and_then(|l| l.last_failure_reason.clone()).map(Value::String).unwrap_or(Value::Null),
+            "shutdown_intent": lifecycle.as_ref().and_then(|l| l.shutdown_intent.clone()).map(Value::String).unwrap_or(Value::Null),
             "agent_count": inspection.agent_count,
             "healthy_count": inspection.healthy_count,
             "degraded_count": inspection.degraded_count,

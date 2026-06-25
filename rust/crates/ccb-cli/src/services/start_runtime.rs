@@ -81,28 +81,14 @@ where
 
     let handle = ensure_daemon_started_fn(context).map_err(|e| e.to_string())?;
 
-    let mut params = serde_json::Map::new();
-    params.insert(
-        "agent_names".into(),
-        Value::Array(
-            command
-                .agent_names
-                .iter()
-                .map(|s| Value::String(s.clone()))
-                .collect(),
-        ),
-    );
-    params.insert("restore".into(), Value::Bool(command.restore));
-    params.insert(
-        "auto_permission".into(),
-        Value::Bool(command.auto_permission),
-    );
-    if let Some((cols, rows)) = terminal_size {
-        params.insert("terminal_width".into(), Value::Number(cols.into()));
-        params.insert("terminal_height".into(), Value::Number(rows.into()));
-    }
+    // `command` and `terminal_size` are consumed by the caller-supplied
+    // `start_rpc_fn` closure; reference them here to silence the unused warning
+    // while preserving the Python-parity signature.
+    let _ = (command, terminal_size);
 
-    let payload = start_rpc_fn(&handle, None)?;
+    let start_rpc_timeout_s =
+        crate::services::daemon_runtime::policy::startup_transaction_timeout_s();
+    let payload = start_rpc_fn(&handle, Some(start_rpc_timeout_s))?;
     record_daemon_started_flag(context, handle.started, startup_report_store);
 
     let summary = summary_from_payload(context, &payload, handle.started)?;
@@ -487,5 +473,49 @@ mod tests {
             summary.maintenance_heartbeat,
             Some(json!({"tick_status": "healthy"}))
         );
+    }
+
+    #[test]
+    fn start_agents_uses_startup_transaction_timeout_for_start_rpc() {
+        let tmp = tempfile::tempdir().unwrap();
+        let context = make_context(&tmp);
+        let store = FakeStore {
+            data: std::sync::Mutex::new(None),
+        };
+
+        std::env::set_var("CCB_STARTUP_TRANSACTION_TIMEOUT_S", "12.5");
+        let mut seen_timeout: Option<Option<f64>> = None;
+        let start_rpc = |_handle: &DaemonHandle, timeout: Option<f64>| {
+            seen_timeout = Some(timeout);
+            Ok(json!({
+                "project_root": context.project.project_root.to_string_lossy().to_string(),
+                "project_id": context.project.project_id,
+                "started": ["demo"],
+                "socket_path": context.paths.ccbd_socket_path(),
+                "cleanup_summaries": [],
+            }))
+        };
+
+        start_agents(
+            &context,
+            &ParsedStartCommand::new(None, vec!["demo".into()], false, false),
+            None,
+            |_ctx| {
+                Ok(DaemonHandle {
+                    client: None,
+                    inspection: Value::Null,
+                    started: false,
+                })
+            },
+            start_rpc,
+            &store,
+            |_ctx| Ok(ccb_workspace::reconcile::WorkspaceGuardSummary::default()),
+            |summary, _guard| summary,
+            |_ctx| None,
+        )
+        .unwrap();
+
+        std::env::remove_var("CCB_STARTUP_TRANSACTION_TIMEOUT_S");
+        assert_eq!(seen_timeout, Some(Some(12.5)));
     }
 }

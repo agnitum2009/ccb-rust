@@ -78,7 +78,7 @@ architecturally-divergent crates. The correct completion gate is **end-to-end
 functional testing**:
 
 ```bash
-./ccbr start && ./ccbr ask <agent> "hi" && ./ccbr ctx-transfer ... && ./ccbr inbox && ./ccbr kill
+./ccb start && ./ccb ask <agent> "hi" && ./ccb ctx-transfer ... && ./ccb inbox && ./ccb kill
 cargo test --workspace -- --test-threads=1   # 1383 passing
 cargo clippy --workspace -- -D warnings
 ```

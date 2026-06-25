@@ -1288,7 +1288,10 @@ fn replace_managed_codex_activity_state_block(
     let block = {
         let mut table = toml::map::Map::new();
         let mut hooks = toml::map::Map::new();
-        hooks.insert("state".into(), toml::Value::Table(json_map_to_toml_table(state_table)));
+        hooks.insert(
+            "state".into(),
+            toml::Value::Table(json_map_to_toml_table(state_table)),
+        );
         table.insert("hooks".into(), toml::Value::Table(hooks));
         render_toml_document(&table)
             .unwrap_or_default()
@@ -1307,7 +1310,9 @@ fn replace_managed_codex_activity_state_block(
     result.trim_start().to_string()
 }
 
-fn json_map_to_toml_table(map: &serde_json::Map<String, serde_json::Value>) -> toml::map::Map<String, toml::Value> {
+fn json_map_to_toml_table(
+    map: &serde_json::Map<String, serde_json::Value>,
+) -> toml::map::Map<String, toml::Value> {
     map.iter()
         .map(|(key, value)| {
             let inner = match value {
@@ -1726,8 +1731,8 @@ mod tests {
             wire_api: "responses".into(),
             requires_openai_auth: true,
         };
-        let result = materialize_auth_file(source, target, Some(&profile), Some(&authority))
-            .unwrap();
+        let result =
+            materialize_auth_file(source, target, Some(&profile), Some(&authority)).unwrap();
         assert!(result.present);
         assert!(target.is_file());
         let text = fs::read_to_string(target).unwrap();
@@ -1750,8 +1755,8 @@ mod tests {
             wire_api: "responses".into(),
             requires_openai_auth: true,
         };
-        let result = materialize_auth_file(source, target, Some(&profile), Some(&authority))
-            .unwrap();
+        let result =
+            materialize_auth_file(source, target, Some(&profile), Some(&authority)).unwrap();
         assert!(!result.present);
         assert!(!target.exists());
         assert!(
@@ -1771,12 +1776,7 @@ mod tests {
         let target = Utf8Path::from_path(&auth_path).unwrap();
         fs::create_dir_all(source).unwrap();
         let profile = ProviderProfileSpec::default();
-        let result = sync_auth_file(
-            &source.join("auth.json"),
-            target,
-            Some(&profile),
-        )
-        .unwrap();
+        let result = sync_auth_file(&source.join("auth.json"), target, Some(&profile)).unwrap();
         assert!(!result.present);
         assert!(
             result.message.contains("no Codex credentials were found"),

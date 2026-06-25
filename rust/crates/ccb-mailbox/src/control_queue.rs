@@ -894,7 +894,7 @@ mod tests {
         let out = preview_text(text, 10);
         assert!(out.ends_with("..."));
         assert!(out.chars().count() <= 13); // 10 chars + "..."
-        // Must not panic and must be valid UTF-8.
+                                            // Must not panic and must be valid UTF-8.
         assert!(!out.is_empty());
     }
 }

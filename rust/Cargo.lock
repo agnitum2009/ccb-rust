@@ -251,6 +251,7 @@ dependencies = [
  "camino",
  "ccb-agents",
  "ccb-completion",
+ "ccb-heartbeat",
  "ccb-jobs",
  "ccb-mailbox",
  "ccb-project",

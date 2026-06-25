@@ -22,6 +22,7 @@ ccb-jobs = { workspace = true }
 ccb-agents = { workspace = true }
 ccb-providers = { workspace = true }
 ccb-completion = { workspace = true }
+ccb-heartbeat = { workspace = true }
 ccb-provider-profiles = { workspace = true }
 ccb-provider-sessions = { workspace = true }
 ccb-workspace = { workspace = true }

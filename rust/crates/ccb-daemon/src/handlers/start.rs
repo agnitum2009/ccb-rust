@@ -24,12 +24,34 @@ pub fn handle_start(app: &mut CcbdApp, payload: &Value) -> Result<Value, String>
 
     let restore = bool_field(payload, "restore", true);
     let auto_permission = bool_field(payload, "auto_permission", true);
-    let _terminal_size = terminal_size_from_payload(payload);
+    let terminal_size = terminal_size_from_payload(payload);
+    let startup_timeout_s = payload
+        .get("startup_timeout_s")
+        .and_then(|v| v.as_f64())
+        .filter(|t| *t > 0.0);
+    let startup_args: Vec<String> = payload
+        .get("startup_args")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect()
+        })
+        .unwrap_or_default();
 
     // Get config windows to pass to start_flow
     let config_windows = app.current_config.as_ref().and_then(|c| c.windows.clone());
 
-    let result = app.run_start_flow(&agent_names, restore, auto_permission, config_windows)?;
+    let result = app.run_start_flow(
+        &agent_names,
+        restore,
+        auto_permission,
+        config_windows,
+        terminal_size,
+        startup_timeout_s,
+        &startup_args,
+    )?;
     Ok(json!({
         "status": result.status,
         "agent_results": result.agent_results,

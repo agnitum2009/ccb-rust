@@ -70,10 +70,18 @@ impl Default for FakeConfig {
             reason: "result_message".to_string(),
             confidence: CompletionConfidence::Exact,
             reply: None,
-            polls_until_complete: DEFAULT_POLLS_UNTIL_COMPLETE,
+            polls_until_complete: default_polls_until_complete(),
             latency_ms: DEFAULT_LATENCY_MS,
         }
     }
+}
+
+fn default_polls_until_complete() -> u64 {
+    std::env::var("CCB_FAKE_POLLS_UNTIL_COMPLETE")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|&v| v > 0)
+        .unwrap_or(DEFAULT_POLLS_UNTIL_COMPLETE)
 }
 
 /// Source kind and script mode for a fake provider variant.
