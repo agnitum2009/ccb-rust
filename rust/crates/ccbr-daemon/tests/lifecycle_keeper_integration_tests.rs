@@ -8,8 +8,6 @@ const TRIGGER_START_COMMAND: &str = "start_command";
 const TRIGGER_SHUTDOWN: &str = "shutdown";
 const STATUS_OK: &str = "ok";
 const ACTION_DAEMON_STARTED: &str = "daemon_started";
-const EVENT_STARTED: &str = "started";
-const EVENT_STOPPED: &str = "stopped";
 const REASON_SHUTDOWN: &str = "shutdown";
 
 fn stub_app(dir: &TempDir) -> CcbdApp {
@@ -51,18 +49,18 @@ fn test_start_acquires_ownership_and_writes_startup_report() {
         ccbr_daemon::models::api_models::common::API_VERSION
     );
 
-    let recent = app.lifecycle.recent_reports(1);
-    assert!(
-        !recent.is_empty(),
-        "lifecycle should record a started event"
+    let lifecycle = app
+        .lifecycle
+        .load()
+        .expect("lifecycle should be persisted after start");
+    assert_eq!(lifecycle.project_id, app.project_id());
+    assert_eq!(lifecycle.phase, "mounted");
+    assert_eq!(lifecycle.desired_state, "running");
+    assert_eq!(lifecycle.generation, 1);
+    assert_eq!(
+        lifecycle.socket_path.as_deref(),
+        Some(app.socket_path().as_str())
     );
-    let event = recent
-        .iter()
-        .find(|r| r.event == EVENT_STARTED)
-        .expect("started event");
-    assert_eq!(event.project_id, app.project_id());
-    assert_eq!(event.details["generation"], 1);
-    assert_eq!(event.details["socket_path"], app.socket_path());
 }
 
 #[test]
@@ -93,11 +91,14 @@ fn test_shutdown_writes_shutdown_report_and_releases_ownership() {
     assert_eq!(loaded.daemon_generation, Some(1));
     assert_eq!(loaded.reason, Some(REASON_SHUTDOWN.to_string()));
 
-    let recent = app.lifecycle.recent_reports(2);
-    assert!(
-        recent.iter().any(|r| r.event == EVENT_STOPPED),
-        "lifecycle should record a stopped event"
-    );
+    let lifecycle = app
+        .lifecycle
+        .load()
+        .expect("lifecycle should be persisted after shutdown");
+    assert_eq!(lifecycle.project_id, app.project_id());
+    assert_eq!(lifecycle.phase, "unmounted");
+    assert_eq!(lifecycle.desired_state, "stopped");
+    assert!(lifecycle.owner_pid.is_none());
 }
 
 #[test]

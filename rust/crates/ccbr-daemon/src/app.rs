@@ -9,11 +9,16 @@ use crate::adapters::completion::to_completion_job_record;
 use crate::adapters::mailbox::{to_mailbox_completion_decision, to_mailbox_job_record};
 use crate::handlers::{build_registry, HandlerRegistry};
 use crate::models::lifecycle::{
+    build_lifecycle, CcbdLifecycleUpdates, LIFECYCLE_DESIRED_STATE_RUNNING,
+    LIFECYCLE_DESIRED_STATE_STOPPED, LIFECYCLE_PHASE_MOUNTED, LIFECYCLE_PHASE_STARTING,
+    LIFECYCLE_PHASE_UNMOUNTED,
+};
+use crate::models::lifecycle::{
     CcbdShutdownReport, CcbdStartupAgentResult, CcbdStartupReport, CcbdTmuxCleanupSummary,
 };
 use crate::services::dispatcher::JobDispatcher;
 use crate::services::health::HealthMonitor;
-use crate::services::lifecycle::LifecycleService;
+use crate::services::lifecycle::LifecycleStore;
 use crate::services::ownership::OwnershipService;
 use crate::services::project_namespace::ProjectNamespaceController;
 use crate::services::registry::{AgentRegistry, AgentRuntimeEntry};
@@ -23,7 +28,7 @@ use ccbr_completion::{CompletionRegistry, CompletionTrackerService};
 use ccbr_jobs::JobStore;
 use ccbr_mailbox::bureau::{MessageBureauControlService, MessageBureauFacade};
 use ccbr_provider_core::catalog::{build_default_provider_catalog, ProviderCatalog};
-use ccbr_providers::execution::{ExecutionService, ProviderRuntimeContext};
+use ccbr_providers::execution::{ExecutionService, ExecutionStateStore, ProviderRuntimeContext};
 
 fn load_agent_registry(
     layout: &ccbr_storage::paths::PathLayout,
@@ -78,7 +83,7 @@ pub struct CcbdApp {
     pub start_flow: StartFlowService,
     pub stop_flow: StopFlowService,
     pub health_monitor: HealthMonitor,
-    pub lifecycle: LifecycleService,
+    pub lifecycle: LifecycleStore,
     pub supervision: SupervisionLoop,
     pub runtime_service: RuntimeService,
     pub execution: ExecutionService,
@@ -148,6 +153,8 @@ impl CcbdApp {
         let socket_path = layout.ccbrd_socket_path().as_str().to_string();
         let daemon_instance_id = uuid::Uuid::new_v4().simple().to_string();
         let shared_job_store = JobStore::new(&layout);
+        let execution_state_store = ExecutionStateStore::new(layout.clone());
+        let lifecycle_store = LifecycleStore::new(layout.clone());
 
         let mailbox = MessageBureauFacade::new(
             layout.clone(),
@@ -171,24 +178,32 @@ impl CcbdApp {
             project_namespace: ProjectNamespaceController::new(&layout),
             start_flow,
             stop_flow,
-            health_monitor: HealthMonitor::new(Some(socket_path)),
-            lifecycle: LifecycleService::new(),
+            health_monitor: HealthMonitor::new(Some(socket_path.clone())),
+            lifecycle: lifecycle_store,
             supervision: SupervisionLoop::new(1000, 5),
             runtime_service: RuntimeService::new(),
             execution: ExecutionService::new(
                 ccbr_providers::build_default_execution_registry(),
                 || chrono::Utc::now().to_rfc3339(),
-                None,
+                Some(execution_state_store),
             ),
             completion_tracker: CompletionTrackerService::new(
                 config.clone().unwrap_or_default(),
-                build_default_provider_catalog(false, false),
+                build_default_provider_catalog(
+                    false,
+                    std::env::var("CCBR_INCLUDE_TEST_DOUBLES")
+                        .map(|v| v == "1")
+                        .unwrap_or(false),
+                ),
                 CompletionRegistry,
             ),
-            job_heartbeat: crate::services::job_heartbeat_runtime::JobHeartbeatRuntimeService::with_defaults(),
+            job_heartbeat:
+                crate::services::job_heartbeat_runtime::JobHeartbeatRuntimeService::with_defaults(),
             mailbox,
             mailbox_control,
-            ownership: OwnershipService::new(),
+            ownership: OwnershipService::with_state_path(
+                layout.ccbrd_dir().join("ownership-state.json"),
+            ),
             start_policy_store: StartPolicyStore::new(&layout),
             fault_service: crate::fault_injection::FaultInjectionService::new(),
             last_startup_report: None,
@@ -226,13 +241,90 @@ impl CcbdApp {
         self.shutdown_requested.load(Ordering::SeqCst)
     }
 
-    /// Start the daemon: acquire ownership and write a startup report.
+    /// Build the runtime context used to restore/resume a job's provider
+    /// execution from the current registry and namespace.
+    fn build_runtime_context_for_job(
+        &self,
+        job: &crate::models::api_models::records::JobRecord,
+    ) -> ProviderRuntimeContext {
+        let entry = self.registry.get(&job.agent_name);
+        let namespace = self.project_namespace.load();
+        let runtime_ref = entry
+            .and_then(|e| e.pane_id.clone())
+            .or_else(|| namespace.and_then(|ns| ns.agent_panes.get(&job.agent_name).cloned()))
+            .filter(|s| !s.is_empty());
+        ProviderRuntimeContext {
+            agent_name: job.agent_name.clone(),
+            workspace_path: entry
+                .and_then(|e| e.workspace_path.clone())
+                .or_else(|| Some(self.project_root.to_string_lossy().to_string())),
+            backend_type: Some("tmux".to_string()),
+            runtime_ref,
+            session_ref: None,
+            runtime_pid: None,
+            runtime_health: None,
+            runtime_binding_source: None,
+        }
+    }
+
+    /// Start the daemon: acquire ownership, restore running jobs, and publish
+    /// the mounted lifecycle record.
     pub fn start(&mut self) -> crate::Result<()> {
+        let now = chrono::Utc::now();
+        let now_str = now.to_rfc3339();
         let socket_path = self.socket_path();
         let instance_id = self.daemon_instance_id().to_string();
+        let pid = std::process::id();
+
+        // Load the previous lifecycle record (if any) so we can inherit the
+        // shared startup deadline and startup_id across daemon restarts.
+        let previous = self.lifecycle.load();
+        let startup_id = previous
+            .as_ref()
+            .and_then(|l| l.startup_id.clone())
+            .unwrap_or_else(|| uuid::Uuid::new_v4().simple().to_string());
+        let startup_deadline = previous
+            .as_ref()
+            .and_then(|l| l.startup_deadline_at.clone())
+            .filter(|d| {
+                chrono::DateTime::parse_from_rfc3339(d)
+                    .map(|dt| chrono::Utc::now() < dt.with_timezone(&chrono::Utc))
+                    .unwrap_or(false)
+            })
+            .unwrap_or_else(|| {
+                let budget_s: i64 = std::env::var("CCB_STARTUP_TRANSACTION_TIMEOUT_S")
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(30);
+                (chrono::Utc::now() + chrono::Duration::seconds(budget_s)).to_rfc3339()
+            });
+
+        let starting = build_lifecycle(
+            self.project_id(),
+            &now_str,
+            LIFECYCLE_DESIRED_STATE_RUNNING,
+            LIFECYCLE_PHASE_STARTING,
+            previous.as_ref().map(|l| l.generation).unwrap_or(0),
+            CcbdLifecycleUpdates {
+                startup_id: Some(Some(startup_id)),
+                startup_stage: Some(Some("spawn_requested".into())),
+                last_progress_at: Some(Some(now_str.clone())),
+                startup_deadline_at: Some(Some(startup_deadline)),
+                keeper_pid: Some(Some(pid)),
+                owner_pid: Some(Some(pid)),
+                owner_daemon_instance_id: Some(Some(instance_id.clone())),
+                socket_path: Some(Some(socket_path.clone())),
+                ..Default::default()
+            },
+        );
+        let _ = self.lifecycle.save(&starting);
+
+        // Re-establish ownership from durable state before acquiring a new guard.
+        // This preserves the generation sequence and avoids duplicate guards when
+        // the same daemon instance restarts.
         let generation = self
             .ownership
-            .acquire(std::process::id(), &socket_path, &instance_id)
+            .restore_or_acquire(pid, &socket_path, &instance_id)?
             .generation;
 
         let report = CcbdStartupReport {
@@ -254,20 +346,91 @@ impl CcbdApp {
         let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
         self.dispatcher.restore_running_jobs(&running_jobs_path);
 
-        self.lifecycle
-            .record(crate::services::lifecycle::LifecycleReport {
-                project_id: self.project_id().to_string(),
-                event: "started".into(),
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                details: serde_json::json!({"generation": generation, "socket_path": socket_path}),
-            });
+        // Re-register restored running jobs with the execution service and the
+        // completion tracker so heartbeat poll() can drive them to completion
+        // without a new submission.
+        let running_jobs: Vec<_> = self
+            .dispatcher
+            .job_store
+            .iter()
+            .filter(|j| j.status == crate::models::api_models::common::JobStatus::Running)
+            .cloned()
+            .collect();
+        let mut restore_results = Vec::new();
+        for job in &running_jobs {
+            let completion_job = to_completion_job_record(job);
+            let ctx = self.build_runtime_context_for_job(job);
+            let result = self.execution.restore(&completion_job, Some(&ctx));
+            restore_results.push((job.clone(), completion_job, result));
+        }
+
+        let after_restore = chrono::Utc::now().to_rfc3339();
+        for (job, completion_job, result) in &restore_results {
+            if result.restored() {
+                let _ = self
+                    .completion_tracker
+                    .start(completion_job, &after_restore);
+                let mut prompt_patch = std::collections::HashMap::new();
+                prompt_patch.insert(
+                    "prompt_text".to_string(),
+                    serde_json::Value::String(job.request.body.clone()),
+                );
+                self.execution.feed_runtime_state(&job.job_id, prompt_patch);
+            } else if let Some(decision) = &result.decision {
+                // terminal_pending: finish the job immediately without heartbeat.
+                let status = map_completion_status(decision.status);
+                let decision_record = decision_to_record(decision);
+                self.dispatcher
+                    .update_job_status(&job.job_id, status, Some(decision_record));
+                self.execution.finish(&job.job_id);
+                if status.is_terminal() {
+                    let finished_at = decision
+                        .finished_at
+                        .as_deref()
+                        .unwrap_or(&after_restore)
+                        .to_string();
+                    let mailbox_job = to_mailbox_job_record(job);
+                    let mailbox_decision = to_mailbox_completion_decision(decision);
+                    let _ = self.mailbox.record_terminal(
+                        &mailbox_job,
+                        &mailbox_decision,
+                        &finished_at,
+                        true,
+                        true,
+                    );
+                }
+            }
+        }
+
+        let mounted = starting.with_phase(
+            LIFECYCLE_PHASE_MOUNTED,
+            chrono::Utc::now().to_rfc3339(),
+            CcbdLifecycleUpdates {
+                generation: Some(generation),
+                startup_stage: Some(Some("mounted".into())),
+                last_progress_at: Some(Some(chrono::Utc::now().to_rfc3339())),
+                startup_deadline_at: Some(None),
+                owner_pid: Some(Some(pid)),
+                owner_daemon_instance_id: Some(Some(instance_id.clone())),
+                socket_path: Some(Some(socket_path.clone())),
+                ..Default::default()
+            },
+        );
+        let _ = self.lifecycle.save(&mounted);
 
         Ok(())
     }
 
     /// Shut the daemon down: stop all agents and write a shutdown report.
     pub fn shutdown(&mut self) -> crate::Result<()> {
-        let result = self.stop_all(true, "shutdown");
+        // Persist running/non-terminal jobs *before* trying to stop agents so
+        // that a slow or stuck stop flow never loses in-flight job memory.
+        // Graceful shutdown leaves provider panes running so a restarted daemon
+        // can adopt them and continue driving in-flight jobs (S3.3 continuity).
+        let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
+        let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
+
+        let result = self.stop_all(false, "shutdown");
         let report = CcbdShutdownReport {
             project_id: self.project_id().to_string(),
             generated_at: chrono::Utc::now().to_rfc3339(),
@@ -291,10 +454,31 @@ impl CcbdApp {
         self.last_shutdown_report = Some(report.clone());
         let _ = ccbr_storage::json::JsonStore::new().save(&report_path, &report);
 
-        // Persist running/non-terminal jobs so the next daemon instance can
-        // restore job memory (S3.3 daemon restart job continuity).
-        let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
-        let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
+        // Persist final lifecycle state so CLI waiters and diagnostics see the
+        // daemon as stopped/unmounted after shutdown.
+        if let Some(current) = self.lifecycle.load() {
+            let unmounted = current.with_phase(
+                LIFECYCLE_PHASE_UNMOUNTED,
+                chrono::Utc::now().to_rfc3339(),
+                CcbdLifecycleUpdates {
+                    desired_state: Some(LIFECYCLE_DESIRED_STATE_STOPPED.into()),
+                    owner_pid: Some(None),
+                    owner_daemon_instance_id: Some(None),
+                    socket_path: Some(Some(self.socket_path())),
+                    namespace_epoch: Some(None),
+                    startup_stage: Some(None),
+                    last_progress_at: Some(Some(chrono::Utc::now().to_rfc3339())),
+                    startup_deadline_at: Some(None),
+                    last_failure_reason: Some(None),
+                    ..Default::default()
+                },
+            );
+            let _ = self.lifecycle.save(&unmounted);
+        }
+
+        // Persist ownership state so a restarted daemon can re-establish the
+        // same guard and continue the generation sequence.
+        let _ = self.ownership.save();
 
         self.ownership.release();
         self.project_namespace.unmount().ok();
@@ -316,12 +500,23 @@ impl CcbdApp {
             force,
         );
 
-        self.lifecycle.record(crate::services::lifecycle::LifecycleReport {
-            project_id: self.project_id().to_string(),
-            event: "stopped".into(),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            details: serde_json::json!({"force": force, "reason": reason, "stopped_agents": result.stopped_agents}),
-        });
+        // Mark the daemon as stopping while agents are torn down.
+        if let Some(current) = self.lifecycle.load() {
+            let stopping = current.with_phase(
+                "stopping",
+                chrono::Utc::now().to_rfc3339(),
+                CcbdLifecycleUpdates {
+                    desired_state: Some(LIFECYCLE_DESIRED_STATE_STOPPED.into()),
+                    startup_stage: Some(None),
+                    last_progress_at: Some(Some(chrono::Utc::now().to_rfc3339())),
+                    startup_deadline_at: Some(None),
+                    shutdown_intent: Some(Some(reason.to_string())),
+                    last_failure_reason: Some(None),
+                    ..Default::default()
+                },
+            );
+            let _ = self.lifecycle.save(&stopping);
+        }
 
         result
     }
@@ -329,19 +524,75 @@ impl CcbdApp {
     /// Run one heartbeat tick: health, supervision, dispatcher.
     pub fn heartbeat(&mut self) {
         self.health_monitor.bump_generation();
+
+        // Keep the lifecycle progress timestamp fresh while the daemon is alive
+        // so CLI waiters do not time out on a stalled startup progress clock.
+        if let Some(current) = self.lifecycle.load() {
+            if current.phase == LIFECYCLE_PHASE_STARTING || current.phase == LIFECYCLE_PHASE_MOUNTED
+            {
+                let now = chrono::Utc::now().to_rfc3339();
+                if current.last_progress_at.as_deref() != Some(&now) {
+                    let updated = current.with_updates(CcbdLifecycleUpdates {
+                        last_progress_at: Some(Some(now)),
+                        ..Default::default()
+                    });
+                    let _ = self.lifecycle.save(&updated);
+                }
+            }
+        }
         let agents: Vec<String> = self.agent_names();
 
-        // Supervision: decide which agents need restart.
-        let needs_restart = self.supervision.tick(&agents);
-        for agent_name in needs_restart {
-            self.supervision
-                .record_restart(&agent_name, "supervision_tick");
+        // Supervision: inspect agent pane/session health and decide whether to
+        // restart, escalate, or clear backoff state.
+        let namespace = self.project_namespace.load().cloned();
+        let tmux_socket_path = self.tmux_socket_path();
+        let checker = crate::supervision::loop_runner::TmuxHealthChecker::new(
+            &self.registry,
+            namespace.as_ref(),
+            &tmux_socket_path,
+        );
+        let decisions = self.supervision.tick(&agents, &checker);
+        let mut restart_agents: Vec<String> = Vec::new();
+        for decision in decisions {
+            match decision {
+                crate::supervision::loop_runner::SupervisionDecision::Restart {
+                    agent_name,
+                    reason,
+                } => {
+                    self.supervision.record_restart(&agent_name, &reason);
+                    restart_agents.push(agent_name);
+                }
+                crate::supervision::loop_runner::SupervisionDecision::Escalate {
+                    agent_name,
+                    reason,
+                } => {
+                    eprintln!("ccbrd: supervision escalated {agent_name}: {reason}");
+                    if let Some(entry) = self.registry.get_mut(&agent_name) {
+                        entry.health = "degraded".into();
+                        entry.state = "failed".into();
+                    }
+                }
+            }
         }
 
-        // Detect externally-killed tmux panes and respawn the whole project
-        // topology.  This is a coarse but safe recovery: run_start_flow's
-        // stale-pane detection will reject dead pane IDs and recreate fresh
-        // panes for all agents.
+        // Respawn the whole provider topology when any agent needs recovery.
+        // This keeps the namespace consistent and avoids reusing phantom pane IDs.
+        if !restart_agents.is_empty() {
+            let all_agents: Vec<String> = self.agent_names();
+            let config_windows = self.current_config.as_ref().and_then(|c| c.windows.clone());
+            eprintln!(
+                "ccbrd: respawning agents after supervision decisions: {:?}",
+                restart_agents
+            );
+            if let Err(e) =
+                self.run_start_flow(&all_agents, false, true, config_windows, None, None, &[])
+            {
+                eprintln!("ccbrd: respawn after supervision failed: {e}");
+            }
+        }
+
+        // Fallback: detect externally-killed tmux panes that the supervision
+        // loop may not have seen yet and respawn the whole project topology.
         if let Err(e) = self.respawn_dead_agents() {
             eprintln!("ccbrd: respawn_dead_agents failed: {e}");
         }
@@ -352,7 +603,7 @@ impl CcbdApp {
         let now = chrono::Utc::now().to_rfc3339();
         // Clone job records to avoid borrow conflicts when accessing
         // self.registry + self.execution inside the loop.
-        let started_jobs: Vec<_> = started.iter().cloned().collect();
+        let started_jobs: Vec<_> = started.to_vec();
         for job in &started_jobs {
             let completion_job = to_completion_job_record(job);
             let _ = self.completion_tracker.start(&completion_job, &now);
@@ -508,12 +759,16 @@ impl CcbdApp {
     }
 
     /// Execute the start flow and persist the resulting namespace.
+    #[allow(clippy::too_many_arguments)]
     pub fn run_start_flow(
         &mut self,
         agent_names: &[String],
         restore: bool,
         auto_permission: bool,
         config_windows: Option<Vec<ccbr_agents::models::WindowSpec>>,
+        terminal_size: Option<(u32, u32)>,
+        startup_timeout_s: Option<f64>,
+        startup_args: &[String],
     ) -> Result<StartFlowResult, String> {
         let project_root = self.layout.project_root.clone();
         // Load any existing namespace so panes can be reused on restore.
@@ -533,6 +788,9 @@ impl CcbdApp {
             auto_permission,
             namespace_agent_panes.as_ref(),
             config_windows,
+            terminal_size,
+            startup_timeout_s,
+            startup_args,
         )?;
 
         for agent in &result.agent_results {
@@ -581,6 +839,8 @@ impl CcbdApp {
                 startup_args: &[],
                 auto_permission,
                 spec: None,
+                terminal_size: None,
+                startup_timeout_s: None,
             };
             if let Err(e) = launcher.launch(&ctx) {
                 eprintln!("ccbrd: provider launch failed for {agent_name}: {e}");
@@ -657,7 +917,8 @@ impl CcbdApp {
             "ccbrd: respawning agents after pane death: {:?}",
             dead_agents
         );
-        let _result = self.run_start_flow(&all_agents, false, true, config_windows)?;
+        let _result =
+            self.run_start_flow(&all_agents, false, true, config_windows, None, None, &[])?;
         Ok(())
     }
 }
@@ -683,8 +944,14 @@ impl CcbdApp {
             let text = ccbr_terminal::TmuxBackend::strip_ansi(&text);
             let mut patch = std::collections::HashMap::new();
             patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
-            patch.insert("socket_path".to_string(), serde_json::Value::String(socket_path.clone()));
-            patch.insert("pane_id".to_string(), serde_json::Value::String(pane_id.clone()));
+            patch.insert(
+                "socket_path".to_string(),
+                serde_json::Value::String(socket_path.clone()),
+            );
+            patch.insert(
+                "pane_id".to_string(),
+                serde_json::Value::String(pane_id.clone()),
+            );
             self.execution.feed_runtime_state(&job_id, patch);
         }
     }
@@ -924,7 +1191,9 @@ target = "agent1"
             target_name: "agent1".into(),
         };
         app.dispatcher.job_store.push(job);
-        app.dispatcher.state.rebuild(&app.dispatcher.job_store.clone());
+        app.dispatcher
+            .state
+            .rebuild(&app.dispatcher.job_store.clone());
 
         app.shutdown().expect("shutdown should succeed");
 

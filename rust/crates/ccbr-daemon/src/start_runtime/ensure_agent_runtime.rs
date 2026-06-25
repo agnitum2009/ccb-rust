@@ -134,6 +134,8 @@ impl EnsureAgentRuntimeFn for EnsureAgentRuntimeImpl {
             startup_args: &full_spec.startup_args,
             auto_permission: false,
             spec: Some(&full_spec),
+            terminal_size: None,
+            startup_timeout_s: None,
         };
         let launch_result = self
             .launcher

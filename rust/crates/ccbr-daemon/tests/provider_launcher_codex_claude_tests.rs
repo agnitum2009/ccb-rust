@@ -26,6 +26,8 @@ fn minimal_context<'a>(
         startup_args: &[],
         auto_permission: false,
         spec: None,
+        terminal_size: None,
+        startup_timeout_s: None,
     }
 }
 

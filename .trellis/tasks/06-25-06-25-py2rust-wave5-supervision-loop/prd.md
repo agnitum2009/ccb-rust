@@ -23,3 +23,12 @@ Implement RuntimeSupervisionLoop end-to-end recovery orchestration instead of th
 - Keep `prd.md` focused on requirements, constraints, and acceptance criteria.
 - Lightweight tasks can remain PRD-only.
 - For complex tasks, add `design.md` for technical design and `implement.md` for execution planning before `task.py start`.
+
+## 追加 scope（glm5.2 审核补入，2026-06-25）
+- `test_v2_start_service.py` parity（start_agents → ccbd_start RPC，Python 参考 `test/test_v2_start_service.py`）：
+  - CLI flags 透传到 start RPC
+  - terminal_size 透传（如 (233, 61)）
+  - startup transaction timeout 用于 start RPC（如 12.5s）
+  - maintenance_heartbeat startup summary 挂载
+  - cleanup_summaries 从 ccbd payload 解析
+  - Rust 位置：`ccbr-daemon/src/start_flow/service.rs` + CLI start 路径

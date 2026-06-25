@@ -376,10 +376,7 @@ impl CcbdApp {
     }
 
     pub(crate) fn lifecycle_store_state(&self) -> Option<Value> {
-        self.lifecycle
-            .recent_reports(1)
-            .last()
-            .map(|r| serde_json::to_value(r).unwrap_or_default())
+        self.lifecycle.load().map(|l| l.to_record())
     }
 }
 

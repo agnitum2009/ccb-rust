@@ -24,12 +24,41 @@ pub struct LaunchContext<'a> {
     pub restore: bool,
     /// Optional wrapper template such as `tmux new-window {command}`.
     pub command_template: Option<&'a str>,
-    /// Provider-specific startup arguments from the agent spec.
+    /// Provider-specific startup arguments from the agent spec or CLI.
     pub startup_args: &'a [String],
     /// Whether the provider should launch with auto-approve behavior.
     pub auto_permission: bool,
     /// Optional agent spec; when missing a minimal spec is synthesised.
     pub spec: Option<&'a ccbr_agents::models::AgentSpec>,
+    /// Optional terminal dimensions forwarded from the CLI start command.
+    pub terminal_size: Option<(u32, u32)>,
+    /// Optional startup transaction timeout forwarded from the CLI.
+    pub startup_timeout_s: Option<f64>,
+}
+
+/// Trait for provider launchers used by the start flow.
+pub trait Launcher: Send + Sync {
+    fn launch(&self, ctx: &LaunchContext) -> Result<LaunchResult, String>;
+}
+
+impl Launcher for ProviderLauncher {
+    fn launch(&self, ctx: &LaunchContext) -> Result<LaunchResult, String> {
+        ProviderLauncher::launch(self, ctx)
+    }
+}
+
+/// No-op launcher for stub/test modes that need the start flow shape without
+/// touching a real tmux pane.
+pub struct NoOpLauncher;
+
+impl Launcher for NoOpLauncher {
+    fn launch(&self, _ctx: &LaunchContext) -> Result<LaunchResult, String> {
+        Ok(LaunchResult {
+            command: String::new(),
+            session_payload: None,
+            session_path: None,
+        })
+    }
 }
 
 /// Result of preparing a provider launch.
@@ -987,6 +1016,8 @@ mod tests {
             startup_args: &[],
             auto_permission: false,
             spec: None,
+            terminal_size: None,
+            startup_timeout_s: None,
         };
         assert!(launcher.launch(&ctx).is_err());
     }

@@ -240,16 +240,18 @@ pub fn evaluate_heartbeat(
     )
     .map_err(|e| format!("invalid heartbeat policy: {e}"))?;
 
-    let engine_state = state.as_ref().map(|s| ccbr_heartbeat::models::HeartbeatState {
-        subject_kind: s.subject_kind.clone(),
-        subject_id: s.subject_id.clone(),
-        owner: s.owner.clone(),
-        last_progress_at: s.last_progress_at.clone(),
-        last_notice_at: s.last_notice_at.clone(),
-        heartbeat_started_at: s.heartbeat_started_at.clone(),
-        notice_count: s.notice_count,
-        updated_at: s.updated_at.clone(),
-    });
+    let engine_state = state
+        .as_ref()
+        .map(|s| ccbr_heartbeat::models::HeartbeatState {
+            subject_kind: s.subject_kind.clone(),
+            subject_id: s.subject_id.clone(),
+            owner: s.owner.clone(),
+            last_progress_at: s.last_progress_at.clone(),
+            last_notice_at: s.last_notice_at.clone(),
+            heartbeat_started_at: s.heartbeat_started_at.clone(),
+            notice_count: s.notice_count,
+            updated_at: s.updated_at.clone(),
+        });
 
     let (next_engine_state, engine_decision) = ccbr_heartbeat::engine::evaluate_heartbeat(
         &engine_policy,

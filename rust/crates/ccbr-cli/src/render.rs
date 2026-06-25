@@ -841,7 +841,11 @@ mod tests {
             ]
         });
         let out = render_inbox(&value);
-        assert!(out.contains("Inbox for agent3"), "missing agent name: {}", out);
+        assert!(
+            out.contains("Inbox for agent3"),
+            "missing agent name: {}",
+            out
+        );
         assert!(out.contains("pending=1"), "missing pending count: {}", out);
         assert!(
             out.contains("iev_089f836ba40b"),
@@ -868,7 +872,11 @@ mod tests {
             "status": "acked",
         });
         let out = render_ack(&value);
-        assert!(out.contains("Acknowledged agent3 event iev_089f836ba40b"), "{}", out);
+        assert!(
+            out.contains("Acknowledged agent3 event iev_089f836ba40b"),
+            "{}",
+            out
+        );
     }
 
     #[test]

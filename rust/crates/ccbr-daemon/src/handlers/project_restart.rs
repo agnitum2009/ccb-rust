@@ -49,6 +49,9 @@ pub fn handle_project_restart_agent(app: &mut CcbdApp, payload: &Value) -> Resul
         false, // restore=false: do not restore sessions, respawn fresh
         auto_permission,
         config_windows,
+        None,
+        None,
+        &[],
     )?;
 
     let agent_result = result

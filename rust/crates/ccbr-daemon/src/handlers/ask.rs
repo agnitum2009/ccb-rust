@@ -67,9 +67,11 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
 
     // Surface a clear auth error before trying to send, so a missing auth.json
     // fails fast instead of silently hanging in the provider CLI.
-    if let Some(auth_path) =
-        crate::provider_launcher::provider_runtime_auth_path(&provider, app.project_root.to_string_lossy().as_ref(), &to_agent)
-    {
+    if let Some(auth_path) = crate::provider_launcher::provider_runtime_auth_path(
+        &provider,
+        app.project_root.to_string_lossy().as_ref(),
+        &to_agent,
+    ) {
         if !auth_path.exists() {
             let utf8_auth = camino::Utf8Path::from_path(&auth_path)
                 .unwrap_or_else(|| camino::Utf8Path::new("/tmp/unknown"));

@@ -12,10 +12,10 @@ Persist MountManager / OwnershipGuard state across daemon restarts so runtime mo
 
 ## Acceptance Criteria
 
-- [ ] After daemon restart, ownership records reflect pre-shutdown state.
-- [ ] No duplicate ownership guards created on restart.
-- [ ] Tests cover save/load roundtrip and restart scenario.
-- [ ] Part of Wave 5 parity audit gap #2.
+- [x] After daemon restart, ownership records reflect pre-shutdown state.
+- [x] No duplicate ownership guards created on restart.
+- [x] Tests cover save/load roundtrip and restart scenario.
+- [x] Part of Wave 5 parity audit gap #2.
 
 ## Notes
 
