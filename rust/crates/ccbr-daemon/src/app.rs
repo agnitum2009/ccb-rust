@@ -848,6 +848,12 @@ impl CcbdApp {
         }
 
         self.project_namespace.mount(namespace)?;
+
+        // DDD trial #3+#4: Apply topology UI natively (pane border + mouse + @ccb_agent tags)
+        // after agent panes + providers are set up. Eliminates the need for script post-processing
+        // (enable_mouse, label_panes). Python does this via apply_project_tmux_ui in materialize_topology.
+        self.apply_topology_ui_post_start();
+
         self.supervision.record_success("daemon");
 
         // Update startup report with agent results.
@@ -867,6 +873,38 @@ impl CcbdApp {
         }
 
         Ok(result)
+    }
+
+    /// Apply topology UI options natively after start_flow completes.
+    /// Sets pane-border-status/format (Python pane_border_format), mouse on,
+    /// and tags each agent pane with @ccb_agent (ubiquitous language: @ccb_*).
+    fn apply_topology_ui_post_start(&self) {
+        let socket_path = self.tmux_socket_path();
+        let session_name = self.tmux_session_name();
+        if socket_path.is_empty() || session_name.is_empty() {
+            return;
+        }
+        let backend = ccbr_terminal::TmuxBackend::new(None, Some(socket_path));
+
+        // 1. pane-border-status top + Python pane_border_format
+        let _ = backend.tmux_run(&["set-option", "-t", &session_name, "pane-border-status", "top"], false, false, None, None);
+        let _ = backend.tmux_run(&[
+            "set-option", "-t", &session_name, "pane-border-format",
+            "#{?{@ccb_agent},#[bold]#{@ccb_agent}#[nobold] ,#[fg=#565f89]#{pane_title}}",
+        ], false, false, None, None);
+
+        // 2. mouse on (per session)
+        let _ = backend.tmux_run(&["set-option", "-t", &session_name, "mouse", "on"], false, false, None, None);
+
+        // 3. Tag agent panes with @ccb_agent + @ccb_role
+        for entry in self.registry.all_entries() {
+            if let Some(pane_id) = entry.pane_id.as_deref() {
+                if !pane_id.is_empty() {
+                    let _ = backend.tmux_run(&["set-option", "-p", "-t", pane_id, "@ccb_agent", &entry.agent_name], false, false, None, None);
+                    let _ = backend.tmux_run(&["set-option", "-p", "-t", pane_id, "@ccb_role", "agent"], false, false, None, None);
+                }
+            }
+        }
     }
 
     /// Check whether any agent's tmux pane has died (e.g. external kill-pane)
