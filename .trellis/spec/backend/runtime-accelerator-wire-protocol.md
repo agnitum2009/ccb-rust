@@ -23,7 +23,7 @@
   - `CCB_RUNTIME_ACCELERATOR_CODEX`: Codex polling adapter gate. Default unset/enabled. Disable values: `0`, `false`, `no`, `off`, `disabled`.
   - `CCB_RUNTIME_ACCELERATOR_SOCKET`: optional Unix socket override. Default: `<workspace>/.ccb/runtime-accelerator/accelerator.sock`.
   - `CCB_RUNTIME_ACCELERATOR_TIMEOUT_S`: optional sidecar call timeout in seconds. Default: `0.2`.
-  - `CCB_RUNTIME_ACCELERATOR_BIN`: optional sidecar binary override. Default lookup: `ccb-runtime-accelerator` on `PATH`, then repo-local `rust/target/{release,debug}`.
+  - `CCB_RUNTIME_ACCELERATOR_BIN`: optional sidecar binary override. Default lookup: `ccb-runtime-accelerator` on `PATH`, installed runtime `bin/`, then repo-local `rust/target/{release,debug}`.
   - `CCB_RUNTIME_ACCELERATOR_STARTUP_TIMEOUT_S`: optional ccbd sidecar startup wait in seconds. Default: `0.5`.
   - `CCB_CCBD_IDLE_FULL_HEARTBEAT_INTERVAL_S`: optional idle full-maintenance interval. Default: `30.0`.
 

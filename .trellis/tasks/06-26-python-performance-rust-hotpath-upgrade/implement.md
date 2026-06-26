@@ -163,11 +163,19 @@
   - `python -m compileall -q lib/runtime_accelerator lib/provider_backends/codex/execution_runtime lib/ccbd/app_runtime test/test_runtime_accelerator_lifecycle.py test/test_codex_runtime_accelerator_polling.py test/test_v2_ccbd_socket.py`
   - `cargo build -p ccb-runtime-accelerator`
   - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
+- Global runtime install validation:
+  - Patched runtime: `/root/.local/share/codex-dual`
+  - Backup: `/home/agnitum/ccb-runtime-backups/codex-dual-rust-accelerator-20260626-135033`
+  - Installed sidecar: `/root/.local/share/codex-dual/bin/ccb-runtime-accelerator`
+  - Verified default enabled and binary lookup with installed `_ccb-python`.
+  - Verified `ccb-runtime-accelerator serve` + `ping` over a temporary socket.
+  - Precise residue check found no running `/root/.local/share/codex-dual/bin/ccb-runtime-accelerator`.
 
 Still pending for the broader milestone:
 
 - Active ask-storm baseline.
 - Live Codex ask/callback/reply smoke with default `CCB_RUNTIME_ACCELERATOR_CODEX` replacement and a managed sidecar socket.
+  - Waiting for user-owned local global `ccb` test confirmation before porting the patch into `/home/agnitum/ccb-git`.
 - Syscall-level attribution if Slice A/B needs it.
 - Post-start sidecar health monitoring/restart policy beyond initial ccbd startup.
 - Full Rust-owned Slice B ccbd maintenance wake scheduling replacement.
