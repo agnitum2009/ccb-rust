@@ -9,7 +9,7 @@ from provider_backends.codex.comm_runtime.binding import extract_session_id
 from provider_backends.codex.comm_runtime.log_reader_facade import CodexLogReader
 from provider_backends.codex.session import CodexProjectSession
 from provider_backends.codex.session_runtime.follow_policy import should_follow_workspace_sessions
-from provider_backends.codex.session_switch import STATE_AUTO_REBINDABLE, commit_rebind, resolve_switch_decision, write_decision
+from provider_backends.codex.session_switch import STATE_AUTO_REBINDABLE, STATE_SWITCHED_UNBOUND, commit_rebind, resolve_switch_decision, write_decision
 
 from .env import env_float, path_or_none, read_session_data, session_root, session_work_dir
 
@@ -21,6 +21,7 @@ class CodexBindingTracker:
         self._poll_interval = env_float("CCB_CODEX_BIND_POLL_INTERVAL", 5.0)
         self._thread: threading.Thread | None = None
         self._running = False
+        self._deferred_switch_signature: tuple[object, ...] | None = None
 
     def start(self) -> None:
         if self.session_file is None:
@@ -43,16 +44,35 @@ class CodexBindingTracker:
                 pass
             time.sleep(max(1.0, self._poll_interval))
 
+
+    def _should_skip_deferred_switch_scan(self, data: dict[str, object]) -> bool:
+        signature = self._deferred_switch_signature
+        return signature is not None and signature == _switch_scan_signature(data)
+
+    def _remember_deferred_switch_scan(self, data: dict[str, object], decision) -> None:
+        if (
+            decision is not None
+            and decision.state == STATE_SWITCHED_UNBOUND
+            and int(getattr(decision.evidence, "running_job_count", 0) or 0) == 0
+        ):
+            self._deferred_switch_signature = _switch_scan_signature(data)
+            return
+        self._deferred_switch_signature = None
+
     def refresh_once(self) -> bool:
         context = refresh_context(self.session_file)
         if context is None:
             return False
 
-        switched = auto_rebind_switched_session(
+        if self._should_skip_deferred_switch_scan(context["data"]):
+            return False
+
+        switched, decision = _resolve_and_maybe_rebind(
             context["data"],
             session_file=context["session_file"],
             runtime_dir=self.runtime_dir,
         )
+        self._remember_deferred_switch_scan(context["data"], decision)
         if switched:
             return True
 
@@ -110,18 +130,57 @@ def auto_rebind_switched_session(
     session_file: Path,
     runtime_dir: Path,
 ) -> bool:
+    switched, _decision = _resolve_and_maybe_rebind(data, session_file=session_file, runtime_dir=runtime_dir)
+    return switched
+
+
+def _resolve_and_maybe_rebind(
+    data: dict[str, object],
+    *,
+    session_file: Path,
+    runtime_dir: Path,
+):
     decision = resolve_switch_decision(data, session_file=session_file, runtime_dir=runtime_dir)
     if decision.state != STATE_AUTO_REBINDABLE or decision.candidate is None:
         if decision.state != "bound":
             write_decision(runtime_dir, decision, committed=False)
-        return False
+        return False, decision
     return commit_rebind(
         session_file=session_file,
         session_data=data,
         candidate=decision.candidate,
         runtime_dir=runtime_dir,
         reason=decision.reason,
-    )
+    ), decision
+
+
+def _switch_scan_signature(data: dict[str, object]) -> tuple[object, ...]:
+    root = session_root(data)
+    current_path = path_or_none(data.get("codex_session_path"))
+    current_mtime = _path_mtime(current_path)
+    count = 0
+    newest = -1.0
+    try:
+        paths = root.glob("**/*.jsonl")
+        for path in paths:
+            if not path.is_file():
+                continue
+            count += 1
+            mtime = _path_mtime(path)
+            if mtime is not None and mtime > newest:
+                newest = mtime
+    except OSError:
+        return (str(root), str(current_path or ""), current_mtime, "scan-error")
+    return (str(root), str(current_path or ""), current_mtime, count, newest)
+
+
+def _path_mtime(path: Path | None) -> float | None:
+    if path is None:
+        return None
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
 
 
 def binding_snapshot(data: dict[str, object]) -> tuple[str, str, str, str]:

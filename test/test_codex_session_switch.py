@@ -53,6 +53,39 @@ def test_bridge_tracker_rejects_ambiguous_managed_candidates(tmp_path: Path, mon
     assert switch["committed"] is False
 
 
+
+def test_bridge_tracker_skips_repeated_ambiguous_scan_until_files_change(tmp_path: Path, monkeypatch) -> None:
+    work_dir, session_file, runtime_dir, _old_log = _project(tmp_path)
+    _log(tmp_path, session_id=NEW_ID, work_dir=work_dir, mtime=200)
+    _log(tmp_path, session_id=ALT_ID, work_dir=work_dir, mtime=201)
+
+    monkeypatch.setenv("CCB_SESSION_FILE", str(session_file))
+    tracker = CodexBindingTracker(runtime_dir)
+
+    assert tracker.refresh_once() is False
+
+    def fail_resolve(*_args, **_kwargs):
+        raise AssertionError("unchanged ambiguous sessions should not be rescanned")
+
+    monkeypatch.setattr("provider_backends.codex.bridge_runtime.binding_runtime.resolve_switch_decision", fail_resolve)
+
+    assert tracker.refresh_once() is False
+
+    new_log = _log(tmp_path, session_id="44444444-4444-4444-4444-444444444444", work_dir=work_dir, mtime=300)
+    calls = []
+
+    def record_resolve(*_args, **_kwargs):
+        calls.append(True)
+        from provider_backends.codex.session_switch.resolver import resolve_switch_decision
+
+        return resolve_switch_decision(*_args, **_kwargs)
+
+    monkeypatch.setattr("provider_backends.codex.bridge_runtime.binding_runtime.resolve_switch_decision", record_resolve)
+
+    assert tracker.refresh_once() is False
+    assert calls
+    assert new_log.exists()
+
 def test_bridge_tracker_requires_running_job_anchor_before_rebind(tmp_path: Path, monkeypatch) -> None:
     work_dir, session_file, runtime_dir, old_log = _project(tmp_path)
     jobs_path = tmp_path / "repo" / ".ccb" / "agents" / "agent1" / "jobs.jsonl"
