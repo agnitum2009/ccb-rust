@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::io::{BufRead, BufReader, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -8,6 +9,8 @@ use std::process::Command;
 use std::os::unix::net::{UnixListener, UnixStream};
 
 pub const SCHEMA_VERSION: u32 = 1;
+const REQ_ID_PREFIX: &str = "CCB_REQ_ID:";
+const DONE_PREFIX: &str = "CCB_DONE:";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcceleratorRequest {
@@ -62,6 +65,95 @@ pub struct BaselineSnapshot {
     pub processes: Vec<ProcessSample>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodexObserveParams {
+    #[serde(default)]
+    pub jobs: Vec<CodexObserveJob>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodexObserveJob {
+    pub job_id: String,
+    pub session_path: String,
+    #[serde(default)]
+    pub request_anchor: String,
+    #[serde(default)]
+    pub state: CodexObservationState,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodexObservationState {
+    #[serde(default)]
+    pub offset: u64,
+    #[serde(default = "default_next_seq")]
+    pub next_seq: u64,
+    #[serde(default)]
+    pub anchor_seen: bool,
+    #[serde(default)]
+    pub bound_turn_id: String,
+    #[serde(default)]
+    pub bound_task_id: String,
+    #[serde(default)]
+    pub reply_buffer: String,
+    #[serde(default)]
+    pub last_agent_message: String,
+    #[serde(default)]
+    pub last_final_answer: String,
+    #[serde(default)]
+    pub last_assistant_message: String,
+    #[serde(default)]
+    pub last_assistant_signature: String,
+    #[serde(default)]
+    pub session_path: String,
+}
+
+impl Default for CodexObservationState {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            next_seq: default_next_seq(),
+            anchor_seen: false,
+            bound_turn_id: String::new(),
+            bound_task_id: String::new(),
+            reply_buffer: String::new(),
+            last_agent_message: String::new(),
+            last_final_answer: String::new(),
+            last_assistant_message: String::new(),
+            last_assistant_signature: String::new(),
+            session_path: String::new(),
+        }
+    }
+}
+
+fn default_next_seq() -> u64 {
+    1
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodexCompletionItem {
+    pub job_id: String,
+    pub kind: String,
+    pub seq: u64,
+    pub payload: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodexJobObservation {
+    pub job_id: String,
+    pub session_path: String,
+    pub state: CodexObservationState,
+    pub items: Vec<CodexCompletionItem>,
+    pub reached_terminal: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodexObserveResponse {
+    pub schema_version: u32,
+    pub observations: Vec<CodexJobObservation>,
+}
+
 pub fn handle_request_line(raw: &str) -> AcceleratorResponse {
     let request = match serde_json::from_str::<AcceleratorRequest>(raw.trim()) {
         Ok(request) => request,
@@ -79,7 +171,7 @@ pub fn handle_request(request: AcceleratorRequest) -> AcceleratorResponse {
         })),
         "capabilities" => AcceleratorResponse::ok(json!({
             "schema_version": SCHEMA_VERSION,
-            "capabilities": ["ping", "capabilities", "baseline_snapshot"],
+            "capabilities": ["ping", "capabilities", "baseline_snapshot", "codex_observe"],
             "hot_loop_replacement_active": false,
         })),
         "baseline_snapshot" => {
@@ -96,6 +188,13 @@ pub fn handle_request(request: AcceleratorRequest) -> AcceleratorResponse {
                 Err(err) => AcceleratorResponse::err(err.to_string()),
             }
         }
+        "codex_observe" => match codex_observe(&request.params) {
+            Ok(response) => match serde_json::to_value(response) {
+                Ok(value) => AcceleratorResponse::ok(value),
+                Err(err) => AcceleratorResponse::err(format!("serialize codex observation: {err}")),
+            },
+            Err(err) => AcceleratorResponse::err(err.to_string()),
+        },
         other => AcceleratorResponse::err(format!("unknown method: {other}")),
     }
 }
@@ -168,6 +267,434 @@ pub fn baseline_snapshot(project_root: &str) -> anyhow::Result<BaselineSnapshot>
         process_count: processes.len(),
         processes,
     })
+}
+
+pub fn codex_observe(params: &Value) -> anyhow::Result<CodexObserveResponse> {
+    let params: CodexObserveParams = serde_json::from_value(params.clone())?;
+    let observations = params.jobs.iter().map(observe_codex_job).collect();
+    Ok(CodexObserveResponse {
+        schema_version: SCHEMA_VERSION,
+        observations,
+    })
+}
+
+fn observe_codex_job(job: &CodexObserveJob) -> CodexJobObservation {
+    let mut state = job.state.clone();
+    state.session_path = job.session_path.clone();
+    let mut items = Vec::new();
+    let mut reached_terminal = false;
+    let path = Path::new(&job.session_path);
+    let result = read_codex_entries(path, &mut state, |entry, state| {
+        if process_codex_entry(job, state, &mut items, entry) {
+            reached_terminal = true;
+        }
+        !reached_terminal
+    });
+    CodexJobObservation {
+        job_id: job.job_id.clone(),
+        session_path: job.session_path.clone(),
+        state,
+        items,
+        reached_terminal,
+        error: result.err().map(|err| err.to_string()),
+    }
+}
+
+fn read_codex_entries<F>(
+    path: &Path,
+    state: &mut CodexObservationState,
+    mut visit: F,
+) -> anyhow::Result<()>
+where
+    F: FnMut(NormalizedCodexEntry, &mut CodexObservationState) -> bool,
+{
+    let mut reader = BufReader::new(File::open(path)?);
+    let size = reader.get_ref().metadata()?.len();
+    if state.offset > size {
+        state.offset = size;
+    }
+    reader.seek(SeekFrom::Start(state.offset))?;
+    let mut line = String::new();
+    loop {
+        line.clear();
+        let bytes = reader.read_line(&mut line)?;
+        if bytes == 0 {
+            break;
+        }
+        state.offset += bytes as u64;
+        let Ok(raw) = serde_json::from_str::<Value>(line.trim_end()) else {
+            continue;
+        };
+        let Some(entry) = normalize_codex_entry(&raw) else {
+            continue;
+        };
+        if !visit(entry, state) {
+            break;
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct NormalizedCodexEntry {
+    role: String,
+    text: String,
+    entry_type: String,
+    payload_type: String,
+    timestamp: String,
+    phase: String,
+    turn_id: String,
+    task_id: String,
+    reason: String,
+    last_agent_message: String,
+}
+
+fn normalize_codex_entry(raw: &Value) -> Option<NormalizedCodexEntry> {
+    let entry_type = value_string(raw.get("type"));
+    let payload_value = raw.get("payload").cloned().unwrap_or_else(|| json!({}));
+    let payload_type = value_string(payload_value.get("type"));
+    let base = NormalizedCodexEntry {
+        role: String::new(),
+        text: String::new(),
+        entry_type: entry_type.clone(),
+        payload_type: payload_type.clone(),
+        timestamp: value_string(raw.get("timestamp")),
+        phase: value_string(payload_value.get("phase")),
+        turn_id: value_string(payload_value.get("turn_id")),
+        task_id: value_string(payload_value.get("task_id")),
+        reason: value_string(payload_value.get("reason")),
+        last_agent_message: value_string(payload_value.get("last_agent_message")),
+    };
+
+    if entry_type == "response_item" && payload_type == "message" {
+        let role = value_string(payload_value.get("role")).to_ascii_lowercase();
+        let text = if role == "user" {
+            join_content_text(payload_value.get("content"), "input_text")
+        } else {
+            join_content_text(payload_value.get("content"), "output_text")
+                .or_else(|| join_content_text(payload_value.get("content"), "text"))
+                .or_else(|| first_text(&payload_value, &["message", "content", "text"]))
+        };
+        return entry_with_text(base, role, text);
+    }
+
+    if entry_type == "event_msg" {
+        if payload_type == "user_message" {
+            return entry_with_text(
+                base,
+                "user".to_string(),
+                first_text(&payload_value, &["message"]),
+            );
+        }
+        if matches!(
+            payload_type.as_str(),
+            "agent_message" | "assistant_message" | "assistant" | "assistant_response" | "message"
+        ) {
+            let role = value_string(payload_value.get("role")).to_ascii_lowercase();
+            let role = if role == "user" { "user" } else { "assistant" }.to_string();
+            return entry_with_text(
+                base,
+                role,
+                first_text(&payload_value, &["message", "content", "text"]),
+            );
+        }
+        if payload_type == "task_complete" {
+            return Some(NormalizedCodexEntry {
+                role: "system".to_string(),
+                text: value_string(payload_value.get("last_agent_message")),
+                reason: "task_complete".to_string(),
+                ..base
+            });
+        }
+        if payload_type == "turn_aborted" {
+            return Some(NormalizedCodexEntry {
+                role: "system".to_string(),
+                text: value_string(payload_value.get("message")),
+                reason: value_string(payload_value.get("reason")),
+                ..base
+            });
+        }
+    }
+
+    let role = value_string(payload_value.get("role")).to_ascii_lowercase();
+    let text = if role == "user" {
+        first_text(&payload_value, &["message", "content", "text"])
+    } else {
+        first_text(&payload_value, &["message", "content", "text"])
+    };
+    entry_with_text(base, role, text)
+}
+
+fn entry_with_text(
+    base: NormalizedCodexEntry,
+    role: String,
+    text: Option<String>,
+) -> Option<NormalizedCodexEntry> {
+    let text = text.unwrap_or_default().trim().to_string();
+    if role.is_empty() || text.is_empty() {
+        return None;
+    }
+    Some(NormalizedCodexEntry { role, text, ..base })
+}
+
+fn process_codex_entry(
+    job: &CodexObserveJob,
+    state: &mut CodexObservationState,
+    items: &mut Vec<CodexCompletionItem>,
+    entry: NormalizedCodexEntry,
+) -> bool {
+    if !entry.turn_id.is_empty() {
+        state.bound_turn_id = entry.turn_id.clone();
+    }
+    if !entry.task_id.is_empty() {
+        state.bound_task_id = entry.task_id.clone();
+    }
+
+    if entry.role == "user" {
+        let anchor_needle = format!("{REQ_ID_PREFIX} {}", job.request_anchor);
+        if !job.request_anchor.is_empty()
+            && entry.text.contains(&anchor_needle)
+            && !state.anchor_seen
+        {
+            let mut payload = json!({"turn_id": turn_id_or_anchor(state, &job.request_anchor)});
+            add_optional_payload_fields(&mut payload, state);
+            push_item(job, state, items, "anchor_seen", payload);
+            state.anchor_seen = true;
+        }
+        return false;
+    }
+
+    if !state.anchor_seen {
+        return false;
+    }
+
+    if entry.role == "assistant" {
+        return process_assistant_entry(job, state, items, &entry);
+    }
+
+    let terminal_type = if entry.payload_type.is_empty() {
+        entry.entry_type.as_str()
+    } else {
+        entry.payload_type.as_str()
+    };
+    match terminal_type {
+        "task_complete" => {
+            let terminal_text = entry.last_agent_message.trim();
+            if !terminal_text.is_empty() {
+                state.last_agent_message = clean_reply_text(terminal_text, &job.request_anchor);
+            }
+            let mut payload = json!({
+                "reason": "task_complete",
+                "last_agent_message": selected_reply(state),
+                "turn_id": turn_id_or_anchor(state, &job.request_anchor),
+            });
+            add_optional_payload_fields(&mut payload, state);
+            push_item(job, state, items, "turn_boundary", payload);
+            true
+        }
+        "turn_aborted" => {
+            let reason = if entry.reason.trim().is_empty() {
+                "turn_aborted".to_string()
+            } else {
+                entry.reason.trim().to_string()
+            };
+            let status = if reason.to_ascii_lowercase().contains("cancel")
+                || reason.to_ascii_lowercase().contains("abort")
+                || reason.to_ascii_lowercase().contains("interrupt")
+            {
+                "cancelled"
+            } else {
+                "failed"
+            };
+            let mut payload = json!({
+                "reason": reason,
+                "status": status,
+                "last_agent_message": selected_reply(state),
+                "turn_id": turn_id_or_anchor(state, &job.request_anchor),
+            });
+            if !entry.text.trim().is_empty() {
+                payload["text"] = json!(entry.text.trim());
+                payload["error_message"] = json!(entry.text.trim());
+            }
+            add_optional_payload_fields(&mut payload, state);
+            push_item(job, state, items, "turn_aborted", payload);
+            true
+        }
+        _ => false,
+    }
+}
+
+fn process_assistant_entry(
+    job: &CodexObserveJob,
+    state: &mut CodexObservationState,
+    items: &mut Vec<CodexCompletionItem>,
+    entry: &NormalizedCodexEntry,
+) -> bool {
+    let signature = assistant_signature(entry);
+    if !signature.is_empty() {
+        if signature == state.last_assistant_signature {
+            return false;
+        }
+        state.last_assistant_signature = signature;
+    }
+    let cleaned = clean_reply_text(&entry.text, &job.request_anchor);
+    if cleaned.is_empty() {
+        return false;
+    }
+    state.reply_buffer = append_reply_text(&state.reply_buffer, &cleaned);
+    state.last_assistant_message = cleaned.clone();
+    if entry.phase == "final_answer" {
+        state.last_final_answer = cleaned.clone();
+    }
+    let mut payload = json!({
+        "text": cleaned,
+        "merged_text": state.reply_buffer,
+    });
+    add_optional_payload_fields(&mut payload, state);
+    if !entry.phase.is_empty() {
+        payload["phase"] = json!(entry.phase);
+    }
+    push_item(job, state, items, "assistant_chunk", payload);
+    false
+}
+
+fn push_item(
+    job: &CodexObserveJob,
+    state: &mut CodexObservationState,
+    items: &mut Vec<CodexCompletionItem>,
+    kind: &str,
+    payload: Value,
+) {
+    items.push(CodexCompletionItem {
+        job_id: job.job_id.clone(),
+        kind: kind.to_string(),
+        seq: state.next_seq,
+        payload,
+    });
+    state.next_seq += 1;
+}
+
+fn add_optional_payload_fields(payload: &mut Value, state: &CodexObservationState) {
+    if !state.bound_task_id.is_empty() {
+        payload["task_id"] = json!(state.bound_task_id);
+    }
+    if !state.session_path.is_empty() {
+        payload["session_path"] = json!(state.session_path);
+    }
+}
+
+fn turn_id_or_anchor(state: &CodexObservationState, request_anchor: &str) -> String {
+    if state.bound_turn_id.is_empty() {
+        request_anchor.to_string()
+    } else {
+        state.bound_turn_id.clone()
+    }
+}
+
+fn assistant_signature(entry: &NormalizedCodexEntry) -> String {
+    if entry.timestamp.is_empty() || entry.text.trim().is_empty() {
+        String::new()
+    } else {
+        format!(
+            "{}\0{}\0{}",
+            entry.timestamp,
+            entry.phase,
+            entry.text.trim()
+        )
+    }
+}
+
+fn append_reply_text(reply_buffer: &str, cleaned: &str) -> String {
+    if reply_buffer.is_empty() {
+        cleaned.to_string()
+    } else {
+        format!("{reply_buffer}\n{cleaned}").trim().to_string()
+    }
+}
+
+fn selected_reply(state: &CodexObservationState) -> String {
+    for candidate in [
+        &state.last_agent_message,
+        &state.last_final_answer,
+        &state.last_assistant_message,
+        &state.reply_buffer,
+    ] {
+        let text = candidate.trim();
+        if !text.is_empty() {
+            return text.to_string();
+        }
+    }
+    String::new()
+}
+
+fn clean_reply_text(text: &str, request_anchor: &str) -> String {
+    let mut lines: Vec<&str> = text.lines().collect();
+    while lines
+        .last()
+        .map(|line| line.trim().is_empty())
+        .unwrap_or(false)
+    {
+        lines.pop();
+    }
+    if !request_anchor.is_empty()
+        && lines
+            .last()
+            .map(|line| line.trim() == format!("{DONE_PREFIX} {request_anchor}"))
+            .unwrap_or(false)
+    {
+        lines.pop();
+    }
+    while lines
+        .last()
+        .map(|line| line.trim().is_empty())
+        .unwrap_or(false)
+    {
+        lines.pop();
+    }
+    lines.join("\n").trim().to_string()
+}
+
+fn value_string(value: Option<&Value>) -> String {
+    value
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn first_text(payload: &Value, keys: &[&str]) -> Option<String> {
+    for key in keys {
+        let Some(value) = payload.get(*key) else {
+            continue;
+        };
+        if let Some(text) = value
+            .as_str()
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+        {
+            return Some(text.to_string());
+        }
+    }
+    None
+}
+
+fn join_content_text(content: Option<&Value>, item_type: &str) -> Option<String> {
+    let items = content?.as_array()?;
+    let texts: Vec<String> = items
+        .iter()
+        .filter_map(|item| {
+            if value_string(item.get("type")) == item_type {
+                first_text(item, &["text"])
+            } else {
+                None
+            }
+        })
+        .collect();
+    if texts.is_empty() {
+        None
+    } else {
+        Some(texts.join("\n").trim().to_string())
+    }
 }
 
 fn ps_rows() -> anyhow::Result<Vec<ProcessSample>> {
@@ -255,6 +782,10 @@ mod tests {
         assert!(response.ok);
         let result = response.result.unwrap();
         assert_eq!(result["hot_loop_replacement_active"], false);
+        assert!(result["capabilities"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("codex_observe")));
     }
 
     #[test]
@@ -280,5 +811,128 @@ mod tests {
             default_socket_path(Path::new("/repo")),
             PathBuf::from("/repo/.ccb/runtime-accelerator/accelerator.sock")
         );
+    }
+
+    #[test]
+    fn codex_observe_reads_anchor_reply_and_terminal_boundary() {
+        let path = unique_test_path("codex-observe.jsonl");
+        std::fs::write(
+            &path,
+            [
+                json!({
+                    "type": "event_msg",
+                    "payload": {"type": "user_message", "message": "CCB_REQ_ID: req-1\nhello", "turn_id": "turn-1"}
+                })
+                .to_string(),
+                json!({
+                    "type": "response_item",
+                    "timestamp": "2026-06-26T00:00:00Z",
+                    "payload": {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [{"type": "output_text", "text": "partial"}],
+                        "turn_id": "turn-1"
+                    }
+                })
+                .to_string(),
+                json!({
+                    "type": "event_msg",
+                    "payload": {"type": "task_complete", "last_agent_message": "final\nCCB_DONE: req-1", "turn_id": "turn-1"}
+                })
+                .to_string(),
+            ]
+            .join("\n")
+                + "\n",
+        )
+        .unwrap();
+
+        let response = codex_observe(&json!({
+            "jobs": [{
+                "job_id": "job-1",
+                "session_path": path,
+                "request_anchor": "req-1",
+                "state": {"offset": 0, "next_seq": 1}
+            }]
+        }))
+        .unwrap();
+
+        let observation = &response.observations[0];
+        assert!(observation.error.is_none());
+        assert!(observation.reached_terminal);
+        assert!(observation.state.anchor_seen);
+        assert!(observation.state.offset > 0);
+        assert_eq!(
+            observation
+                .items
+                .iter()
+                .map(|item| item.kind.as_str())
+                .collect::<Vec<_>>(),
+            vec!["anchor_seen", "assistant_chunk", "turn_boundary"]
+        );
+        assert_eq!(observation.items[2].payload["last_agent_message"], "final");
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn codex_observe_does_not_emit_assistant_before_anchor() {
+        let path = unique_test_path("codex-observe-before-anchor.jsonl");
+        std::fs::write(
+            &path,
+            json!({
+                "type": "response_item",
+                "timestamp": "2026-06-26T00:00:00Z",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "not yet"}]
+                }
+            })
+            .to_string()
+                + "\n",
+        )
+        .unwrap();
+
+        let response = codex_observe(&json!({
+            "jobs": [{
+                "job_id": "job-1",
+                "session_path": path,
+                "request_anchor": "req-1"
+            }]
+        }))
+        .unwrap();
+
+        let observation = &response.observations[0];
+        assert!(observation.items.is_empty());
+        assert!(!observation.state.anchor_seen);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn codex_observe_reports_missing_session_per_job() {
+        let response = codex_observe(&json!({
+            "jobs": [{
+                "job_id": "job-1",
+                "session_path": "/no/such/codex-session.jsonl",
+                "request_anchor": "req-1"
+            }]
+        }))
+        .unwrap();
+
+        let observation = &response.observations[0];
+        assert!(observation.items.is_empty());
+        assert!(observation
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("No such file"));
+    }
+
+    fn unique_test_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "ccb-runtime-accelerator-{}-{name}",
+            std::process::id()
+        ))
     }
 }
