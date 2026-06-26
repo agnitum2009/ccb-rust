@@ -256,8 +256,9 @@ mod tests {
             provider_turn_ref: None,
             diagnostics: Value::Object(Default::default()),
         };
+        let finished_at = chrono::Utc::now().to_rfc3339();
         app.mailbox
-            .record_terminal(&mailbox_job, &decision, "2026-06-26T00:00:00Z", true, true);
+            .record_terminal(&mailbox_job, &decision, &finished_at, false, false);
         let message_id = app
             .mailbox_control
             .attempt_store()

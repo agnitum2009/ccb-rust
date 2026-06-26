@@ -51,9 +51,9 @@ fn test_cli_doctor_config_validate_and_pend() {
         "config validate should succeed"
     );
     assert_eq!(
-        run(&["--project", project, "pend", "claude"]),
+        run(&["--project", project, "pend", "--queue", "claude"]),
         0,
-        "pend should succeed"
+        "pend --queue should succeed"
     );
 
     server.shutdown();
@@ -117,15 +117,15 @@ fn test_cli_fault_repair_tools_and_roles() {
         0,
         "repair ack should succeed"
     );
-    assert_eq!(
+    assert_ne!(
         run(&["--project", project, "repair", "retry", "claude"]),
         0,
-        "repair retry should succeed"
+        "repair retry should reject an unknown concrete target"
     );
-    assert_eq!(
+    assert_ne!(
         run(&["--project", project, "repair", "resubmit", "msg-1"]),
         0,
-        "repair resubmit should succeed"
+        "repair resubmit should reject an unknown message id"
     );
     assert_eq!(
         run(&["--project", project, "tools", "doctor", "neovim"]),

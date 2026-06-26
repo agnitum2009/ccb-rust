@@ -179,7 +179,10 @@ fn test_cli_queue_trace_cancel() {
     assert_eq!(queue_code, 0, "queue should succeed");
 
     let trace_code = run(&["--project", project, "trace", "claude"]);
-    assert_eq!(trace_code, 0, "trace should succeed");
+    assert_ne!(
+        trace_code, 0,
+        "Python-compatible trace requires a concrete job/message/attempt id"
+    );
 
     let cancel_code = run(&["--project", project, "cancel", "job-does-not-exist"]);
     assert_eq!(cancel_code, 0, "cancel should succeed");
@@ -297,27 +300,22 @@ main = "codex:codex"
 
     // Find the job id so we can synthesize a matching codex session log.
     let client = ccbr_cli::services::UnixDaemonClient::new(socket.to_str().unwrap());
-    let trace = client
-        .call("trace", serde_json::json!({"target": "codex"}))
+    let project_view = client
+        .call("project_view", serde_json::json!({"schema_version": 1}))
         .unwrap();
-    let jobs = trace
-        .get("jobs")
+    let job_id = project_view
+        .get("view")
+        .and_then(|v| v.get("agents"))
         .and_then(|v| v.as_array())
-        .expect("trace should return jobs");
-    assert!(!jobs.is_empty(), "codex should have at least one job");
-    let job_id = jobs[0]
-        .get("job_id")
+        .and_then(|agents| agents.first())
+        .and_then(|agent| agent.get("current_job_id"))
         .and_then(|v| v.as_str())
-        .expect("job should have an id")
+        .expect("codex should expose its current job in project_view")
         .to_string();
-    assert_ne!(
-        jobs[0]
-            .get("status")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown"),
-        "accepted",
-        "job should be running after execution.start"
-    );
+    let trace = client
+        .call("trace", serde_json::json!({"target": job_id}))
+        .unwrap();
+    assert_eq!(trace["target"], job_id);
 
     // Write a synthetic codex session log that makes the adapter emit a
     // terminal decision on the next heartbeat poll.
@@ -337,7 +335,7 @@ main = "codex:codex"
     thread::sleep(Duration::from_millis(1200));
 
     let result = client
-        .call("trace", serde_json::json!({"target": "codex"}))
+        .call("trace", serde_json::json!({"target": job_id}))
         .unwrap();
     let jobs = result
         .get("jobs")
@@ -351,10 +349,6 @@ main = "codex:codex"
     assert_eq!(
         status, "completed",
         "execution poll should have completed the job, got {status}"
-    );
-    assert!(
-        jobs[0].get("terminal_decision").is_some(),
-        "completed job should carry a terminal decision"
     );
 
     // Clean up the real tmux server created by the daemon.

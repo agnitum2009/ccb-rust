@@ -194,3 +194,34 @@ Evidence:
 - Formatting note: legacy full crate `cargo fmt --check` is blocked by pre-existing rustfmt drift in touched files; no broad formatting was applied to avoid unrelated churn.
 - Resource cleanup evidence for `/mnt/d/dapro-ass`: no matching ccbrd/provider runtime processes, `~/.local/state/ccbr/projects/302a3b148cf77d3ecab65db7becea51f0c9abed4d7f43271afdc1e7895b41e8c` absent, Python `~/.local/state/ccb/projects/302a3b148cf77d3ecab65db7becea51f0c9abed4d7f43271afdc1e7895b41e8c` preserved.
 - Live agent smoke was not re-run after cleanup in this checkpoint to keep the user-requested clean resource state intact.
+
+## Phase D follow-up — full-suite test contract alignment and ccb-legacy sync boundary (2026-06-26)
+
+Owner finding:
+
+- Current uncommitted `ccbr` diff is test-only: it aligns stale CLI/handler regression tests with the already-implemented Python-compatible trace/readback and resubmit/retry owner behavior.
+- `trace <agent>` and dispatcher-local trace fallback are intentionally rejected for the Python `trace` op; concrete `job_id` / mailbox ids remain the owner contract.
+- `resubmit` test setup must record a terminal latest attempt without creating reply-delivery side effects, otherwise the test fixture manufactures an active/latest attempt and contradicts the Python lifecycle gate.
+- `ccb-legacy` already has the prior provider/ask production sync commit. This test-only delta has no safe equivalent legacy owner: legacy `ccb-cli` still accepts agent-name trace and legacy `ccb-daemon::handlers::resubmit` is a thin dispatcher stub without the new mailbox-bureau handler tests. Forcing the ccbr expectations there would break legacy's current branch behavior rather than synchronize an equivalent fix.
+
+Fix:
+
+- Updated `ccbr-cli` integration/stub tests to target concrete jobs for trace and to expect Python-style rejection of unknown retry/resubmit targets.
+- Updated the `ccbr-daemon` resubmit test fixture so the latest attempt is the intended terminal attempt and no synthetic reply-delivery attempt is introduced.
+- Left `ccb-legacy` unchanged for this test-only pass after verifying the corresponding owner surfaces are not equivalent; Python `ccb` / `.ccb` state remains untouched.
+
+Evidence:
+
+- Main line:
+  - `cd rust && cargo fmt --check -p ccbr-cli -p ccbr-daemon`
+  - `cd rust && cargo test -p ccbr-cli -- --test-threads=1`
+  - `cd rust && cargo test -p ccbr-daemon -- --test-threads=1`
+  - `cd rust && cargo test -p ccbr-providers -- --test-threads=1`
+  - `(cd tools/ccb-agent-sidebar && cargo test -- --test-threads=1)`
+- Legacy sync check:
+  - inspected `ccb-legacy:rust/crates/ccb-cli/tests/cli_integration_tests.rs`, `ccb-legacy:rust/crates/ccb-cli/tests/cli_stub_commands_tests.rs`, and `ccb-legacy:rust/crates/ccb-daemon/src/handlers/resubmit.rs`.
+  - no ccb-legacy commit is required for this test-only adjustment because the branch lacks the same Python-trace/project-view/resubmit test owner.
+- Resource cleanup after full-suite checks:
+  - `CCB_TEST_ROOTS=/mnt/d/dapro-ass bash scripts/ccbr-test-cleanup.sh` reported ccbr test remnants reclaimed and Python `ccb` state untouched.
+  - Reaped orphan tmux processes whose command lines were scoped to `/tmp/.tmp*/.ccbr/ccbrd/tmux.sock`.
+  - Removed `/tmp/.tmp*/.ccbr` test leftovers; follow-up scan found no matching tmp `.ccbr` dirs and no ccbrd/sidebar/test-tmux processes.
