@@ -86,7 +86,11 @@
   - The sidecar reads only the passed Codex session JSONL path; it does not scan all agents and does not poll idle agents.
 - [x] Keep Codex hooks enabled.
 - [x] Keep provider CLI process unchanged.
-- [ ] Keep Python fallback path behind a feature flag / env knob until smoke passes.
+- [x] Keep Python fallback path behind a feature flag / env knob until smoke passes.
+  - `CCB_RUNTIME_ACCELERATOR_CODEX` defaults disabled.
+  - `CCB_RUNTIME_ACCELERATOR_SOCKET` can point tests or manual smoke at an explicit sidecar socket.
+  - Sidecar communication failures, malformed observations, per-job errors, and unknown item kinds fall back to the existing Python reader path.
+  - Successful no-change observations do not fall through into the Python reader path, so the opt-in path does not pay both polling costs.
 - [ ] Target active-job completion check around 200ms if needed, with zero idle polling.
 
 ### Slice B — ccbd maintenance hot loop
@@ -135,12 +139,19 @@
   - `codex_observe` unit test proving assistant output before anchor does not emit completion items.
   - `codex_observe` unit test proving missing session files return per-job errors, not whole-batch failure.
   - Real Unix socket smoke for `codex_observe` over an ephemeral legacy `.ccb/runtime-accelerator` socket.
+- Slice A Python adapter validation:
+  - `uv run --with pytest pytest -q test/test_codex_runtime_accelerator_polling.py test/test_codex_execution_polling.py test/test_runtime_accelerator_client.py`
+  - `python -m compileall -q lib/provider_backends/codex/execution_runtime test/test_codex_runtime_accelerator_polling.py`
+  - `git diff --check`
+  - `cargo fmt --check -p ccb-runtime-accelerator`
+  - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
 
 Still pending for the broader milestone:
 
 - Active ask-storm baseline.
+- Live Codex ask/callback/reply smoke with `CCB_RUNTIME_ACCELERATOR_CODEX=1` and a managed sidecar socket.
 - Syscall-level attribution if Slice A/B needs it.
-- Python daemon/provider integration for Slice A behind fallback/feature flag.
+- Python daemon lifecycle/start-monitor integration for the runtime accelerator sidecar.
 - Slice B ccbd maintenance wake scheduling replacement.
 
 ## Risk / rollback
