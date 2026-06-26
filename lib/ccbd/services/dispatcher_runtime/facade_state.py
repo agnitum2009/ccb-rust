@@ -30,6 +30,7 @@ class DispatcherRuntimeState:
     last_restore_entries: tuple = ()
     last_restore_generated_at: str | None = None
     last_text_artifact_sweep_at: float | None = None
+    project_view_revision: int = 0
 
 
 class DispatcherRuntimeStateMixin:
@@ -152,6 +153,13 @@ class DispatcherRuntimeStateMixin:
     @_last_text_artifact_sweep_at.setter
     def _last_text_artifact_sweep_at(self, value) -> None:
         self._runtime_state.last_text_artifact_sweep_at = value
+
+    @property
+    def project_view_revision(self) -> int:
+        return int(self._runtime_state.project_view_revision)
+
+    def mark_project_view_dirty(self) -> None:
+        self._runtime_state.project_view_revision += 1
 
 
 __all__ = [

@@ -2186,6 +2186,49 @@ def test_project_view_idle_cache_ttl_can_restore_legacy_cadence(tmp_path: Path, 
     assert service.build_response()['cache']['ttl_ms'] == 1000
 
 
+
+def test_project_view_cache_invalidates_when_dispatcher_jobs_change(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-cache-dispatcher-revision'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config()
+    registry = AgentRegistry(layout, config)
+    for agent_name in config.agents:
+        registry.upsert(_runtime(agent_name, project_id=project_id))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    mount_manager.mark_mounted(project_id=project_id, pid=123, socket_path=layout.ccbd_socket_path, generation=1, started_at=NOW)
+    dispatcher = JobDispatcher(layout, config, registry, clock=lambda: NOW)
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=dispatcher,
+            clock=lambda: NOW,
+            cache_ttl_ms=60000,
+        )
+    )
+
+    first = service.build_response()
+    dispatcher._append_job(
+        _job(
+            project_id,
+            job_id='job_cache_dirty',
+            sender='user',
+            target='agent1',
+            status=JobStatus.COMPLETED,
+            body='cache should observe this without waiting for TTL',
+        )
+    )
+    second = service.build_response()
+
+    assert second is not first
+    assert [item['id'] for item in second['view']['comms']] == ['job_cache_dirty']
+
 def test_project_view_updates_build_cache_and_tmux_metrics(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-project-view-metrics'
     project_root.mkdir()

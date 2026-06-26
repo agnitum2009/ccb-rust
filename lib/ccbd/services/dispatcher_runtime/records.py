@@ -25,6 +25,7 @@ def latest_for_agent(dispatcher, agent_name: str) -> JobRecord | None:
 def append_job(dispatcher, record: JobRecord) -> None:
     dispatcher._job_store.append(record)
     dispatcher._state.record(record)
+    _mark_project_view_dirty(dispatcher)
 
 
 def append_event(
@@ -47,6 +48,13 @@ def append_event(
             timestamp=timestamp,
         )
     )
+    _mark_project_view_dirty(dispatcher)
+
+
+def _mark_project_view_dirty(dispatcher) -> None:
+    marker = getattr(dispatcher, 'mark_project_view_dirty', None)
+    if callable(marker):
+        marker()
 
 
 def rebuild_dispatcher_state(dispatcher) -> None:

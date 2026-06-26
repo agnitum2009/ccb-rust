@@ -229,6 +229,7 @@ class _CommsLookup:
 class _CachedProjectViewResponse:
     response: dict[str, object]
     expires_at: float
+    dispatcher_revision: int
 
 
 class ProjectViewService:
@@ -247,9 +248,14 @@ class ProjectViewService:
         ttl_ms = _project_view_ttl_ms(self._deps)
         ttl_s = max(0.0, ttl_ms / 1000.0)
         now = monotonic()
+        dispatcher_revision = _dispatcher_project_view_revision(self._deps.dispatcher)
         if ttl_s > 0:
             cached = self._cached_response
-            if cached is not None and now < cached.expires_at:
+            if (
+                cached is not None
+                and now < cached.expires_at
+                and cached.dispatcher_revision == dispatcher_revision
+            ):
                 _record_project_view_cache_hit(self._deps.metrics, response_started=response_started)
                 return cached.response
         metrics_context = _ProjectViewMetricsContext()
@@ -268,6 +274,7 @@ class ProjectViewService:
             self._cached_response = _CachedProjectViewResponse(
                 response=response,
                 expires_at=monotonic() + ttl_s,
+                dispatcher_revision=dispatcher_revision,
             )
         _record_project_view_cache_miss(
             self._deps.metrics,
@@ -339,6 +346,14 @@ def build_project_view(
             generated_at=generated_at,
         ),
     }
+
+
+def _dispatcher_project_view_revision(dispatcher: object | None) -> int:
+    value = getattr(dispatcher, 'project_view_revision', 0)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _project_view_ttl_ms(deps: ProjectViewDependencies) -> int:
