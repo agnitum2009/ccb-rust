@@ -61,6 +61,10 @@ impl StartFlowService {
         }
     }
 
+    pub fn uses_tmux(&self) -> bool {
+        matches!(self.mode, StartFlowMode::Tmux)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn execute(
         &self,

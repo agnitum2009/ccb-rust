@@ -46,10 +46,9 @@ fn projects_root(dir: &TempDir) -> PathBuf {
 
 fn project_key_for_path(path: &Path) -> String {
     path.to_string_lossy()
-        .replace(['\\', '/'], "-")
-        .replace(|c: char| !c.is_alphanumeric() && c != '-', "-")
-        .trim_matches('-')
-        .to_string()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect()
 }
 
 fn make_project_dir(root: &Path, work_dir: &Path) -> PathBuf {

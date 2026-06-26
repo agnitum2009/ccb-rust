@@ -258,6 +258,49 @@ Verification:
 - `cd rust && cargo test -p ccbr-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
 - `/tmp/ccb-legacy-sync`: `cargo test -p ccb-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
 
+## Phase D follow-up — live sidebar topology and parallel provider startup closure (2026-06-26)
+
+Owner finding:
+
+- The remaining live sidebar gap was not the `project_view` JSON shape. `ccbrd start` used the older synthetic `StartFlowService` namespace path and never materialized the runtime namespace topology, so the `ccbr-agent-sidebar` pane could be absent even while `project-view` succeeded.
+- The topology plan emitted `--ccbrd-socket`; the sidebar binary only accepted `--ccbd-socket`, so even a materialized ccbr sidebar command needed the ccbr alias.
+- Parallel Codex provider startup shared the inherited plugin bundle cache. The old temp path was shared and losing writers could fail with `destination already exists`; legacy sync testing then exposed the stricter race where a loser could delete a valid bundle. The cache owner must be unique-temp plus publish-race idempotence, not hook disablement.
+- `ccb-legacy` has an equivalent provider-core/Claude-test owner surface for the cache and project-key fixes. It does not receive ccbr-only sidebar/topology naming changes.
+
+Fix:
+
+- `ccbr-daemon` now routes real tmux start with sidebar topology through `RuntimeProjectNamespaceController::ensure(..., Some(topology_plan), ...)`, fails loudly if any configured agent pane is missing, and preserves stub/non-sidebar start-flow behavior.
+- `ccbr-agent-sidebar` accepts `--ccbrd-socket` as an alias for the existing daemon socket argument.
+- `ccbr-provider-core` publishes shared projected tree bundles with unique temp directories, re-checks required entries before and after publish races, and avoids deleting a valid bundle created by another writer.
+- `ccbr-providers` Claude tests now use the same project-key mapping as the reader: every non-ASCII-alphanumeric char maps to `-`, with no leading-dash trim.
+- `/tmp/ccb-legacy-sync` received only the equivalent Python-compatible provider-core cache and Claude test-helper fixes.
+
+Evidence:
+
+- Main line:
+  - `cd rust && cargo fmt --check -p ccbr-daemon -p ccbr-provider-core -p ccbr-provider-profiles -p ccbr-providers`
+  - `cargo test -p ccbr-provider-core -- --test-threads=1`
+  - `cargo test -p ccbr-provider-profiles -- --test-threads=1`
+  - `cargo test -p ccbr-providers -- --test-threads=1`
+  - `cargo test -p ccbr-daemon -- --test-threads=1`
+  - `cargo test --manifest-path ../tools/ccb-agent-sidebar/Cargo.toml -- --test-threads=1`
+  - `cargo build -p ccbr-cli -p ccbr-daemon -p ccbr-providers`
+  - after tightening the cache race: targeted rerun of `ccbr-provider-core projected_assets`, provider-profile shared bundle test, `provider_claude_tests`, daemon sidebar topology test, sidebar args tests, and build.
+- Live smoke in `/mnt/d/dapro-ass`:
+  - `ccbrd` ready, `ccbr_test start` returned `Start status: ok`.
+  - `project-view` returned agent1/agent2 Codex and agent3 Claude with live pane ids.
+  - tmux pane listing showed one `sidebar` pane running `ccbr-agent-sidebar --ccbrd-socket ...` and three agent panes.
+  - `bin/ask --project /mnt/d/dapro-ass agent3 from agent1 -- "Reply exactly: TOKEN"` returned accepted, and `inbox --detail agent1` contained exactly the smoke token.
+- Resource cleanup:
+  - `CCB_TEST_ROOTS=/mnt/d/dapro-ass bash scripts/ccbr-test-cleanup.sh`.
+  - Follow-up scan found no `ccbrd`, `ccbr_test`, `ccb-agent-sidebar`, `CCBR_SESSION_ID`, or `.ccbr/runtime` processes; no ccbr runtime sockets; project `.ccbr` only contains `ccbr.config` and `bin/ask`.
+  - A pre-existing attached OMX tmux session for `/mnt/d/dapro-ass` remained because it is not a CCBR test resource.
+- Legacy sync (`/tmp/ccb-legacy-sync`):
+  - `rustfmt --check` on the two touched legacy Rust files.
+  - `cargo test -p ccb-provider-core projected_assets -- --test-threads=1`.
+  - `cargo test -p ccb-providers --test provider_claude_tests -- --test-threads=1`.
+  - Full legacy `cargo fmt --check -p ccb-provider-core -p ccb-providers` remains blocked by pre-existing rustfmt drift outside this patch; no broad legacy reformat was applied.
+
 ## Claude provider readback closure (2026-06-26)
 
 Root cause:

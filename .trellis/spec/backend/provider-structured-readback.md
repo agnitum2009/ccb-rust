@@ -68,3 +68,67 @@ provider poll -> terminal reply from reply_buffer while structured logs are conf
 feed_active_pane_text_to_execution -> runtime_state["pane_text_buffer"] = capture-pane text
 provider poll -> structured JSONL final assistant text wins; pane fallback only when no structured log source is expected
 ```
+
+## Scenario: shared provider asset cache is concurrency-safe
+
+### 1. Scope / Trigger
+
+- Trigger: any change to Codex/Claude provider profile materialization, projected asset routing, shared plugin/cache bundle paths, or parallel agent startup.
+- Owner: provider-core projected asset cache must be safe when multiple agents start at the same time.
+- Hard rule: do not disable Codex hooks or remove inherited plugin assets to avoid cache races.
+
+### 2. Signatures
+
+- Cache API: `copy_projected_tree_to_cache(source: &Path, bundle_root: &Path, label: &str) -> Result<bool>`.
+- Caller API: `ensure_shared_tree_bundle(source: &Path, bundle_root: &Path) -> Option<PathBuf>`.
+- Marker file: `<bundle_root>.ccbr-projection.json` on ccbr, `<bundle_root>.ccb-projection.json` on ccb-legacy.
+
+### 3. Contracts
+
+- Each writer must copy into a unique temp directory before publishing the bundle.
+- If another writer already published a bundle with the required entries, later writers must treat that as success and remove only their own temp directory.
+- A valid existing bundle must not be deleted just because another writer lost the publish race.
+- The cache may remove and replace `bundle_root` only when the existing bundle is still invalid after the race check.
+- Claude project-key test helpers must mirror the reader contract: map every non-ASCII-alphanumeric char to `-`; do not trim leading dashes.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+|-----------|-------------------|
+| Multiple agents materialize the same Codex plugin bundle | All callers return `Ok(true)` |
+| Loser sees `DirectoryNotEmpty` / existing target on publish | Re-check required entries, then succeed if valid |
+| Bundle is invalid before publish | Remove/replace only after the validity re-check fails |
+| Absolute Claude project path like `/mnt/d/repo` | Key remains `-mnt-d-repo`; do not trim the leading dash |
+
+### 5. Good / Base / Bad Cases
+
+- Good: three agents launch concurrently and inherited Codex plugins are visible without `destination already exists`.
+- Base: a single agent creates the shared bundle and marker.
+- Bad: provider launch fails because two agents share `.bundle.tmp`, or a losing writer deletes a valid bundle.
+
+### 6. Tests Required
+
+- Unit: `cargo test -p ccbr-provider-core projected_assets -- --test-threads=1`.
+- Provider profile: `cargo test -p ccbr-provider-profiles test_materialize_codex_profile_routes_plugins_through_shared_bundle -- --test-threads=1`.
+- Claude reader/tests: `cargo test -p ccbr-providers --test provider_claude_tests -- --test-threads=1`.
+- ccb-legacy equivalent where shared provider-core exists: run the matching `ccb-*` tests in `/tmp/ccb-legacy-sync`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+tmp = ".bundle.tmp"
+remove(bundle_root)
+rename(tmp, bundle_root)
+```
+
+#### Correct
+
+```text
+tmp = unique_tmp_tree_path(bundle_root)
+copy(source, tmp)
+if bundle_root now has required entries: remove(tmp); success
+else try rename(tmp, bundle_root)
+if rename loses the race: re-check bundle_root before any remove
+```

@@ -1,6 +1,8 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -8,6 +10,7 @@ use sha2::Digest;
 use crate::error::{ProviderCoreError, Result};
 
 const HASH_CHUNK_SIZE: usize = 64 * 1024;
+static TMP_TREE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Marker stored alongside a projected tree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,28 +113,41 @@ pub fn copy_projected_tree_to_cache(
         write_projected_marker(&bundle_root, label, "copy", &source)?;
         return Ok(true);
     }
-    let tmp_root = bundle_root.with_file_name(format!(
-        ".{}.tmp",
-        bundle_root
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-    ));
+    let tmp_root = unique_tmp_tree_path(&bundle_root);
     remove_path(&tmp_root);
     if let Some(parent) = tmp_root.parent() {
         fs::create_dir_all(parent)?;
     }
     match copy_tree(&source, &tmp_root) {
         Ok(()) => {
-            remove_path(&bundle_root);
+            if tree_has_required_entries(&source, &bundle_root) {
+                remove_path(&tmp_root);
+                write_projected_marker(&bundle_root, label, "copy", &source)?;
+                return Ok(true);
+            }
             match fs::rename(&tmp_root, &bundle_root) {
                 Ok(()) => {
                     write_projected_marker(&bundle_root, label, "copy", &source)?;
                     Ok(true)
                 }
                 Err(e) => {
-                    remove_path(&tmp_root);
-                    Err(e.into())
+                    if tree_has_required_entries(&source, &bundle_root) {
+                        remove_path(&tmp_root);
+                        write_projected_marker(&bundle_root, label, "copy", &source)?;
+                        Ok(true)
+                    } else {
+                        remove_path(&bundle_root);
+                        match fs::rename(&tmp_root, &bundle_root) {
+                            Ok(()) => {
+                                write_projected_marker(&bundle_root, label, "copy", &source)?;
+                                Ok(true)
+                            }
+                            Err(_) => {
+                                remove_path(&tmp_root);
+                                Err(e.into())
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -140,6 +156,20 @@ pub fn copy_projected_tree_to_cache(
             Err(e)
         }
     }
+}
+
+fn unique_tmp_tree_path(bundle_root: &Path) -> PathBuf {
+    let name = bundle_root
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy();
+    let pid = std::process::id();
+    let counter = TMP_TREE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    bundle_root.with_file_name(format!(".{name}.{pid}.{nanos}.{counter}.tmp"))
 }
 
 /// Ensure a shared tree bundle exists for a source directory.
@@ -472,10 +502,42 @@ fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Arc, Barrier};
 
     #[test]
     fn test_tree_content_fingerprint_empty_dir() {
         let tmp = tempfile::TempDir::new().unwrap();
         assert!(!tree_content_fingerprint(tmp.path()).is_empty());
+    }
+
+    #[test]
+    fn test_copy_projected_tree_to_cache_allows_parallel_writers() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let source = tmp.path().join("source");
+        fs::create_dir_all(source.join("nested")).unwrap();
+        fs::write(source.join("nested/file.txt"), "plugin payload").unwrap();
+        let bundle = tmp.path().join("bundle");
+
+        let workers = 8;
+        let barrier = Arc::new(Barrier::new(workers));
+        let mut handles = Vec::new();
+        for _ in 0..workers {
+            let source = source.clone();
+            let bundle = bundle.clone();
+            let barrier = Arc::clone(&barrier);
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                copy_projected_tree_to_cache(&source, &bundle, "codex-plugin-projection")
+            }));
+        }
+
+        for handle in handles {
+            assert!(handle.join().unwrap().unwrap());
+        }
+        assert_eq!(
+            fs::read_to_string(bundle.join("nested/file.txt")).unwrap(),
+            "plugin payload"
+        );
+        assert!(PathBuf::from(format!("{}.ccbr-projection.json", bundle.display())).is_file());
     }
 }

@@ -21,8 +21,8 @@ impl Args {
 
         while let Some(item) = iter.next() {
             match item.as_str() {
-                "--ccbd-socket" => {
-                    ccbd_socket = Some(PathBuf::from(next_value(&mut iter, "--ccbd-socket")?));
+                "--ccbd-socket" | "--ccbrd-socket" => {
+                    ccbd_socket = Some(PathBuf::from(next_value(&mut iter, item.as_str())?));
                 }
                 "--project-root" => {
                     project_root = Some(PathBuf::from(next_value(&mut iter, "--project-root")?));
@@ -69,7 +69,7 @@ fn missing(flag: &str) -> String {
 }
 
 pub fn usage() -> String {
-    "usage: ccb-agent-sidebar --ccbd-socket <path> --project-root <path> --pane-window <name>"
+    "usage: ccb-agent-sidebar --ccbd-socket|--ccbrd-socket <path> --project-root <path> --pane-window <name>"
         .to_string()
 }
 
@@ -92,6 +92,21 @@ mod tests {
         assert_eq!(args.ccbd_socket, PathBuf::from("/tmp/ccbd.sock"));
         assert_eq!(args.project_root, PathBuf::from("/repo"));
         assert_eq!(args.pane_window, "main");
+    }
+
+    #[test]
+    fn accepts_ccbrd_socket_alias() {
+        let args = Args::parse_from([
+            "--ccbrd-socket",
+            "/tmp/ccbrd.sock",
+            "--project-root",
+            "/repo",
+            "--pane-window",
+            "main",
+        ])
+        .unwrap();
+
+        assert_eq!(args.ccbd_socket, PathBuf::from("/tmp/ccbrd.sock"));
     }
 
     #[test]

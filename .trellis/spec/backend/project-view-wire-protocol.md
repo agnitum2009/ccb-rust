@@ -85,3 +85,64 @@
   "cache": {"ttl_ms": 1000}
 }
 ```
+
+## Scenario: sidebar topology is materialized by start flow
+
+### 1. Scope / Trigger
+
+- Trigger: any change to workspace start flow, namespace topology planning, sidebar launch arguments, or `sidebar.enabled` config handling.
+- Owner: `ccbr-daemon` start flow must create the tmux topology that `project_view` describes.
+- Consumer: `ccbr-agent-sidebar` must receive a live daemon socket and render inside the managed tmux namespace.
+
+### 2. Signatures
+
+- Daemon start path: `CcbdApp::run_start_flow(...)`.
+- Topology owner: `RuntimeProjectNamespaceController::ensure(signature, Some(NamespaceTopologyPlan), force, ..., startup_timeout_s, terminal_size)`.
+- Sidebar command signature: `ccb-agent-sidebar --ccbd-socket|--ccbrd-socket <path> --project-root <path> --pane-window <name>`.
+
+### 3. Contracts
+
+- If config enables sidebar and has topology windows, real tmux start must execute the runtime namespace topology plan.
+- `project_view` shape compatibility is not sufficient: the sidebar pane must exist with `@ccb_role=sidebar`.
+- Every configured agent must have an allocated pane before provider launch is reported as started.
+- `--ccbrd-socket` is a ccbr alias for the same sidebar socket field as legacy `--ccbd-socket`.
+- Stub/non-tmux start flow may keep the old synthetic namespace path for tests.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+|-----------|-------------------|
+| Real tmux + `sidebar.enabled` | Materialize sidebar pane and agent panes through topology plan |
+| Sidebar pane command uses `--ccbrd-socket` | Sidebar accepts it as the daemon socket |
+| Any configured agent lacks a pane after topology ensure | Start flow returns a loud error naming missing agents |
+| Stub or no sidebar topology | Use legacy start-flow namespace behavior |
+
+### 5. Good / Base / Bad Cases
+
+- Good: live start shows one `sidebar` pane plus all configured agent panes, and `project-view` reports the same active namespace.
+- Base: tests without real tmux use stub start flow and do not require a sidebar process.
+- Bad: daemon returns `Start status: ok` and `project-view` JSON is valid, but no `ccbr-agent-sidebar` pane exists.
+
+### 6. Tests Required
+
+- Daemon topology tests: `cargo test -p ccbr-daemon --test project_namespace_controller_tests sidebar -- --test-threads=1`.
+- Sidebar args tests: `cargo test --manifest-path tools/ccb-agent-sidebar/Cargo.toml args::tests -- --test-threads=1`.
+- Live smoke: start `/mnt/d/dapro-ass`, assert sidebar pane exists, `project-view` succeeds, ask/inbox returns the token, then run `scripts/ccbr-test-cleanup.sh`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+run_start_flow -> StartFlowService::execute(config_windows)
+project_view -> returns sidebar-compatible JSON
+tmux -> no @ccb_role=sidebar pane exists
+```
+
+#### Correct
+
+```text
+run_start_flow -> build_namespace_topology_plan -> RuntimeProjectNamespaceController::ensure(..., Some(plan), ...)
+tmux -> @ccb_role=sidebar pane plus all agent panes exist
+provider launch -> starts inside allocated agent panes
+```

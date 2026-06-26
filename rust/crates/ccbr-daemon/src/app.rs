@@ -20,7 +20,13 @@ use crate::services::dispatcher::JobDispatcher;
 use crate::services::health::HealthMonitor;
 use crate::services::lifecycle::LifecycleStore;
 use crate::services::ownership::OwnershipService;
-use crate::services::project_namespace::ProjectNamespaceController;
+use crate::services::project_namespace::{
+    NamespaceWindow, ProjectNamespace, ProjectNamespaceController,
+};
+use crate::services::project_namespace_runtime::controller::ProjectNamespaceController as RuntimeProjectNamespaceController;
+use crate::services::project_namespace_runtime::topology_plan::{
+    build_namespace_topology_plan, NamespaceTopologyPlan,
+};
 use crate::services::registry::{AgentRegistry, AgentRuntimeEntry};
 use crate::services::runtime::RuntimeService;
 use ccbr_completion::models::{CompletionDecision, CompletionStatus};
@@ -64,6 +70,28 @@ fn load_agent_registry(
         });
     }
     (registry, names)
+}
+
+fn namespace_windows_for_config(
+    config: Option<&ccbr_agents::models::ProjectConfig>,
+    agent_names: &[String],
+) -> Vec<NamespaceWindow> {
+    if let Some(windows) = config.and_then(|c| c.windows.as_ref()) {
+        return windows
+            .iter()
+            .map(|window| NamespaceWindow {
+                name: window.name.clone(),
+                window_id: None,
+                agents: window.agent_names.clone(),
+            })
+            .collect();
+    }
+
+    vec![NamespaceWindow {
+        name: "ccbr".to_string(),
+        window_id: None,
+        agents: agent_names.to_vec(),
+    }]
 }
 use crate::services::start_policy::StartPolicyStore;
 use crate::socket_server::protocol;
@@ -763,21 +791,35 @@ impl CcbdApp {
             .project_namespace
             .load()
             .map(|ns| ns.agent_panes.clone());
-        let (result, namespace) = self.start_flow.execute(
-            &project_root,
-            self.project_id(),
-            &self.tmux_socket_path(),
-            &self.tmux_session_name(),
-            agent_names,
-            &self.registry,
-            restore,
-            auto_permission,
-            namespace_agent_panes.as_ref(),
-            config_windows,
-            terminal_size,
-            startup_timeout_s,
-            startup_args,
-        )?;
+        let topology_plan = self.topology_plan_for_start_flow(&project_root);
+        let (result, namespace) = if let Some(topology_plan) = topology_plan.as_ref() {
+            self.execute_topology_start_flow(
+                agent_names,
+                &project_root,
+                restore,
+                auto_permission,
+                terminal_size,
+                startup_timeout_s,
+                startup_args,
+                topology_plan,
+            )?
+        } else {
+            self.start_flow.execute(
+                &project_root,
+                self.project_id(),
+                &self.tmux_socket_path(),
+                &self.tmux_session_name(),
+                agent_names,
+                &self.registry,
+                restore,
+                auto_permission,
+                namespace_agent_panes.as_ref(),
+                config_windows,
+                terminal_size,
+                startup_timeout_s,
+                startup_args,
+            )?
+        };
 
         for agent in &result.agent_results {
             if let Some(pane_id) = &agent.pane_id {
@@ -865,6 +907,148 @@ impl CcbdApp {
         }
 
         Ok(result)
+    }
+
+    fn topology_plan_for_start_flow(
+        &self,
+        project_root: &Utf8Path,
+    ) -> Option<NamespaceTopologyPlan> {
+        if !self.start_flow.uses_tmux() {
+            return None;
+        }
+        let config = self.current_config.as_ref()?;
+        let plan = build_namespace_topology_plan(
+            config,
+            Some(self.tmux_socket_path()),
+            Some(project_root.to_string()),
+        );
+        if plan.sidebar_enabled && !plan.windows.is_empty() {
+            Some(plan)
+        } else {
+            None
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn execute_topology_start_flow(
+        &mut self,
+        agent_names: &[String],
+        project_root: &Utf8Path,
+        restore: bool,
+        auto_permission: bool,
+        terminal_size: Option<(u32, u32)>,
+        startup_timeout_s: Option<f64>,
+        startup_args: &[String],
+        topology_plan: &NamespaceTopologyPlan,
+    ) -> Result<(StartFlowResult, ProjectNamespace), String> {
+        let mut actions_taken = vec![
+            "start_flow_executed".to_string(),
+            "namespace_topology_materialized".to_string(),
+            "sidebar_topology_materialized".to_string(),
+        ];
+        if restore {
+            actions_taken.push("restore_attempted".to_string());
+        }
+        if auto_permission {
+            actions_taken.push("auto_permission_enabled".to_string());
+        }
+        if terminal_size.is_some() {
+            actions_taken.push("terminal_size_forwarded".to_string());
+        }
+        if startup_timeout_s.is_some() {
+            actions_taken.push("startup_timeout_forwarded".to_string());
+        }
+        if !startup_args.is_empty() {
+            actions_taken.push(format!("startup_args:{}", startup_args.len()));
+        }
+
+        let mut controller = RuntimeProjectNamespaceController::new(
+            &self.layout,
+            self.project_id(),
+            None,
+            None,
+            None,
+            None,
+            1,
+        )
+        .map_err(|e| e.to_string())?;
+        let signature = topology_plan.signature.trim();
+        let runtime_namespace = controller
+            .ensure(
+                (!signature.is_empty()).then_some(signature),
+                Some(topology_plan),
+                !restore,
+                Some("start_flow_topology"),
+                startup_timeout_s,
+                terminal_size.map(|(w, h)| (w as i32, h as i32)),
+            )
+            .map_err(|e| e.to_string())?;
+
+        let agent_panes = controller.last_materialized_agent_panes.clone();
+        let missing_agents: Vec<String> = agent_names
+            .iter()
+            .filter(|name| !agent_panes.contains_key(*name))
+            .cloned()
+            .collect();
+        if !missing_agents.is_empty() {
+            return Err(format!(
+                "topology materialization did not allocate panes for: {}",
+                missing_agents.join(",")
+            ));
+        }
+
+        let agent_results = agent_names
+            .iter()
+            .map(|agent_name| {
+                let provider = self
+                    .registry
+                    .get(agent_name)
+                    .map(|e| e.provider.trim().to_string())
+                    .unwrap_or_default();
+                let (status, reason) = if provider.is_empty() {
+                    (
+                        "failed".to_string(),
+                        Some("no provider configured".to_string()),
+                    )
+                } else {
+                    ("started".to_string(), None)
+                };
+                crate::start_flow::service::StartAgentResult {
+                    agent_name: agent_name.clone(),
+                    status,
+                    reason,
+                    pane_id: agent_panes.get(agent_name).cloned(),
+                }
+            })
+            .collect();
+
+        let mut active_panes = controller.last_topology_active_panes.clone();
+        if active_panes.is_empty() {
+            active_panes = agent_panes.values().cloned().collect();
+        }
+
+        let namespace = ProjectNamespace {
+            project_root: project_root.as_str().to_string(),
+            project_id: self.project_id().to_string(),
+            tmux_socket_path: runtime_namespace.tmux_socket_path,
+            tmux_socket_name: "tmux".to_string(),
+            tmux_session_name: runtime_namespace.tmux_session_name,
+            agent_names: agent_names.to_vec(),
+            windows: namespace_windows_for_config(self.current_config.as_ref(), agent_names),
+            agent_panes,
+            active_panes,
+            namespace_epoch: u64::try_from(runtime_namespace.namespace_epoch).unwrap_or(1),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        Ok((
+            StartFlowResult {
+                status: "ok".to_string(),
+                agent_results,
+                actions_taken,
+            },
+            namespace,
+        ))
     }
 
     /// Apply topology UI options natively after start_flow completes.
