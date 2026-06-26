@@ -18,7 +18,7 @@ class CodexBindingTracker:
     def __init__(self, runtime_dir: Path):
         self.runtime_dir = runtime_dir
         self.session_file = session_file_from_env()
-        self._poll_interval = env_float("CCB_CODEX_BIND_POLL_INTERVAL", 0.5)
+        self._poll_interval = env_float("CCB_CODEX_BIND_POLL_INTERVAL", 5.0)
         self._thread: threading.Thread | None = None
         self._running = False
 
@@ -41,7 +41,7 @@ class CodexBindingTracker:
                 self.refresh_once()
             except Exception:
                 pass
-            time.sleep(max(0.05, self._poll_interval))
+            time.sleep(max(1.0, self._poll_interval))
 
     def refresh_once(self) -> bool:
         context = refresh_context(self.session_file)

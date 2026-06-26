@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from provider_backends.codex.runtime_artifacts import ensure_runtime_artifact_layout
 
@@ -24,6 +25,7 @@ class BridgeRuntimeState:
     paths: BridgePaths
     binding_tracker: CodexBindingTracker
     codex_session: TerminalCodexSession
+    fifo_reader: Any = None
 
 
 def build_bridge_runtime_state(runtime_dir: Path, *, pane_id: str) -> BridgeRuntimeState:
@@ -36,10 +38,13 @@ def build_bridge_runtime_state(runtime_dir: Path, *, pane_id: str) -> BridgeRunt
         history_file=artifacts.history_file,
         bridge_log=artifacts.bridge_log,
     )
+    from .runtime_io import PersistentFifoReader
+
     return BridgeRuntimeState(
         paths=paths,
         binding_tracker=CodexBindingTracker(runtime_dir),
         codex_session=TerminalCodexSession(pane_id),
+        fifo_reader=PersistentFifoReader(paths.input_fifo),
     )
 
 

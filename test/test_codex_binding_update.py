@@ -63,3 +63,23 @@ def test_update_project_session_binding_records_old_binding_and_resumes(tmp_path
             "work_dir_hint": str(tmp_path),
         }
     ]
+
+
+def test_binding_tracker_defaults_to_low_idle_poll_rate(tmp_path, monkeypatch):
+    from provider_backends.codex.bridge_runtime.binding_runtime import CodexBindingTracker
+
+    monkeypatch.delenv("CCB_CODEX_BIND_POLL_INTERVAL", raising=False)
+
+    tracker = CodexBindingTracker(tmp_path / "runtime")
+
+    assert tracker._poll_interval == 5.0
+
+
+def test_binding_tracker_respects_explicit_poll_rate(tmp_path, monkeypatch):
+    from provider_backends.codex.bridge_runtime.binding_runtime import CodexBindingTracker
+
+    monkeypatch.setenv("CCB_CODEX_BIND_POLL_INTERVAL", "0.5")
+
+    tracker = CodexBindingTracker(tmp_path / "runtime")
+
+    assert tracker._poll_interval == 0.5

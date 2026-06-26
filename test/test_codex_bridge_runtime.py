@@ -80,3 +80,61 @@ def test_dual_bridge_handles_session_send_failure(tmp_path: Path, monkeypatch) -
     assert first['role'] == 'claude'
     assert second['role'] == 'codex'
     assert second['content'] == 'Failed to send to Codex: boom:fail-me'
+
+
+def test_dual_bridge_defaults_to_event_wait_instead_of_hot_idle_poll(tmp_path: Path, monkeypatch) -> None:
+    tracker = _FakeTracker()
+    session = _FakeSession()
+    observed_timeouts: list[float] = []
+    monkeypatch.delenv('CCB_BRIDGE_IDLE_SLEEP', raising=False)
+    monkeypatch.setenv('CODEX_TMUX_SESSION', '%9')
+    monkeypatch.setattr(
+        'provider_backends.codex.bridge_runtime.runtime_state.CodexBindingTracker',
+        lambda runtime_dir: tracker,
+    )
+    monkeypatch.setattr(
+        'provider_backends.codex.bridge_runtime.runtime_state.TerminalCodexSession',
+        lambda pane_id: session,
+    )
+    bridge = DualBridge(tmp_path / 'runtime')
+
+    def fake_read_request(*, timeout: float = 0.0):
+        observed_timeouts.append(timeout)
+        bridge._running = False
+        return None
+
+    monkeypatch.setattr(bridge, '_read_request', fake_read_request)
+
+    assert bridge.run() == 0
+
+    assert observed_timeouts == [1.0]
+    assert tracker.started == 1
+    assert tracker.stopped >= 1
+
+
+def test_dual_bridge_respects_explicit_idle_sleep_override(tmp_path: Path, monkeypatch) -> None:
+    tracker = _FakeTracker()
+    session = _FakeSession()
+    observed_timeouts: list[float] = []
+    monkeypatch.setenv('CCB_BRIDGE_IDLE_SLEEP', '0.05')
+    monkeypatch.setenv('CODEX_TMUX_SESSION', '%10')
+    monkeypatch.setattr(
+        'provider_backends.codex.bridge_runtime.runtime_state.CodexBindingTracker',
+        lambda runtime_dir: tracker,
+    )
+    monkeypatch.setattr(
+        'provider_backends.codex.bridge_runtime.runtime_state.TerminalCodexSession',
+        lambda pane_id: session,
+    )
+    bridge = DualBridge(tmp_path / 'runtime')
+
+    def fake_read_request(*, timeout: float = 0.0):
+        observed_timeouts.append(timeout)
+        bridge._running = False
+        return None
+
+    monkeypatch.setattr(bridge, '_read_request', fake_read_request)
+
+    assert bridge.run() == 0
+
+    assert observed_timeouts == [0.05]
