@@ -11,6 +11,10 @@ TEST_ROOTS="${CCB_TEST_ROOTS:-${CCBR_TEST_ROOTS:-}}"
 for runtime in "${RUNTIMES[@]}"; do
   for s in "$runtime"/tmux-*.sock; do [ -S "$s" ] && tmux -S "$s" kill-server 2>/dev/null; done
 done
+# kill orphan tmux servers when the socket path is already stale/missing.
+for pid in $(ps -eo pid=,comm=,args= | awk '$2 == "tmux" && $0 ~ /\/ccbr-runtime\/tmux-/ {print $1}'); do
+  kill "$pid" 2>/dev/null || true
+done
 # kill leaked debug ccbrd test daemons.  Match the actual process name so the
 # caller shell is not killed when its command line mentions target/debug/ccbrd.
 for pid in $(ps -eo pid=,comm=,args= | awk '$2 == "ccbrd" && $0 ~ /target\/debug\/ccbrd/ {print $1}'); do
@@ -49,6 +53,11 @@ PY
 )"
   [ -n "$project_id" ] || continue
   rm -rf "$HOME/.local/state/ccbr/projects/$project_id" "$HOME/.cache/ccbr/projects/${project_id:0:16}" 2>/dev/null
+  # Project-local runtime/session artifacts created by live smoke tests.  Keep
+  # .ccbr/ccbr.config and .ccbr/bin intact so explicit test workspaces remain
+  # reusable, and never touch Python .ccb state.
+  rm -rf "$root/.ccbr/runtime" "$root/.ccbr/shared-cache" 2>/dev/null
+  rm -f "$root/.ccbr"/.codex-*-session "$root/.ccbr"/.claude-*-session "$root/.ccbr"/.gemini-*-session 2>/dev/null
 done
 # 6. prune 陈旧 git worktree
 git -C "$REPO" worktree prune 2>/dev/null

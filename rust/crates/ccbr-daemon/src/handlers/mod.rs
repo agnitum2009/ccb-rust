@@ -75,9 +75,6 @@ pub fn build_registry() -> HandlerRegistry {
     reg.register("start", Box::new(start::handle_start));
     reg.register("ask", Box::new(ask::handle_ask));
     reg.register("shutdown", Box::new(shutdown::handle_shutdown));
-    // TODO(phase2-protocol): Python v7.5.2 CLI `ask` uses daemon op `submit` and
-    // relies on the dispatcher for async delivery. For now `submit` remains
-    // enqueue-only to preserve test contracts; align delivery semantics in Phase 2.
     reg.register("submit", Box::new(submit::handle_submit));
     reg.register("cancel", Box::new(cancel::handle_cancel));
     reg.register("ping", Box::new(ping::handle_ping));

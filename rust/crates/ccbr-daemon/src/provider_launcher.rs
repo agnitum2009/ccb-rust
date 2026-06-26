@@ -678,6 +678,7 @@ fn build_simple_provider_launch<'a>(
 
     let pane_title_marker = pane_title_marker(ctx.project_id, ctx.agent_name);
     let session_payload = build_simple_session_payload(
+        provider,
         ctx.agent_name,
         ctx.project_root,
         &runtime_dir,
@@ -756,6 +757,7 @@ fn simple_prepared_state(
 
 #[allow(clippy::too_many_arguments)]
 fn build_simple_session_payload(
+    provider: &str,
     agent_name: &str,
     project_root: &str,
     runtime_dir: &Path,
@@ -788,6 +790,19 @@ fn build_simple_session_payload(
         "completion_artifact_dir".to_string(),
         Value::String(runtime_dir.join("completion").to_string_lossy().to_string()),
     );
+    if provider == "claude" {
+        payload.insert(
+            "claude_projects_root".to_string(),
+            Value::String(
+                runtime_dir
+                    .join("home")
+                    .join(".claude")
+                    .join("projects")
+                    .to_string_lossy()
+                    .to_string(),
+            ),
+        );
+    }
     payload.insert("terminal".to_string(), Value::String("tmux".to_string()));
     payload.insert(
         "tmux_session".to_string(),
@@ -1061,6 +1076,17 @@ mod tests {
         assert_eq!(
             payload.get("tmux_socket_path").and_then(Value::as_str),
             Some("/run/user/0/ccbr-runtime/tmux-test.sock")
+        );
+        let expected_projects_root = root
+            .join(".ccbr")
+            .join("runtime")
+            .join("agent3")
+            .join("home")
+            .join(".claude")
+            .join("projects");
+        assert_eq!(
+            payload.get("claude_projects_root").and_then(Value::as_str),
+            Some(expected_projects_root.to_string_lossy().as_ref())
         );
     }
 }

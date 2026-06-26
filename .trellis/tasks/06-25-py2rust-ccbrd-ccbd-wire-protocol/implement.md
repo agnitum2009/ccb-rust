@@ -225,3 +225,34 @@ Evidence:
   - `CCB_TEST_ROOTS=/mnt/d/dapro-ass bash scripts/ccbr-test-cleanup.sh` reported ccbr test remnants reclaimed and Python `ccb` state untouched.
   - Reaped orphan tmux processes whose command lines were scoped to `/tmp/.tmp*/.ccbr/ccbrd/tmux.sock`.
   - Removed `/tmp/.tmp*/.ccbr` test leftovers; follow-up scan found no matching tmp `.ccbr` dirs and no ccbrd/sidebar/test-tmux processes.
+
+## Owner v1.1 re-alignment pass (2026-06-26)
+
+Owner spec learned:
+
+- Re-read `/mnt/g/owner/software_owner_governance_spec_v1_1.md` and applied its canonical record model.
+- Reclassified older mixed owner surfaces into the v1.1 MECE set: `domain_truth`, `policy`, `interface`, `capability`, `projection`, `evidence_admission`, `lifecycle_gate`.
+- Produced `research/owner-alignment-v1_1.md` comparing Python CCB 7.5.2 source anchors with Rust CCBR owner anchors.
+
+Finding:
+
+- Python 26 ccbd RPC registrations are covered by Rust; Rust has seven local extensions (`ask`, `cleanup`, `fault_*`, `logs`, `maintenance_tick`).
+- Current live interop blocker is not registration or prompt dispatch: real smoke showed `project-view` worked, `ask` returned accepted, and Claude wrote the exact token to its managed JSONL.
+- Blocker owner is `provider_claude_session_polling` (`capability`): live smoke proved prompt dispatch and Claude JSONL reply exist, but daemon readback did not terminalize the job or deliver inbox.
+- `claude_projects_root` in the simple Claude session payload is a required parity fix, but post-fix smoke showed it is not yet the complete root cause; next diagnosis must inspect reader state / heartbeat ingestion.
+- `test_resource_cleanup` is a lifecycle-gate owner: live smoke interruption exposed orphan `/run/user/0/ccbr-runtime/tmux-*` and project-local `.ccbr/runtime` artifacts that cleanup must reclaim without touching Python `.ccb` state.
+
+Next required work:
+
+- Validate the payload parity fix with unit tests and keep the equivalent `ccb-legacy` sync where the same Rust owner surface exists.
+- Continue root-cause diagnosis in `provider_claude_session_polling`: active execution `reader_state`, Claude reader offset/session reset, and heartbeat polling/terminalization.
+- Cleanup evidence after this pass: `CCB_TEST_ROOTS=/mnt/d/dapro-ass bash scripts/ccbr-test-cleanup.sh` leaves no targeted ccbrd/tmux/provider process, removes ccbr daemon state, and leaves only `.ccbr/ccbr.config` plus `.ccbr/bin` in the test project.
+
+Verification:
+
+- Re-extracted Python/Rust RPC registrations: Python 26, Rust 33, Python-only none, Rust-only `ask`, `cleanup`, `fault_*`, `logs`, `maintenance_tick`.
+- `bash -n scripts/ccbr-test-cleanup.sh`
+- `git diff --check`
+- `cd rust && cargo fmt --check -p ccbr-daemon`
+- `cd rust && cargo test -p ccbr-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
+- `/tmp/ccb-legacy-sync`: `cargo test -p ccb-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
