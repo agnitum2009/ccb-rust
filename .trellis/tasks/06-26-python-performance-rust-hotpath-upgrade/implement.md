@@ -53,7 +53,7 @@
   - completion/readback events
   - runtime health/activity events
   - clear wake/failure state
-- [ ] Python remains owner of:
+- [x] Python remains owner of:
   - socket protocol
   - job store/mailbox
   - public CLI
@@ -89,8 +89,13 @@
 - [x] Keep Python fallback path behind a feature flag / env knob until smoke passes.
   - `CCB_RUNTIME_ACCELERATOR_CODEX` defaults disabled.
   - `CCB_RUNTIME_ACCELERATOR_SOCKET` can point tests or manual smoke at an explicit sidecar socket.
+  - `CCB_RUNTIME_ACCELERATOR_BIN` lets ccbd find the sidecar binary when opt-in lifecycle startup is enabled.
   - Sidecar communication failures, malformed observations, per-job errors, and unknown item kinds fall back to the existing Python reader path.
   - Successful no-change observations do not fall through into the Python reader path, so the opt-in path does not pay both polling costs.
+- [x] Add ccbd sidecar lifecycle shell behind the same env gate.
+  - Default-off: no sidecar process is spawned unless `CCB_RUNTIME_ACCELERATOR_CODEX` is enabled.
+  - Startup failures are non-fatal and keep Python fallback available.
+  - Shutdown only removes sockets owned by the sidecar process ccbd started.
 - [ ] Target active-job completion check around 200ms if needed, with zero idle polling.
 
 ### Slice B — ccbd maintenance hot loop
@@ -145,13 +150,19 @@
   - `git diff --check`
   - `cargo fmt --check -p ccb-runtime-accelerator`
   - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
+- Slice A lifecycle shell validation:
+  - `uv run --with pytest pytest -q test/test_runtime_accelerator_lifecycle.py test/test_codex_runtime_accelerator_polling.py test/test_runtime_accelerator_client.py test/test_codex_execution_polling.py`
+  - `python -m compileall -q lib/runtime_accelerator lib/provider_backends/codex/execution_runtime lib/ccbd/app_runtime test/test_runtime_accelerator_lifecycle.py test/test_codex_runtime_accelerator_polling.py`
+  - `git diff --check`
+  - `cargo fmt --check -p ccb-runtime-accelerator`
+  - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
 
 Still pending for the broader milestone:
 
 - Active ask-storm baseline.
 - Live Codex ask/callback/reply smoke with `CCB_RUNTIME_ACCELERATOR_CODEX=1` and a managed sidecar socket.
 - Syscall-level attribution if Slice A/B needs it.
-- Python daemon lifecycle/start-monitor integration for the runtime accelerator sidecar.
+- Post-start sidecar health monitoring/restart policy beyond initial ccbd startup.
 - Slice B ccbd maintenance wake scheduling replacement.
 
 ## Risk / rollback

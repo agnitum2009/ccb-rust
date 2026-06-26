@@ -23,6 +23,8 @@
   - `CCB_RUNTIME_ACCELERATOR_CODEX`: optional Codex polling adapter gate. Default unset/disabled. Enable values: `1`, `true`, `yes`, `on`, `auto`.
   - `CCB_RUNTIME_ACCELERATOR_SOCKET`: optional Unix socket override. Default: `<workspace>/.ccb/runtime-accelerator/accelerator.sock`.
   - `CCB_RUNTIME_ACCELERATOR_TIMEOUT_S`: optional sidecar call timeout in seconds. Default: `0.2`.
+  - `CCB_RUNTIME_ACCELERATOR_BIN`: optional sidecar binary override. Default lookup: `ccb-runtime-accelerator` on `PATH`.
+  - `CCB_RUNTIME_ACCELERATOR_STARTUP_TIMEOUT_S`: optional ccbd sidecar startup wait in seconds. Default: `0.5`.
 
 ### 3. Contracts
 
@@ -32,6 +34,9 @@
 - When `CCB_RUNTIME_ACCELERATOR_CODEX` is unset/disabled, Codex polling must use the existing Python reader path.
 - When the sidecar communication fails, the observation is malformed, a per-job observation has `error`, or an item kind is unknown, Codex polling must fall back to the existing Python reader path.
 - When the sidecar succeeds with no new items and no reader-state change, Codex polling must return no update without calling the Python reader fallback. Otherwise the opt-in path still pays the old polling cost.
+- Python `ccbd` starts the sidecar only when `CCB_RUNTIME_ACCELERATOR_CODEX` is enabled.
+- Sidecar lifecycle startup failure is non-fatal: `ccbd` continues and provider polling uses Python fallback.
+- `ccbd` may unlink the accelerator socket only for a sidecar process it started. Missing-binary/fallback handles must not delete a manually supplied socket.
 - `codex_observe.params.jobs[]` fields:
   - `job_id`
   - `session_path`
@@ -50,6 +55,9 @@
 | Missing Codex session file | `ok=true`; affected observation has `error` |
 | Disabled `CCB_RUNTIME_ACCELERATOR_CODEX` | Python uses existing reader path |
 | Sidecar unavailable or timeout | Python uses existing reader path |
+| Sidecar binary missing at ccbd startup | startup continues; report action contains `runtime_accelerator_fallback:missing_binary` |
+| ccbd started sidecar and shuts down | terminate sidecar and remove owned socket |
+| ccbd did not start sidecar | do not remove socket path |
 | Observation has per-job `error` | Python uses existing reader path |
 | Successful observation with no changes | Python returns no provider update and does not invoke reader fallback |
 | Assistant event before request anchor | no completion item |
@@ -60,6 +68,7 @@
 - Good: Python passes only running Codex jobs; sidecar emits `anchor_seen`, `assistant_chunk`, and `turn_boundary`.
 - Base: sidecar is unavailable; Python fallback keeps existing polling behavior.
 - Base: sidecar is enabled and returns no new items; Python treats it as handled no-change, not as a reason to run the reader fallback.
+- Base: sidecar lifecycle is enabled but binary is absent; `ccbd` starts normally and records fallback.
 - Bad: sidecar scans all agents or idle sessions on its own.
 
 ### 6. Tests Required
@@ -70,6 +79,9 @@
 - Unit: `CCB_RUNTIME_ACCELERATOR_CODEX` default-off does not call the sidecar.
 - Unit: sidecar communication failure returns `None` so the Python reader fallback can run.
 - Unit: successful no-change observation short-circuits Python reader fallback.
+- Unit: sidecar lifecycle default-off does not spawn a process.
+- Unit: missing sidecar binary preserves fallback and does not remove a manually supplied socket.
+- Unit: owned sidecar shutdown terminates the process and removes the owned socket.
 - Smoke: real Unix socket request/response for `codex_observe`.
 
 ### 7. Wrong vs Correct
