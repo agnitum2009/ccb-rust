@@ -217,6 +217,57 @@ def test_mount_manager_roundtrip_and_unmount(tmp_path: Path) -> None:
     assert manager.load_state().mount_state is MountState.UNMOUNTED
 
 
+def test_mount_manager_refresh_heartbeat_debounces_idle_writes(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-debounce'
+    project_root.mkdir()
+    ctx = bootstrap_project(project_root)
+    layout = PathLayout(project_root)
+    clock = Clock(
+        [
+            '2026-03-18T00:00:00Z',
+            '2026-03-18T00:00:01Z',
+            '2026-03-18T00:00:05Z',
+        ]
+    )
+    manager = MountManager(layout, clock=clock, uid_getter=lambda: 1000, boot_id_getter=lambda: 'boot-1')
+
+    manager.mark_mounted(
+        project_id=ctx.project_id,
+        pid=321,
+        socket_path=layout.ccbd_socket_path,
+        generation=2,
+    )
+
+    skipped = manager.refresh_heartbeat(expected_pid=321)
+    assert skipped.last_heartbeat_at == '2026-03-18T00:00:00Z'
+    assert manager.load_state().last_heartbeat_at == '2026-03-18T00:00:00Z'
+
+    refreshed = manager.refresh_heartbeat(expected_pid=321)
+    assert refreshed.last_heartbeat_at == '2026-03-18T00:00:05Z'
+    assert manager.load_state().last_heartbeat_at == '2026-03-18T00:00:05Z'
+
+
+def test_mount_manager_refresh_heartbeat_zero_interval_keeps_every_tick(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv('CCB_CCBD_HEARTBEAT_WRITE_INTERVAL_S', '0')
+    project_root = tmp_path / 'repo-no-debounce'
+    project_root.mkdir()
+    ctx = bootstrap_project(project_root)
+    layout = PathLayout(project_root)
+    clock = Clock(['2026-03-18T00:00:00Z', '2026-03-18T00:00:01Z'])
+    manager = MountManager(layout, clock=clock, uid_getter=lambda: 1000, boot_id_getter=lambda: 'boot-1')
+
+    manager.mark_mounted(
+        project_id=ctx.project_id,
+        pid=321,
+        socket_path=layout.ccbd_socket_path,
+        generation=2,
+    )
+
+    refreshed = manager.refresh_heartbeat(expected_pid=321)
+    assert refreshed.last_heartbeat_at == '2026-03-18T00:00:01Z'
+    assert manager.load_state().last_heartbeat_at == '2026-03-18T00:00:01Z'
+
+
 def test_mount_manager_does_not_revive_unmounted_lease_on_heartbeat(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-race'
     project_root.mkdir()

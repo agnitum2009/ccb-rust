@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from dataclasses import replace
 
 from ccbd.models import CcbdLease, MountState, SCHEMA_VERSION
-from ccbd.system import current_uid, read_boot_id, utc_now
+from ccbd.system import current_uid, parse_utc_timestamp, read_boot_id, utc_now
 from storage.json_store import JsonStore
 from storage.paths import PathLayout
+
+
+DEFAULT_HEARTBEAT_WRITE_INTERVAL_S = 5.0
 
 
 class MountManager:
@@ -85,7 +89,10 @@ class MountManager:
             expected_pid=expected_pid,
             expected_daemon_instance_id=expected_daemon_instance_id,
         )
-        updated = lease.with_heartbeat(self._clock())
+        now = self._clock()
+        if not _heartbeat_write_due(lease, now, _heartbeat_write_interval_s()):
+            return lease
+        updated = lease.with_heartbeat(now)
         self._store.save(self._layout.ccbd_lease_path, updated, serializer=lambda value: value.to_record())
         return updated
 
@@ -160,7 +167,27 @@ class MountManager:
                     'ccbd lease holder changed: '
                     f'expected daemon_instance_id={expected_instance}, '
                     f'found daemon_instance_id={current_instance or "<missing>"}'
-                )
+        )
+
+
+def _heartbeat_write_interval_s() -> float:
+    raw = os.environ.get('CCB_CCBD_HEARTBEAT_WRITE_INTERVAL_S')
+    if raw is None:
+        return DEFAULT_HEARTBEAT_WRITE_INTERVAL_S
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        return DEFAULT_HEARTBEAT_WRITE_INTERVAL_S
+
+
+def _heartbeat_write_due(lease: CcbdLease, now: str, interval_s: float) -> bool:
+    if interval_s <= 0:
+        return True
+    try:
+        elapsed = (parse_utc_timestamp(now) - parse_utc_timestamp(lease.last_heartbeat_at)).total_seconds()
+    except Exception:
+        return True
+    return elapsed < 0 or elapsed >= interval_s
 
 
 def _lease_from_record(record: dict) -> CcbdLease:
