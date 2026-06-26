@@ -57,6 +57,15 @@ target the measured CPU sources:
 - Python `ccbd` control-plane maintenance loop.
 - Per-agent Codex bridge / comm log polling / binding polling.
 
+Current owner conclusion:
+
+- Python high CPU is an internal polling-design cost, not a functional requirement.
+- `ccbd/main` runs socket worker plus maintenance worker on a tight cadence; even idle agents keep going through health/dispatch/heartbeat work.
+- Each Codex agent adds a separate bridge process with bridge/comm/readiness polling, so CPU scales roughly linearly with Codex agent count.
+- This is a Python constraint workaround: per-agent processes plus 0.05–0.2s polling keep latency acceptable under Python/GIL limits.
+- Rust must match observable events, not reproduce that architecture. `ccbrd` keeps the better shape: single daemon, active-job-only observation, idle agents near zero cost.
+- If active completion latency is too high, lower only the active-job cadence toward ~200ms; never add idle-agent polling or per-agent bridge processes.
+
 Freeze the behavior contract before replacing implementation:
 
 - socket submit/cancel/get/watch stays hot
