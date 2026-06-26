@@ -21,6 +21,7 @@ members = [
     "crates/ccb-pane-registry",
     "crates/ccb-project",
     "crates/ccb-runtime-env",
+    "crates/ccb-runtime-accelerator",
     "crates/ccb-runtime-pid-cleanup",
     "crates/ccb-stdio-runtime",
     "crates/ccb-storage-classification",
@@ -86,6 +87,7 @@ ccb-message-bureau = { path = "crates/ccb-message-bureau" }
 ccb-pane-registry = { path = "crates/ccb-pane-registry" }
 ccb-project = { path = "crates/ccb-project" }
 ccb-runtime-env = { path = "crates/ccb-runtime-env" }
+ccb-runtime-accelerator = { path = "crates/ccb-runtime-accelerator" }
 ccb-runtime-pid-cleanup = { path = "crates/ccb-runtime-pid-cleanup" }
 ccb-stdio-runtime = { path = "crates/ccb-stdio-runtime" }
 ccb-storage-classification = { path = "crates/ccb-storage-classification" }

@@ -562,6 +562,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ccb-runtime-accelerator"
+version = "7.5.2"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ccb-runtime-env"
 version = "7.5.2"
 
