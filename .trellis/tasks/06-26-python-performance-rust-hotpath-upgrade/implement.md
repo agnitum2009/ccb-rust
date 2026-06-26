@@ -97,15 +97,24 @@
   - Default-on: sidecar process is spawned unless `CCB_RUNTIME_ACCELERATOR_CODEX=0`.
   - Startup failures are non-fatal and keep Python fallback available.
   - Shutdown only removes sockets owned by the sidecar process ccbd started.
-- [ ] Target active-job completion check around 200ms if needed, with zero idle polling.
+- [x] Target active-job completion check around 200ms if needed, with zero idle polling.
+  - Python latest/global bridge idle wait now defaults to 1.0s event wait instead of 0.05s hot polling; FIFO messages still wake immediately through the persistent reader.
+  - Python latest/global binding tracker now defaults to 5.0s idle interval instead of 0.5s repeated session/log scans; explicit `CCB_CODEX_BIND_POLL_INTERVAL` override remains.
+  - Ambiguous Codex session-follow now caches an unchanged session-root signature, so idle bridges like `mn_c` do not repeatedly reparse the same large jsonl history.
+  - Bound Codex session-follow now reuses the existing bound log after switch detection, avoiding a second workspace-wide current-log scan on every idle tick.
+  - Bound/no-new-candidate Codex session-follow now caches unchanged session-root signatures, avoiding the full switch resolver itself on repeated idle ticks.
 
 ### Slice B — ccbd maintenance hot loop
 
-- [ ] Replace fixed no-op maintenance cadence with dirty-event + active-job wake scheduling.
-  - Interim Python-side reduction landed: idle heartbeat refreshes lease but skips full health/supervision/dispatcher maintenance until active work appears or `CCB_CCBD_IDLE_FULL_HEARTBEAT_INTERVAL_S` elapses.
+- [x] Replace fixed no-op maintenance cadence with dirty-event + active-job wake scheduling.
+  - Python latest/global reduction installed: idle heartbeat refreshes lease but skips full health/supervision/dispatcher maintenance until active work appears or `CCB_CCBD_IDLE_FULL_HEARTBEAT_INTERVAL_S` elapses.
 - [ ] Keep Python request handlers and socket protocol as owner.
 - [ ] Preserve immediate wake for submit/cancel/resubmit/retry/reply-delivery operations.
-- [ ] Preserve heartbeat freshness semantics while avoiding no-op full-agent work.
+- [x] Preserve heartbeat freshness semantics while avoiding no-op full-agent work.
+  - `MountManager.refresh_heartbeat()` validates the current lease holder on every tick, but debounces lease JSON rewrites to `CCB_CCBD_HEARTBEAT_WRITE_INTERVAL_S` seconds, default `5.0`.
+  - Keeper no longer rewrites stable mounted `lifecycle.json` and debounces `keeper.json` `last_check_at`-only rewrites to `CCB_KEEPER_STATE_WRITE_INTERVAL_S` seconds, default `5.0`.
+  - ProjectView now uses a longer idle cache TTL (`CCB_PROJECT_VIEW_IDLE_TTL_MS`, default `5000`) only when no dispatcher work or busy agent state is pending; active work stays at `CCB_PROJECT_VIEW_TTL_MS`, default `1000`.
+  - ProjectView cache no longer relies on TTL for correctness: dispatcher job/event mutations increment an in-memory revision, so cached views are rebuilt immediately when submit/complete/cancel/retry style state changes happen.
 - [ ] Milestone is incomplete until both Slice A and Slice B have before/after CPU evidence.
 
 ## Phase 4 — Compatibility gates
@@ -164,6 +173,33 @@
   - `cargo build -p ccb-runtime-accelerator`
   - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
 - Global runtime install validation:
+  - Bridge idle hot-loop reduction installed on global runtime: `/root/.local/share/codex-dual`.
+  - Backup: `/home/agnitum/ccb-runtime-backups/codex-dual-bridge-idle-wait-20260626-141747`.
+  - Verified installed `CCB_BRIDGE_IDLE_SLEEP` default is `1.0` and provider_core spool idle sleep is `0.2`.
+  - Source validation in `/home/agnitum/ccb-git`: `PYTHONPATH=lib pytest -q test/test_codex_bridge_runtime.py test/test_codex_comm_io.py`, `git diff --check`, `python -m compileall -q lib/provider_backends/codex/bridge_runtime lib/provider_core test/test_codex_bridge_runtime.py`.
+  - Binding tracker reduction installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-binding-idle-wait-20260626-142208`; validation: `PYTHONPATH=lib pytest -q test/test_codex_bridge_runtime.py test/test_codex_comm_io.py test/test_codex_binding_update.py`.
+  - Ambiguous session-follow scan suppression validated in ccb-legacy: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_codex_session_switch.py test/test_codex_binding_update.py test/test_codex_bridge_runtime.py test/test_codex_comm_io.py` -> `12 passed`; commit `139b99d9 Avoid repeated ambiguous Codex session scans`.
+  - Ambiguous session-follow scan suppression validated in ccb-git: same command -> `12 passed`; commit `72af42b Avoid repeated ambiguous Codex session scans`.
+  - Ambiguous session-follow scan suppression installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-binding-ambiguous-scan-20260626-155524`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/provider_backends/codex/bridge_runtime/binding_runtime.py`. Existing bridge processes must restart to load this Python file.
+  - Bound-log reuse after switch detection validated in ccb-legacy: same four-test command -> `13 passed`; commit `606affb2 Reuse bound Codex logs after switch checks`.
+  - Bound-log reuse after switch detection validated in ccb-git: same four-test command -> `13 passed`; commit `d45e81b Reuse bound Codex logs after switch checks`.
+  - Bound-log reuse installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-binding-bound-log-shortcut-20260626-155930`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/provider_backends/codex/bridge_runtime/binding_runtime.py`. Existing bridge processes must restart to load this Python file.
+  - Bound/no-new-candidate scan cache validated in ccb-legacy: same four-test command -> `14 passed`; commit `a30206c1 Skip unchanged bound Codex session scans`.
+  - Bound/no-new-candidate scan cache validated in ccb-git: same four-test command -> `14 passed`; commit `7caad21 Skip unchanged bound Codex session scans`.
+  - Bound/no-new-candidate scan cache installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-binding-bound-scan-cache-20260626-160611`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/provider_backends/codex/bridge_runtime/binding_runtime.py`. Existing bridge processes must restart to load this Python file.
+- Legacy bloodline baseline updated in `/home/agnitum/ccb/ccb-legacy`: persistent Codex bridge FIFO reader, default `CCB_BRIDGE_IDLE_SLEEP=1.0`, default `CCB_CODEX_BIND_POLL_INTERVAL=5.0`, and regression tests. Validation: `PYTHONPATH=lib pytest -q test/test_codex_bridge_runtime.py test/test_codex_binding_update.py test/test_codex_comm_io.py`, `python -m compileall -q lib/provider_backends/codex/bridge_runtime test/test_codex_bridge_runtime.py test/test_codex_binding_update.py`, `git diff --check`.
+  - ccbd idle maintenance reduction installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-ccbd-idle-maintenance-20260626-142656`; validation: `PYTHONPATH=lib pytest -q test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_heavy_idle_maintenance_between_full_ticks test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_runs_heavy_maintenance_for_active_execution test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_maintenance_while_start_lock_held test/test_ccbd_socket_server_loop.py::test_next_worker_timeout_returns_immediate_when_maintenance_pending test/test_ccbd_socket_server_loop.py::test_next_worker_timeout_matches_base_timeout_without_pending_maintenance`.
+  - ccbd lease heartbeat write debounce validated in both ccb-legacy and ccb-git: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_v2_ccbd_mount_ownership.py` -> `28 passed`.
+  - ccbd lease heartbeat write debounce installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-heartbeat-write-debounce-20260626-151421`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/ccbd/services/mount.py`.
+  - keeper/lifecycle idle-write suppression validated in ccb-legacy: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_v2_ccbd_keeper.py` -> `17 passed`.
+  - keeper/lifecycle idle-write suppression validated in ccb-git: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_v2_ccbd_keeper.py` -> `21 passed`.
+  - keeper/lifecycle idle-write suppression installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-keeper-write-debounce-20260626-152630`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/ccbd/keeper_runtime/stores.py /root/.local/share/codex-dual/lib/ccbd/keeper_runtime/loop.py`.
+  - ProjectView idle TTL validated in ccb-legacy: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_ccbd_project_view.py` -> `58 passed`.
+  - ProjectView idle TTL validated in ccb-git: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_ccbd_project_view.py` -> `64 passed`.
+  - ProjectView idle TTL installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-project-view-idle-ttl-20260626-153240`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/ccbd/project_view/service.py`.
+  - ProjectView dispatcher-revision invalidation validated in ccb-legacy: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_ccbd_project_view.py` -> `59 passed`; commit `89dc2557 Refresh ProjectView on dispatcher changes`.
+  - ProjectView dispatcher-revision invalidation validated in ccb-git: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_ccbd_project_view.py` -> `65 passed`; commit `89ba66f Refresh ProjectView on dispatcher changes`.
+  - ProjectView dispatcher-revision invalidation installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-project-view-dispatcher-revision-20260626-154016`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/ccbd/project_view/service.py /root/.local/share/codex-dual/lib/ccbd/services/dispatcher_runtime/facade_state.py /root/.local/share/codex-dual/lib/ccbd/services/dispatcher_runtime/records.py`.
   - Patched runtime: `/root/.local/share/codex-dual`
   - Backup: `/home/agnitum/ccb-runtime-backups/codex-dual-rust-accelerator-20260626-135033`
   - Installed sidecar: `/root/.local/share/codex-dual/bin/ccb-runtime-accelerator`
@@ -171,14 +207,36 @@
   - Verified `ccb-runtime-accelerator serve` + `ping` over a temporary socket.
   - Precise residue check found no running `/root/.local/share/codex-dual/bin/ccb-runtime-accelerator`.
 
+Completed handoff commits:
+
+- ccb-legacy `cb4b59cb Reduce Codex bridge idle CPU on the legacy line` validates the Python-compatible bridge/binding idle reduction baseline.
+- ccb-git `f1e1383 Reduce idle CPU without changing runtime semantics` commits Python latest idle-loop reductions.
+- ccb-git `76d9f75 Add Rust runtime accelerator sidecar` commits the standalone Rust sidecar workspace.
+- ccb-git `4ea58bf Wire Python runtime to the Rust accelerator` commits Python/Rust switch glue and fallback tests.
+- ccb-git `e530ba3 Document runtime accelerator review controls` commits PR review notes and switch matrix.
+- ccb-legacy `7de1b5af Reduce idle lease write churn` commits heartbeat write debounce on the legacy proof line.
+- ccb-git `a17d2ca Reduce idle lease write churn` commits the same debounce plus PR note update.
+- ccb-legacy `a9c21a0b Stop rewriting stable keeper state` commits keeper/lifecycle idle-write suppression on the legacy proof line.
+- ccb-git `552819e Stop rewriting stable keeper state` commits the same keeper/lifecycle suppression plus PR note update.
+- ccb-legacy `1abf6abe Cache idle project views longer` commits the ProjectView idle TTL change on the legacy proof line.
+- ccb-git `42d4032 Cache idle project views longer` commits the same ProjectView idle TTL change.
+- ccb-legacy `139b99d9 Avoid repeated ambiguous Codex session scans` commits idle ambiguous session-follow scan suppression.
+- ccb-git `72af42b Avoid repeated ambiguous Codex session scans` commits the same suppression for Python latest.
+- ccb-legacy `606affb2 Reuse bound Codex logs after switch checks` commits bound-log reuse after switch detection.
+- ccb-git `d45e81b Reuse bound Codex logs after switch checks` commits the same bound-log reuse for Python latest.
+- ccb-legacy `a30206c1 Skip unchanged bound Codex session scans` commits bound/no-new-candidate scan caching.
+- ccb-git `7caad21 Skip unchanged bound Codex session scans` commits the same scan caching for Python latest.
+- ccb-legacy `89dc2557 Refresh ProjectView on dispatcher changes` commits automatic ProjectView cache invalidation on dispatcher job/event mutations.
+- ccb-git `89ba66f Refresh ProjectView on dispatcher changes` commits the same automatic invalidation while preserving Python latest sidebar refresh deltas.
+
 Still pending for the broader milestone:
 
 - Active ask-storm baseline.
-- Live Codex ask/callback/reply smoke with default `CCB_RUNTIME_ACCELERATOR_CODEX` replacement and a managed sidecar socket.
-  - Waiting for user-owned local global `ccb` test confirmation before porting the patch into `/home/agnitum/ccb-git`.
+- Live Codex ask/callback/reply smoke with default `CCB_RUNTIME_ACCELERATOR_CODEX` replacement and managed sidecar socket remains user-owned for the global runtime.
+- Post-restart live CPU confirmation for the new bridge idle wait remains pending user test.
 - Syscall-level attribution if Slice A/B needs it.
 - Post-start sidecar health monitoring/restart policy beyond initial ccbd startup.
-- Full Rust-owned Slice B ccbd maintenance wake scheduling replacement.
+- Post-restart live CPU confirmation for ccbd idle maintenance reduction.
 
 ## Risk / rollback
 
