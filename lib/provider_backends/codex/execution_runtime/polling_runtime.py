@@ -3,6 +3,7 @@ from __future__ import annotations
 from provider_execution.active import prepare_active_poll
 from provider_execution.base import ProviderPollResult, ProviderSubmission
 
+from .accelerator import poll_with_accelerator
 from .event_reading import read_entries
 from .start import state_session_path
 from .state_machine import (
@@ -20,6 +21,10 @@ def poll_submission(submission: ProviderSubmission, *, now: str) -> ProviderPoll
     prepared = prepare_active_poll(submission, now=now)
     if prepared is None or isinstance(prepared, ProviderPollResult):
         return prepared
+
+    accelerated = poll_with_accelerator(submission, now=now)
+    if accelerated is not None:
+        return accelerated.result
 
     state = submission.runtime_state.get("state") or {}
     poll = build_poll_state(submission)
