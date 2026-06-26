@@ -81,6 +81,7 @@ def initialize_app(app, project_root: str | Path, *, clock, pid: int | None) -> 
     )
     app.control_plane_metrics = ControlPlaneMetrics()
     app.lease = None
+    app.runtime_accelerator = None
     service_graph = build_ccbd_service_graph(
         CcbdServiceGraphDependencies(
             project_root=app.project_root,

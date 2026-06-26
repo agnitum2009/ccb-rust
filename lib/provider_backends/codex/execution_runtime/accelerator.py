@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from completion.models import CompletionItemKind
 from provider_execution.base import ProviderPollResult, ProviderSubmission
 from provider_execution.common import build_item, request_anchor_from_runtime_state
 from runtime_accelerator import client as accelerator_client
+from runtime_accelerator.config import (
+    accelerator_socket_path,
+    accelerator_timeout_s,
+    codex_accelerator_enabled,
+)
 
 from .start import state_session_path
 from .state_machine_runtime import CodexPollState, finalize_poll_result
@@ -24,7 +27,7 @@ def poll_with_accelerator(submission: ProviderSubmission, *, now: str) -> Accele
     if not codex_accelerator_enabled():
         return None
     descriptor = codex_job_descriptor(submission)
-    socket_path = accelerator_socket_path(submission)
+    socket_path = socket_path_from_submission(submission)
     if descriptor is None or socket_path is None:
         return None
     try:
@@ -42,26 +45,8 @@ def poll_with_accelerator(submission: ProviderSubmission, *, now: str) -> Accele
     return AcceleratorPollOutcome(used=True, result=result)
 
 
-def codex_accelerator_enabled() -> bool:
-    raw = str(os.environ.get("CCB_RUNTIME_ACCELERATOR_CODEX") or "").strip().lower()
-    return raw in {"1", "true", "yes", "on", "auto"}
-
-
-def accelerator_socket_path(submission: ProviderSubmission) -> Path | None:
-    override = str(os.environ.get("CCB_RUNTIME_ACCELERATOR_SOCKET") or "").strip()
-    if override:
-        return Path(override).expanduser()
-    project_root = project_root_from_submission(submission)
-    if not project_root:
-        return None
-    return accelerator_client.default_socket_path(project_root)
-
-
-def accelerator_timeout_s(default: float = 0.2) -> float:
-    try:
-        return max(0.0, float(os.environ.get("CCB_RUNTIME_ACCELERATOR_TIMEOUT_S", default)))
-    except Exception:
-        return max(0.0, default)
+def socket_path_from_submission(submission: ProviderSubmission):
+    return accelerator_socket_path(project_root_from_submission(submission))
 
 
 def project_root_from_submission(submission: ProviderSubmission) -> str:

@@ -7,6 +7,7 @@ from agents.models import AgentState, RuntimeBindingSource, normalize_runtime_bi
 from ccbd.models import CcbdShutdownReport, CcbdStartupReport, cleanup_summaries_from_objects
 from ccbd.services.lifecycle import build_lifecycle, current_socket_inode
 from ccbd.stop_flow import build_shutdown_runtime_snapshots
+from runtime_accelerator.lifecycle import maybe_start_runtime_accelerator, stop_runtime_accelerator
 from storage.path_helpers import socket_placement_payload
 
 from .request_guard import lifecycle_is_stopping
@@ -53,7 +54,9 @@ def start(app):
             app.restore_report_store.save(restore_report)
         _update_startup_progress(app, 'publishing_mounted')
         _mark_lifecycle_mounted(app)
+        app.runtime_accelerator = maybe_start_runtime_accelerator(app.project_root)
         startup_actions = ['mount_backend', 'listen_socket', 'restore_running_jobs']
+        startup_actions.extend(_runtime_accelerator_startup_actions(app))
         if adopted_agents:
             startup_actions.append(f'adopt_runtime_authority:{",".join(adopted_agents)}')
         record_startup_report(
@@ -156,9 +159,21 @@ def mark_current_daemon_unmounted(app):
 
 def release_backend_ownership(app, *, desired_state: str | None = None):
     lease = mark_current_daemon_unmounted(app)
+    stop_runtime_accelerator(getattr(app, 'runtime_accelerator', None))
+    app.runtime_accelerator = None
     app.socket_server.shutdown()
     _mark_lifecycle_unmounted(app, desired_state=desired_state)
     return lease
+
+
+def _runtime_accelerator_startup_actions(app) -> list[str]:
+    handle = getattr(app, 'runtime_accelerator', None)
+    if handle is None or not getattr(handle, 'enabled', False):
+        return []
+    if getattr(handle, 'started', False):
+        return ['start_runtime_accelerator']
+    error = str(getattr(handle, 'error', '') or 'unavailable').strip()
+    return [f'runtime_accelerator_fallback:{error}']
 
 
 def execute_project_stop(
