@@ -54,6 +54,20 @@ def test_bridge_tracker_rejects_ambiguous_managed_candidates(tmp_path: Path, mon
 
 
 
+
+def test_bridge_tracker_reuses_bound_log_without_workspace_rescan(tmp_path: Path, monkeypatch) -> None:
+    _work_dir, session_file, runtime_dir, _old_log = _project(tmp_path)
+
+    monkeypatch.setenv("CCB_SESSION_FILE", str(session_file))
+    tracker = CodexBindingTracker(runtime_dir)
+
+    def fail_current_log_path(*_args, **_kwargs):
+        raise AssertionError("bound session should not rescan workspace logs")
+
+    monkeypatch.setattr("provider_backends.codex.bridge_runtime.binding_runtime.current_log_path", fail_current_log_path)
+
+    assert tracker.refresh_once() is False
+
 def test_bridge_tracker_skips_repeated_ambiguous_scan_until_files_change(tmp_path: Path, monkeypatch) -> None:
     work_dir, session_file, runtime_dir, _old_log = _project(tmp_path)
     _log(tmp_path, session_id=NEW_ID, work_dir=work_dir, mtime=200)

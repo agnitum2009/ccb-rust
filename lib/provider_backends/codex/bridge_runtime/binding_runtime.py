@@ -76,7 +76,11 @@ class CodexBindingTracker:
         if switched:
             return True
 
-        log_path = current_log_path(context["data"], session_file=context["session_file"])
+        log_path = _resolved_log_path_after_switch_check(
+            context["data"],
+            decision=decision,
+            session_file=context["session_file"],
+        )
         if log_path is None:
             return False
 
@@ -103,6 +107,14 @@ def refresh_context(session_file: Path | None) -> dict[str, object] | None:
     if work_dir is None:
         return None
     return {"data": data, "work_dir": work_dir, "session_file": session_file}
+
+
+def _resolved_log_path_after_switch_check(data: dict[str, object], *, decision, session_file: Path | None) -> Path | None:
+    if decision is not None and decision.state in {"bound", STATE_SWITCHED_UNBOUND}:
+        current = path_or_none(data.get("codex_session_path"))
+        if current is not None and current.is_file():
+            return current
+    return current_log_path(data, session_file=session_file)
 
 
 def current_log_path(data: dict[str, object], *, session_file: Path | None) -> Path | None:
