@@ -240,11 +240,10 @@ fn default_projects_root() -> PathBuf {
 }
 
 fn project_key_for_path(path: &Path) -> String {
-    let normalized = path
-        .to_string_lossy()
-        .replace(['\\', '/'], "-")
-        .replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
-    normalized.trim_matches('-').to_string()
+    path.to_string_lossy()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect()
 }
 
 fn scan_project_dir(project_dir: &Path) -> Option<PathBuf> {
@@ -819,6 +818,14 @@ mod tests {
             session.to_string_lossy()
         );
         assert!(state.get("offset").unwrap().as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn test_project_key_preserves_claude_leading_dash() {
+        assert_eq!(
+            project_key_for_path(Path::new("/mnt/d/dapro-ass")),
+            "-mnt-d-dapro-ass"
+        );
     }
 
     #[test]
