@@ -9,7 +9,7 @@ from provider_backends.codex.comm_runtime.binding import extract_session_id
 from provider_backends.codex.comm_runtime.log_reader_facade import CodexLogReader
 from provider_backends.codex.session import CodexProjectSession
 from provider_backends.codex.session_runtime.follow_policy import should_follow_workspace_sessions
-from provider_backends.codex.session_switch import STATE_AUTO_REBINDABLE, STATE_SWITCHED_UNBOUND, commit_rebind, resolve_switch_decision, write_decision
+from provider_backends.codex.session_switch import STATE_AUTO_REBINDABLE, STATE_BOUND, STATE_SWITCHED_UNBOUND, commit_rebind, resolve_switch_decision, write_decision
 
 from .env import env_float, path_or_none, read_session_data, session_root, session_work_dir
 
@@ -52,7 +52,7 @@ class CodexBindingTracker:
     def _remember_deferred_switch_scan(self, data: dict[str, object], decision) -> None:
         if (
             decision is not None
-            and decision.state == STATE_SWITCHED_UNBOUND
+            and decision.state in {STATE_BOUND, STATE_SWITCHED_UNBOUND}
             and int(getattr(decision.evidence, "running_job_count", 0) or 0) == 0
         ):
             self._deferred_switch_signature = _switch_scan_signature(data)
