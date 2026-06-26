@@ -1,0 +1,163 @@
+{
+  "fixture_root": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/synthetic-phase0-fixtures",
+  "generated_at": "2026-06-26T05:06:55.835957Z",
+  "metrics": {
+    "cleanup_process_inspection": {
+      "details": {
+        "candidate_count": 6,
+        "proc_root": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/synthetic-phase0-fixtures/proc"
+      },
+      "iterations": 3,
+      "max_ms": 0.443472,
+      "mean_ms": 0.389112,
+      "min_ms": 0.356521,
+      "p50_ms": 0.367342,
+      "p95_ms": 0.435859,
+      "samples_ms": [
+        0.443472,
+        0.367342,
+        0.356521
+      ],
+      "status": "measured"
+    },
+    "helper_subprocess_startup": {
+      "details": {
+        "command": [
+          "/root/.venv/bin/python3",
+          "-c",
+          ""
+        ],
+        "command_kind": "python_empty_process"
+      },
+      "iterations": 3,
+      "max_ms": 15.757623,
+      "mean_ms": 15.715056,
+      "min_ms": 15.681731,
+      "p50_ms": 15.705815,
+      "p95_ms": 15.752442,
+      "samples_ms": [
+        15.681731,
+        15.705815,
+        15.757623
+      ],
+      "status": "measured"
+    },
+    "native_provider_output_parse": {
+      "details": {
+        "finish_reason": "end_turn",
+        "finished": true,
+        "path": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/synthetic-phase0-fixtures/native-output.jsonl",
+        "reply_chars": 1895
+      },
+      "iterations": 3,
+      "max_ms": 4.253132,
+      "mean_ms": 4.125595,
+      "min_ms": 4.027983,
+      "p50_ms": 4.09567,
+      "p95_ms": 4.237386,
+      "samples_ms": [
+        4.253132,
+        4.09567,
+        4.027983
+      ],
+      "status": "measured"
+    },
+    "project_view_build": {
+      "details": {
+        "agent_count": 6,
+        "comms_count": 0,
+        "window_count": 1
+      },
+      "iterations": 3,
+      "max_ms": 0.902754,
+      "mean_ms": 0.800103,
+      "min_ms": 0.725149,
+      "p50_ms": 0.772406,
+      "p95_ms": 0.889719,
+      "samples_ms": [
+        0.772406,
+        0.902754,
+        0.725149
+      ],
+      "status": "measured"
+    },
+    "queue_watch_jsonl_tail": {
+      "details": {
+        "path": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/synthetic-phase0-fixtures/queue-watch.jsonl",
+        "tail_limit": 200
+      },
+      "iterations": 3,
+      "max_ms": 0.598182,
+      "mean_ms": 0.453434,
+      "min_ms": 0.269546,
+      "p50_ms": 0.492575,
+      "p95_ms": 0.587621,
+      "samples_ms": [
+        0.598182,
+        0.269546,
+        0.492575
+      ],
+      "status": "measured"
+    },
+    "storage_classification_scan": {
+      "details": {
+        "project_root": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/synthetic-phase0-fixtures/project",
+        "total_bytes": 36951,
+        "total_count": 27
+      },
+      "iterations": 3,
+      "max_ms": 4.952259,
+      "mean_ms": 4.755357,
+      "min_ms": 4.503565,
+      "p50_ms": 4.810248,
+      "p95_ms": 4.938058,
+      "samples_ms": [
+        4.952259,
+        4.810248,
+        4.503565
+      ],
+      "status": "measured"
+    }
+  },
+  "parameters": {
+    "agents": 6,
+    "iterations": 3,
+    "processes": 24,
+    "rows": 200
+  },
+  "phase": "phase0_baseline",
+  "plan": "python-rust-hybrid-performance",
+  "platform": {
+    "machine": "x86_64",
+    "release": "6.18.33.1-microsoft-standard-WSL2",
+    "system": "Linux"
+  },
+  "python": {
+    "executable": "/root/.venv/bin/python3",
+    "version": "3.12.13"
+  },
+  "repo_root": "/home/agnitum/ccb-git",
+  "result_path": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/python-latest-synthetic-phase0-baseline.json",
+  "rust_toolchain": {
+    "cargo": {
+      "command": [
+        "cargo",
+        "version"
+      ],
+      "path": "/usr/sbin/cargo",
+      "returncode": 0,
+      "status": "available",
+      "stderr": "",
+      "stdout": "cargo 1.96.0 (30a34c682 2026-05-25) (Arch Linux rust 1:1.96.0-1)"
+    },
+    "rustup": {
+      "command": [
+        "rustup",
+        "show"
+      ],
+      "path": null,
+      "status": "missing"
+    }
+  },
+  "schema_version": 1
+}

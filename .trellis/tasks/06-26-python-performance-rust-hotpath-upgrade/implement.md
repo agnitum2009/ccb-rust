@@ -4,13 +4,16 @@
 
 - [x] Use `/home/agnitum/ccb-git` at HEAD `06cbdc3` as Python latest baseline.
 - [x] Use `/home/agnitum/ccb/ccb-legacy` `ccb-legacy` as the Rust replacement implementation worktree.
-- [ ] Reproduce 2-Codex smoke baseline for repeatability.
-- [ ] Reproduce 4+ Codex n14-like baseline for CPU acceptance.
-- [ ] Capture per-process CPU/RSS/syscall evidence:
+- [x] Reproduce 2-Codex smoke baseline for repeatability.
+- [x] Reproduce 4+ Codex n14-like baseline for CPU acceptance.
+- [x] Capture per-process CPU/RSS evidence:
   - `ccbd/main` / `ccbd` process
   - each `provider_backends.codex.bridge` process
   - Codex provider CLI processes separately
+- [ ] Capture syscall evidence separately if needed for Slice A/B diagnosis.
 - [ ] Record active vs idle behavior separately.
+  - Startup/idle live profiles are captured.
+  - Active ask-storm profile remains pending.
 - [ ] Confirm whether measured bridge CPU is from:
   - FIFO bridge wait
   - Codex comm log polling
@@ -110,6 +113,15 @@
 - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
 - `cargo build -p ccb-runtime-accelerator`
 - `PYTHONPATH=lib pytest -q test/test_runtime_accelerator_client.py`
+- Synthetic Python latest Phase 0 baseline:
+  - `.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/python-latest-synthetic-phase0-baseline.json`
+- Live Python latest startup/idle baseline:
+  - `.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/live-2codex-startup-profile.json`
+  - `.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/live-4codex-startup-profile.json`
+  - `.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/live-baseline-summary.md`
+  - 2-Codex: ccbd avg CPU `26.370%`; provider/codex avg CPU `29.950%`; max project procs `23`.
+  - 4-Codex: ccbd avg CPU `18.783%`; provider/codex avg CPU `71.075%`; max project procs `39`.
+  - Both live runs ended with `ccb_test kill -f` and process-residue checks.
 - Real Unix socket smoke:
   - `ccb-runtime-accelerator serve --socket <ephemeral>`
   - `ccb-runtime-accelerator ping --socket <ephemeral>`
@@ -117,8 +129,8 @@
 
 Still pending for the broader milestone:
 
-- Real 2-Codex smoke baseline.
-- Real 4+ Codex n14-like CPU acceptance baseline.
+- Active ask-storm baseline.
+- Syscall-level attribution if Slice A/B needs it.
 - Slice A Codex active-job observation replacement.
 - Slice B ccbd maintenance wake scheduling replacement.
 

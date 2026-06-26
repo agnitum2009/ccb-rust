@@ -1,0 +1,420 @@
+{
+  "generated_at": "2026-06-26T05:08:56.649170Z",
+  "parameters": {
+    "ask_agent": "agent_codex",
+    "ask_concurrency": 12,
+    "ask_count": 80,
+    "ask_message": "runtime heartbeat profiling probe",
+    "load_command_timeout_s": 180.0,
+    "load_samples": 30,
+    "skip_load": true,
+    "skip_startup": false,
+    "startup_command_timeout_s": 20.0,
+    "startup_samples": 10
+  },
+  "phase": "runtime_lifecycle_profile_v1",
+  "phases": {
+    "load": {
+      "avg_cpu_pct": 0.0,
+      "buckets": {
+        "ask-cli-subprocess": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "ccb/ccbd/main": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "ccb/keeper": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "ccbd/sidebar": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "other-system": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "provider/claude": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "provider/codex": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "provider/gemini": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "provider/opencode": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "provider/other": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "python-misc": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "shell-wrapper": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "terminal-frontend": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        },
+        "tmux-server": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 0
+        }
+      },
+      "cpu_share": 0.0,
+      "procs_max": 0,
+      "reason": "skip_load",
+      "rss_max_mib": 0.0,
+      "samples": 0,
+      "status": "skipped"
+    },
+    "startup": {
+      "avg_cpu_pct": 73.74,
+      "buckets": {
+        "ask-cli-subprocess": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "ccb/ccbd/main": {
+          "avg_cpu_pct": 26.37,
+          "cpu_share": 0.357608,
+          "procs_max": 1,
+          "rss_max_mib": 45.922,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 26.37,
+              "command": "/root/.venv/bin/python3 /home/agnitum/ccb-git/lib/ccbd/main.py --project /home/agnitum/test_ccb2/ccb-live-baseline-2",
+              "pids_seen": 1,
+              "rss_max_mib": 45.922
+            }
+          ]
+        },
+        "ccb/keeper": {
+          "avg_cpu_pct": 6.69,
+          "cpu_share": 0.090724,
+          "procs_max": 1,
+          "rss_max_mib": 31.168,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 6.69,
+              "command": "/root/.venv/bin/python3 /home/agnitum/ccb-git/lib/ccbd/keeper_main.py --project /home/agnitum/test_ccb2/ccb-live-baseline-2",
+              "pids_seen": 1,
+              "rss_max_mib": 31.168
+            }
+          ]
+        },
+        "ccbd/sidebar": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "other-system": {
+          "avg_cpu_pct": 0.08,
+          "cpu_share": 0.001085,
+          "procs_max": 6,
+          "rss_max_mib": 8.816,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 0.06,
+              "command": "[git] <defunct>",
+              "pids_seen": 3,
+              "rss_max_mib": 0.0
+            },
+            {
+              "avg_cpu_pct": 0.02,
+              "command": "/home/agnitum/ccb-git/tools/ccb-agent-sidebar/target/release/ccb-agent-sidebar --ccbd-socket /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/ccbd/ccbd.sock --project-root /home/agnitum/test_ccb2/ccb-live-baseline-2 --pane-window main",
+              "pids_seen": 1,
+              "rss_max_mib": 2.953
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "tee -a /home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/source-home/.cache/ccb/pane-logs/tmux/pane-0.log",
+              "pids_seen": 1,
+              "rss_max_mib": 1.953
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "tee -a /home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/source-home/.cache/ccb/pane-logs/tmux/pane-1.log",
+              "pids_seen": 1,
+              "rss_max_mib": 1.953
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "tee -a /home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/source-home/.cache/ccb/pane-logs/tmux/pane-2.log",
+              "pids_seen": 1,
+              "rss_max_mib": 1.957
+            }
+          ]
+        },
+        "provider/claude": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "provider/codex": {
+          "avg_cpu_pct": 29.95,
+          "cpu_share": 0.406157,
+          "procs_max": 11,
+          "rss_max_mib": 368.383,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 12.44,
+              "command": "/usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex -c disable_paste_burst=true --ask-for-approval never --sandbox danger-full-access --dangerously-bypass-hook-trust -c mode...",
+              "pids_seen": 2,
+              "rss_max_mib": 97.328
+            },
+            {
+              "avg_cpu_pct": 6.8,
+              "command": "/root/.venv/bin/python3 -m provider_backends.codex.bridge --runtime-dir /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/agents/codex2/provider-runtime/codex",
+              "pids_seen": 1,
+              "rss_max_mib": 27.348
+            },
+            {
+              "avg_cpu_pct": 6.65,
+              "command": "/root/.venv/bin/python3 -m provider_backends.codex.bridge --runtime-dir /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/agents/codex1/provider-runtime/codex",
+              "pids_seen": 1,
+              "rss_max_mib": 27.969
+            },
+            {
+              "avg_cpu_pct": 2.42,
+              "command": "node /usr/sbin/codex -c disable_paste_burst=true --ask-for-approval never --sandbox danger-full-access --dangerously-bypass-hook-trust -c model_reasoning_effort=\"low\"",
+              "pids_seen": 2,
+              "rss_max_mib": 49.574
+            },
+            {
+              "avg_cpu_pct": 1.38,
+              "command": "/usr/lib/git-core/git --shallow-file /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/agents/codex2/provider-state/codex/home/.tmp/plugins-clone-JgNtz1/.git/shallow.lock index-pack --stdin --fix-thin --keep=fetch-pack 1221731 on LUCK-T14...",
+              "pids_seen": 1,
+              "rss_max_mib": 5.555
+            },
+            {
+              "avg_cpu_pct": 0.2,
+              "command": "/usr/lib/git-core/git --shallow-file /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/agents/codex1/provider-state/codex/home/.tmp/plugins-clone-pW9C9k/.git/shallow.lock index-pack --stdin --fix-thin --keep=fetch-pack 1221728 on LUCK-T14...",
+              "pids_seen": 1,
+              "rss_max_mib": 4.504
+            },
+            {
+              "avg_cpu_pct": 0.06,
+              "command": "git -C /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/agents/codex2/provider-state/codex/home/.tmp/plugins-clone-JgNtz1 fetch --depth 1 --no-tags https://github.com/openai/plugins.git +3fdeeb4970a1fa176ccabf873ae64fd6053cb2b0:refs/code...",
+              "pids_seen": 1,
+              "rss_max_mib": 4.906
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "/usr/bin/bash -c set -euo pipefail PROJECT=/home/agnitum/test_ccb2/ccb-live-baseline-2 EVIDENCE=/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline SOURCE_HOME=\"$EVIDENCE/source-home\" RES...",
+              "pids_seen": 1,
+              "rss_max_mib": 3.52
+            }
+          ]
+        },
+        "provider/gemini": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "provider/opencode": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "provider/other": {
+          "avg_cpu_pct": 0.55,
+          "cpu_share": 0.007459,
+          "procs_max": 6,
+          "rss_max_mib": 40.086,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 0.55,
+              "command": "/usr/lib/git-core/git-remote-https https://github.com/openai/plugins.git https://github.com/openai/plugins.git",
+              "pids_seen": 4,
+              "rss_max_mib": 13.074
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "git ls-remote https://github.com/openai/plugins.git HEAD",
+              "pids_seen": 2,
+              "rss_max_mib": 4.039
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "/usr/lib/git-core/git remote-https https://github.com/openai/plugins.git https://github.com/openai/plugins.git",
+              "pids_seen": 4,
+              "rss_max_mib": 3.719
+            }
+          ]
+        },
+        "python-misc": {
+          "avg_cpu_pct": 8.33,
+          "cpu_share": 0.112964,
+          "procs_max": 1,
+          "rss_max_mib": 36.082,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 5.69,
+              "command": "[python3] <defunct>",
+              "pids_seen": 1,
+              "rss_max_mib": 0.0
+            },
+            {
+              "avg_cpu_pct": 2.64,
+              "command": "/root/.venv/bin/python3 /home/agnitum/ccb-git/ccb.py",
+              "pids_seen": 1,
+              "rss_max_mib": 36.082
+            },
+            {
+              "avg_cpu_pct": 0.0,
+              "command": "/root/.venv/bin/python3 /home/agnitum/ccb-git/ccb_test",
+              "pids_seen": 1,
+              "rss_max_mib": 9.152
+            }
+          ]
+        },
+        "shell-wrapper": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "terminal-frontend": {
+          "avg_cpu_pct": 0.0,
+          "cpu_share": 0.0,
+          "procs_max": 0,
+          "rss_max_mib": 0.0,
+          "samples": 10,
+          "top_commands": []
+        },
+        "tmux-server": {
+          "avg_cpu_pct": 1.77,
+          "cpu_share": 0.024003,
+          "procs_max": 1,
+          "rss_max_mib": 3.832,
+          "samples": 10,
+          "top_commands": [
+            {
+              "avg_cpu_pct": 1.77,
+              "command": "tmux -f /dev/null -S /home/agnitum/test_ccb2/ccb-live-baseline-2/.ccb/ccbd/tmux.sock new-session -d -x 160 -y 48 -s ccb-ccb-live-baseline-2-d2985def -n main -c /home/agnitum/test_ccb2/ccb-live-baseline-2 sh -lc while :; do sleep 3600; done",
+              "pids_seen": 1,
+              "rss_max_mib": 3.832
+            }
+          ]
+        }
+      },
+      "command": {
+        "argv": [
+          "/root/.venv/bin/python3",
+          "/home/agnitum/ccb-git/ccb_test"
+        ],
+        "kind": "startup_subprocess"
+      },
+      "cpu_share": 1.0,
+      "metadata": {
+        "command_exit_code": 0,
+        "elapsed_s": 9.217524,
+        "sample_interval_s": 1.0,
+        "samples_requested": 10,
+        "terminated_by_profile": false,
+        "timed_out": false
+      },
+      "procs_max": 23,
+      "rss_max_mib": 491.266,
+      "samples": 10,
+      "status": "sampled"
+    }
+  },
+  "plan": "ccb-runtime-performance",
+  "platform": {
+    "machine": "x86_64",
+    "release": "6.18.33.1-microsoft-standard-WSL2",
+    "system": "Linux"
+  },
+  "project_root": "/home/agnitum/test_ccb2/ccb-live-baseline-2",
+  "python": {
+    "executable": "/root/.venv/bin/python3",
+    "version": "3.12.13"
+  },
+  "repo_root": "/home/agnitum/ccb-git",
+  "result_path": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/live-2codex-startup-profile.json",
+  "sample_interval_s": 1.0,
+  "schema_version": 1,
+  "source_home": "/home/agnitum/ccb/.trellis/tasks/06-26-python-performance-rust-hotpath-upgrade/evidence/live-baseline/source-home",
+  "source_runtime_root": "/home/agnitum/test_ccb2"
+}
