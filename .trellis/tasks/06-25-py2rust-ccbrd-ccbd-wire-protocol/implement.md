@@ -139,9 +139,10 @@
 - `cargo test -p ccbr-providers -- --test-threads=1` when provider/session code changes.
 - Live smoke in `/mnt/d/dapro-ass`:
   - start workspace
-  - sidebar displays real state
-  - Python/Rust ask path completes A -> B -> A inbox
+  - `ccbr-agent-sidebar` displays real state
+  - `bin/ask` / `ccbr ask` path completes A -> B -> A inbox
   - red X/full shutdown leaves no managed tmux/provider remnants
+  - do not treat Python `ask_cli` failing on `.ccb` mount state as a ccbr bug; that belongs to the Python / `ccb-legacy` bloodline
 
 ## Guardrails
 
@@ -289,3 +290,17 @@ Evidence:
   - `.ccbr` only retained `ccbr.config` and `bin`
   - ccbr daemon state path for `/mnt/d/dapro-ass` was absent
 - `ccb-legacy` equivalent Rust owner sync: commit `0580ae24 Keep legacy provider readback structured`.
+
+
+## Bloodline boundary correction (2026-06-26)
+
+User clarification:
+
+- Python `ccb` and Rust `ccbr` runtimes must remain isolated.
+- `ccbr` parity target is the Python 7.5.2 wire/user contract, validated through Rust `ccbr` clients.
+- `ccb-legacy` is the Rust branch that must remain 100% compatible with Python `ccb`; ccbr-only local divergences must not be copied there.
+- A forced Python `ask_cli` -> `.ccbr` smoke failed with `project ccbd is unmounted; run ccb first`; this is now classified as correct bloodline isolation, not a ccbr P0 defect.
+
+Next validation target:
+
+- Re-run live smoke with `bin/ask` / `ccbr ask` and `ccbr-agent-sidebar`, then cleanup all `/mnt/d/dapro-ass` test resources.

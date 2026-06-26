@@ -4,6 +4,12 @@
 
 Use the `/mnt/g/owner` responsibility-chain method to align Python `ccb` 7.5.2 capability ownership with Rust `ccbr`/`ccbrd`, then close the remaining interoperability gaps without copying Python's low-performance runtime architecture.
 
+## Bloodline runtime boundary
+
+- `ccbr` and Python `ccb` are isolated runtime bloodlines; `.ccbr` state must not be made dependent on Python `.ccb` mount/lifecycle state.
+- Python `ccb` 7.5.2 owns the reference wire/user contract for comparison. It is not a runtime client that must directly attach to `ccbrd`.
+- `ccb-legacy` is the separate Rust mirror that must remain 100% compatible with Python `ccb` 7.5.2. Local `ccbr` divergences are not automatically legacy-compatible.
+
 ## Owner model
 
 | Layer | Owner role | Evidence anchor | Non-claim |
@@ -11,7 +17,8 @@ Use the `/mnt/g/owner` responsibility-chain method to align Python `ccb` 7.5.2 c
 | Python `ccb` 7.5.2 | Reference capability owner for wire behavior and user-facing semantics | `backup/python-reference/lib/ccbd/**`, `lib/ccbd/**` | Not a performance/template owner for Rust internals |
 | Rust `ccbrd` | Current implementation owner for daemon protocol, lifecycle, runtime integration | `rust/crates/ccbr-daemon/**` | Must not silently diverge from Python client-facing contracts |
 | Rust providers | Runtime/session/polling owner | `rust/crates/ccbr-providers/**` | Must not disable Codex hooks |
-| Python clients | Consumer owner for sidebar/ask/CLI compatibility | `bin/ccb-agent-sidebar`, Python `ask` surface | Consumer cannot redefine daemon truth |
+| Rust ccbr clients | Consumer owner for ccbr runtime interop | `bin/ask`, `ccbr-agent-sidebar`, `ccbr` CLI | Must not depend on Python `.ccb` runtime state |
+| ccb-legacy Rust mirror | Python-compatible Rust bloodline | `ccb-legacy` branch/worktree | Must remain 100% compatible with Python `ccb` 7.5.2; never merge into ccbr mainline |
 | Trellis/CodeGraph | Evidence and planning accelerators | `.trellis/**`, CodeGraph index | Not owner truth |
 
 ## Current evidence
@@ -71,9 +78,11 @@ Use the `/mnt/g/owner` responsibility-chain method to align Python `ccb` 7.5.2 c
 ## Compatibility strategy
 
 1. Preserve Python wire shape at the socket boundary.
-2. Keep Rust implementation internals DDD/efficient when externally equivalent.
-3. Record intentional divergence as owner adoption with non-claims.
-4. Add regression tests for every closed gap before implementation.
+2. Keep `ccbr` runtime clients on `.ccbr` and Python `ccb` runtime clients on `.ccb`; do not mix lifecycle stores.
+3. Keep `ccb-legacy` 100% Python-compatible; sync only equivalent fixes that move legacy toward Python parity.
+4. Keep Rust implementation internals DDD/efficient when externally equivalent.
+5. Record intentional divergence as owner adoption with non-claims.
+6. Add regression tests for every closed gap before implementation.
 
 ## Rollback
 

@@ -12,6 +12,12 @@ Owner classification follows `/mnt/g/owner` responsibility-chain rules:
 - use Rust `ccbrd` as current implementation owner;
 - treat Trellis/CodeGraph/reference code as evidence, not owner truth.
 
+## Runtime bloodline boundary
+
+- `ccbr` line-protocol parity is tested with Rust runtime clients (`ccbr`, `bin/ask`, `ccbr-agent-sidebar`) against `.ccbr` state.
+- Python `.ccb` clients are not expected to mount or drive `ccbrd`; using them against `.ccbr` is a bloodline mix and is not a ccbr P0 target.
+- `ccb-legacy` is the Rust branch that must stay 100% compatible with Python `ccb` 7.5.2.
+
 ## Registered RPC coverage
 
 Python registered ops: 26.

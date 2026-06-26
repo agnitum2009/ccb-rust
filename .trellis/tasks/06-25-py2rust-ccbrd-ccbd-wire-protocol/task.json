@@ -1,8 +1,8 @@
 {
   "id": "py2rust-ccbrd-ccbd-wire-protocol",
   "name": "py2rust-ccbrd-ccbd-wire-protocol",
-  "title": "ccbrd 完整实现 ccbd 线协议（Python 客户端互操作 parity）",
-  "description": "Make ccbrd speak the full ccbd wire protocol so Python clients (ccb-agent-sidebar, ask skill, python ccb CLI) interoperate. Currently ccbrd serves Rust-CLI RPCs but Python ccb-agent-sidebar reports 'ccbd unavailable' = missing/mismatched RPC endpoints. This is the core remaining py->rust milestone for real multi-agent usage.",
+  "title": "ccbrd 实现 Python 线协议合同；ccb-legacy 保持 Python 100% 兼容",
+  "description": "Make ccbrd speak the Python-derived ccbd wire contract for the Rust ccbr client set, while keeping Python ccb runtime isolated. ccb-legacy is the separate Rust bloodline that must stay 100% compatible with Python ccb 7.5.2.",
   "status": "in_progress",
   "dev_type": null,
   "scope": null,

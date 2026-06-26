@@ -1,7 +1,14 @@
 # ccbrd 完整实现 ccbd 线协议（Python 客户端互操作 parity）
 
 ## Goal
-让 ccbrd 完整实现 Python `ccbd` 的线协议（socket RPC），使 **Python 客户端**（`ccb-agent-sidebar` 左侧栏、`ask` skill、Python `ccb` CLI）能与 ccbrd 互操作。这是 ccbr 真正可用于多 agent 场景的**核心剩余 py→rust 工程**。
+让 ccbrd 完整实现 Python `ccbd` 的线协议合同（socket RPC 的方法、payload、用户语义），使 **Rust `ccbr` 客户端集合**（`ccbr-agent-sidebar`、`bin/ask`/`ccbr ask`、Rust CLI）能按 Python 7.5.2 参考合同互操作。这是 ccbr 真正可用于多 agent 场景的**核心剩余 py→rust 工程**。
+
+## 血系边界澄清（2026-06-26）
+
+- `ccbr` / `ccbrd` 与 Python `ccb` 运行时彼此隔离：不要让 Python `.ccb` 客户端直接挂到 Rust `.ccbr` daemon 上。
+- 本任务里的“Python 兼容”指 Python 7.5.2 的线协议 / payload / 用户语义合同，而不是混跑 Python CLI/sidebar/runtime。
+- `ccbr` 验证对象是 Rust 成套入口：`ccbr`、`bin/ask`（Rust ask alias）、`ccbr-agent-sidebar`、`ccbrd`。
+- `ccb-legacy` 是另一条 Rust 血系，目标是对 Python `ccb` 7.5.2 **100% 兼容**；同步 ccbr 修复时只同步能让 legacy 更贴近 Python 的等价修复，不同步 ccbr 本地分歧。
 
 ## 背景与诊断（glm5.2 实查，2026-06-25）
 - ccbrd 在跑、socket 可达；**Rust CLI（`ccbr`）↔ ccbrd 协议通**（`status/ask/trace/inbox/restart` 等都工作，本会话验证）。
@@ -11,20 +18,20 @@
 ## 范围（P0，多 session）
 1. **RPC 接口面审计（第一步，必做）**：枚举 Python `ccbd` 服务的全部 RPC 方法（`lib/ccbd/handlers/` + 主分发器的方法注册表）+ ccbrd 现有 dispatch（`rust/crates/ccbr-daemon/src/` 的方法匹配），产出**缺口清单**（Python 有、ccbrd 无/响应不一致的端点）。重点核对 sidebar/ask/mailbox/comms/namespace 相关方法。
 2. **补齐缺失端点**：在 ccbrd 实现 Python 客户端依赖的 RPC（线协议格式 + 请求/响应结构严格对齐 `lib/ccbd/handlers/`）。
-3. **Python 客户端互操作验证**：用真实 `ccb-agent-sidebar`（软链 `ccbr-agent-sidebar`）+ Python `ask` skill 连 ccbrd，验证左侧栏显示真实状态 + agent 间 `ask` 通信可用。
-4. 测试：ccbrd 新增 RPC 的单测 + Python 客户端互操作集成测试。
+3. **Rust 客户端互操作验证**：用真实 `ccbr-agent-sidebar` + `bin/ask`/`ccbr ask` 连 ccbrd，验证左侧栏显示真实状态 + agent 间 `ask` 通信可用。
+4. 测试：ccbrd 新增 RPC 的单测 + Rust 客户端互操作集成测试；`ccb-legacy` 同步面另跑 Python-compatible targeted tests。
 
 ## Python 参考位置
 - 守护进程主入口/handlers：`lib/ccbd/`（`lib/ccbd/handlers/` 各 handler + 主 socket 分发器的 method 注册表）。
-- 客户端调用面：`bin/ccb-agent-sidebar`（编译产物，源在 Python `ccb` 包）+ `ask` skill。
+- Python 客户端调用面仅作参考合同：`bin/ccb-agent-sidebar`（编译产物，源在 Python `ccb` 包）+ `ask` skill；ccbr runtime 不直接混跑 Python `.ccb` 客户端。
 - ccbrd 现有 dispatch：`rust/crates/ccbr-daemon/src/`（handlers + 主 socket 路由）。
 
 ## Acceptance Criteria
 - [ ] RPC 接口面审计文档（research/wire-protocol-gap.md：Python 全量方法 vs ccbrd 现有 vs 缺口）
 - [ ] ccbrd 补齐缺口端点，线协议/响应结构与 Python ccbd 严格一致
-- [ ] `ccb-agent-sidebar` 连 ccbrd 不再报 "ccbd unavailable"，显示真实 agent/mailbox/comms 状态
-- [ ] Python `ask` skill 经 ccbrd 完成 agent 间通信（A ask B → B 回复 → A inbox 收到）
-- [ ] `cargo test -p ccbr-daemon` 全绿 + Python 客户端互操作集成测试通过
+- [ ] `ccbr-agent-sidebar`（Rust helper）连 ccbrd 不再报 "ccbd unavailable"，显示真实 agent/mailbox/comms 状态
+- [ ] `bin/ask` / `ccbr ask` 经 ccbrd 完成 agent 间通信（A ask B → B 回复 → A inbox 收到）；Python `ask_cli` 只作为 ccb-legacy/Python 血系兼容对象
+- [ ] `cargo test -p ccbr-daemon` 全绿 + Rust 客户端互操作集成测试通过；同步到 `ccb-legacy` 的等价修复需通过 Python-compatible legacy targeted tests
 
 ## Owner 对齐补充（2026-06-26）
 

@@ -23,7 +23,13 @@ Rules applied here:
 | `rust_ccbr_provider_runtime_owner` | Current owner for provider session payloads, prompt dispatch, structured transcript polling, and active-only heartbeat behavior. | Must not disable or mask Codex hooks; does not own Python low-performance bridge design. |
 | `rust_sidebar_consumer_owner` | Current owner for `tools/ccb-agent-sidebar` rendering and click actions. | Projection consumer only; cannot redefine daemon truth. |
 | `trellis_codegraph_evidence_owner` | Evidence/planning/indexing helper. | Not owner truth. |
-| `ccb_legacy_rust_mirror_owner` | Separate Rust reverse-mirror branch for upstream original merge convenience. | Never merges with ccbr mainline; sync only equivalent Rust owner fixes. |
+| `ccb_legacy_rust_mirror_owner` | Separate Rust mirror branch whose target is 100% compatibility with Python `ccb` 7.5.2. | Never merges with ccbr mainline; do not import ccbr-local divergences that break Python compatibility. |
+
+## Runtime bloodline boundary
+
+- `ccbr` and Python `ccb` are isolated: `.ccbr` daemon/state is validated through Rust `ccbr` clients, not by forcing Python `.ccb` clients to mount it.
+- Python `ccb` remains the reference contract owner for line protocol and user-facing behavior.
+- `ccb-legacy` is the Rust bloodline that must be 100% Python-compatible. A ccbr fix is synced to legacy only when it is an equivalent Python-parity fix, not when it encodes a ccbr-only local divergence.
 
 ## Registered interface coverage
 
@@ -52,7 +58,7 @@ Conclusion: interface registration coverage is not the current blocker. Remainin
 | `provider_claude_session_polling` | capability | `rust_ccbr_provider_runtime_owner` | primary | confirmed_owner | Python Claude provider reference; Rust provider launcher/session/reader | null | null | internal | null | null | true | Python Claude projects root/session discovery under managed home | Rust provider reader requires managed session binding plus Claude project log ingestion | Closed P0: reader now preserves Claude's leading-dash project key, pane capture no longer contaminates `reply_buffer`, and pane fallback is blocked when structured Claude logs are expected. Live smoke delivered clean inbox token. |
 | `codex_hook_policy` | policy | `rust_ccbr_provider_runtime_owner` | primary | confirmed_owner | user hard rule; `codex-wire-protocol.md`; launch args | null | null | internal | null | null | false | Python keeps rendered CCB rules | Rust uses developer instructions/session binding; Codex hooks remain enabled | Hook disabling/masking is rejected. Coordination must be solved by launch args, session payloads, and polling. |
 | `test_resource_cleanup` | lifecycle_gate | `rust_ccbrd_runtime_owner` | primary | candidate | `scripts/ccbr-test-cleanup.sh`; live smoke cleanup evidence | null | null | internal | null | null | false | none | Rust test cleanup only | P0 operational guardrail: cleanup must reclaim ccbr-runtime tmux orphans without touching Python `.ccb`/`ccb` state. |
-| `ccb_legacy_sync_rule` | policy | `ccb_legacy_rust_mirror_owner` | primary | candidate | branch `ccb-legacy`; user instruction | null | null | internal | null | null | false | Python original import path | Separate Rust mirror branch | Sync equivalent Rust fixes; do not force non-equivalent tests or pollute Python `ccb`. |
+| `ccb_legacy_sync_rule` | policy | `ccb_legacy_rust_mirror_owner` | primary | confirmed_owner | branch `ccb-legacy`; user instruction | null | null | internal | null | null | false | Python original import path | Separate Rust mirror branch | `ccb-legacy` must be 100% Python-compatible. Sync equivalent Python-parity Rust fixes; reject ccbr-only local divergences; never pollute Python `ccb`. |
 
 ## Priority findings
 
@@ -106,4 +112,4 @@ Existing `wire-protocol-gap.md` is useful evidence, but its `surface` vocabulary
 - Rust provider optimizations are allowed only when the Python-facing contract remains compatible.
 - UI/sidebar state is projection/readback only.
 - Codex hooks must remain enabled; hook suppression is not an owner-alignment strategy.
-- `ccb-legacy` is not Python `ccb` and is not merged with ccbr mainline.
+- `ccb-legacy` is not Python `ccb` and is not merged with ccbr mainline, but its compatibility target is Python `ccb` 7.5.2 at 100%.
