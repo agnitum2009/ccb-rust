@@ -655,6 +655,7 @@ impl CcbdApp {
             if let Some(decision) = effective_decision.as_ref() {
                 if decision.terminal {
                     self.completion_tracker.finish(&update.job_id);
+                    self.execution.finish(&update.job_id);
                     if let Some(job) = self.dispatcher.get(&update.job_id) {
                         let finished_at = decision
                             .finished_at
@@ -999,8 +1000,7 @@ impl CcbdApp {
 }
 
 impl CcbdApp {
-    /// Capture the current text of each active execution pane and push it into
-    /// the provider adapter's runtime state as `reply_buffer`.
+    /// Capture current active pane text for provider fallback completion.
     fn feed_active_pane_text_to_execution(&mut self) {
         let socket_path = self.tmux_socket_path();
         if !std::path::Path::new(&socket_path).exists() {
@@ -1018,7 +1018,10 @@ impl CcbdApp {
                 .unwrap_or_default();
             let text = ccbr_terminal::TmuxBackend::strip_ansi(&text);
             let mut patch = std::collections::HashMap::new();
-            patch.insert("reply_buffer".to_string(), serde_json::Value::String(text));
+            patch.insert(
+                "pane_text_buffer".to_string(),
+                serde_json::Value::String(text),
+            );
             patch.insert(
                 "socket_path".to_string(),
                 serde_json::Value::String(socket_path.clone()),

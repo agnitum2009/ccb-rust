@@ -49,14 +49,14 @@ Conclusion: interface registration coverage is not the current blocker. Remainin
 | `dispatcher_trace_queue_retry_resubmit` | interface | `rust_ccbrd_runtime_owner` | primary | confirmed_owner | Python dispatcher handlers; Rust dispatcher/mailbox handlers | `rust_ccbrd_runtime_owner` | `python_ccb_7_5_2_reference_contract_owner` | cross_system | null | null | true | Python dispatcher/message-bureau handlers | Rust rejects invalid trace targets and uses mailbox lineage | Behavior now follows Python message-bureau owner; legacy agent-name trace is rejected by design. |
 | `project_restart_reload_clear_focus` | lifecycle_gate | `rust_ccbrd_runtime_owner` | primary | confirmed_owner | Python project handlers; Rust project handlers | null | null | internal | null | null | true | Python in-place/reload/focus/clear services | Rust handlers execute topology recreation/reload/focus/clear | Rust may use DDD/recreate internals when response contract remains compatible and divergence is recorded. |
 | `provider_codex_session_polling` | capability | `rust_ccbr_provider_runtime_owner` | primary | confirmed_owner | Python Codex provider reference; Rust Codex provider; `codex-wire-protocol.md` | null | null | internal | null | null | true | Python bridge/per-agent tight polling | Rust active-only provider execution + structured JSONL | Intentional performance divergence: do not copy Python per-agent bridge/tight polling; never disable hooks. |
-| `provider_claude_session_polling` | capability | `rust_ccbr_provider_runtime_owner` | primary | candidate | Python Claude provider reference; Rust provider launcher/session/reader | null | null | internal | null | null | true | Python Claude projects root/session discovery under managed home | Rust provider reader requires managed session binding plus Claude project log ingestion | P0 gap found by live smoke: prompt reached Claude and Claude replied in managed JSONL, but daemon did not terminalize the job or deliver inbox. `claude_projects_root` is now added as payload parity, but the post-fix live smoke still showed readback incomplete; root cause remains in Claude polling/reader-state ingestion, not RPC registration. |
+| `provider_claude_session_polling` | capability | `rust_ccbr_provider_runtime_owner` | primary | confirmed_owner | Python Claude provider reference; Rust provider launcher/session/reader | null | null | internal | null | null | true | Python Claude projects root/session discovery under managed home | Rust provider reader requires managed session binding plus Claude project log ingestion | Closed P0: reader now preserves Claude's leading-dash project key, pane capture no longer contaminates `reply_buffer`, and pane fallback is blocked when structured Claude logs are expected. Live smoke delivered clean inbox token. |
 | `codex_hook_policy` | policy | `rust_ccbr_provider_runtime_owner` | primary | confirmed_owner | user hard rule; `codex-wire-protocol.md`; launch args | null | null | internal | null | null | false | Python keeps rendered CCB rules | Rust uses developer instructions/session binding; Codex hooks remain enabled | Hook disabling/masking is rejected. Coordination must be solved by launch args, session payloads, and polling. |
 | `test_resource_cleanup` | lifecycle_gate | `rust_ccbrd_runtime_owner` | primary | candidate | `scripts/ccbr-test-cleanup.sh`; live smoke cleanup evidence | null | null | internal | null | null | false | none | Rust test cleanup only | P0 operational guardrail: cleanup must reclaim ccbr-runtime tmux orphans without touching Python `.ccb`/`ccb` state. |
 | `ccb_legacy_sync_rule` | policy | `ccb_legacy_rust_mirror_owner` | primary | candidate | branch `ccb-legacy`; user instruction | null | null | internal | null | null | false | Python original import path | Separate Rust mirror branch | Sync equivalent Rust fixes; do not force non-equivalent tests or pollute Python `ccb`. |
 
 ## Priority findings
 
-### P0 — Provider completion readback is the current live interop blocker
+### P0 — Provider completion readback is closed for Claude live ask smoke
 
 Live smoke in `/mnt/d/dapro-ass` with real agents proved:
 
@@ -72,15 +72,17 @@ Owner diagnosis:
 - Projection/readback owner (mailbox inbox) had no reply because provider completion polling did not ingest the managed Claude project log.
 - Root cause owner field: `provider_claude_session_polling`.
 - The first payload gap was real: Rust session payload contained `completion_artifact_dir` and `tmux_socket_path` but not managed `claude_projects_root`, so `ClaudeLogReader` could fall back to the wrong default home.
-- Post-fix smoke proved that payload parity alone is not sufficient yet: the session payload included `claude_projects_root`, Claude JSONL still contained the exact reply, but queue/trace remained `running` and inbox stayed empty.
+- The second root cause was the private Rust reader project key: it stripped the leading `-` from Claude's real project directory (`/mnt/d/dapro-ass` -> `-mnt-d-dapro-ass`), so it missed the managed JSONL.
+- The third root cause was daemon pane capture overwriting `reply_buffer`, allowing pane fallback to deliver prompt/TUI chrome before structured readback won.
 
-Minimal correction path:
+Correction applied:
 
 1. Keep `claude_projects_root = <runtime_dir>/home/.claude/projects` in Rust simple Claude session payload as required parity.
-2. Inspect the active execution `reader_state`, heartbeat promotion, and `ClaudeLogReader` offset/session reset path to find why the managed JSONL reply is not ingested.
-3. Keep hooks enabled.
-4. Validate with provider launcher unit test and live ask smoke.
-5. Sync to `ccb-legacy` only when the same Rust owner surface exists there.
+2. Align `ClaudeLogReader` project key generation with Python/Claude; do not trim leading `-`.
+3. Store pane capture as `pane_text_buffer`, not `reply_buffer`.
+4. Block Claude pane fallback when structured logs are expected.
+5. Keep hooks enabled.
+6. Validate with provider unit tests and live ask smoke.
 
 ### P1 — Owner docs need v1.1 terminology, not older mixed surface names
 

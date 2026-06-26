@@ -629,10 +629,18 @@ fn poll_pane_text_completion(
     submission: &ProviderSubmission,
     now: &str,
 ) -> Option<ProviderPollResult> {
+    if expects_structured_claude_log(submission) {
+        return None;
+    }
     if !runtime_bool(&submission.runtime_state, "anchor_seen") {
         return None;
     }
-    let buffer = runtime_str(&submission.runtime_state, "reply_buffer");
+    let buffer = runtime_str(&submission.runtime_state, "pane_text_buffer");
+    let buffer = if buffer.is_empty() {
+        runtime_str(&submission.runtime_state, "reply_buffer")
+    } else {
+        buffer
+    };
     let reply = buffer.trim();
     if reply.is_empty() || looks_like_claude_tui_chrome(reply) {
         return None;
@@ -682,6 +690,11 @@ fn poll_pane_text_completion(
         .runtime_state
         .insert("turn_boundary_detected".to_string(), Value::Bool(true));
     Some(ProviderPollResult::new(updated, Vec::new(), Some(decision)))
+}
+
+fn expects_structured_claude_log(submission: &ProviderSubmission) -> bool {
+    !runtime_str(&submission.runtime_state, "session_path").is_empty()
+        || !runtime_str(&submission.runtime_state, "claude_projects_root").is_empty()
 }
 
 fn poll_exact_hook(submission: &ProviderSubmission, now: &str) -> Option<ProviderPollResult> {
@@ -2122,6 +2135,37 @@ mod tests {
     }
 
     #[test]
+    fn test_pane_fallback_waits_when_structured_log_is_expected() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub.runtime_state
+            .insert("prompt_sent".to_string(), Value::Bool(true));
+        sub.runtime_state
+            .insert("anchor_seen".to_string(), Value::Bool(true));
+        sub.runtime_state
+            .insert("pane_id".to_string(), Value::String("%1".to_string()));
+        sub.runtime_state.insert(
+            "backend_type".to_string(),
+            Value::String("tmux".to_string()),
+        );
+        sub.runtime_state.insert(
+            "pane_text_buffer".to_string(),
+            Value::String("Reply exactly: dirty\n✽ Ebbing…\n❯".to_string()),
+        );
+        sub.runtime_state.insert(
+            "claude_projects_root".to_string(),
+            Value::String("/tmp/.claude/projects".to_string()),
+        );
+
+        let target = Arc::new(MockTarget::default().with_content("❯ "));
+        let result = with_prompt_target_override(target, || {
+            poll_pane_text_completion(&sub, "2025-01-01T00:00:02Z")
+        });
+
+        assert!(result.is_none());
+    }
+
+    #[test]
     fn test_pane_fallback_rejects_claude_startup_chrome() {
         let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
         let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
@@ -2181,6 +2225,39 @@ mod tests {
             "assistant_end_turn"
         );
         assert_eq!(boundary.payload.get("stop_reason").unwrap(), "end_turn");
+    }
+
+    #[test]
+    fn test_structured_reply_ignores_pane_text_buffer() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub = poll_submission(&sub, "2025-01-01T00:00:01Z")
+            .unwrap()
+            .submission;
+
+        let anchor = runtime_str(&sub.runtime_state, "request_anchor");
+        let events = serde_json::json!([
+            {"role": "user", "text": format!("{}\n\ndo it", anchor)},
+            {"role": "assistant", "text": "final answer", "stop_reason": "end_turn", "uuid": "uuid-1"}
+        ]);
+        sub.runtime_state
+            .insert("pending_events".to_string(), events);
+        sub.runtime_state.insert(
+            "pane_text_buffer".to_string(),
+            Value::String("Reply exactly: dirty\n✽ Combobulating…\n❯".to_string()),
+        );
+
+        let result = poll_submission(&sub, "2025-01-01T00:00:02Z").unwrap();
+        let boundary = result
+            .items
+            .iter()
+            .find(|i| i.kind == CompletionItemKind::TurnBoundary)
+            .expect("turn boundary expected");
+        assert_eq!(
+            boundary.payload.get("last_agent_message").unwrap(),
+            "final answer"
+        );
+        assert_eq!(result.submission.reply, "final answer");
     }
 
     #[test]

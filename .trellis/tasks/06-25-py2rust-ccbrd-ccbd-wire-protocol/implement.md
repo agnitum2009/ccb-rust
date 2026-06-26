@@ -256,3 +256,36 @@ Verification:
 - `cd rust && cargo fmt --check -p ccbr-daemon`
 - `cd rust && cargo test -p ccbr-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
 - `/tmp/ccb-legacy-sync`: `cargo test -p ccb-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
+
+## Claude provider readback closure (2026-06-26)
+
+Root cause:
+
+- Claude writes managed logs under project keys that preserve the leading slash as `-`, e.g. `/mnt/d/dapro-ass` -> `-mnt-d-dapro-ass`.
+- Rust `ClaudeLogReader` had a private `project_key_for_path` that trimmed leading/trailing `-`, so it looked under `mnt-d-dapro-ass` and missed the real JSONL.
+- Separately, daemon pane capture overwrote provider `reply_buffer` with full tmux TUI text. When pane fallback won the race, inbox contained prompt/TUI chrome instead of the clean Claude reply.
+
+Fix:
+
+- Align `ClaudeLogReader` project key generation with Python/Claude: every non-ASCII-alphanumeric character becomes `-`; no trim.
+- Store daemon pane capture as `pane_text_buffer`, not `reply_buffer`.
+- Keep pane fallback available only as fallback; Claude refuses pane fallback when `session_path` or `claude_projects_root` indicates structured logs are expected.
+- When the completion tracker terminalizes from provider items, also call `execution.finish(job_id)` so active provider execution state is removed.
+
+Evidence:
+
+- `cd rust && cargo fmt --check -p ccbr-daemon -p ccbr-providers`
+- `cargo test -p ccbr-providers claude::reader::tests -- --test-threads=1`
+- `cargo test -p ccbr-providers providers::claude::tests -- --test-threads=1`
+- `cargo test -p ccbr-providers providers::codex::tests::test_poll_waits_for_structured_log_instead_of_pane_fallback -- --test-threads=1`
+- `cargo build -p ccbr-cli -p ccbr-daemon -p ccbr-providers`
+- Live smoke `/tmp/ccbr-live-smoke.sh` in `/mnt/d/dapro-ass`:
+  - `START_CODE=0`, `STATUS_CODE=0`, `PROJECT_VIEW_CODE=0`, `ASK_CODE=0`
+  - `INBOX_FOUND=1`
+  - inbox reply was clean: `"CCBR_SMOKE_SUBMIT_1782445181"`
+- Resource cleanup:
+  - `CCB_TEST_ROOTS=/mnt/d/dapro-ass bash scripts/ccbr-test-cleanup.sh`
+  - no targeted ccbrd/tmux/provider/sidebar process remained
+  - `.ccbr` only retained `ccbr.config` and `bin`
+  - ccbr daemon state path for `/mnt/d/dapro-ass` was absent
+- `ccb-legacy` equivalent Rust owner sync: commit `0580ae24 Keep legacy provider readback structured`.

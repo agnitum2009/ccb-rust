@@ -577,7 +577,12 @@ fn poll_pane_text_completion_codex(
     submission: &ProviderSubmission,
     now: &str,
 ) -> Option<ProviderPollResult> {
-    let buffer = get_str(&submission.runtime_state, "reply_buffer");
+    let buffer = get_str(&submission.runtime_state, "pane_text_buffer");
+    let buffer = if buffer.is_empty() {
+        get_str(&submission.runtime_state, "reply_buffer")
+    } else {
+        buffer
+    };
     if buffer.is_empty() {
         return None;
     }
