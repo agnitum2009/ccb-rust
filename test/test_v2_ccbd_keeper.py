@@ -109,6 +109,27 @@ def test_keeper_state_store_roundtrip(tmp_path: Path) -> None:
     assert loaded == state
 
 
+def test_keeper_state_store_debounces_last_check_only_writes(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-state-debounce'
+    _write(project_root / '.ccb' / 'ccb.config', 'agent1:codex\n')
+    layout = PathLayout(project_root)
+    store = KeeperStateStore(layout)
+    state = KeeperState(
+        project_id='project-1',
+        keeper_pid=555,
+        started_at='2026-04-02T00:00:00Z',
+        last_check_at='2026-04-02T00:00:00Z',
+        state='running',
+    )
+
+    store.save(state)
+    store.save(state.with_check('2026-04-02T00:00:01Z'))
+    assert KeeperStateStore(layout).load().last_check_at == '2026-04-02T00:00:00Z'
+
+    store.save(state.with_check('2026-04-02T00:00:05Z'))
+    assert KeeperStateStore(layout).load().last_check_at == '2026-04-02T00:00:05Z'
+
+
 def test_project_keeper_spawns_missing_daemon(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-missing'
     ctx = _context(project_root, 'agent1:codex\n')
@@ -350,6 +371,50 @@ def test_project_keeper_keeps_mounted_phase_when_config_check_times_out(tmp_path
     assert lifecycle.phase == 'mounted'
     assert lifecycle.desired_state == 'running'
     assert lifecycle.last_failure_reason == 'config_check_failed:ping timeout'
+
+
+def test_project_keeper_does_not_rewrite_stable_mounted_lifecycle(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo-mounted-stable'
+    ctx = _context(project_root, 'agent1:codex\n')
+    keeper = ProjectKeeper(project_root, pid=892)
+    keeper._ownership_guard = SimpleNamespace(
+        inspect=lambda: _inspection(
+            ctx,
+            health=LeaseHealth.HEALTHY,
+            socket_connectable=True,
+            pid_alive=True,
+            heartbeat_fresh=True,
+            reason='healthy',
+        )
+    )
+    lifecycle_store = CcbdLifecycleStore(keeper.paths)
+    lifecycle_store.save(
+        build_lifecycle(
+            project_id=ctx.project.project_id,
+            occurred_at='2026-04-22T00:00:00Z',
+            desired_state='running',
+            phase='mounted',
+            generation=1,
+            keeper_pid=892,
+            owner_pid=321,
+            socket_path=ctx.paths.ccbd_socket_path,
+        )
+    )
+    monkeypatch.setattr('ccbd.keeper_runtime.loop.daemon_matches_project_config', lambda app: True)
+    state = KeeperState(
+        project_id=ctx.project.project_id,
+        keeper_pid=892,
+        started_at='2026-04-22T00:00:00Z',
+        last_check_at='2026-04-22T00:00:00Z',
+        state='running',
+    )
+
+    next_state = keeper._reconcile_once(state=state, start_timeout_s=0.1)
+    lifecycle = lifecycle_store.load()
+
+    assert next_state.last_failure_reason is None
+    assert lifecycle.phase == 'mounted'
+    assert lifecycle.phase_started_at == '2026-04-22T00:00:00Z'
 
 
 def test_project_keeper_config_probe_uses_shared_control_plane_timeout(tmp_path: Path, monkeypatch) -> None:

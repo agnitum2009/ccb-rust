@@ -126,11 +126,14 @@ def reconcile_connectable_daemon(app, *, state: KeeperState, inspection, lifecyc
         return None
     try:
         if daemon_matches_project_config(app):
+            mounted_kwargs = _mounted_lifecycle_kwargs(app, lifecycle=lifecycle, inspection=inspection)
+            if _mounted_lifecycle_is_current(lifecycle, mounted_kwargs):
+                return state.with_success(occurred_at=now)
             app._lifecycle_store.save(
                 lifecycle.with_phase(
                     'mounted',
                     occurred_at=now,
-                    **_mounted_lifecycle_kwargs(app, lifecycle=lifecycle, inspection=inspection),
+                    **mounted_kwargs,
                     last_failure_reason=None,
                     shutdown_intent=None,
                 )
@@ -243,6 +246,17 @@ def _mounted_lifecycle_kwargs(app, *, lifecycle, inspection) -> dict[str, object
         'socket_inode': current_socket_inode(getattr(lease, 'socket_path', app.paths.ccbd_socket_path)),
         'namespace_epoch': _current_namespace_epoch(app, fallback=lifecycle.namespace_epoch),
     }
+
+
+def _mounted_lifecycle_is_current(lifecycle, mounted_kwargs: dict[str, object]) -> bool:
+    if lifecycle.phase != 'mounted':
+        return False
+    if lifecycle.last_failure_reason is not None or lifecycle.shutdown_intent is not None:
+        return False
+    for key, value in mounted_kwargs.items():
+        if getattr(lifecycle, key) != value:
+            return False
+    return True
 
 
 def _record_connectable_observation_failure(
