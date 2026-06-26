@@ -211,6 +211,53 @@ def test_registry_upsert_allows_state_only_mutation_without_authority_write(tmp_
     assert updated.daemon_generation == 7
 
 
+def test_registry_keeps_last_seen_only_refresh_in_memory_without_disk_rewrite(tmp_path: Path) -> None:
+    layout = PathLayout(tmp_path / 'repo')
+    registry = AgentRegistry(layout, _config())
+    saved = registry.upsert(
+        AgentRuntime(
+            agent_name='demo',
+            state=AgentState.IDLE,
+            pid=123,
+            started_at='2026-04-22T00:00:00Z',
+            last_seen_at='2026-04-22T00:00:01Z',
+            runtime_ref='tmux:%1',
+            session_ref='session-1',
+            workspace_path=str(layout.workspace_path('demo')),
+            project_id='proj-1',
+            backend_type='pane-backed',
+            queue_depth=1,
+            socket_path=None,
+            health='healthy',
+            provider='codex',
+            runtime_root=str(layout.agent_provider_runtime_dir('demo', 'codex')),
+            runtime_generation=4,
+            daemon_generation=7,
+        )
+    )
+    save_count = registry._runtime_store.save_count
+
+    refreshed = registry.upsert(replace(saved, last_seen_at='2026-04-22T00:00:02Z'))
+    authority_refreshed = registry.upsert_authority(
+        replace(refreshed, last_seen_at='2026-04-22T00:00:03Z')
+    )
+
+    assert registry._runtime_store.save_count == save_count
+    assert registry.get('demo') == authority_refreshed
+    persisted = registry._runtime_store.load('demo')
+    assert persisted is not None
+    assert persisted.last_seen_at == '2026-04-22T00:00:01Z'
+
+    material = registry.upsert(replace(authority_refreshed, queue_depth=2))
+
+    assert registry._runtime_store.save_count == save_count + 1
+    persisted = registry._runtime_store.load('demo')
+    assert persisted is not None
+    assert persisted.last_seen_at == '2026-04-22T00:00:03Z'
+    assert persisted.queue_depth == 2
+    assert material.queue_depth == 2
+
+
 def test_registry_upsert_authority_preserves_newer_authority_fields_from_stale_candidate(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / 'repo')
     registry = AgentRegistry(layout, _config())

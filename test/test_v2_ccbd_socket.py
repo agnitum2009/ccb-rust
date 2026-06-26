@@ -924,6 +924,48 @@ def test_ccbd_heartbeat_runs_heavy_maintenance_for_active_execution(tmp_path: Pa
     assert calls == ['health']
 
 
+def test_ccbd_full_idle_heartbeat_does_not_rewrite_last_seen_only_runtime_state(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo-idle-heartbeat-last-seen'
+    ctx = _prepare_project(project_root, _single_agent_config_text('demo', 'fake'))
+    app = CcbdApp(project_root)
+    app.lease = SimpleNamespace(generation=3)
+    app.lifecycle_store.save(
+        build_lifecycle(
+            project_id=ctx.project_id,
+            occurred_at='2026-03-18T00:00:05Z',
+            desired_state='running',
+            phase='mounted',
+            generation=3,
+            keeper_pid=app.keeper_pid,
+            owner_pid=app.pid,
+            owner_daemon_instance_id=app.daemon_instance_id,
+            config_signature=str(app.config_identity.get('config_signature') or '').strip() or None,
+            socket_path=app.paths.ccbd_socket_path,
+        )
+    )
+    app.registry.upsert(
+        _runtime(
+            'demo',
+            project_id=ctx.project_id,
+            workspace_path=str(app.paths.workspace_path('demo')),
+            pid=os.getpid(),
+        )
+    )
+    save_count = app.registry._runtime_store.save_count
+    monkeypatch.setattr('ccbd.app_runtime.lifecycle.monotonic', lambda: 100.0)
+    app._last_full_heartbeat_at = 0.0
+    monkeypatch.setattr(app.mount_manager, 'refresh_heartbeat', lambda **kwargs: app.lease)
+
+    app.heartbeat()
+    save_count = app.registry._runtime_store.save_count
+    app._last_full_heartbeat_at = 0.0
+    app.heartbeat()
+
+    assert app.control_plane_metrics.last_heartbeat_agents_inspected == 1
+    assert app.control_plane_metrics.last_heartbeat_runtime_store_writes == 0
+    assert app.registry._runtime_store.save_count == save_count
+
+
 def test_ping_namespace_summary(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-ping-namespace'
     ctx = _prepare_project(project_root, _single_agent_config_text('codex', 'codex'))
