@@ -2101,6 +2101,91 @@ def test_project_view_cache_hit_skips_tmux_calls(tmp_path: Path) -> None:
     assert backend.calls == []
 
 
+def test_project_view_uses_longer_idle_cache_ttl(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-idle-cache-ttl'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config()
+    registry = AgentRegistry(layout, config)
+    registry.upsert(_runtime('agent1', project_id=project_id))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    mount_manager.mark_mounted(project_id=project_id, pid=123, socket_path=layout.ccbd_socket_path, generation=1, started_at=NOW)
+    dispatcher = JobDispatcher(layout, config, registry, clock=lambda: NOW)
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=dispatcher,
+            clock=lambda: NOW,
+        )
+    )
+
+    assert service.build_response()['cache']['ttl_ms'] == 5000
+
+
+def test_project_view_uses_short_cache_ttl_when_work_is_active(tmp_path: Path) -> None:
+    project_root = tmp_path / 'repo-active-cache-ttl'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config()
+    registry = AgentRegistry(layout, config)
+    registry.upsert(_runtime('agent1', project_id=project_id))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    mount_manager.mark_mounted(project_id=project_id, pid=123, socket_path=layout.ccbd_socket_path, generation=1, started_at=NOW)
+    dispatcher = JobDispatcher(layout, config, registry, clock=lambda: NOW)
+    job = _job(project_id, job_id='job_active_ttl', sender='agent2', target='agent1', status=JobStatus.RUNNING)
+    dispatcher._append_job(job)
+    dispatcher._state.mark_active_for(TargetKind.AGENT, 'agent1', job.job_id)
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=dispatcher,
+            clock=lambda: NOW,
+        )
+    )
+
+    assert service.build_response()['cache']['ttl_ms'] == 1000
+
+
+def test_project_view_idle_cache_ttl_can_restore_legacy_cadence(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv('CCB_PROJECT_VIEW_IDLE_TTL_MS', '1000')
+    project_root = tmp_path / 'repo-idle-cache-ttl-env'
+    project_root.mkdir()
+    layout = PathLayout(project_root)
+    project_id = compute_project_id(project_root)
+    config = _config()
+    registry = AgentRegistry(layout, config)
+    registry.upsert(_runtime('agent1', project_id=project_id))
+    mount_manager = MountManager(layout, clock=lambda: NOW)
+    mount_manager.mark_mounted(project_id=project_id, pid=123, socket_path=layout.ccbd_socket_path, generation=1, started_at=NOW)
+    dispatcher = JobDispatcher(layout, config, registry, clock=lambda: NOW)
+    service = ProjectViewService(
+        ProjectViewDependencies(
+            project_root=project_root,
+            project_id=project_id,
+            config=config,
+            registry=registry,
+            mount_manager=mount_manager,
+            namespace_state_store=ProjectNamespaceStateStore(layout),
+            dispatcher=dispatcher,
+            clock=lambda: NOW,
+        )
+    )
+
+    assert service.build_response()['cache']['ttl_ms'] == 1000
+
+
 def test_project_view_updates_build_cache_and_tmux_metrics(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-project-view-metrics'
     project_root.mkdir()

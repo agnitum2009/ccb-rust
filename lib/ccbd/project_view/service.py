@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import monotonic
@@ -28,6 +29,7 @@ from .sequence import ProjectViewSequenceCache
 
 PROJECT_VIEW_SCHEMA_VERSION = 1
 PROJECT_VIEW_TTL_MS = 1000
+PROJECT_VIEW_IDLE_TTL_MS = 5000
 PROJECT_VIEW_COMMS_LIMIT = 8
 _RECENT_JOB_SCAN_LIMIT_PER_AGENT = 128
 _RECENT_JOB_RESULT_LIMIT = PROJECT_VIEW_COMMS_LIMIT * 8
@@ -340,8 +342,42 @@ def build_project_view(
 
 
 def _project_view_ttl_ms(deps: ProjectViewDependencies) -> int:
-    ttl_ms = PROJECT_VIEW_TTL_MS if deps.cache_ttl_ms is None else int(deps.cache_ttl_ms)
+    if deps.cache_ttl_ms is not None:
+        ttl_ms = int(deps.cache_ttl_ms)
+    elif _project_view_work_pending(deps):
+        ttl_ms = _env_int('CCB_PROJECT_VIEW_TTL_MS', PROJECT_VIEW_TTL_MS)
+    else:
+        ttl_ms = _env_int('CCB_PROJECT_VIEW_IDLE_TTL_MS', PROJECT_VIEW_IDLE_TTL_MS)
     return max(0, ttl_ms)
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _project_view_work_pending(deps: ProjectViewDependencies) -> bool:
+    dispatcher_state = getattr(getattr(deps, 'dispatcher', None), '_state', None)
+    if dispatcher_state is not None:
+        try:
+            if dispatcher_state.active_items():
+                return True
+        except Exception:
+            return True
+        queues = getattr(dispatcher_state, '_queues', {})
+        try:
+            if any(len(queue) > 0 for queue in queues.values()):
+                return True
+        except Exception:
+            return True
+    registry = getattr(deps, 'registry', None)
+    try:
+        runtimes = registry.list_all() if registry is not None else ()
+    except Exception:
+        return True
+    return any(getattr(runtime, 'state', None) in {AgentState.STARTING, AgentState.BUSY, AgentState.DEGRADED} for runtime in runtimes)
 
 
 def _record_project_view_cache_hit(metrics, *, response_started: float) -> None:
