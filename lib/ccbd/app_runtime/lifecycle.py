@@ -13,6 +13,7 @@ from storage.path_helpers import socket_placement_payload
 from .request_guard import lifecycle_is_stopping
 
 DEFAULT_CCBD_POLL_INTERVAL_S = 1.0
+DEFAULT_IDLE_FULL_HEARTBEAT_INTERVAL_S = 30.0
 
 
 def start(app):
@@ -86,7 +87,9 @@ def heartbeat(app):
         failures = ()
         if _begin_maintenance_tick(app):
             try:
-                failures = _heartbeat_failures(app)
+                if full_heartbeat_due(app, started=started):
+                    failures = _heartbeat_failures(app)
+                    app._last_full_heartbeat_at = started
             finally:
                 _end_maintenance_tick(app)
         app.lease = app.mount_manager.refresh_heartbeat(
@@ -119,6 +122,42 @@ def _end_maintenance_tick(app) -> None:
         lock.release()
     except RuntimeError:
         return
+
+
+def full_heartbeat_due(app, *, started: float) -> bool:
+    if hot_loop_work_pending(app):
+        return True
+    try:
+        last = float(getattr(app, '_last_full_heartbeat_at', 0.0) or 0.0)
+    except Exception:
+        last = 0.0
+    return started - last >= idle_full_heartbeat_interval_s()
+
+
+def idle_full_heartbeat_interval_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get('CCB_CCBD_IDLE_FULL_HEARTBEAT_INTERVAL_S', DEFAULT_IDLE_FULL_HEARTBEAT_INTERVAL_S)))
+    except Exception:
+        return DEFAULT_IDLE_FULL_HEARTBEAT_INTERVAL_S
+
+
+def hot_loop_work_pending(app) -> bool:
+    execution_active = getattr(getattr(app, 'execution_service', None), '_active', None)
+    if isinstance(execution_active, dict) and execution_active:
+        return True
+    dispatcher_state = getattr(getattr(app, 'dispatcher', None), '_state', None)
+    if dispatcher_state is None:
+        return False
+    try:
+        if dispatcher_state.active_items():
+            return True
+    except Exception:
+        return True
+    queues = getattr(dispatcher_state, '_queues', {})
+    try:
+        return any(len(queue) > 0 for queue in queues.values())
+    except Exception:
+        return True
 
 
 def serve_forever(app, *, poll_interval: float = DEFAULT_CCBD_POLL_INTERVAL_S) -> None:

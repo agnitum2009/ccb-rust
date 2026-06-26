@@ -7,11 +7,14 @@ from pathlib import Path
 from .client import default_socket_path
 
 _ENABLED_VALUES = {"1", "true", "yes", "on", "auto"}
+_DISABLED_VALUES = {"0", "false", "no", "off", "disabled"}
 
 
 def codex_accelerator_enabled() -> bool:
     raw = str(os.environ.get("CCB_RUNTIME_ACCELERATOR_CODEX") or "").strip().lower()
-    return raw in _ENABLED_VALUES
+    if raw in _DISABLED_VALUES:
+        return False
+    return True if not raw else raw in _ENABLED_VALUES
 
 
 def accelerator_socket_path(project_root: str | Path | None) -> Path | None:
@@ -40,7 +43,21 @@ def accelerator_binary() -> str | None:
         return None
     if "/" in raw:
         return raw if Path(raw).expanduser().exists() else None
-    return shutil.which(raw)
+    found = shutil.which(raw)
+    if found:
+        return found
+    for candidate in repo_binary_candidates(raw):
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def repo_binary_candidates(name: str) -> tuple[Path, ...]:
+    repo_root = Path(__file__).resolve().parents[2]
+    return (
+        repo_root / "rust" / "target" / "release" / name,
+        repo_root / "rust" / "target" / "debug" / name,
+    )
 
 
 def float_env(name: str, default: float) -> float:
@@ -56,4 +73,5 @@ __all__ = [
     "accelerator_startup_timeout_s",
     "accelerator_timeout_s",
     "codex_accelerator_enabled",
+    "repo_binary_candidates",
 ]

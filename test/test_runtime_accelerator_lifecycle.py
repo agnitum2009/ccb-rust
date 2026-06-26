@@ -32,14 +32,25 @@ class FakeProcess:
         return self.returncode
 
 
-def test_runtime_accelerator_lifecycle_is_default_off(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("CCB_RUNTIME_ACCELERATOR_CODEX", raising=False)
+def test_runtime_accelerator_lifecycle_can_be_disabled(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CCB_RUNTIME_ACCELERATOR_CODEX", "0")
 
     handle = maybe_start_runtime_accelerator(tmp_path)
 
     assert handle.enabled is False
     assert handle.process is None
     assert handle.error == ""
+
+
+def test_runtime_accelerator_lifecycle_is_default_on_with_fallback(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("CCB_RUNTIME_ACCELERATOR_CODEX", raising=False)
+    monkeypatch.setenv("CCB_RUNTIME_ACCELERATOR_BIN", str(tmp_path / "missing-bin"))
+
+    handle = maybe_start_runtime_accelerator(tmp_path)
+
+    assert handle.enabled is True
+    assert handle.process is None
+    assert handle.error == "missing_binary"
 
 
 def test_runtime_accelerator_missing_binary_keeps_fallback(monkeypatch, tmp_path: Path) -> None:

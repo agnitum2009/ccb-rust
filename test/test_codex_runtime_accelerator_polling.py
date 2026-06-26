@@ -44,8 +44,8 @@ def _submission(tmp_path: Path) -> ProviderSubmission:
     )
 
 
-def test_codex_accelerator_is_default_off(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("CCB_RUNTIME_ACCELERATOR_CODEX", raising=False)
+def test_codex_accelerator_can_be_disabled(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CCB_RUNTIME_ACCELERATOR_CODEX", "0")
     monkeypatch.setattr(
         "provider_backends.codex.execution_runtime.accelerator.accelerator_client.call",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("accelerator called")),

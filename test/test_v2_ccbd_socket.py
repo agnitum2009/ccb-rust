@@ -855,6 +855,75 @@ def test_ccbd_heartbeat_skips_maintenance_while_start_lock_held(tmp_path: Path, 
     assert lifecycle.last_failure_reason is None
 
 
+def test_ccbd_heartbeat_skips_heavy_idle_maintenance_between_full_ticks(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo-idle-heartbeat-skip'
+    ctx = _prepare_project(project_root, _single_agent_config_text('codex', 'codex'))
+    app = CcbdApp(project_root)
+    app.lease = SimpleNamespace(generation=3)
+    app.lifecycle_store.save(
+        build_lifecycle(
+            project_id=ctx.project_id,
+            occurred_at='2026-03-18T00:00:05Z',
+            desired_state='running',
+            phase='mounted',
+            generation=3,
+            keeper_pid=app.keeper_pid,
+            owner_pid=app.pid,
+            owner_daemon_instance_id=app.daemon_instance_id,
+            config_signature=str(app.config_identity.get('config_signature') or '').strip() or None,
+            socket_path=app.paths.ccbd_socket_path,
+        )
+    )
+    monkeypatch.setattr('ccbd.app_runtime.lifecycle.monotonic', lambda: 100.0)
+    app._last_full_heartbeat_at = 95.0
+    monkeypatch.setattr(app.mount_manager, 'refresh_heartbeat', lambda **kwargs: app.lease)
+    monkeypatch.setattr(
+        app.health_monitor,
+        'check_all',
+        lambda: (_ for _ in ()).throw(AssertionError('idle heartbeat should skip heavy health checks')),
+    )
+
+    app.heartbeat()
+
+    assert app.lease.generation == 3
+
+
+def test_ccbd_heartbeat_runs_heavy_maintenance_for_active_execution(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / 'repo-active-heartbeat'
+    ctx = _prepare_project(project_root, _single_agent_config_text('codex', 'codex'))
+    app = CcbdApp(project_root)
+    app.lease = SimpleNamespace(generation=3)
+    app.lifecycle_store.save(
+        build_lifecycle(
+            project_id=ctx.project_id,
+            occurred_at='2026-03-18T00:00:05Z',
+            desired_state='running',
+            phase='mounted',
+            generation=3,
+            keeper_pid=app.keeper_pid,
+            owner_pid=app.pid,
+            owner_daemon_instance_id=app.daemon_instance_id,
+            config_signature=str(app.config_identity.get('config_signature') or '').strip() or None,
+            socket_path=app.paths.ccbd_socket_path,
+        )
+    )
+    calls: list[str] = []
+    app.execution_service._active['job_1'] = object()
+    monkeypatch.setattr('ccbd.app_runtime.lifecycle.monotonic', lambda: 100.0)
+    app._last_full_heartbeat_at = 99.0
+    monkeypatch.setattr(app.mount_manager, 'refresh_heartbeat', lambda **kwargs: app.lease)
+    monkeypatch.setattr(app.health_monitor, 'check_all', lambda: calls.append('health'))
+    monkeypatch.setattr(app.runtime_supervision, 'reconcile_once', lambda: {})
+    monkeypatch.setattr(app.dispatcher, 'reconcile_runtime_views', lambda: None)
+    monkeypatch.setattr(app.dispatcher, 'tick', lambda: None)
+    monkeypatch.setattr(app.dispatcher, 'poll_completions', lambda: ())
+    monkeypatch.setattr(app.job_heartbeat, 'tick', lambda dispatcher: None)
+
+    app.heartbeat()
+
+    assert calls == ['health']
+
+
 def test_ping_namespace_summary(tmp_path: Path) -> None:
     project_root = tmp_path / 'repo-ping-namespace'
     ctx = _prepare_project(project_root, _single_agent_config_text('codex', 'codex'))

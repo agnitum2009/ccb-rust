@@ -172,7 +172,7 @@ pub fn handle_request(request: AcceleratorRequest) -> AcceleratorResponse {
         "capabilities" => AcceleratorResponse::ok(json!({
             "schema_version": SCHEMA_VERSION,
             "capabilities": ["ping", "capabilities", "baseline_snapshot", "codex_observe"],
-            "hot_loop_replacement_active": false,
+            "hot_loop_replacement_active": true,
         })),
         "baseline_snapshot" => {
             let project_root = request
@@ -777,11 +777,11 @@ mod tests {
     }
 
     #[test]
-    fn capabilities_report_no_hot_loop_replacement_in_slice_zero() {
+    fn capabilities_report_hot_loop_replacement_active() {
         let response = handle_request_line(r#"{"method":"capabilities","params":{}}"#);
         assert!(response.ok);
         let result = response.result.unwrap();
-        assert_eq!(result["hot_loop_replacement_active"], false);
+        assert_eq!(result["hot_loop_replacement_active"], true);
         assert!(result["capabilities"]
             .as_array()
             .unwrap()
