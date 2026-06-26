@@ -50,6 +50,7 @@
 - Python keeper may skip `keeper.json` rewrites when only `last_check_at` changes before the keeper state write interval elapses.
 - Python ProjectView responses may use a longer cache TTL only while dispatcher queues/active jobs and busy agent states are absent; active work stays on the short TTL.
 - Python ProjectView cache freshness must be automatic: dispatcher job/event mutations increment an in-memory revision, and cached ProjectView responses are reusable only while that revision is unchanged. TTL values are rollback/review safety windows, not user-tuned correctness controls.
+- Python runtime registry must not rewrite per-agent runtime JSON when the only changed field is `last_seen_at`; freshness can update in memory, while the next material runtime state change persists the freshest timestamp.
 - Python Codex bridge keeps the FIFO reader and ack/forwarding process alive, but defaults to event-waiting with a 1s idle timeout instead of 0.05s hot polling.
 - The Python-compatible implementation baseline for bridge/runtime accelerator changes is `ccb-legacy`; Python latest can receive the patch only after legacy validation.
 - Python Codex binding tracker keeps session-follow capability but defaults to a 5s idle interval instead of 0.5s repeated log/session scans.
@@ -90,6 +91,8 @@
 | ProjectView requested while idle | cache response for `CCB_PROJECT_VIEW_IDLE_TTL_MS` |
 | ProjectView requested while active work exists | use `CCB_PROJECT_VIEW_TTL_MS` short TTL |
 | Dispatcher job/event changes while ProjectView cache is still within TTL | rebuild ProjectView immediately; do not wait for TTL expiry |
+| Stable full idle heartbeat changes only runtime `last_seen_at` | update in-memory runtime freshness without per-agent JSON rewrite |
+| Later material runtime field changes after skipped freshness refreshes | persist the material change plus freshest in-memory `last_seen_at` |
 | Unchanged ambiguous Codex session candidates on idle bridge tick | skip full session-switch resolver and preserve the existing switched-unbound diagnostic |
 | Session-switch detection has no switchable candidate and current bound log exists | reuse bound log path; skip workspace-wide current-log scan |
 | Bound Codex session root unchanged on idle bridge tick | skip full session-switch resolver until bound log or session-set signature changes |
@@ -118,6 +121,8 @@
 - Unit: idle `ccbd` heartbeat skips heavy maintenance between full ticks.
 - Unit: active execution still runs heavy maintenance.
 - Unit: ProjectView cache invalidates immediately when dispatcher job/event revision changes, even if TTL has not expired.
+- Unit: registry skips disk writes for `last_seen_at`-only runtime refreshes but persists the freshest timestamp with the next material change.
+- Unit: stable full idle heartbeat reports zero runtime-store writes after one-time authority adoption has settled.
 - Unit: repeated ambiguous Codex session candidates do not call the full switch resolver again until the session-root signature changes.
 - Unit: bound Codex session refresh does not call workspace-wide current-log scanning after switch detection has already found no switch candidate.
 - Unit: repeated bound/no-new-candidate Codex session roots do not call the full switch resolver again until the session-root signature changes.

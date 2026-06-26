@@ -115,6 +115,7 @@
   - Keeper no longer rewrites stable mounted `lifecycle.json` and debounces `keeper.json` `last_check_at`-only rewrites to `CCB_KEEPER_STATE_WRITE_INTERVAL_S` seconds, default `5.0`.
   - ProjectView now uses a longer idle cache TTL (`CCB_PROJECT_VIEW_IDLE_TTL_MS`, default `5000`) only when no dispatcher work or busy agent state is pending; active work stays at `CCB_PROJECT_VIEW_TTL_MS`, default `1000`.
   - ProjectView cache no longer relies on TTL for correctness: dispatcher job/event mutations increment an in-memory revision, so cached views are rebuilt immediately when submit/complete/cancel/retry style state changes happen.
+  - Runtime registry now treats `last_seen_at`-only refreshes as in-memory freshness updates instead of per-agent JSON rewrites; material runtime changes still persist immediately with the freshest in-memory timestamp.
 - [ ] Milestone is incomplete until both Slice A and Slice B have before/after CPU evidence.
 
 ## Phase 4 — Compatibility gates
@@ -187,6 +188,9 @@
   - Bound/no-new-candidate scan cache validated in ccb-legacy: same four-test command -> `14 passed`; commit `a30206c1 Skip unchanged bound Codex session scans`.
   - Bound/no-new-candidate scan cache validated in ccb-git: same four-test command -> `14 passed`; commit `7caad21 Skip unchanged bound Codex session scans`.
   - Bound/no-new-candidate scan cache installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-binding-bound-scan-cache-20260626-160611`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/provider_backends/codex/bridge_runtime/binding_runtime.py`. Existing bridge processes must restart to load this Python file.
+  - Runtime `last_seen_at`-only JSON rewrite suppression validated in ccb-legacy: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_ccbd_registry.py test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_records_step_metrics_without_background_worker test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_heavy_idle_maintenance_between_full_ticks test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_runs_heavy_maintenance_for_active_execution test/test_v2_ccbd_socket.py::test_ccbd_full_idle_heartbeat_does_not_rewrite_last_seen_only_runtime_state` -> `12 passed`; commit `fed88936 Stop persisting runtime freshness-only ticks`.
+  - Runtime `last_seen_at`-only JSON rewrite suppression validated in ccb-git: same command -> `12 passed`; commit `3f0f0cc Stop persisting runtime freshness-only ticks`.
+  - Runtime `last_seen_at`-only JSON rewrite suppression installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-runtime-last-seen-only-20260626-161802`; validation: `python -m py_compile /root/.local/share/codex-dual/lib/ccbd/services/registry.py`. Existing `ccbd` processes must restart to load this Python file.
 - Legacy bloodline baseline updated in `/home/agnitum/ccb/ccb-legacy`: persistent Codex bridge FIFO reader, default `CCB_BRIDGE_IDLE_SLEEP=1.0`, default `CCB_CODEX_BIND_POLL_INTERVAL=5.0`, and regression tests. Validation: `PYTHONPATH=lib pytest -q test/test_codex_bridge_runtime.py test/test_codex_binding_update.py test/test_codex_comm_io.py`, `python -m compileall -q lib/provider_backends/codex/bridge_runtime test/test_codex_bridge_runtime.py test/test_codex_binding_update.py`, `git diff --check`.
   - ccbd idle maintenance reduction installed on global runtime; backup: `/home/agnitum/ccb-runtime-backups/codex-dual-ccbd-idle-maintenance-20260626-142656`; validation: `PYTHONPATH=lib pytest -q test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_heavy_idle_maintenance_between_full_ticks test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_runs_heavy_maintenance_for_active_execution test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_maintenance_while_start_lock_held test/test_ccbd_socket_server_loop.py::test_next_worker_timeout_returns_immediate_when_maintenance_pending test/test_ccbd_socket_server_loop.py::test_next_worker_timeout_matches_base_timeout_without_pending_maintenance`.
   - ccbd lease heartbeat write debounce validated in both ccb-legacy and ccb-git: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_v2_ccbd_mount_ownership.py` -> `28 passed`.
@@ -228,6 +232,8 @@ Completed handoff commits:
 - ccb-git `7caad21 Skip unchanged bound Codex session scans` commits the same scan caching for Python latest.
 - ccb-legacy `89dc2557 Refresh ProjectView on dispatcher changes` commits automatic ProjectView cache invalidation on dispatcher job/event mutations.
 - ccb-git `89ba66f Refresh ProjectView on dispatcher changes` commits the same automatic invalidation while preserving Python latest sidebar refresh deltas.
+- ccb-legacy `fed88936 Stop persisting runtime freshness-only ticks` commits registry-level suppression of `last_seen_at`-only runtime JSON rewrites.
+- ccb-git `3f0f0cc Stop persisting runtime freshness-only ticks` commits the same suppression for Python latest.
 
 Still pending for the broader milestone:
 
