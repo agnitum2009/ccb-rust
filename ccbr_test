@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
-SOURCE_CCBR = SCRIPT_ROOT / "ccbr"
+SOURCE_CCB = SCRIPT_ROOT / "rust" / "target" / "debug" / "ccb"
 
 
 def _is_diagnose(argv: list[str]) -> bool:
@@ -111,7 +111,7 @@ def _diagnose(argv: list[str], cwd: Path) -> int:
     allowed = paths_allowed and not source_checkout_cwd and not project_inside_source
 
     print(f"wrapper: {Path(__file__).resolve()}")
-    print(f"source_ccbr: {SOURCE_CCBR}")
+    print(f"source_ccb: {SOURCE_CCB}")
     print(f"cwd: {cwd}")
     print(f"project_paths: {_render_paths(project_paths)}")
     print(f"default_roots: {_render_paths(default_roots)}")
@@ -189,7 +189,7 @@ def main() -> int:
     env["CCB_TEST_ENTRYPOINT"] = "1"
     env.setdefault("CCB_SKIP_STARTUP_UPDATE_CHECK", "1")
 
-    os.execvpe(sys.executable, [sys.executable, str(SOURCE_CCBR), *argv], env)
+    os.execvpe(str(SOURCE_CCB), [str(SOURCE_CCB), *argv], env)
     raise AssertionError("unreachable")
 
 

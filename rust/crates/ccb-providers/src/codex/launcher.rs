@@ -82,6 +82,7 @@ pub fn build_session_payload(
     pane_title_marker: &str,
     start_cmd: &str,
     launch_session_id: &str,
+    tmux_socket_path: Option<&str>,
 ) -> Value {
     let layout = resolve_codex_home_layout(runtime_dir, None);
     let mut payload = serde_json::json!({
@@ -105,6 +106,9 @@ pub fn build_session_payload(
     });
     if layout.codex_home.as_str() != layout.session_root.as_str() {
         payload["codex_home"] = layout.codex_home.as_str().into();
+    }
+    if let Some(socket_path) = tmux_socket_path.filter(|s| !s.trim().is_empty()) {
+        payload["tmux_socket_path"] = socket_path.into();
     }
     payload
 }

@@ -11,7 +11,8 @@ use crate::render::{
     render_cleanup, render_clear, render_config_validate, render_doctor, render_inbox, render_logs,
     render_maintenance, render_pend, render_ping, render_project_view, render_queue, render_reload,
     render_restart, render_resubmit, render_retry, render_roles, render_shutdown, render_start,
-    render_stop, render_tools, render_trace, render_wait_ready, render_watch, ProjectView,
+    render_stop, render_tools, render_trace, render_wait_ready, render_watch, AgentView,
+    ProjectView,
 };
 use crate::services::{socket_path_for_project, DaemonClient};
 use ccb_terminal::backend::TerminalBackend;
@@ -37,19 +38,46 @@ pub fn stop(client: &dyn DaemonClient, force: bool) -> Result<String, String> {
     Ok(render_stop(&result))
 }
 
+/// Parse a project_view response into ProjectView. Handles the Python-style
+/// {view:{namespace:{project_root,...}, agents,...}, cache} envelope (falls
+/// back to flat shape for older responses).
+fn parse_project_view(result: serde_json::Value) -> Result<ProjectView, String> {
+    let view = result.get("view").unwrap_or(&result);
+    let ns = view.get("namespace").unwrap_or(view);
+    let agents: Vec<AgentView> =
+        serde_json::from_value(view.get("agents").cloned().unwrap_or_default())
+            .map_err(|e| format!("invalid project view agents: {}", e))?;
+    Ok(ProjectView {
+        project_root: ns
+            .get("project_root")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        project_slug: ns
+            .get("project_slug")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        daemon_status: ns
+            .get("daemon_status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("running")
+            .to_string(),
+        agents,
+    })
+}
+
 /// Show project status / project view.
 pub fn status(client: &dyn DaemonClient) -> Result<String, String> {
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-    let view: ProjectView =
-        serde_json::from_value(result).map_err(|e| format!("invalid project view: {}", e))?;
+    let view: ProjectView = parse_project_view(result)?;
     Ok(render_project_view(&view))
 }
 
 /// Show compact agent status (`ps`).
 pub fn ps(client: &dyn DaemonClient, _alive_only: bool) -> Result<String, String> {
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-    let view: ProjectView =
-        serde_json::from_value(result).map_err(|e| format!("invalid project view: {}", e))?;
+    let view: ProjectView = parse_project_view(result)?;
     Ok(render_agent_status(&view.agents))
 }
 
@@ -85,9 +113,7 @@ pub fn ask(client: &dyn DaemonClient, cmd: &ParsedAsk, project_id: &str) -> Resu
         "body": cmd.message,
         "task_id": cmd.task_id,
     });
-    // TODO(phase2-protocol): align with Python v7.5.2 by switching to `submit`
-    // once dispatcher/async delivery matches the Python semantics.
-    let result = client.call("ask", params)?;
+    let result = client.call("submit", params)?;
     Ok(render_ask_receipt(&result))
 }
 
@@ -130,8 +156,7 @@ fn target_ready(client: &dyn DaemonClient, target: &str) -> Result<bool, String>
             .unwrap_or(false));
     }
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
-    let view: ProjectView =
-        serde_json::from_value(result).map_err(|e| format!("invalid project view: {}", e))?;
+    let view: ProjectView = parse_project_view(result)?;
     if target == "all" {
         return if view.agents.is_empty() {
             Ok(false)
@@ -938,6 +963,49 @@ pub fn json_str<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct RecordingClient {
+        calls: Mutex<Vec<(String, Value)>>,
+    }
+
+    impl DaemonClient for RecordingClient {
+        fn call(&self, method: &str, params: Value) -> Result<Value, String> {
+            self.calls
+                .lock()
+                .unwrap()
+                .push((method.to_string(), params));
+            Ok(serde_json::json!({
+                "job_id": "job_test",
+                "status": "accepted"
+            }))
+        }
+    }
+
+    #[test]
+    fn ask_uses_python_submit_contract() {
+        let client = RecordingClient::default();
+        let cmd = ParsedAsk {
+            project: None,
+            target: "agent2".to_string(),
+            sender: Some("agent1".to_string()),
+            message: "hello".to_string(),
+            task_id: None,
+            compact: false,
+            silence: false,
+        };
+
+        let rendered = ask(&client, &cmd, "proj-1").unwrap();
+
+        let calls = client.calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].0, "submit");
+        assert_eq!(calls[0].1["to_agent"], "agent2");
+        assert_eq!(calls[0].1["from_actor"], "agent1");
+        assert_eq!(calls[0].1["body"], "hello");
+        assert!(rendered.contains("job_test"));
+    }
 
     #[test]
     fn autonew_rejects_unknown_provider() {
