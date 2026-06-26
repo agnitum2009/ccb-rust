@@ -460,3 +460,36 @@ Fixed Codex ask reply extraction to use structured JSONL final answers while pre
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: Close ccbr wire protocol live smoke
+
+**Date**: 2026-06-26
+**Task**: Close ccbr wire protocol live smoke
+**Branch**: `python-rust/rolepacks-versioning-translation`
+
+### Summary
+
+Materialized ccbr sidebar topology during start, fixed concurrent provider shared-cache startup, synchronized equivalent ccb-legacy provider cache/test fixes, passed live /mnt/d/dapro-ass ask/sidebar smoke, cleaned test resources, and archived the wire-protocol task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `987dbab8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
