@@ -44,12 +44,12 @@
 - [x] Do not call it `ccbrd`; it is a Python-runtime accelerator, not the ccbr daemon.
 - [x] Protocol decision: Unix domain socket + JSON-RPC/JSONL frame owned by `ccb-legacy` / Python `.ccb` accelerator.
 - [x] Crate placement decision: `rust/crates/ccb-runtime-accelerator`, binary `ccb-runtime-accelerator`.
-- [ ] Inputs:
+- [x] Inputs:
   - project root
   - `.ccb` runtime paths
   - active job descriptors
   - Codex session/log/pane references
-- [ ] Outputs:
+- [x] Outputs:
   - completion/readback events
   - runtime health/activity events
   - clear wake/failure state
@@ -80,8 +80,12 @@
 ### Slice A — Codex bridge / active-job observation
 
 - [ ] Replace per-agent Codex active-job observation, not all daemon logic.
-- [ ] Keep Codex hooks enabled.
-- [ ] Keep provider CLI process unchanged.
+- [x] Add Rust sidecar `codex_observe` primitive for active Codex job descriptors.
+  - Input is explicit `jobs[]` descriptors from Python: `job_id`, `session_path`, `request_anchor`, and prior state.
+  - Output is per-job state plus completion items: `anchor_seen`, `assistant_chunk`, `turn_boundary`, `turn_aborted`.
+  - The sidecar reads only the passed Codex session JSONL path; it does not scan all agents and does not poll idle agents.
+- [x] Keep Codex hooks enabled.
+- [x] Keep provider CLI process unchanged.
 - [ ] Keep Python fallback path behind a feature flag / env knob until smoke passes.
 - [ ] Target active-job completion check around 200ms if needed, with zero idle polling.
 
@@ -126,12 +130,17 @@
   - `ccb-runtime-accelerator serve --socket <ephemeral>`
   - `ccb-runtime-accelerator ping --socket <ephemeral>`
   - `ccb-runtime-accelerator baseline-snapshot --project-root /home/agnitum/ccb/ccb-legacy`
+- Slice A primitive validation:
+  - `codex_observe` unit tests for anchor + assistant + task boundary.
+  - `codex_observe` unit test proving assistant output before anchor does not emit completion items.
+  - `codex_observe` unit test proving missing session files return per-job errors, not whole-batch failure.
+  - Real Unix socket smoke for `codex_observe` over an ephemeral legacy `.ccb/runtime-accelerator` socket.
 
 Still pending for the broader milestone:
 
 - Active ask-storm baseline.
 - Syscall-level attribution if Slice A/B needs it.
-- Slice A Codex active-job observation replacement.
+- Python daemon/provider integration for Slice A behind fallback/feature flag.
 - Slice B ccbd maintenance wake scheduling replacement.
 
 ## Risk / rollback
