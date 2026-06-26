@@ -1,3 +1,4 @@
+use crate::ask_syntax::parse_ask_route;
 use crate::commands;
 use crate::parser::*;
 use crate::services::{resolve_project_root, socket_path_for_project, UnixDaemonClient};
@@ -394,21 +395,23 @@ fn parse_ask(args: &[&String], project: Option<String>) -> Result<ParsedCommand,
         }
     }
 
-    let target = positional
-        .first()
-        .map(|s| s.to_string())
-        .ok_or("ask requires a target")?;
-    let message = if positional.len() > 1 {
-        positional[1..].join(" ")
-    } else {
-        String::new()
-    };
+    let route_tokens = positional
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect::<Vec<_>>();
+    let route = parse_ask_route(&route_tokens, "ask")?;
+    if let (Some(flag_sender), Some(route_sender)) = (&sender, &route.sender) {
+        if flag_sender != route_sender {
+            return Err("ask sender specified twice with different values".to_string());
+        }
+    }
+    let sender = sender.or(route.sender);
 
     Ok(ParsedCommand::Ask(ParsedAsk {
         project,
-        target,
+        target: route.target,
         sender,
-        message,
+        message: route.message,
         task_id,
         compact,
         silence,
@@ -890,6 +893,43 @@ mod tests {
         } else {
             panic!("expected Ask");
         }
+    }
+
+    #[test]
+    fn test_parse_ask_python_from_separator() {
+        let args = vec![
+            "ask".to_string(),
+            "agent-a".to_string(),
+            "from".to_string(),
+            "codex".to_string(),
+            "--".to_string(),
+            "hello".to_string(),
+            "world".to_string(),
+        ];
+        let cmd = parse_args(&args).unwrap();
+        if let ParsedCommand::Ask(a) = cmd {
+            assert_eq!(a.target, "agent-a");
+            assert_eq!(a.sender, Some("codex".to_string()));
+            assert_eq!(a.message, "hello world");
+        } else {
+            panic!("expected Ask");
+        }
+    }
+
+    #[test]
+    fn test_parse_ask_rejects_conflicting_sender_forms() {
+        let args = vec![
+            "ask".to_string(),
+            "agent-a".to_string(),
+            "--from".to_string(),
+            "codex".to_string(),
+            "from".to_string(),
+            "agent1".to_string(),
+            "--".to_string(),
+            "hello".to_string(),
+        ];
+        let err = parse_args(&args).unwrap_err();
+        assert!(err.contains("sender specified twice"));
     }
 
     #[test]

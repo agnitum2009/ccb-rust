@@ -463,7 +463,32 @@ fn dispatch_deferred_prompt_when_ready(
     }
 
     if let Some(target) = crate::execution::resolve_prompt_target(&submission.runtime_state) {
-        let _ = target.send_text(&pane_id, &prompt);
+        if let Err(err) = target.send_text(&pane_id, &prompt) {
+            let mut updated = submission.clone();
+            updated
+                .runtime_state
+                .insert("send_error".to_string(), Value::String(err));
+            updated
+                .runtime_state
+                .insert("prompt_sent".to_string(), Value::Bool(false));
+            updated
+                .runtime_state
+                .insert("prompt_deferred_for_ready".to_string(), Value::Bool(true));
+            return Some(ProviderPollResult::new(updated, Vec::new(), None));
+        }
+    } else {
+        let mut updated = submission.clone();
+        updated.runtime_state.insert(
+            "send_error".to_string(),
+            Value::String("missing_prompt_target".to_string()),
+        );
+        updated
+            .runtime_state
+            .insert("prompt_sent".to_string(), Value::Bool(false));
+        updated
+            .runtime_state
+            .insert("prompt_deferred_for_ready".to_string(), Value::Bool(true));
+        return Some(ProviderPollResult::new(updated, Vec::new(), None));
     }
     Some(dispatch_deferred_prompt(submission, now))
 }
@@ -604,11 +629,22 @@ fn poll_pane_text_completion(
     submission: &ProviderSubmission,
     now: &str,
 ) -> Option<ProviderPollResult> {
-    let buffer = runtime_str(&submission.runtime_state, "reply_buffer");
-    if buffer.is_empty() {
+    if !runtime_bool(&submission.runtime_state, "anchor_seen") {
         return None;
     }
-    if !looks_ready(&buffer) {
+    let buffer = runtime_str(&submission.runtime_state, "reply_buffer");
+    let reply = buffer.trim();
+    if reply.is_empty() || looks_like_claude_tui_chrome(reply) {
+        return None;
+    }
+
+    let pane_id = runtime_str(&submission.runtime_state, "pane_id");
+    if pane_id.is_empty() {
+        return None;
+    }
+    let target = crate::execution::resolve_prompt_target(&submission.runtime_state)?;
+    let pane_content = target.get_pane_content(&pane_id, PANE_CONTENT_LINES).ok()?;
+    if !looks_ready(&pane_content) {
         return None;
     }
 
@@ -631,7 +667,7 @@ fn poll_pane_text_completion(
         status: CompletionStatus::Completed,
         reason: Some("pane_text_turn_boundary".to_string()),
         confidence: Some(CompletionConfidence::Observed),
-        reply: buffer.trim().to_string(),
+        reply: reply.to_string(),
         anchor_seen: true,
         reply_started: true,
         reply_stable: true,
@@ -989,7 +1025,7 @@ fn handle_user_event(
     items: &mut Vec<CompletionItem>,
 ) {
     let text = event.get("text").and_then(|v| v.as_str()).unwrap_or("");
-    if !poll.request_anchor.is_empty() && text.contains(&poll.request_anchor) && !poll.anchor_seen {
+    if request_anchor_seen_in_text(text, &poll.request_anchor) && !poll.anchor_seen {
         let mut payload = HashMap::new();
         payload.insert(
             "turn_id".to_string(),
@@ -1013,6 +1049,36 @@ fn handle_user_event(
         poll.next_seq += 1;
         poll.anchor_seen = true;
     }
+}
+
+fn request_anchor_seen_in_text(text: &str, request_anchor: &str) -> bool {
+    if request_anchor.is_empty() {
+        return false;
+    }
+    if text.contains(request_anchor) {
+        return true;
+    }
+    let Some(req_id) = req_id_from_request_anchor(request_anchor) else {
+        return false;
+    };
+    text.contains(&format!("{} {}", CLAUDE_REQ_ID_PREFIX, req_id))
+        || text.contains(&format!("{}{}", CLAUDE_REQ_ID_PREFIX, req_id))
+}
+
+fn req_id_from_request_anchor(request_anchor: &str) -> Option<String> {
+    let text = request_anchor.trim();
+    if let Some(inner) = text
+        .strip_prefix(CLAUDE_BEGIN_PREFIX)
+        .and_then(|s| s.strip_suffix(">>"))
+    {
+        return Some(inner.trim().to_string()).filter(|s| !s.is_empty());
+    }
+    if let Some(inner) = text.strip_prefix(CLAUDE_REQ_ID_PREFIX) {
+        return Some(inner.trim().to_string()).filter(|s| !s.is_empty());
+    }
+    text.strip_prefix("req-")
+        .map(|_| text.to_string())
+        .filter(|s| !s.is_empty())
 }
 
 fn handle_system_event(
@@ -1686,6 +1752,17 @@ fn looks_ready(text: &str) -> bool {
     false
 }
 
+fn looks_like_claude_tui_chrome(text: &str) -> bool {
+    let lowered = text.to_lowercase();
+    lowered.contains("claude code")
+        || lowered.contains("welcome back")
+        || lowered.contains("api usage billing")
+        || lowered.contains("esc to interrupt")
+        || lowered.contains("type your message")
+        || lowered.contains("for shortcuts")
+        || (text.contains('╭') && text.contains('╮') && text.contains('╯'))
+}
+
 // ---------------------------------------------------------------------------
 // Legacy pending_events test seam
 // ---------------------------------------------------------------------------
@@ -1760,10 +1837,14 @@ mod tests {
     struct MockTarget {
         sent: Arc<Mutex<Vec<(String, String)>>>,
         content: Arc<Mutex<String>>,
+        fail_send: Arc<Mutex<bool>>,
     }
 
     impl PromptTarget for MockTarget {
         fn send_text(&self, pane_id: &str, text: &str) -> Result<(), String> {
+            if *self.fail_send.lock().unwrap() {
+                return Err("send failed".to_string());
+            }
             self.sent
                 .lock()
                 .unwrap()
@@ -1779,6 +1860,11 @@ mod tests {
     impl MockTarget {
         fn with_content(self, content: &str) -> Self {
             *self.content.lock().unwrap() = content.to_string();
+            self
+        }
+
+        fn with_send_failure(self) -> Self {
+            *self.fail_send.lock().unwrap() = true;
             self
         }
     }
@@ -1899,6 +1985,32 @@ mod tests {
     }
 
     #[test]
+    fn test_deferred_prompt_send_failure_stays_unsent() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub.runtime_state
+            .insert("pane_id".to_string(), Value::String("%1".to_string()));
+        sub.runtime_state.insert(
+            "backend_type".to_string(),
+            Value::String("tmux".to_string()),
+        );
+        sub.runtime_state
+            .insert("prompt_deferred_for_ready".to_string(), Value::Bool(true));
+
+        let target = Arc::new(MockTarget::default().with_content("❯ ").with_send_failure());
+        let result = with_prompt_target_override(target, || {
+            dispatch_deferred_prompt_when_ready(&sub, "2025-01-01T00:00:01Z")
+        })
+        .expect("send failure should be surfaced as a poll update");
+
+        assert!(!runtime_bool(
+            &result.submission.runtime_state,
+            "prompt_sent"
+        ));
+        assert!(runtime_str(&result.submission.runtime_state, "send_error").contains("send failed"));
+    }
+
+    #[test]
     fn test_poll_reply_delivery_completes() {
         let job = JobRecord::new("j1", "agent1", "claude")
             .with_request_body("do it")
@@ -1982,6 +2094,67 @@ mod tests {
     }
 
     #[test]
+    fn test_pane_fallback_completes_only_when_pane_is_ready() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub.runtime_state
+            .insert("prompt_sent".to_string(), Value::Bool(true));
+        sub.runtime_state
+            .insert("anchor_seen".to_string(), Value::Bool(true));
+        sub.runtime_state
+            .insert("pane_id".to_string(), Value::String("%1".to_string()));
+        sub.runtime_state.insert(
+            "backend_type".to_string(),
+            Value::String("tmux".to_string()),
+        );
+        sub.runtime_state.insert(
+            "reply_buffer".to_string(),
+            Value::String("final answer".to_string()),
+        );
+
+        let target = Arc::new(MockTarget::default().with_content("❯ "));
+        let result = with_prompt_target_override(target, || {
+            poll_pane_text_completion(&sub, "2025-01-01T00:00:02Z")
+        })
+        .expect("ready pane plus real reply should complete");
+
+        assert_eq!(result.decision.unwrap().reply, "final answer");
+    }
+
+    #[test]
+    fn test_pane_fallback_rejects_claude_startup_chrome() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub.runtime_state
+            .insert("prompt_sent".to_string(), Value::Bool(true));
+        sub.runtime_state
+            .insert("anchor_seen".to_string(), Value::Bool(true));
+        sub.runtime_state
+            .insert("pane_id".to_string(), Value::String("%1".to_string()));
+        sub.runtime_state.insert(
+            "backend_type".to_string(),
+            Value::String("tmux".to_string()),
+        );
+        sub.runtime_state.insert(
+            "reply_buffer".to_string(),
+            Value::String(
+                "╭─ Claude Code ───────────────────────╮\n│ Welcome back! │\n╰─────────────────────────────────────╯"
+                    .to_string(),
+            ),
+        );
+
+        let target = Arc::new(MockTarget::default().with_content("❯ "));
+        let result = with_prompt_target_override(target, || {
+            poll_pane_text_completion(&sub, "2025-01-01T00:00:02Z")
+        });
+
+        assert!(
+            result.is_none(),
+            "startup chrome must not be delivered as an ask reply"
+        );
+    }
+
+    #[test]
     fn test_poll_detects_stop_reason_end_turn() {
         let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
         let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
@@ -2008,6 +2181,35 @@ mod tests {
             "assistant_end_turn"
         );
         assert_eq!(boundary.payload.get("stop_reason").unwrap(), "end_turn");
+    }
+
+    #[test]
+    fn test_poll_accepts_claude_req_id_anchor() {
+        let job = JobRecord::new("j1", "agent1", "claude").with_request_body("do it");
+        let mut sub = start_active_submission(&job, None, "2025-01-01T00:00:00Z");
+        sub = poll_submission(&sub, "2025-01-01T00:00:01Z")
+            .unwrap()
+            .submission;
+
+        let anchor = runtime_str(&sub.runtime_state, "request_anchor");
+        let req_id = req_id_from_request_anchor(&anchor).expect("request id");
+        let events = serde_json::json!([
+            {"role": "user", "text": format!("{} {}\n\ndo it", CLAUDE_REQ_ID_PREFIX, req_id)},
+            {"role": "assistant", "text": "final answer", "stop_reason": "end_turn", "uuid": "uuid-1"}
+        ]);
+        sub.runtime_state
+            .insert("pending_events".to_string(), events);
+
+        let result = poll_submission(&sub, "2025-01-01T00:00:02Z").unwrap();
+        let boundary = result
+            .items
+            .iter()
+            .find(|i| i.kind == CompletionItemKind::TurnBoundary)
+            .expect("turn boundary expected");
+        assert_eq!(
+            boundary.payload.get("last_agent_message").unwrap(),
+            "final answer"
+        );
     }
 
     #[test]

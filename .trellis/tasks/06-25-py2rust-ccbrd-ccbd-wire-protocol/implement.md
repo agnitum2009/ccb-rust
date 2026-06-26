@@ -149,3 +149,48 @@
 - Do not import Python per-agent bridge/tight polling.
 - Do not touch unrelated dirty files.
 - Do not claim full owner parity until every row in `wire-protocol-gap.md` is marked `closed`, `accepted_divergence`, `blocked`, or `none_with_reason`.
+
+## Phase B/C follow-up — ask/provider owner closure and ccb-legacy sync (2026-06-26)
+
+Owner finding:
+
+- The failing live ask path was no longer a daemon registration gap; it was split across CLI route parsing, provider session payload ownership, and Claude completion anchoring.
+- CLI `ask agent3 from agent1 -- ...` must use the Python `submit` contract, not Rust-local `ask`.
+- Claude JSONL records the user turn as `CCBR_REQ_ID: req-*`; Rust tracked `<<BEGIN:req-*>>`, so the provider could miss `anchor_seen` and ignore the assistant completion.
+- Provider session payloads must include `tmux_socket_path` so provider-owned send/readback targets the managed workspace socket.
+- User constraint: Codex hooks must remain enabled; no hook masking/disablement is allowed.
+- Bloodline constraint: equivalent Rust fixes were synchronized to the separate `ccb-legacy` branch worktree at `/tmp/ccb-legacy-sync`; Python `ccb` / `.ccb` state was not modified.
+
+Fix:
+
+- `ccbr_test` now execs the debug Rust binary directly instead of running the shell wrapper through Python.
+- `ccbr-cli` accepts Python-style ask route syntax and calls `submit` for CLI ask receipts.
+- `ccbr-daemon` writes `tmux_socket_path` into simple-provider session payloads.
+- `ccbr-providers` Claude keeps failed deferred sends visible, guards pane fallback against startup chrome, and accepts both `<<BEGIN:req-*>>` and `CCBR_REQ_ID: req-*` anchors.
+- `scripts/ccbr-test-cleanup.sh` reclaims only ccbr runtime/state for explicit test roots and preserves Python `ccb` state.
+- `ccb-legacy` was updated with the corresponding `ccb-*` crate changes, including the legacy Codex session payload owner so its provider code matches the daemon call shape.
+
+Evidence:
+
+- Main line:
+  - `python3 -m py_compile ccbr_test`
+  - `bash -n scripts/ccbr-test-cleanup.sh`
+  - `cd rust && cargo fmt --check -p ccbr-cli -p ccbr-daemon -p ccbr-providers`
+  - `cargo test -p ccbr-cli entry::tests::test_parse_ask -- --test-threads=1`
+  - `cargo test -p ccbr-cli commands::tests::ask_uses_python_submit_contract -- --test-threads=1`
+  - `cargo test -p ccbr-cli --test ask_service_tests -- --test-threads=1`
+  - `cargo test -p ccbr-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
+  - `cargo test -p ccbr-providers providers::claude::tests -- --test-threads=1`
+  - `cargo build -p ccbr-cli -p ccbr-daemon -p ccbr-providers`
+- `ccb-legacy` sync line (`/tmp/ccb-legacy-sync`):
+  - `python3 -m py_compile ccbr_test`
+  - `git diff --check`
+  - `cargo test -p ccb-cli entry::tests::test_parse_ask -- --test-threads=1`
+  - `cargo test -p ccb-cli commands::tests::ask_uses_python_submit_contract -- --test-threads=1`
+  - `cargo test -p ccb-cli --test ask_service_tests -- --test-threads=1`
+  - `cargo test -p ccb-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
+  - `cargo test -p ccb-providers providers::claude::tests -- --test-threads=1`
+  - `cargo build -p ccb-cli -p ccb-daemon -p ccb-providers`
+- Formatting note: legacy full crate `cargo fmt --check` is blocked by pre-existing rustfmt drift in touched files; no broad formatting was applied to avoid unrelated churn.
+- Resource cleanup evidence for `/mnt/d/dapro-ass`: no matching ccbrd/provider runtime processes, `~/.local/state/ccbr/projects/302a3b148cf77d3ecab65db7becea51f0c9abed4d7f43271afdc1e7895b41e8c` absent, Python `~/.local/state/ccb/projects/302a3b148cf77d3ecab65db7becea51f0c9abed4d7f43271afdc1e7895b41e8c` preserved.
+- Live agent smoke was not re-run after cleanup in this checkpoint to keep the user-requested clean resource state intact.

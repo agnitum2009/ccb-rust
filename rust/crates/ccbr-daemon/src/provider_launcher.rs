@@ -683,6 +683,7 @@ fn build_simple_provider_launch<'a>(
         &runtime_dir,
         &run_cwd,
         ctx.pane_id,
+        ctx.socket_path,
         &pane_title_marker,
         &start_cmd,
         &launch_session_id,
@@ -760,6 +761,7 @@ fn build_simple_session_payload(
     runtime_dir: &Path,
     run_cwd: &Path,
     pane_id: &str,
+    tmux_socket_path: &str,
     pane_title_marker: &str,
     start_cmd: &str,
     launch_session_id: &str,
@@ -792,6 +794,12 @@ fn build_simple_session_payload(
         Value::String(pane_id.to_string()),
     );
     payload.insert("pane_id".to_string(), Value::String(pane_id.to_string()));
+    if !tmux_socket_path.trim().is_empty() {
+        payload.insert(
+            "tmux_socket_path".to_string(),
+            Value::String(tmux_socket_path.to_string()),
+        );
+    }
     payload.insert(
         "pane_title_marker".to_string(),
         Value::String(pane_title_marker.to_string()),
@@ -1021,5 +1029,38 @@ mod tests {
             startup_timeout_s: None,
         };
         assert!(launcher.launch(&ctx).is_err());
+    }
+
+    #[test]
+    fn test_simple_provider_session_payload_includes_tmux_socket_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        let root_str = root.to_string_lossy().to_string();
+        let launcher = ProviderLauncher::new();
+        let ctx = LaunchContext {
+            provider: "claude",
+            agent_name: "agent3",
+            project_id: "proj",
+            project_root: &root_str,
+            workspace_path: &root_str,
+            pane_id: "%2",
+            socket_path: "/run/user/0/ccbr-runtime/tmux-test.sock",
+            restore: false,
+            command_template: None,
+            startup_args: &[],
+            auto_permission: true,
+            spec: None,
+            terminal_size: None,
+            startup_timeout_s: None,
+        };
+
+        let result = launcher.build_plan(&ctx).unwrap();
+        let payload = result.session_payload.unwrap();
+
+        assert_eq!(
+            payload.get("tmux_socket_path").and_then(Value::as_str),
+            Some("/run/user/0/ccbr-runtime/tmux-test.sock")
+        );
     }
 }

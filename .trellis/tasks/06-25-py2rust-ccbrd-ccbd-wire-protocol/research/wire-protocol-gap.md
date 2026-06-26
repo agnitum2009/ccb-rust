@@ -28,7 +28,7 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 
 | Surface | Python owner anchor | Rust owner anchor | Status | Priority | Required action |
 |---|---|---|---|---|---|
-| `submit` ask delivery | `backup/python-reference/lib/ccbd/handlers/submit.py`, `backup/python-reference/lib/provider_backends/codex/execution_runtime/start.py` | `rust/crates/ccbr-daemon/src/handlers/submit.rs`, `rust/crates/ccbr-daemon/src/app.rs`, `rust/crates/ccbr-providers/src/providers/codex.rs` | closed | P0 | Codex prompt dispatch is provider-owned during execution start; daemon heartbeat regression proves Python-style `submit` drives wrapped prompt delivery. |
+| `submit` ask delivery | `backup/python-reference/lib/ccbd/handlers/submit.py`, provider execution references | `rust/crates/ccbr-cli`, `rust/crates/ccbr-daemon`, `rust/crates/ccbr-providers` | closed | P0 | CLI ask now uses Python `submit`, session payloads carry tmux socket ownership, and Codex/Claude provider owners handle wrapped prompt delivery/completion anchors. |
 | Rust local `ask` op | none; Rust extension | `handlers/ask.rs` | guarded_extension | P0-supporting | Keep as CLI convenience; skip manual pane send when provider-owned start already sent the prompt. |
 | `project_view` sidebar readback | Python `handlers/project_view.py`, `project_view/**` | Rust `handlers/project_view.rs`, `tools/ccb-agent-sidebar/src/model.rs` | closed | P0 | Rust now emits the sidebar-consumed Python `{view, cache}` shape including project/ccbd/namespace/sidebar/window/agent/comms fields. |
 | `inbox` / `mailbox_head` / `ack` | Python mailbox handlers | Rust mailbox handlers + `ccbr-mailbox` | closed | P0 | Rust uses mailbox-control state for readback and accepts Python `ack.inbound_event_id` while preserving Rust `event_id` alias. |
@@ -42,7 +42,8 @@ Conclusion: handler registration is covered; remaining gaps are behavior/shape p
 | `get` / `watch` | Python dispatcher handlers | Rust dispatcher handlers | closed | P2 | Rust now returns Python-visible get payloads, fails unknown jobs, consumes `watch.cursor`, and rejects negative cursors. |
 | `queue` / `trace` / `cancel` | Python dispatcher + mailbox-control handlers | Rust dispatcher + mailbox-control handlers | closed | P2 | Queue/cancel already use mailbox-control/mailbox terminal state; trace now rejects Python-invalid `all`/agent targets and uses mailbox-control trace only. |
 | `resubmit` / `retry` | Python message-bureau lifecycle handlers | Rust dispatcher handlers | closed | P2 | Rust now validates mailbox message/attempt lineage, enqueues retry/resubmit jobs, records new message/attempt records, and returns Python lifecycle payloads. |
-| Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling. |
+| Provider Codex session/polling | Python provider reference | Rust `ccbr-providers` | intentionally_diverged | P0 policy | Keep hooks enabled, named session files, structured JSONL authoritative, active-only polling; session payload carries `tmux_socket_path`. |
+| Provider Claude session/polling | Python provider reference | Rust `ccbr-providers` | closed_with_policy_divergence | P0 | Keep hooks enabled; Rust accepts Claude `CCBR_REQ_ID: req-*` user anchors, surfaces deferred-send failures, and rejects startup chrome as replies. |
 
 ## Non-claims
 
@@ -284,3 +285,29 @@ Evidence:
 
 - `cargo test -p ccbr-daemon project_restart -- --test-threads=1`
 - `cargo test -p ccbr-daemon -- --test-threads=1`
+
+
+### Ask/provider owner closure — closed with policy divergence 2026-06-26
+
+Owner finding:
+
+- Python-style CLI ask is a `submit` request with route syntax like `ask agent3 from agent1 -- <body>`.
+- Provider execution, not the CLI receipt path, owns prompt delivery and completion readback.
+- Claude JSONL user turns expose `CCBR_REQ_ID: req-*`; Rust also tracks `<<BEGIN:req-*>>`, so anchor matching must accept both forms.
+- Codex hook policy is explicit: hooks stay enabled; parity must be reached through provider/session ownership, not by masking hooks.
+
+Fix:
+
+- CLI ask route parser consumes Python `from` syntax and rejects conflicting sender forms.
+- CLI ask calls `submit` and keeps receipt rendering on the accepted job id.
+- Simple provider session payloads include `tmux_socket_path`.
+- Claude polling accepts both request-anchor encodings, keeps failed deferred sends unsent/visible, and requires real ready-pane content before pane fallback completion.
+- Equivalent Rust changes were synchronized to the separate `ccb-legacy` worktree without touching Python `ccb` state.
+
+Evidence:
+
+- `cargo test -p ccbr-cli entry::tests::test_parse_ask -- --test-threads=1`
+- `cargo test -p ccbr-cli commands::tests::ask_uses_python_submit_contract -- --test-threads=1`
+- `cargo test -p ccbr-daemon provider_launcher::tests::test_simple_provider_session_payload_includes_tmux_socket_path -- --test-threads=1`
+- `cargo test -p ccbr-providers providers::claude::tests -- --test-threads=1`
+- `ccb-legacy` equivalents: `cargo test -p ccb-cli ...`, `cargo test -p ccb-daemon ...`, `cargo test -p ccb-providers providers::claude::tests -- --test-threads=1`.

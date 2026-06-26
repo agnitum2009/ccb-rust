@@ -113,9 +113,7 @@ pub fn ask(client: &dyn DaemonClient, cmd: &ParsedAsk, project_id: &str) -> Resu
         "body": cmd.message,
         "task_id": cmd.task_id,
     });
-    // TODO(phase2-protocol): align with Python v7.5.2 by switching to `submit`
-    // once dispatcher/async delivery matches the Python semantics.
-    let result = client.call("ask", params)?;
+    let result = client.call("submit", params)?;
     Ok(render_ask_receipt(&result))
 }
 
@@ -965,6 +963,49 @@ pub fn json_str<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    #[derive(Default)]
+    struct RecordingClient {
+        calls: Mutex<Vec<(String, Value)>>,
+    }
+
+    impl DaemonClient for RecordingClient {
+        fn call(&self, method: &str, params: Value) -> Result<Value, String> {
+            self.calls
+                .lock()
+                .unwrap()
+                .push((method.to_string(), params));
+            Ok(serde_json::json!({
+                "job_id": "job_test",
+                "status": "accepted"
+            }))
+        }
+    }
+
+    #[test]
+    fn ask_uses_python_submit_contract() {
+        let client = RecordingClient::default();
+        let cmd = ParsedAsk {
+            project: None,
+            target: "agent2".to_string(),
+            sender: Some("agent1".to_string()),
+            message: "hello".to_string(),
+            task_id: None,
+            compact: false,
+            silence: false,
+        };
+
+        let rendered = ask(&client, &cmd, "proj-1").unwrap();
+
+        let calls = client.calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].0, "submit");
+        assert_eq!(calls[0].1["to_agent"], "agent2");
+        assert_eq!(calls[0].1["from_actor"], "agent1");
+        assert_eq!(calls[0].1["body"], "hello");
+        assert!(rendered.contains("job_test"));
+    }
 
     #[test]
     fn autonew_rejects_unknown_provider() {
