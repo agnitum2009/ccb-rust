@@ -55,6 +55,7 @@ def accelerator_binary() -> str | None:
 def repo_binary_candidates(name: str) -> tuple[Path, ...]:
     repo_root = Path(__file__).resolve().parents[2]
     return (
+        repo_root / "bin" / name,
         repo_root / "rust" / "target" / "release" / name,
         repo_root / "rust" / "target" / "debug" / name,
     )
