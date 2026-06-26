@@ -75,25 +75,26 @@
 - [x] Verify no public socket/job/mailbox behavior changes in Slice 0.
   - Slice 0 only adds a sidecar binary, a Python fallback client, and tests.
   - No Python daemon/socket/job/mailbox integration is enabled yet.
-  - `capabilities.hot_loop_replacement_active=false` explicitly records that no hot-loop semantics are replaced in this slice.
+  - Slice 0 originally recorded `capabilities.hot_loop_replacement_active=false`; later Slice A default replacement flips it to `true`.
 
 ### Slice A — Codex bridge / active-job observation
 
-- [ ] Replace per-agent Codex active-job observation, not all daemon logic.
+- [x] Replace per-agent Codex active-job observation, not all daemon logic.
 - [x] Add Rust sidecar `codex_observe` primitive for active Codex job descriptors.
   - Input is explicit `jobs[]` descriptors from Python: `job_id`, `session_path`, `request_anchor`, and prior state.
   - Output is per-job state plus completion items: `anchor_seen`, `assistant_chunk`, `turn_boundary`, `turn_aborted`.
   - The sidecar reads only the passed Codex session JSONL path; it does not scan all agents and does not poll idle agents.
 - [x] Keep Codex hooks enabled.
 - [x] Keep provider CLI process unchanged.
-- [x] Keep Python fallback path behind a feature flag / env knob until smoke passes.
-  - `CCB_RUNTIME_ACCELERATOR_CODEX` defaults disabled.
+- [x] Keep Python fallback path behind an env knob.
+  - `CCB_RUNTIME_ACCELERATOR_CODEX` defaults enabled for replacement.
+  - `CCB_RUNTIME_ACCELERATOR_CODEX=0` explicitly disables the replacement and returns to Python reader polling.
   - `CCB_RUNTIME_ACCELERATOR_SOCKET` can point tests or manual smoke at an explicit sidecar socket.
-  - `CCB_RUNTIME_ACCELERATOR_BIN` lets ccbd find the sidecar binary when opt-in lifecycle startup is enabled.
+  - `CCB_RUNTIME_ACCELERATOR_BIN` lets ccbd find the sidecar binary; default lookup also checks repo-local Rust build outputs.
   - Sidecar communication failures, malformed observations, per-job errors, and unknown item kinds fall back to the existing Python reader path.
-  - Successful no-change observations do not fall through into the Python reader path, so the opt-in path does not pay both polling costs.
+  - Successful no-change observations do not fall through into the Python reader path, so the replacement path does not pay both polling costs.
 - [x] Add ccbd sidecar lifecycle shell behind the same env gate.
-  - Default-off: no sidecar process is spawned unless `CCB_RUNTIME_ACCELERATOR_CODEX` is enabled.
+  - Default-on: sidecar process is spawned unless `CCB_RUNTIME_ACCELERATOR_CODEX=0`.
   - Startup failures are non-fatal and keep Python fallback available.
   - Shutdown only removes sockets owned by the sidecar process ccbd started.
 - [ ] Target active-job completion check around 200ms if needed, with zero idle polling.
@@ -101,6 +102,7 @@
 ### Slice B — ccbd maintenance hot loop
 
 - [ ] Replace fixed no-op maintenance cadence with dirty-event + active-job wake scheduling.
+  - Interim Python-side reduction landed: idle heartbeat refreshes lease but skips full health/supervision/dispatcher maintenance until active work appears or `CCB_CCBD_IDLE_FULL_HEARTBEAT_INTERVAL_S` elapses.
 - [ ] Keep Python request handlers and socket protocol as owner.
 - [ ] Preserve immediate wake for submit/cancel/resubmit/retry/reply-delivery operations.
 - [ ] Preserve heartbeat freshness semantics while avoiding no-op full-agent work.
@@ -156,14 +158,19 @@
   - `git diff --check`
   - `cargo fmt --check -p ccb-runtime-accelerator`
   - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
+- Default replacement / idle maintenance validation:
+  - `uv run --with pytest pytest -q test/test_runtime_accelerator_lifecycle.py test/test_codex_runtime_accelerator_polling.py test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_heavy_idle_maintenance_between_full_ticks test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_runs_heavy_maintenance_for_active_execution test/test_v2_ccbd_socket.py::test_ccbd_heartbeat_skips_maintenance_while_start_lock_held test/test_runtime_accelerator_client.py test/test_codex_execution_polling.py`
+  - `python -m compileall -q lib/runtime_accelerator lib/provider_backends/codex/execution_runtime lib/ccbd/app_runtime test/test_runtime_accelerator_lifecycle.py test/test_codex_runtime_accelerator_polling.py test/test_v2_ccbd_socket.py`
+  - `cargo build -p ccb-runtime-accelerator`
+  - `cargo test -p ccb-runtime-accelerator -- --test-threads=1`
 
 Still pending for the broader milestone:
 
 - Active ask-storm baseline.
-- Live Codex ask/callback/reply smoke with `CCB_RUNTIME_ACCELERATOR_CODEX=1` and a managed sidecar socket.
+- Live Codex ask/callback/reply smoke with default `CCB_RUNTIME_ACCELERATOR_CODEX` replacement and a managed sidecar socket.
 - Syscall-level attribution if Slice A/B needs it.
 - Post-start sidecar health monitoring/restart policy beyond initial ccbd startup.
-- Slice B ccbd maintenance wake scheduling replacement.
+- Full Rust-owned Slice B ccbd maintenance wake scheduling replacement.
 
 ## Risk / rollback
 

@@ -197,7 +197,7 @@ Accepted first-shape decision:
 ```text
 Python ccbd owns socket protocol, job store, mailbox, lifecycle, and public CLI.
 Rust accelerator owns hot wait/poll/readback loops for active work.
-Python fallback remains available behind an env/config switch.
+Rust accelerator is the default Codex active-job path; Python fallback remains available behind an env/config switch.
 ```
 
 First milestone slices:
