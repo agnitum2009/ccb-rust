@@ -1,7 +1,0 @@
-{"file": ".trellis/spec/migration-roadmap.md", "reason": "Defines Wave 2 scope: runtime launch + completion/heartbeat parity."}
-{"file": "plans/rust-python-test-parity-matrix.md", "reason": "Tracks runtime_launch, completion, heartbeat, jobs cluster parity gaps."}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Runtime launch, completion tracker, and heartbeat classifier cross provider-core/daemon/terminal layers."}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse patterns for tmux backend abstractions and job store records."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/design.md", "reason": "Parent Wave 2 design decisions for runtime launch orchestration and completion/heartbeat."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/prd.md", "reason": "Parent scope and acceptance criteria for the overall parity migration."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/implement.md", "reason": "Parent execution order and validation commands for all waves."}

@@ -1,3 +1,0 @@
---- trace 1
-Trace for job_d689f3f98d77:
-  job_d689f3f98d77 [codex] completed

@@ -1,5 +1,0 @@
-{"file": ".trellis/spec/migration-roadmap.md", "reason": "Check overall migration done criteria and out-of-scope items."}
-{"file": "plans/rust-python-test-parity-matrix.md", "reason": "Verify cli_entrypoint cluster status and test mappings updated after Wave 1."}
-{"file": ".trellis/spec/guides/quality-guidelines.md", "reason": "Quality gate checklist: tests, lint, formatting, cross-layer data flow."}
-{"file": ".trellis/spec/guides/index.md", "reason": "Entry point to all spec guidelines for final review."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/prd.md", "reason": "Re-read acceptance criteria before marking Wave 1 complete."}
