@@ -108,8 +108,10 @@
 
 - [x] Replace fixed no-op maintenance cadence with dirty-event + active-job wake scheduling.
   - Python latest/global reduction installed: idle heartbeat refreshes lease but skips full health/supervision/dispatcher maintenance until active work appears or `CCB_CCBD_IDLE_FULL_HEARTBEAT_INTERVAL_S` elapses.
-- [ ] Keep Python request handlers and socket protocol as owner.
-- [ ] Preserve immediate wake for submit/cancel/resubmit/retry/reply-delivery operations.
+- [x] Keep Python request handlers and socket protocol as owner.
+  - Rust sidecar remains a delegated accelerator; Python keeps `.ccb` socket/job/mailbox/public CLI ownership.
+- [x] Preserve immediate wake for submit/cancel/resubmit/retry/reply-delivery operations.
+  - Dispatcher revision invalidation and request-path tests preserve active-state refresh rather than relying on idle TTL.
 - [x] Preserve heartbeat freshness semantics while avoiding no-op full-agent work.
   - `MountManager.refresh_heartbeat()` validates the current lease holder on every tick, but debounces lease JSON rewrites to `CCB_CCBD_HEARTBEAT_WRITE_INTERVAL_S` seconds, default `5.0`.
   - Keeper no longer rewrites stable mounted `lifecycle.json` and debounces `keeper.json` `last_check_at`-only rewrites to `CCB_KEEPER_STATE_WRITE_INTERVAL_S` seconds, default `5.0`.
@@ -121,16 +123,28 @@
 ## Phase 4 — Compatibility gates
 
 - [ ] Python latest tests pass on `/home/agnitum/ccb-git`.
-- [ ] Rust module enters `ccb-legacy` first, after Python-compatible golden tests pass.
+- [x] Rust module enters `ccb-legacy` first, after Python-compatible golden tests pass.
 - [ ] `ccbr` consumes the shared crate/module only optionally, through `.ccbr` adapter, after `ccb-legacy` proof.
-- [ ] No `.ccb` path assumptions enter `ccbr`; no `.ccbr` assumptions enter `ccb-legacy`.
+- [x] No `.ccb` path assumptions enter `ccbr`; no `.ccbr` assumptions enter `ccb-legacy`.
 
 ## Phase 5 — Validation
 
 - [ ] CPU: idle multi-Codex scenario drops bridge/daemon CPU materially versus baseline.
 - [ ] Functional: ask/callback/reply/cancel/resubmit scenarios pass.
-- [ ] Regression: provider log/readback fixtures match Python expected outputs.
-- [ ] Resource cleanup: test workspace leaves no daemon/bridge/accelerator residue.
+- [x] Regression: provider log/readback fixtures match Python expected outputs.
+  - `uv run --with pytest pytest -q test/test_codex_bridge_runtime.py test/test_codex_runtime_accelerator_polling.py test/test_runtime_accelerator_client.py test/test_runtime_accelerator_lifecycle.py` -> `17 passed` in `ccb-legacy`.
+- [x] Resource cleanup: test workspace leaves no daemon/bridge/accelerator residue.
+  - `scripts/ccbr-test-cleanup.sh` now kills leaked debug `ccbrd`, then repeats tmux/socket cleanup; hook-enabled provider smoke left no isolated runtime residue.
+
+
+## 2026-06-27 non-mobile 1-4 checkpoint
+
+User direction paused mobile development and narrowed this session to non-mobile gates 1-4. Current status:
+
+1. ccbr live ProjectView/sidebar/client/start/mailbox observer gate: passed for isolated shell-pane smoke. Fixes committed for `project-view` RPC dispatch, no-config default agent expansion, inbox count rendering, and queue single-agent rendering.
+2. Provider execution gate: passed for a single real Codex provider submit -> hook -> reply -> trace path. Evidence requires `.codex/hooks` to be present and shows `UserPromptSubmit hook (completed)`. Multi-agent provider callback/order/cancel scenarios remain separate gates.
+3. ccb-legacy performance/hotpath gate: partial pass. Rust accelerator tests and Python hotpath compatibility suites pass; read-only `/home/agnitum/o13` resample shows accelerator `0.000%`, `ccbd/main.py` around `1.800%`, and bridges idle except `mn_c` around `0.800%`. Controlled active ask-storm before/after proof is still pending.
+4. Bloodline gate: pass for this slice. `ccb-legacy` commits remain isolated on the legacy branch; ccbr changes stay in `.ccbr`/Rust mainline docs and tests; no hook disabling was used.
 
 ## Slice 0 validation evidence
 
