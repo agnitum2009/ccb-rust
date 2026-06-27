@@ -137,7 +137,7 @@ fn test_cleanup_dry_run_reports_orphans_without_removing() {
     // Submit and cancel a job so it becomes a terminal orphan.
     let envelope = make_envelope("claude", "hello");
     let receipt = app.dispatcher.submit(&envelope, "claude", None);
-    let job_id = receipt.jobs[0].job_id.clone();
+    let job_id = receipt.unwrap().jobs[0].job_id.clone();
     let _ = app.dispatcher.cancel(&job_id);
     assert_eq!(app.dispatcher.job_store.len(), 1);
 
@@ -169,7 +169,7 @@ fn test_cleanup_removes_orphans_when_not_dry_run() {
 
     let envelope = make_envelope("claude", "hello");
     let receipt = app.dispatcher.submit(&envelope, "claude", None);
-    let job_id = receipt.jobs[0].job_id.clone();
+    let job_id = receipt.unwrap().jobs[0].job_id.clone();
     let _ = app.dispatcher.cancel(&job_id);
 
     let resp = call(

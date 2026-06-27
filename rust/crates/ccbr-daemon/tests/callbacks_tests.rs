@@ -123,6 +123,7 @@ fn callback_routes_child_result_as_parent_continuation() {
             "codex",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -134,6 +135,7 @@ fn callback_routes_child_result_as_parent_continuation() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -222,38 +224,46 @@ fn callback_routes_child_result_as_parent_continuation() {
 }
 
 #[test]
-#[should_panic(expected = "active parent job")]
 fn callback_rejects_without_active_parent() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_mailbox();
     dispatcher.tick();
-    dispatcher.submit(
-        &callback_envelope("claude", "codex", "collect evidence"),
-        "claude",
-        None,
-    );
+    let err = dispatcher
+        .submit(
+            &callback_envelope("claude", "codex", "collect evidence"),
+            "claude",
+            None,
+        )
+        .unwrap_err();
+    assert!(err.contains("active parent job"));
 }
 
 #[test]
-#[should_panic(expected = "plain ask from an active CCBR task requires --callback")]
 fn plain_nested_ask_from_active_parent_is_rejected() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_mailbox();
-    dispatcher.submit(&ask_envelope("codex", "user", "root task"), "codex", None);
+    dispatcher
+        .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap();
     dispatcher.tick();
-    dispatcher.submit(
-        &ask_envelope("claude", "codex", "child task"),
-        "claude",
-        None,
-    );
+    let err = dispatcher
+        .submit(
+            &ask_envelope("claude", "codex", "child task"),
+            "claude",
+            None,
+        )
+        .unwrap_err();
+    assert!(err.contains("plain ask from an active CCBR task requires --callback"));
 }
 
 #[test]
 fn silent_nested_ask_from_active_parent_is_allowed() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
-    dispatcher.submit(&ask_envelope("codex", "user", "root task"), "codex", None);
+    dispatcher
+        .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap();
     dispatcher.tick();
     let mut env = ask_envelope("claude", "codex", "independent child task");
     env.silence_on_success = true;
-    let receipt = dispatcher.submit(&env, "claude", None);
+    let receipt = dispatcher.submit(&env, "claude", None).unwrap();
     assert_eq!(receipt.jobs[0].agent_name, "claude");
     assert_eq!(receipt.jobs[0].status, JobStatus::Accepted);
     assert!(CallbackEdgeStore::new(&layout).list_all().is_empty());
@@ -264,6 +274,7 @@ fn callback_chain_waits_for_nested_child_message() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
     let a_job = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -274,6 +285,7 @@ fn callback_chain_waits_for_nested_child_message() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -289,6 +301,7 @@ fn callback_chain_waits_for_nested_child_message() {
             "gemini",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -340,6 +353,7 @@ fn callback_continuation_uses_artifact_for_large_child_reply() {
             "codex",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -350,6 +364,7 @@ fn callback_continuation_uses_artifact_for_large_child_reply() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -389,13 +404,14 @@ fn callback_continuation_uses_forced_artifact_for_short_child_reply() {
             "codex",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();
     let mut env = callback_envelope("claude", "codex", "collect short evidence");
     env.route_options = json!({"mode": "callback", "artifact_reply": true});
-    let child_job_id = dispatcher.submit(&env, "claude", None).jobs[0]
+    let child_job_id = dispatcher.submit(&env, "claude", None).unwrap().jobs[0]
         .job_id
         .clone();
     let edge = CallbackEdgeStore::new(&layout)
@@ -431,6 +447,7 @@ fn callback_child_failure_still_continues_parent() {
             "codex",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -441,6 +458,7 @@ fn callback_child_failure_still_continues_parent() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -459,11 +477,11 @@ fn callback_child_failure_still_continues_parent() {
 }
 
 #[test]
-#[should_panic(expected = "cycle detected")]
 fn callback_rejects_actor_cycle() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_mailbox();
     let a_job = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -474,6 +492,7 @@ fn callback_rejects_actor_cycle() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -485,20 +504,23 @@ fn callback_rejects_actor_cycle() {
             "gemini",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
     dispatcher.complete_with_decision(&b_job, &decision("delegated to c"));
     dispatcher.tick();
-    dispatcher.submit(
-        &callback_envelope("codex", "gemini", "cycle back"),
-        "codex",
-        None,
-    );
+    let err = dispatcher
+        .submit(
+            &callback_envelope("codex", "gemini", "cycle back"),
+            "codex",
+            None,
+        )
+        .unwrap_err();
+    assert!(err.contains("cycle detected"));
 }
 
 #[test]
-#[should_panic(expected = "max callback depth 2")]
 fn callback_rejects_depth_limit() {
     let (mut dispatcher, _layout, _dir) = {
         let (d, l, t) = dispatcher_with_mailbox();
@@ -507,6 +529,7 @@ fn callback_rejects_depth_limit() {
 
     let a_job = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -517,6 +540,7 @@ fn callback_rejects_depth_limit() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -528,16 +552,20 @@ fn callback_rejects_depth_limit() {
             "gemini",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
     dispatcher.complete_with_decision(&b_job, &decision("delegated to c"));
     dispatcher.tick();
-    dispatcher.submit(
-        &callback_envelope("codex", "gemini", "too deep"),
-        "codex",
-        None,
-    );
+    let err = dispatcher
+        .submit(
+            &callback_envelope("codex", "gemini", "too deep"),
+            "codex",
+            None,
+        )
+        .unwrap_err();
+    assert!(err.contains("max callback depth 2"));
 }
 
 #[test]
@@ -556,6 +584,7 @@ fn callback_timeout_fails_expired_edge() {
 
     let parent_job_id = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -566,6 +595,7 @@ fn callback_timeout_fails_expired_edge() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -590,6 +620,7 @@ fn callback_repair_submits_missing_continuation() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
     let parent_job_id = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -602,6 +633,7 @@ fn callback_repair_submits_missing_continuation() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -693,6 +725,7 @@ fn callback_timeout_records_failure_notice_and_fails_parent_message() {
 
     let parent_job_id = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -703,6 +736,7 @@ fn callback_timeout_records_failure_notice_and_fails_parent_message() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -729,6 +763,7 @@ fn callback_repair_from_pending_edge_with_child_reply() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
     let parent_job_id = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -741,6 +776,7 @@ fn callback_repair_from_pending_edge_with_child_reply() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -816,6 +852,7 @@ fn callback_repair_reuses_existing_continuation_job() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_mailbox();
     let parent_job_id = dispatcher
         .submit(&ask_envelope("codex", "user", "root task"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -826,6 +863,7 @@ fn callback_repair_reuses_existing_continuation_job() {
             "claude",
             None,
         )
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();

@@ -84,7 +84,9 @@ pub fn handle_ask(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
 
     // Record the ask in the dispatcher for tracking.
     let workspace = workspace_path.as_deref().unwrap_or("");
-    let receipt = app.dispatcher.submit(&envelope, &provider, Some(workspace));
+    let receipt = app
+        .dispatcher
+        .submit(&envelope, &provider, Some(workspace))?;
     let job_id = receipt
         .jobs
         .first()

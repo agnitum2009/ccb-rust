@@ -346,3 +346,66 @@ Verification:
 - `cargo test --manifest-path rust/Cargo.toml -p ccbr-provider-core --test registry_tests -- --test-threads=1` -> `6 passed`
 - `cargo test --manifest-path rust/Cargo.toml -p ccbr-provider-core test_specs_by_provider_include_all_providers -- --test-threads=1` -> `1 passed`
 - `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers test_default -- --test-threads=1` -> `2 passed`
+
+## 2026-06-27 continuous 1-4 execution
+
+User requested continuous execution of the next four items: provider live matrix, rolepack 7.7 lifecycle receipt, P2 helper/accelerator classification, and live performance/resource receipt.
+
+### 1. Provider live acceptance matrix
+
+Scope honored: only `codex`, `kimi`, and `claude` were used for P1 provider live acceptance. ZAI and other providers stayed out of scope.
+
+Live project: `/mnt/d/dapro-ass` with temporary config `agent1=codex`, `kimi1=kimi`, `claude1=claude`.
+
+Results after fixing dispatcher validation from panic to RPC error:
+
+- `codex_to_kimi`: `job_22f01d027255 [kimi1] completed`; inbox token `CCBR_LIVE_CK_1782570101` hit once.
+- `kimi_to_codex`: `job_4e11aa7adc55 [agent1] completed`; inbox token `CCBR_LIVE_KC_1782570102` hit once.
+- `codex_to_claude`: `job_bb91fdc4dc86 [claude1] completed`; inbox token `CCBR_LIVE_CLAUDE_1782570103` hit once.
+
+During the first live run, `codex_to_claude` overlapped another active parent ask and exposed a daemon panic in `JobDispatcher::submit` callback validation. Root-cause fix: callback validation now returns `Err(reason)` and daemon handlers propagate the RPC error; tests now assert rejection as `Err`, not `panic`.
+
+Evidence: `evidence/2026-06-27-provider-claude-kimi-codex-fixed/summary.md`.
+
+### 2. Rolepack 7.7 lifecycle receipt
+
+No code change was needed in this pass. Existing Rust rolepack surfaces cover the current receipt level for role id normalization, agent-roles payload normalization, sync payload validation, manifest loading, and CLI roles rendering. Full live restart-adoption remains a separate end-to-end rolepack scenario if rolepacks become an active production blocker.
+
+Verification:
+
+- `cargo test --manifest-path rust/Cargo.toml -p ccbr-agents rolepack -- --test-threads=1` -> `9 passed`.
+- `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli roles -- --test-threads=1` -> relevant roles tests passed.
+
+### 3. P2 helper / accelerator classification
+
+Owner classification accepted:
+
+- Python 7.7.0 `.ccb` runtime accelerator sidecar is not imported into `ccbr` because `ccbrd` already owns a native Rust daemon, active-only polling, and `.ccbr` state.
+- Python helper family is classified as follows:
+  - `runtime_accelerator`: Python-only `.ccb` sidecar; do not import directly.
+  - Codex/Kimi/Claude parser/readback logic: possible shared narrow parser/observer only if a measured gap appears.
+  - ProjectView/storage/jsonl/native-output helpers: superseded by Rust-native ccbr crates unless a user-visible contract gap is proven.
+  - Performance helper scripts/docs: evidence inputs, not owner truth.
+
+### 4. Live performance / resource receipt
+
+Mixed active burst used `--from user` to avoid callback-continuation policy and exercise active provider execution only:
+
+- `perf_codex`: `job_e9de12962910 [agent1] completed`.
+- `perf_kimi`: `job_e4ef1dd576dd [kimi1] completed`.
+- `perf_claude`: `job_b90313df6d47 [claude1] completed`.
+
+Simple `ps %CPU` sample during active burst, not normalized benchmark:
+
+- total samples `214`, avg `7.083`, max `29.1`.
+- ccbrd: `n=90`, avg `6.823`, max `20.1`.
+- codex: `n=90`, avg `5.534`, max `20.1`.
+- kimi: `n=60`, avg `2.393`, max `4.3`.
+- claude: `n=34`, avg `22.297`, max `29.1`.
+
+Resource cleanup: `/mnt/d/dapro-ass/.ccbr/ccbr.config` restored to the original 2 Codex + 1 Claude config; no `ccbrd`, `/mnt/d/dapro-ass`, `tmux-302a3b148cf7`, or provider process residue remained; `/run/user/0/ccbr-runtime` had no test socket residue.
+
+Validation:
+
+- `cargo build --manifest-path rust/Cargo.toml -p ccbr-cli -p ccbr-daemon --bins` -> pass.
+- `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test callbacks_tests -- --test-threads=1` -> `15 passed`.

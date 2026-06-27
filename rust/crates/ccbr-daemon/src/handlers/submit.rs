@@ -83,7 +83,7 @@ pub fn handle_submit(app: &mut CcbdApp, payload: &Value) -> Result<Value, String
     } else {
         Some(workspace_path.as_str())
     };
-    let receipt = app.dispatcher.submit(&envelope, &provider, workspace);
+    let receipt = app.dispatcher.submit(&envelope, &provider, workspace)?;
 
     // Persist the submission in the mailbox layer.
     if let Some(job) = app.dispatcher.get(&receipt.jobs[0].job_id) {

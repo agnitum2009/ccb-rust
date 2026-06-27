@@ -184,7 +184,7 @@ mod tests {
             body_artifact: None,
         };
         let receipt = dispatcher.submit(&envelope, "agent1", None);
-        let job_id = receipt.jobs[0].job_id.clone();
+        let job_id = receipt.unwrap().jobs[0].job_id.clone();
         dispatcher.tick();
         assert_eq!(dispatcher.get(&job_id).unwrap().status, JobStatus::Running);
 

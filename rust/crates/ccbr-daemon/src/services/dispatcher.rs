@@ -389,10 +389,10 @@ impl JobDispatcher {
         envelope: &MessageEnvelope,
         provider: &str,
         workspace_path: Option<&str>,
-    ) -> SubmitReceipt {
+    ) -> Result<SubmitReceipt, String> {
         let now = self.now();
         if let Err(reason) = self.validate_callback_request(envelope) {
-            panic!("callback validation failed: {reason}");
+            return Err(reason);
         }
         let status = self.initial_status(&envelope.to_agent);
         let job_id = self.new_id("job");
@@ -431,7 +431,7 @@ impl JobDispatcher {
         };
         let _ = self.register_callback_edge(envelope, &job, &message_id, &now);
 
-        SubmitReceipt {
+        Ok(SubmitReceipt {
             accepted_at: now.clone(),
             jobs: vec![AcceptedJobReceipt {
                 job_id,
@@ -443,7 +443,7 @@ impl JobDispatcher {
                 provider_instance: None,
             }],
             submission_id: None,
-        }
+        })
     }
 
     /// Enqueue a job that was planned by a higher-level mailbox lifecycle
@@ -2572,7 +2572,9 @@ mod tests {
     #[test]
     fn submit_creates_a_job_in_the_queue() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
+        let receipt = dispatcher
+            .submit(&test_envelope("claude", "hello"), "claude", None)
+            .unwrap();
         assert_eq!(receipt.jobs.len(), 1);
         let job_id = &receipt.jobs[0].job_id;
         assert_eq!(receipt.jobs[0].status, JobStatus::Accepted);
@@ -2585,8 +2587,12 @@ mod tests {
     #[test]
     fn submit_second_job_while_first_is_pending_creates_queued_job() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let first = dispatcher.submit(&test_envelope("claude", "first"), "claude", None);
-        let second = dispatcher.submit(&test_envelope("claude", "second"), "claude", None);
+        let first = dispatcher
+            .submit(&test_envelope("claude", "first"), "claude", None)
+            .unwrap();
+        let second = dispatcher
+            .submit(&test_envelope("claude", "second"), "claude", None)
+            .unwrap();
         assert_eq!(first.jobs[0].status, JobStatus::Accepted);
         assert_eq!(second.jobs[0].status, JobStatus::Queued);
         assert_eq!(dispatcher.state.queue_depth("claude"), 2);
@@ -2596,7 +2602,9 @@ mod tests {
     #[test]
     fn tick_promotes_queued_job_to_running() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
+        let receipt = dispatcher
+            .submit(&test_envelope("claude", "hello"), "claude", None)
+            .unwrap();
         let job_id = receipt.jobs[0].job_id.clone();
 
         let started = dispatcher.tick();
@@ -2612,8 +2620,12 @@ mod tests {
     #[test]
     fn tick_only_starts_one_job_per_agent() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let first = dispatcher.submit(&test_envelope("claude", "first"), "claude", None);
-        let second = dispatcher.submit(&test_envelope("claude", "second"), "claude", None);
+        let first = dispatcher
+            .submit(&test_envelope("claude", "first"), "claude", None)
+            .unwrap();
+        let second = dispatcher
+            .submit(&test_envelope("claude", "second"), "claude", None)
+            .unwrap();
         let first_id = first.jobs[0].job_id.clone();
         let second_id = second.jobs[0].job_id.clone();
 
@@ -2655,7 +2667,9 @@ mod tests {
     #[test]
     fn cancel_queued_job_marks_it_cancelled() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
+        let receipt = dispatcher
+            .submit(&test_envelope("claude", "hello"), "claude", None)
+            .unwrap();
         let job_id = receipt.jobs[0].job_id.clone();
 
         let cancel_receipt = dispatcher.cancel(&job_id).unwrap();
@@ -2671,7 +2685,9 @@ mod tests {
     #[test]
     fn cancel_running_job_terminalizes_immediately() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
+        let receipt = dispatcher
+            .submit(&test_envelope("claude", "hello"), "claude", None)
+            .unwrap();
         let job_id = receipt.jobs[0].job_id.clone();
         dispatcher.tick();
 
@@ -2692,7 +2708,9 @@ mod tests {
     #[test]
     fn terminal_update_clears_active_job() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
+        let receipt = dispatcher
+            .submit(&test_envelope("claude", "hello"), "claude", None)
+            .unwrap();
         let job_id = receipt.jobs[0].job_id.clone();
         dispatcher.tick();
         assert_eq!(dispatcher.state.active_job("claude"), Some(job_id.as_str()));
@@ -2713,8 +2731,12 @@ mod tests {
     #[test]
     fn terminal_update_allows_next_queued_job_to_start() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let first = dispatcher.submit(&test_envelope("claude", "first"), "claude", None);
-        let second = dispatcher.submit(&test_envelope("claude", "second"), "claude", None);
+        let first = dispatcher
+            .submit(&test_envelope("claude", "first"), "claude", None)
+            .unwrap();
+        let second = dispatcher
+            .submit(&test_envelope("claude", "second"), "claude", None)
+            .unwrap();
         let first_id = first.jobs[0].job_id.clone();
         let second_id = second.jobs[0].job_id.clone();
 
@@ -2743,7 +2765,9 @@ mod tests {
     #[test]
     fn cancel_completed_job_errors() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
-        let receipt = dispatcher.submit(&test_envelope("claude", "hello"), "claude", None);
+        let receipt = dispatcher
+            .submit(&test_envelope("claude", "hello"), "claude", None)
+            .unwrap();
         let job_id = receipt.jobs[0].job_id.clone();
         dispatcher.tick();
         dispatcher.update_job_status(&job_id, JobStatus::Completed, None);

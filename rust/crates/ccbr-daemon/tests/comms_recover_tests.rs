@@ -54,7 +54,9 @@ fn healthy_dispatcher() -> JobDispatcher {
 #[test]
 fn comms_recover_does_not_cancel_healthy_running_job() {
     let mut dispatcher = healthy_dispatcher();
-    let receipt = dispatcher.submit(&envelope("agent1"), "codex", None);
+    let receipt = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap();
     let job_id = receipt.jobs[0].job_id.clone();
     dispatcher.tick();
 
@@ -69,7 +71,9 @@ fn comms_recover_does_not_cancel_healthy_running_job() {
 #[test]
 fn comms_recover_rejects_unknown_running_hint() {
     let mut dispatcher = healthy_dispatcher();
-    let receipt = dispatcher.submit(&envelope("agent1"), "codex", None);
+    let receipt = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap();
     let job_id = receipt.jobs[0].job_id.clone();
     dispatcher.tick();
 
@@ -104,13 +108,22 @@ fn dispatcher_with_attempts() -> (JobDispatcher, PathLayout, TempDir) {
 #[test]
 fn comms_recover_cancels_stale_running_and_starts_waiting_job() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_attempts();
-    let stuck = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+    let stuck = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
-    let waiting_1 = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+    let waiting_1 = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
-    let waiting_2 = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+    let waiting_2 = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick(); // stuck → running; waiting_1/2 queued
@@ -165,7 +178,10 @@ fn comms_recover_cancels_stale_running_and_starts_waiting_job() {
 #[test]
 fn comms_recover_is_idempotent_after_retry() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_attempts();
-    let job_id = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+    let job_id = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();
@@ -199,10 +215,16 @@ fn comms_recover_is_idempotent_after_retry() {
 #[test]
 fn comms_recover_accepts_provider_prompt_idle_hint() {
     let (mut dispatcher, layout, _dir) = dispatcher_with_attempts();
-    let stuck = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+    let stuck = dispatcher
+        .submit(&envelope("agent3"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
-    let waiting = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+    let waiting = dispatcher
+        .submit(&envelope("agent3"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();
@@ -252,7 +274,10 @@ fn comms_recover_accepts_provider_prompt_idle_hint() {
 #[test]
 fn comms_recover_accepts_provider_prompt_idle_stale_hint() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
-    let stuck = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+    let stuck = dispatcher
+        .submit(&envelope("agent3"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();
@@ -281,7 +306,10 @@ fn comms_recover_accepts_provider_prompt_idle_stale_hint() {
 #[test]
 fn comms_recover_accepts_provider_prompt_input_stuck_hint() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
-    let stuck = dispatcher.submit(&envelope("agent3"), "codex", None).jobs[0]
+    let stuck = dispatcher
+        .submit(&envelope("agent3"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();
@@ -337,6 +365,7 @@ fn comms_recover_reply_delivery_race_is_noop_after_delivery_completes() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
     let source = dispatcher
         .submit(&envelope_ask("agent2", "agent1"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -366,6 +395,7 @@ fn comms_recover_failed_reply_delivery_schedules_new_delivery() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
     let source = dispatcher
         .submit(&envelope_ask("agent2", "agent1"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -404,6 +434,7 @@ fn comms_recover_failed_reply_delivery_is_idempotent() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
     let source = dispatcher
         .submit(&envelope_ask("agent2", "agent1"), "codex", None)
+        .unwrap()
         .jobs[0]
         .job_id
         .clone();
@@ -453,13 +484,19 @@ fn comms_recover_releases_only_targeted_mailbox_head() {
     dispatcher.set_runtime_state("agent1", "idle", "healthy", "alive");
     dispatcher.set_runtime_state("agent2", "idle", "healthy", "alive");
 
-    let source = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+    let source = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();
     dispatcher.complete(&source, JobStatus::Incomplete, "manual_fail");
     // An unrelated job for another agent must be unaffected by recovery.
-    let unrelated = dispatcher.submit(&envelope("agent2"), "codex", None).jobs[0]
+    let unrelated = dispatcher
+        .submit(&envelope("agent2"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
 
@@ -493,7 +530,10 @@ fn comms_recover_releases_only_targeted_mailbox_head() {
 #[test]
 fn comms_recoverability_view_marks_recoverable_and_clears_after_recovery() {
     let (mut dispatcher, _layout, _dir) = dispatcher_with_attempts();
-    let source = dispatcher.submit(&envelope("agent1"), "codex", None).jobs[0]
+    let source = dispatcher
+        .submit(&envelope("agent1"), "codex", None)
+        .unwrap()
+        .jobs[0]
         .job_id
         .clone();
     dispatcher.tick();

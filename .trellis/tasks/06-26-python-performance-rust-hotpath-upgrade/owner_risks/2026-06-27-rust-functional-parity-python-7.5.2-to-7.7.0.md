@@ -376,3 +376,11 @@ P2 decision:
 
 - Python 7.7.0 helper/runtime-accelerator family is classified as covered by ccbr native Rust daemon architecture unless a helper exposes a user-visible contract not already covered.
 - Do not import Python `.ccb` runtime accelerator sidecar into ccbr. Share only narrow parser/observer logic later if a measured gap appears.
+
+## 2026-06-27 Non-mobile 1-4 closure update
+
+- Provider live acceptance is closed for the owner-approved providers only: `codex`, `kimi`, and `claude`.
+- Other providers remain ignored for current acceptance; sealed `zai` remains absent from default registries.
+- Callback validation owner gap found during live testing is fixed: invalid nested plain asks now return an RPC/dispatcher error instead of panicking the daemon.
+- Rolepack lifecycle is at receipt level through existing rolepack normalization/manifest/CLI tests; restart-adoption live proof is deferred unless rolepacks become an active production blocker.
+- P2 helper/accelerator classification is accepted: Python `.ccb` runtime accelerator is not imported into `ccbr`; native Rust `.ccbr` daemon architecture is the owner, with only narrow parser/observer sharing considered later if needed.

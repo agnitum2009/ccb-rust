@@ -103,7 +103,7 @@ mod tests {
             "codex",
             None,
         );
-        let job_id = receipt.jobs[0].job_id.clone();
+        let job_id = receipt.unwrap().jobs[0].job_id.clone();
         app.dispatcher.update_job_status(
             &job_id,
             JobStatus::Completed,

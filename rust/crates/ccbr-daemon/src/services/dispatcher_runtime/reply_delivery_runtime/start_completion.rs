@@ -123,6 +123,7 @@ mod tests {
     fn complete_reply_delivery_defer_when_provider_requests_dispatch_completion() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
         let receipt = dispatcher.submit(&test_envelope("claude"), "claude", None);
+        let receipt = receipt.unwrap();
         let job_id = &receipt.jobs[0].job_id;
         dispatcher.tick();
         let job = dispatcher.get(job_id).unwrap().clone();
@@ -145,6 +146,7 @@ mod tests {
     fn complete_reply_delivery_completes_active_mode() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
         let receipt = dispatcher.submit(&test_envelope("claude"), "claude", None);
+        let receipt = receipt.unwrap();
         let job_id = &receipt.jobs[0].job_id;
         dispatcher.tick();
         let job = dispatcher.get(job_id).unwrap().clone();
@@ -167,6 +169,7 @@ mod tests {
     fn complete_reply_delivery_fails_for_error_mode() {
         let mut dispatcher = JobDispatcher::new(vec!["claude".into()]);
         let receipt = dispatcher.submit(&test_envelope("claude"), "claude", None);
+        let receipt = receipt.unwrap();
         let job_id = &receipt.jobs[0].job_id;
         dispatcher.tick();
         let job = dispatcher.get(job_id).unwrap().clone();

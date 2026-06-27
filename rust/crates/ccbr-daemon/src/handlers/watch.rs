@@ -39,7 +39,7 @@ mod tests {
             StartFlowService::with_stub(),
             StopFlowService::with_stub(),
         );
-        app.dispatcher.submit(
+        let _ = app.dispatcher.submit(
             &MessageEnvelope {
                 project_id: "proj-1".into(),
                 to_agent: "agent1".into(),

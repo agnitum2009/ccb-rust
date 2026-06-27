@@ -121,7 +121,7 @@ mod tests {
             "claude",
             None,
         );
-        let job_id = receipt.jobs[0].job_id.clone();
+        let job_id = receipt.unwrap().jobs[0].job_id.clone();
         app.dispatcher.tick();
         app.dispatcher
             .update_job_status(&job_id, JobStatus::Completed, None);
@@ -180,7 +180,7 @@ target = "claude"
             "claude",
             None,
         );
-        let job_id = receipt.jobs[0].job_id.clone();
+        let job_id = receipt.unwrap().jobs[0].job_id.clone();
         app.dispatcher.tick();
 
         let result = handle_cancel(&mut app, &json!({"job_id": job_id})).unwrap();

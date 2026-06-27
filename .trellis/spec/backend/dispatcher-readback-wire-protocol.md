@@ -20,6 +20,7 @@
 - `inbox`: `{ "agent_name": "agent1", "detail": true|false|null }`.
 - `mailbox_head`: `{ "agent_name": "agent1" }`.
 - `ack`: `{ "agent_name": "agent1", "inbound_event_id": "iev_x"|null }`; legacy Rust `event_id` may remain as an alias.
+- `submit`: Python-compatible ask submission payload (`project_id`, `to_agent`, `from_actor`, `body`, optional callback fields).
 
 ### 3. Contracts
 
@@ -34,6 +35,7 @@
 - `retry` must resolve target as Python does: first `attempt_id`, then `job_id`. It must reject active attempts, reject completed attempts, require the latest attempt for the same message/agent, enqueue one retry job, record a retry attempt, and return `accepted_at`, `target`, `message_id`, `original_attempt_id`, `attempt_id`, `job_id`, `agent_name`, and `status`.
 - `inbox` and `mailbox_head` must read from mailbox-control state, not a dispatcher-only placeholder.
 - `ack` must accept the Python `inbound_event_id` field and acknowledge only the current reply head; Rust-local `event_id` is an alias, not the primary contract.
+- `submit` validation failures (for example plain nested ask from an active CCBR task without `--callback` or `--silence`) must return a daemon/RPC error. They must not panic, close the daemon socket, or stop `ccbrd`.
 
 ### 4. Validation & Error Matrix
 
@@ -57,6 +59,7 @@
 | `retry` failed latest attempt | Response includes new attempt/job ids and Python lifecycle fields |
 | `ack` with Python `inbound_event_id` | Acknowledges the current task reply and removes it from inbox |
 | `ack` missing agent | Error contains `ack requires agent_name` |
+| `submit` plain nested ask from active task without callback/silence | Error contains callback guidance; daemon remains alive |
 
 ### 5. Good / Base / Bad Cases
 
@@ -73,5 +76,6 @@
 - Unit: `handlers::trace::tests`.
 - Integration: `test_watch_returns_activity_lines_for_target`.
 - Integration: `test_queue_returns_actual_per_agent_state`, `test_trace_returns_job_history`, `test_cancel_updates_mailbox_state`, `test_ack_acknowledges_reply_event`.
+- Integration/unit: callback validation rejection returns `Err`, not panic.
 - Package: `cargo test -p ccbr-mailbox trace -- --test-threads=1`.
 - Package: `cargo test -p ccbr-daemon -- --test-threads=1`.
