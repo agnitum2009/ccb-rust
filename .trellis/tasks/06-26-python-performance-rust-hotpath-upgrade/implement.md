@@ -157,9 +157,22 @@ User requested that the live test use `/mnt/d/dapro-ass`. Result:
 - Fix landed in `ccbr-providers`: pane fallback now requires the current `request_anchor` to be present before accepting a ready prompt as a turn boundary.
 - Regression test: `test_pane_text_completion_waits_for_request_anchor`.
 - After-fix smoke no longer falsely completed; the job stayed `running`, then was cancelled and resources were reclaimed.
-- Remaining gap: full Codex reply delivery on `/mnt/d/dapro-ass` still did not complete with the requested token inside the bounded observation window.
+- Closed by follow-up resend smoke: single Codex reply delivery on `/mnt/d/dapro-ass` completed with the requested token; broader queued/callback/cancel matrix remains pending.
 
 Evidence summary: `evidence/dapro-ass-live-smoke-summary.md`.
+
+
+## 2026-06-27 `/mnt/d/dapro-ass` Codex resend smoke
+
+Follow-up fixed the remaining single-Codex delivery gap from the previous `/mnt/d/dapro-ass` smoke:
+
+- Runtime state now carries tmux socket fields for Codex active submissions.
+- Pending-anchor polling performs one bounded resend after Codex becomes ready if the request anchor is still absent.
+- Live smoke completed `job_a82175ce0592`; `agent2` inbox contained `CCBR_DAPRO_RESEND_SMOKE_1782556401`.
+- Shutdown/resource cleanup left no `/mnt/d/dapro-ass` ccbrd process and no ccbr runtime socket entries.
+- Remaining provider matrix: queued multi-ask ordering, callback chains, cancel/resubmit, and cross-provider variants.
+
+Evidence summary: `evidence/dapro-ass-codex-resend-smoke-summary.md`.
 
 ## Slice 0 validation evidence
 

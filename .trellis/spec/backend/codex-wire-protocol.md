@@ -21,6 +21,7 @@
 - Wrapped Codex prompts contain `<<BEGIN:req-xxxxxxxx>>` followed by the user body.
 - Python-style `submit` must drive the same provider-owned prompt dispatch path as Python CCB: when heartbeat promotes a queued Codex job to running, provider execution start wraps and sends the prompt.
 - Rust-only `ask` is a convenience endpoint; if provider execution already records `prompt_sent=true`, `ask` must not send the same prompt again.
+- If Codex startup consumes an early paste before a session event exists, active delivery may resend the same prompt once after the pane shows the ready prompt and before the current `request_anchor` is observed.
 - Codex session payloads used for pane dispatch must carry the workspace tmux socket path when a custom tmux socket is used.
 - Codex JSONL is authoritative when `session_path` points to an existing file.
 - `event_msg` with `payload.type = "user_message"` confirms anchor delivery when the text contains the exact `request_anchor`.
@@ -36,6 +37,7 @@
 | Isolated smoke root lacks `.codex/hooks` | reject the smoke as invalid; do not treat hook-blocked output as provider parity evidence |
 | `prompt_text` missing | daemon cannot deliver wrapped prompt; treat as protocol bug |
 | `submit` heartbeat starts Codex job | provider start sends one wrapped prompt to the target pane |
+| Prompt sent before Codex TUI is ready and anchor remains unseen | resend once after the pane shows ready prompt; mark `prompt_resent_after_ready=true` |
 | provider start records `prompt_sent=true` | Rust-only `ask` reports delivered without duplicate pane send |
 | JSONL exists but has no new terminal event | keep job running; do not complete from pane text |
 | JSONL contains `task_complete.last_agent_message` | complete job and store that text in sender inbox |
@@ -52,6 +54,7 @@
 
 - Unit: named `.ccbr/.codex-<agent>-session` is chosen and `prompt_text` equals the wrapped prompt.
 - Unit: provider `start` sends the wrapped prompt to a tmux-backed Codex session and records `prompt_sent=true`.
+- Unit: pending-anchor polling resends once after Codex ready prompt when the current anchor is still unseen.
 - Unit: daemon `submit` + heartbeat sends the wrapped prompt through provider execution.
 - Unit: request anchor matching accepts the actual `<<BEGIN:req-...>>` text.
 - Unit: when JSONL exists, pane fallback must not complete before `task_complete`.
@@ -95,4 +98,10 @@ Copy or otherwise preserve `.codex/hooks` in the smoke root, then require `UserP
 
 ```text
 Pane fallback waits for the current `request_anchor` before treating `›` as this turn boundary.
+```
+
+#### Correct
+
+```text
+Pending-anchor delivery may resend once after Codex becomes ready, then waits for JSONL/task completion.
 ```

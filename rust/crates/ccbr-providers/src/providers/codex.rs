@@ -18,7 +18,7 @@ use ccbr_provider_core::protocol::{
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
 
-use crate::execution::target::resolve_prompt_target_for_session;
+use crate::execution::target::{resolve_prompt_target, resolve_prompt_target_for_session};
 use crate::execution::{
     build_item, no_wrap_requested, passive_submission, request_anchor_from_runtime_state,
     ExecutionAdapter, ProviderPollResult, ProviderRuntimeContext, ProviderSubmission,
@@ -394,6 +394,32 @@ fn start_active_submission(
         "delivery_target_session_path".to_string(),
         Value::String(session_path),
     );
+    if let Some(session) = session.as_ref() {
+        if let Some(socket_path) = session.data.get("tmux_socket_path").and_then(Value::as_str) {
+            if !socket_path.trim().is_empty() {
+                runtime_state.insert(
+                    "tmux_socket_path".to_string(),
+                    Value::String(socket_path.to_string()),
+                );
+                runtime_state.insert(
+                    "socket_path".to_string(),
+                    Value::String(socket_path.to_string()),
+                );
+            }
+        }
+        if let Some(socket_name) = session.data.get("tmux_socket_name").and_then(Value::as_str) {
+            if !socket_name.trim().is_empty() {
+                runtime_state.insert(
+                    "tmux_socket_name".to_string(),
+                    Value::String(socket_name.to_string()),
+                );
+            }
+        }
+        runtime_state.insert(
+            "backend_type".to_string(),
+            Value::String("tmux".to_string()),
+        );
+    }
     runtime_state.insert(
         "delivery_confirmed_at".to_string(),
         Value::String(String::new()),
@@ -480,6 +506,10 @@ fn resolved_delivery_timeout_s() -> f64 {
 fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<ProviderPollResult> {
     if get_str(&submission.runtime_state, "mode") != "active" {
         return None;
+    }
+
+    if let Some(resend) = resend_prompt_after_ready(submission, now) {
+        return Some(resend);
     }
 
     if let Some(failure) = delivery_acceptance_guard(submission, now) {
@@ -1234,6 +1264,48 @@ fn delivery_acceptance_guard(
     ))
 }
 
+fn resend_prompt_after_ready(
+    submission: &ProviderSubmission,
+    now: &str,
+) -> Option<ProviderPollResult> {
+    let state = &submission.runtime_state;
+    if get_str(state, "mode") != "active"
+        || get_bool(state, "anchor_seen")
+        || get_bool(state, "no_wrap")
+        || get_str(state, "delivery_state") != "pending_anchor"
+        || !get_bool(state, "prompt_sent")
+        || get_bool(state, "prompt_resent_after_ready")
+    {
+        return None;
+    }
+    let request_anchor = get_str(state, "request_anchor");
+    let pane_id = get_str(state, "delivery_target_pane_id");
+    let prompt = get_str(state, "prompt_text");
+    if request_anchor.is_empty() || pane_id.is_empty() || prompt.is_empty() {
+        return None;
+    }
+    let content = delivery_pane_content(state)?;
+    if content.contains(&request_anchor) || !content.contains('›') {
+        return None;
+    }
+    resolve_prompt_target(state)?
+        .send_text(&pane_id, &prompt)
+        .ok()?;
+
+    let mut updated = submission.clone();
+    updated
+        .runtime_state
+        .insert("prompt_resent_after_ready".to_string(), Value::Bool(true));
+    updated
+        .runtime_state
+        .insert("prompt_sent_at".to_string(), Value::String(now.to_string()));
+    updated.runtime_state.insert(
+        "delivery_started_at".to_string(),
+        Value::String(now.to_string()),
+    );
+    Some(ProviderPollResult::new(updated, Vec::new(), None))
+}
+
 fn delivery_failure_kind(
     state: &HashMap<String, Value>,
     submission: &ProviderSubmission,
@@ -1284,7 +1356,10 @@ fn delivery_pane_content(state: &HashMap<String, Value>) -> Option<String> {
         return Some(snapshot.to_string());
     }
     let pane_id = get_str(state, "delivery_target_pane_id");
-    let socket = get_str(state, "socket_path");
+    let mut socket = get_str(state, "socket_path");
+    if socket.is_empty() {
+        socket = get_str(state, "tmux_socket_path");
+    }
     if pane_id.is_empty() || socket.is_empty() {
         return None;
     }
@@ -2910,6 +2985,69 @@ mod tests {
         };
 
         assert!(poll_pane_text_completion_codex(&submission, "2026-04-04T10:00:05Z").is_none());
+    }
+
+    #[test]
+    fn test_pending_anchor_resends_once_after_codex_ready() {
+        let mut state = HashMap::new();
+        state.insert("mode".to_string(), Value::String("active".to_string()));
+        state.insert(
+            "request_anchor".to_string(),
+            Value::String("req-anchor".to_string()),
+        );
+        state.insert(
+            "delivery_state".to_string(),
+            Value::String("pending_anchor".to_string()),
+        );
+        state.insert(
+            "delivery_target_pane_id".to_string(),
+            Value::String("%1".to_string()),
+        );
+        state.insert("prompt_sent".to_string(), Value::Bool(true));
+        state.insert(
+            "prompt_text".to_string(),
+            Value::String("<<BEGIN:req-anchor>>\nReply exactly: token".to_string()),
+        );
+        state.insert(
+            "pane_content_snapshot".to_string(),
+            Value::String(">_ OpenAI Codex\n› Use /skills".to_string()),
+        );
+
+        let submission = ProviderSubmission {
+            job_id: "j1".to_string(),
+            agent_name: "agent1".to_string(),
+            provider: PROVIDER_NAME.to_string(),
+            accepted_at: "2026-04-04T10:00:00Z".to_string(),
+            ready_at: "2026-04-04T10:00:00Z".to_string(),
+            source_kind: ccbr_completion::models::CompletionSourceKind::ProtocolEventStream,
+            reply: String::new(),
+            status: CompletionStatus::Incomplete,
+            reason: "in_progress".to_string(),
+            confidence: CompletionConfidence::Observed,
+            diagnostics: None,
+            runtime_state: state,
+        };
+        let recorder = RecordingPromptTarget::default();
+        let sent = recorder.sent.clone();
+        let target: Arc<dyn PromptTarget> = Arc::new(recorder);
+
+        let result = with_prompt_target_override(target, || {
+            poll_submission(&submission, "2026-04-04T10:00:05Z").unwrap()
+        });
+
+        assert!(result.decision.is_none());
+        assert_eq!(
+            result
+                .submission
+                .runtime_state
+                .get("prompt_resent_after_ready")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        let sent = sent.lock().unwrap();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].0, "%1");
+        assert!(sent[0].1.contains("req-anchor"));
     }
 
     fn snapshot_map(content: &str) -> HashMap<String, Value> {
