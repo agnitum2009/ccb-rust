@@ -109,6 +109,7 @@ fn dispatch(cmd: ParsedCommand) -> i32 {
         ParsedCommand::Roles(roles) => commands::roles(&roles, &project_root),
         ParsedCommand::Fault(fault) => commands::fault(&client, &fault),
         ParsedCommand::Repair(repair) => commands::repair(&client, &repair),
+        ParsedCommand::Mobile(_) => Ok("Command not yet implemented: mobile gateway\n".to_string()),
         ParsedCommand::Update(_) => commands::update(),
         ParsedCommand::Uninstall(_) => commands::uninstall(),
         ParsedCommand::Reinstall(_) => commands::reinstall(),
@@ -157,6 +158,7 @@ fn project_for(cmd: &ParsedCommand) -> &Option<String> {
         ParsedCommand::Roles(c) => &c.project,
         ParsedCommand::Fault(c) => &c.project,
         ParsedCommand::Repair(c) => &c.project,
+        ParsedCommand::Mobile(c) => &c.project,
         ParsedCommand::Reload(c) => &c.project,
         ParsedCommand::Restart(c) => &c.project,
         ParsedCommand::Status(c) => &c.project,
@@ -313,6 +315,7 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
         "roles" => parse_roles(&filtered[1..], project),
         "fault" => parse_fault(&filtered[1..], project),
         "repair" => parse_repair(&filtered[1..], project),
+        "mobile" => parse_mobile(&filtered[1..], project),
         "autonew" => parse_autonew(&filtered[1..], project),
         "ctx-transfer" => parse_ctx_transfer(&filtered[1..], project),
         other => {
@@ -656,6 +659,94 @@ fn parse_repair(args: &[&String], project: Option<String>) -> Result<ParsedComma
         _ => return Err("repair supports: ack, retry, resubmit".to_string()),
     };
     Ok(ParsedCommand::Repair(ParsedRepair { project, action }))
+}
+
+fn parse_mobile(args: &[&String], project: Option<String>) -> Result<ParsedCommand, String> {
+    if args.is_empty() {
+        return Err("mobile requires one of: serve, devices, revoke".to_string());
+    }
+    match args[0].as_str() {
+        "devices" => {
+            if args.len() > 1 {
+                return Err("mobile devices takes no extra arguments".to_string());
+            }
+            Ok(ParsedCommand::Mobile(ParsedMobile {
+                project,
+                action: "devices".to_string(),
+                listen: None,
+                public_url: None,
+                route_provider: None,
+                device_id: None,
+            }))
+        }
+        "revoke" => {
+            let device_id = args.get(1).map(|s| s.trim()).unwrap_or("");
+            if device_id.is_empty() || args.len() > 2 {
+                return Err("mobile revoke requires <device_id>".to_string());
+            }
+            Ok(ParsedCommand::Mobile(ParsedMobile {
+                project,
+                action: "revoke".to_string(),
+                listen: None,
+                public_url: None,
+                route_provider: None,
+                device_id: Some(device_id.to_string()),
+            }))
+        }
+        "serve" => {
+            let mut listen = "127.0.0.1:8787".to_string();
+            let mut public_url: Option<String> = None;
+            let mut route_provider = "lan".to_string();
+            let mut i = 1;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--listen" => {
+                        let value = args
+                            .get(i + 1)
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .ok_or_else(|| "--listen requires a value".to_string())?;
+                        listen = value.to_string();
+                        i += 2;
+                    }
+                    "--public-url" => {
+                        let value = args
+                            .get(i + 1)
+                            .map(|s| s.trim())
+                            .ok_or_else(|| "--public-url requires a value".to_string())?;
+                        public_url = if value.is_empty() {
+                            None
+                        } else {
+                            Some(value.to_string())
+                        };
+                        i += 2;
+                    }
+                    "--route-provider" => {
+                        let value = args
+                            .get(i + 1)
+                            .map(|s| s.trim())
+                            .filter(|s| !s.is_empty())
+                            .ok_or_else(|| "--route-provider requires a value".to_string())?;
+                        if !matches!(value, "lan" | "tailnet" | "cloudflare_tunnel" | "relay") {
+                            return Err("mobile serve --route-provider must be one of: lan, tailnet, cloudflare_tunnel, relay".to_string());
+                        }
+                        route_provider = value.to_string();
+                        i += 2;
+                    }
+                    other => return Err(format!("invalid mobile serve argument: {other}")),
+                }
+            }
+            Ok(ParsedCommand::Mobile(ParsedMobile {
+                project,
+                action: "serve".to_string(),
+                listen: Some(listen),
+                public_url,
+                route_provider: Some(route_provider),
+                device_id: None,
+            }))
+        }
+        _ => Err("mobile only supports: serve, devices, revoke".to_string()),
+    }
 }
 
 fn position_value(s: &str, args: &[&String]) -> Option<String> {

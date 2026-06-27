@@ -204,3 +204,53 @@ fn test_cli_version_update_uninstall_reinstall() {
         "reinstall should succeed"
     );
 }
+
+#[test]
+fn test_cli_mobile_parser_receipts() {
+    let dir = TempDir::new().unwrap();
+    let project = dir.path().to_str().unwrap();
+
+    assert_eq!(
+        run(&[
+            "--project",
+            project,
+            "mobile",
+            "serve",
+            "--listen",
+            "127.0.0.1:0",
+            "--public-url",
+            "https://example.test",
+            "--route-provider",
+            "relay",
+        ]),
+        0,
+        "mobile serve should parse as mobile, not start an agent"
+    );
+    assert_eq!(
+        run(&["--project", project, "mobile", "devices"]),
+        0,
+        "mobile devices should parse"
+    );
+    assert_eq!(
+        run(&["--project", project, "mobile", "revoke", "device-1"]),
+        0,
+        "mobile revoke should parse"
+    );
+    assert_eq!(
+        run(&["--project", project, "mobile"]),
+        2,
+        "mobile without action should fail like Python"
+    );
+    assert_eq!(
+        run(&[
+            "--project",
+            project,
+            "mobile",
+            "serve",
+            "--route-provider",
+            "bad",
+        ]),
+        2,
+        "mobile serve rejects unknown route providers"
+    );
+}

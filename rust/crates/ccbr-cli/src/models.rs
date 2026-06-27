@@ -15,8 +15,9 @@ pub use crate::models_mailbox::{
 };
 pub use crate::models_start::{
     ParsedCleanupCommand, ParsedClearCommand, ParsedConfigValidateCommand, ParsedDoctorCommand,
-    ParsedKillCommand, ParsedLogsCommand, ParsedMaintenanceCommand, ParsedPingCommand,
-    ParsedPsCommand, ParsedReloadCommand, ParsedRestartCommand, ParsedStartCommand,
+    ParsedKillCommand, ParsedLogsCommand, ParsedMaintenanceCommand, ParsedMobileCommand,
+    ParsedPingCommand, ParsedPsCommand, ParsedReloadCommand, ParsedRestartCommand,
+    ParsedStartCommand,
 };
 
 /// Union of all parsed CLI commands.
@@ -35,6 +36,8 @@ pub enum ParsedCommand {
     Restart(ParsedRestartCommand),
     #[serde(rename = "maintenance")]
     Maintenance(ParsedMaintenanceCommand),
+    #[serde(rename = "mobile")]
+    Mobile(ParsedMobileCommand),
     #[serde(rename = "cleanup")]
     Cleanup(ParsedCleanupCommand),
     #[serde(rename = "ps")]
@@ -95,6 +98,7 @@ impl ParsedCommand {
             Self::Doctor(c) => c.project.as_deref(),
             Self::Logs(c) => c.project.as_deref(),
             Self::Ping(c) => c.project.as_deref(),
+            Self::Mobile(c) => c.project.as_deref(),
             Self::Ask(c) => c.project.as_deref(),
             Self::Cancel(c) => c.project.as_deref(),
             Self::Pend(c) => c.project.as_deref(),
@@ -127,6 +131,7 @@ impl ParsedCommand {
             Self::Doctor(c) => &c.kind,
             Self::Logs(c) => &c.kind,
             Self::Ping(c) => &c.kind,
+            Self::Mobile(c) => &c.kind,
             Self::Ask(c) => &c.kind,
             Self::Cancel(c) => &c.kind,
             Self::Pend(c) => &c.kind,

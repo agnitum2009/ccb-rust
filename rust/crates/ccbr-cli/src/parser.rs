@@ -145,6 +145,10 @@ pub enum Commands {
         #[command(subcommand)]
         action: RepairAction,
     },
+    Mobile {
+        #[command(subcommand)]
+        action: MobileAction,
+    },
     Autonew {
         provider: String,
     },
@@ -237,6 +241,22 @@ pub enum RepairAction {
     },
 }
 
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize)]
+pub enum MobileAction {
+    Serve {
+        #[arg(long, default_value = "127.0.0.1:8787")]
+        listen: String,
+        #[arg(long = "public-url")]
+        public_url: Option<String>,
+        #[arg(long = "route-provider", default_value = "lan")]
+        route_provider: String,
+    },
+    Devices,
+    Revoke {
+        device_id: String,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum ParsedCommand {
@@ -266,6 +286,7 @@ pub enum ParsedCommand {
     Roles(ParsedRoles),
     Fault(ParsedFault),
     Repair(ParsedRepair),
+    Mobile(ParsedMobile),
     Reload(ParsedReload),
     Restart(ParsedRestart),
     Status(ParsedStatus),
@@ -463,6 +484,16 @@ pub struct ParsedFault {
 pub struct ParsedRepair {
     pub project: Option<String>,
     pub action: RepairAction,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParsedMobile {
+    pub project: Option<String>,
+    pub action: String,
+    pub listen: Option<String>,
+    pub public_url: Option<String>,
+    pub route_provider: Option<String>,
+    pub device_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

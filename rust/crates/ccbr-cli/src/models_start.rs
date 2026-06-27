@@ -141,6 +141,41 @@ impl ParsedMaintenanceCommand {
     }
 }
 
+/// Parsed `mobile` command.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParsedMobileCommand {
+    pub project: Option<String>,
+    pub action: String,
+    #[serde(default)]
+    pub listen: Option<String>,
+    #[serde(default)]
+    pub public_url: Option<String>,
+    #[serde(default)]
+    pub route_provider: Option<String>,
+    #[serde(default)]
+    pub device_id: Option<String>,
+    #[serde(default = "default_mobile_kind")]
+    pub kind: String,
+}
+
+fn default_mobile_kind() -> String {
+    "mobile".into()
+}
+
+impl ParsedMobileCommand {
+    pub fn new(project: Option<String>, action: String) -> Self {
+        Self {
+            project,
+            action,
+            listen: None,
+            public_url: None,
+            route_provider: None,
+            device_id: None,
+            kind: "mobile".into(),
+        }
+    }
+}
+
 /// Parsed `cleanup` command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ParsedCleanupCommand {

@@ -139,3 +139,14 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
   4. focus/lifecycle/terminal mutation endpoints after read-only contract is green;
   5. relay harness last.
 - Non-claim: this slice does not implement mobile gateway. It prevents a fake partial implementation by naming the real owner surfaces first.
+
+## Slice 6 mobile parser/model receipt
+
+- Rust CLI now recognizes `mobile` as a first-class command instead of treating it as a start-agent token.
+- Parsed command coverage matches the Python 7.7.0 parser contract for:
+  - `mobile serve [--listen <addr>] [--public-url <url>] [--route-provider lan|tailnet|cloudflare_tunnel|relay]`
+  - `mobile devices`
+  - `mobile revoke <device_id>`
+- `crate::models::ParsedCommand` also has a `Mobile(ParsedMobileCommand)` variant for Python dataclass parity.
+- Runtime service remains intentionally unimplemented and returns `Command not yet implemented: mobile gateway`; gateway state/API work remains in later slices.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli test_cli_mobile_parser_receipts -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`.
