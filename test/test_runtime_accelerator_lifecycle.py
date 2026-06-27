@@ -7,6 +7,7 @@ from ccbd.app_runtime.lifecycle import _runtime_accelerator_startup_actions
 from runtime_accelerator.lifecycle import (
     RuntimeAcceleratorHandle,
     maybe_start_runtime_accelerator,
+    restart_runtime_accelerator_if_crashed,
     stop_runtime_accelerator,
 )
 
@@ -98,6 +99,26 @@ def test_runtime_accelerator_start_and_stop_are_owned_by_handle(monkeypatch, tmp
     assert fake_process.terminated is True
     assert fake_process.killed is False
     assert not socket_path.exists()
+
+
+def test_runtime_accelerator_restarts_owned_crashed_process(monkeypatch, tmp_path: Path) -> None:
+    old_process = FakeProcess()
+    old_process.returncode = 1
+    new_process = FakeProcess()
+    socket_path = tmp_path / "accelerator.sock"
+
+    monkeypatch.setenv("CCB_RUNTIME_ACCELERATOR_CODEX", "1")
+    monkeypatch.setenv("CCB_RUNTIME_ACCELERATOR_SOCKET", str(socket_path))
+    monkeypatch.setattr("runtime_accelerator.lifecycle.accelerator_binary", lambda: "/bin/fake")
+    monkeypatch.setattr("runtime_accelerator.lifecycle.wait_for_socket", lambda *args, **kwargs: True)
+    monkeypatch.setattr("runtime_accelerator.lifecycle.subprocess.Popen", lambda *args, **kwargs: new_process)
+
+    handle = RuntimeAcceleratorHandle(True, socket_path, process=old_process)
+    restarted = restart_runtime_accelerator_if_crashed(handle, tmp_path)
+
+    assert restarted is not None
+    assert restarted.process is new_process
+    assert restarted.started is True
 
 
 def test_ccbd_startup_actions_record_started_or_fallback() -> None:

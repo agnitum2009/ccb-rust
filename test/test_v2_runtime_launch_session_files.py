@@ -43,6 +43,49 @@ def test_write_session_file_persists_ccb_session_id_only(tmp_path: Path) -> None
     assert data["codex_session_id"] == "provider-sid"
 
 
+def test_write_session_file_keeps_project_tmux_socket_for_kimi_payload(tmp_path: Path) -> None:
+    ccb_dir = tmp_path / ".ccb"
+    ccb_dir.mkdir(parents=True, exist_ok=True)
+
+    context = SimpleNamespace(
+        paths=SimpleNamespace(ccb_dir=ccb_dir),
+        project=SimpleNamespace(project_id="proj-1", project_root=tmp_path),
+    )
+    spec = SimpleNamespace(name="kimi1", provider="kimi")
+    plan = SimpleNamespace(workspace_path=tmp_path / "workspace")
+    runtime_dir = ccb_dir / "runtime" / "kimi1"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    run_cwd = tmp_path / "workspace"
+    run_cwd.mkdir(parents=True, exist_ok=True)
+    tmux_socket_path = ccb_dir / "ccbd" / "tmux.sock"
+
+    session_path = write_session_file(
+        context=context,
+        spec=spec,
+        plan=plan,
+        runtime_dir=runtime_dir,
+        run_cwd=run_cwd,
+        pane_id="%9",
+        tmux_socket_name=None,
+        tmux_socket_path=str(tmux_socket_path),
+        pane_title_marker="CCB-kimi1",
+        start_cmd="kimi",
+        launch_session_id="ccb-kimi1-123",
+        provider_payload={
+            "ccb_session_id": "ccb-kimi1-123",
+            "agent_name": "kimi1",
+            "terminal": "tmux",
+            "pane_id": "%9",
+            "kimi_context_path": str(runtime_dir / "home" / "CCB_KIMI_CONTEXT.md"),
+        },
+    )
+
+    data = json.loads(session_path.read_text(encoding="utf-8"))
+    assert data["tmux_socket_path"] == str(tmux_socket_path)
+    assert data["pane_id"] == "%9"
+    assert data["kimi_context_path"].endswith("CCB_KIMI_CONTEXT.md")
+
+
 def test_write_session_file_skips_stale_codex_resume_binding_without_bound_authority(tmp_path: Path) -> None:
     ccb_dir = tmp_path / ".ccb"
     ccb_dir.mkdir(parents=True, exist_ok=True)

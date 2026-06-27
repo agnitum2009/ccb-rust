@@ -87,9 +87,22 @@ def stop_runtime_accelerator(handle: RuntimeAcceleratorHandle | None) -> None:
             pass
 
 
+def restart_runtime_accelerator_if_crashed(
+    handle: RuntimeAcceleratorHandle | None,
+    project_root: str | Path,
+) -> RuntimeAcceleratorHandle | None:
+    if handle is None or not handle.enabled or handle.started:
+        return handle
+    if handle.process is None:
+        return handle
+    stop_runtime_accelerator(handle)
+    return maybe_start_runtime_accelerator(project_root)
+
+
 __all__ = [
     "RuntimeAcceleratorHandle",
     "maybe_start_runtime_accelerator",
+    "restart_runtime_accelerator_if_crashed",
     "stop_runtime_accelerator",
     "wait_for_socket",
 ]

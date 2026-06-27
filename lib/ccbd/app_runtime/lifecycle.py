@@ -7,7 +7,11 @@ from agents.models import AgentState, RuntimeBindingSource, normalize_runtime_bi
 from ccbd.models import CcbdShutdownReport, CcbdStartupReport, cleanup_summaries_from_objects
 from ccbd.services.lifecycle import build_lifecycle, current_socket_inode
 from ccbd.stop_flow import build_shutdown_runtime_snapshots
-from runtime_accelerator.lifecycle import maybe_start_runtime_accelerator, stop_runtime_accelerator
+from runtime_accelerator.lifecycle import (
+    maybe_start_runtime_accelerator,
+    restart_runtime_accelerator_if_crashed,
+    stop_runtime_accelerator,
+)
 from storage.path_helpers import socket_placement_payload
 
 from .request_guard import lifecycle_is_stopping
@@ -84,6 +88,10 @@ def start(app):
 def heartbeat(app):
     started = monotonic()
     try:
+        app.runtime_accelerator = restart_runtime_accelerator_if_crashed(
+            getattr(app, 'runtime_accelerator', None),
+            app.project_root,
+        )
         failures = ()
         if _begin_maintenance_tick(app):
             try:
