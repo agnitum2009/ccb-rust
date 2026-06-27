@@ -178,3 +178,15 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Service capabilities preserve Python capability split: base `http_json`/`project_view`, plus pairing/device/lifecycle/focus/terminal/file capabilities only when a pairing store is configured.
 - This is still service-contract only; HTTP server binding, bearer auth dispatch, mutation routes, terminal routes, and relay remain later slices.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.
+
+## Slice 9 mobile dispatch/auth receipt
+
+- Rust mobile gateway service now has route-level dispatch contract for the first Python 7.7.0 authenticated surfaces, still without binding a real HTTP server:
+  - `GET /v1/health` and `GET /v1/projects`;
+  - authenticated `GET /v1/projects/{project_id}/view`;
+  - authenticated `GET /v1/devices/me`;
+  - unauthenticated `POST /v1/pairing/claim`;
+  - bearer-authenticated self `POST /v1/devices/{device_id}/revoke`.
+- Pairing store now supports Python-compatible device self-revoke (`self_revoked`) and rejects cross-device revoke with status 403 / message `device can only revoke itself in G2`.
+- This still does not bind an HTTP socket and does not implement lifecycle/focus/terminal/message/file/relay mutation routes.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.

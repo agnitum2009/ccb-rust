@@ -128,3 +128,89 @@ fn mobile_gateway_project_view_redacts_namespace_private_fields() {
     assert_eq!(err.status_code, 404);
     assert_eq!(err.message, "unknown project");
 }
+
+#[test]
+fn mobile_gateway_dispatch_claims_pairing_and_authenticates_view_routes() {
+    let tmp = TempDir::new().unwrap();
+    let service =
+        MobileGatewayService::current_project("proj-1", tmp.path(), ok_client(), Some(tmp.path()))
+            .unwrap();
+    let pairing = service
+        .create_pairing_payload("http://127.0.0.1:8787", Some("lan"), ["view"], Some(600))
+        .unwrap();
+
+    let (claim_status, claimed) = service
+        .dispatch_post(
+            "/v1/pairing/claim",
+            &json!({
+                "pairing_code": pairing["pairing_code"],
+                "device_name": "Phone",
+                "device_id": "dev-1",
+            }),
+            None,
+        )
+        .unwrap();
+    assert_eq!(claim_status, 201);
+    let token = claimed["device_token"].as_str().unwrap();
+
+    let unauth = service
+        .dispatch_get("/v1/projects/proj-1/view", None)
+        .unwrap_err();
+    assert_eq!(unauth.status_code, 401);
+
+    let (view_status, view) = service
+        .dispatch_get("/v1/projects/proj-1/view", Some(token))
+        .unwrap();
+    assert_eq!(view_status, 200);
+    assert!(!view["view"]["namespace"]
+        .as_object()
+        .unwrap()
+        .contains_key("socket_path"));
+
+    let (me_status, me) = service.dispatch_get("/v1/devices/me", Some(token)).unwrap();
+    assert_eq!(me_status, 200);
+    assert_eq!(me["status"], "ok");
+    assert_eq!(me["device"]["device_id"], "dev-1");
+}
+
+#[test]
+fn mobile_gateway_dispatch_self_revoke_preserves_python_error_boundary() {
+    let tmp = TempDir::new().unwrap();
+    let service =
+        MobileGatewayService::current_project("proj-1", tmp.path(), ok_client(), Some(tmp.path()))
+            .unwrap();
+    let pairing = service
+        .create_pairing_payload("http://127.0.0.1:8787", Some("lan"), ["view"], Some(600))
+        .unwrap();
+    let (_, claimed) = service
+        .dispatch_post(
+            "/v1/pairing/claim",
+            &json!({
+                "pairing_code": pairing["pairing_code"],
+                "device_name": "Phone",
+                "device_id": "dev-1",
+            }),
+            None,
+        )
+        .unwrap();
+    let token = claimed["device_token"].as_str().unwrap();
+
+    let wrong_device = service
+        .dispatch_post("/v1/devices/dev-2/revoke", &json!({}), Some(token))
+        .unwrap_err();
+    assert_eq!(wrong_device.status_code, 403);
+    assert_eq!(wrong_device.message, "device can only revoke itself in G2");
+
+    let (status, revoked) = service
+        .dispatch_post("/v1/devices/dev-1/revoke", &json!({}), Some(token))
+        .unwrap();
+    assert_eq!(status, 200);
+    assert_eq!(revoked["status"], "revoked");
+    assert_eq!(revoked["device"]["revoked"], true);
+
+    let revoked_token = service
+        .dispatch_get("/v1/devices/me", Some(token))
+        .unwrap_err();
+    assert_eq!(revoked_token.status_code, 401);
+    assert_eq!(revoked_token.message, "device token revoked");
+}

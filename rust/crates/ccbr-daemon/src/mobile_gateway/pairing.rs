@@ -370,6 +370,34 @@ impl MobileGatewayPairingStore {
         ))
     }
 
+    pub fn revoke_device(&self, device_id: &str, device_token: &str) -> Result<Value> {
+        let requested = clean_id(device_id);
+        if requested.is_empty() {
+            return Err(MobileGatewayPairingError::new(
+                "device_id is required",
+                400,
+                "missing_device_id",
+            ));
+        }
+        let auth = self.authenticate_device(device_token, std::iter::empty::<&str>())?;
+        if auth.device_id() != requested {
+            self.append_audit(json!({
+                "event": "device_revoke_denied",
+                "result": "denied",
+                "project_id": value_str(&auth.record, "project_id"),
+                "device_id": auth.device_id(),
+                "target_device_id": requested,
+                "reason": "self_revoke_only",
+            }))?;
+            return Err(MobileGatewayPairingError::new(
+                "device can only revoke itself in G2",
+                403,
+                "self_revoke_only",
+            ));
+        }
+        self.revoke_device_record(&requested, Some(&auth.device_id()), "self_revoked")
+    }
+
     pub fn list_devices(&self) -> Vec<Value> {
         self.read_devices()
             .iter()

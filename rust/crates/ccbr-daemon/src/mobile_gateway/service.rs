@@ -4,7 +4,7 @@ use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Value};
 use thiserror::Error;
 
-use super::pairing::MobileGatewayPairingStore;
+use super::pairing::{MobileGatewayPairingError, MobileGatewayPairingStore};
 
 const SCHEMA_VERSION: i64 = 1;
 const BASE_CAPABILITIES: &[&str] = &["http_json", "project_view"];
@@ -271,6 +271,117 @@ impl<C: MobileGatewayProjectClient> MobileGatewayService<C> {
         Ok(redact_project_view_payload(&payload))
     }
 
+    pub fn create_pairing_payload(
+        &self,
+        gateway_url: &str,
+        route_provider: Option<&str>,
+        scopes: impl IntoIterator<Item = impl AsRef<str>>,
+        expires_seconds: Option<i64>,
+    ) -> Result<Value> {
+        let store = self.require_pairing_store()?;
+        store
+            .write_gateway_state(
+                &self.project_id,
+                gateway_url,
+                route_provider.unwrap_or("lan"),
+                self.capabilities(),
+            )
+            .map_err(pairing_error)?;
+        store
+            .create_pairing_payload(
+                &self.project_id,
+                gateway_url,
+                route_provider,
+                scopes,
+                expires_seconds,
+            )
+            .map_err(pairing_error)
+    }
+
+    pub fn dispatch_get(&self, path: &str, bearer_token: Option<&str>) -> Result<(u16, Value)> {
+        let route = route_path(path);
+        if route == "/v1/health" {
+            let payload = self.health_payload();
+            let status = if payload.get("status").and_then(Value::as_str) == Some("degraded") {
+                503
+            } else {
+                200
+            };
+            return Ok((status, payload));
+        }
+        if route == "/v1/projects" {
+            return Ok((200, self.projects_payload()));
+        }
+        if let Some(project_id) = project_view_route(&route) {
+            self.authenticate(bearer_token, ["view"])?;
+            return Ok((200, self.project_view_payload(&project_id)?));
+        }
+        if route == "/v1/devices/me" {
+            let device = self.authenticate(bearer_token, ["view"])?;
+            return Ok((
+                200,
+                json!({
+                    "schema_version": SCHEMA_VERSION,
+                    "status": "ok",
+                    "device": device.public_payload(),
+                }),
+            ));
+        }
+        Err(MobileGatewayError::new("not found", 404))
+    }
+
+    pub fn dispatch_post(
+        &self,
+        path: &str,
+        body: &Value,
+        bearer_token: Option<&str>,
+    ) -> Result<(u16, Value)> {
+        let route = route_path(path);
+        if route == "/v1/pairing/claim" {
+            let payload = body.as_object();
+            let pairing_code = payload
+                .and_then(|obj| obj.get("pairing_code"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let device_name = payload
+                .and_then(|obj| obj.get("device_name"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            let device_id = payload
+                .and_then(|obj| obj.get("device_id"))
+                .and_then(Value::as_str);
+            let result = self
+                .require_pairing_store()?
+                .claim_pairing(pairing_code, device_name, device_id)
+                .map_err(pairing_error)?;
+            return Ok((201, result));
+        }
+        if let Some(device_id) = device_revoke_route(&route) {
+            let result = self
+                .require_pairing_store()?
+                .revoke_device(&device_id, bearer_token.unwrap_or(""))
+                .map_err(pairing_error)?;
+            return Ok((200, result));
+        }
+        Err(MobileGatewayError::new("not found", 404))
+    }
+
+    fn authenticate(
+        &self,
+        bearer_token: Option<&str>,
+        required_scopes: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<super::pairing::AuthenticatedDevice> {
+        self.require_pairing_store()?
+            .authenticate_device(bearer_token.unwrap_or(""), required_scopes)
+            .map_err(pairing_error)
+    }
+
+    fn require_pairing_store(&self) -> Result<&MobileGatewayPairingStore> {
+        self.pairing_store
+            .as_ref()
+            .ok_or_else(|| MobileGatewayError::new("mobile pairing store is not configured", 503))
+    }
+
     fn require_project(&self, project_id: &str) -> Result<&MobileGatewayProject<C>> {
         self.registry
             .get(project_id)
@@ -309,6 +420,40 @@ fn ccbd_health_summary(payload: &Value) -> Value {
         "namespace_epoch": payload.get("namespace_epoch").cloned().unwrap_or(Value::Null),
         "namespace_ui_attachable": payload.get("namespace_ui_attachable").cloned().unwrap_or(Value::Null),
     })
+}
+
+fn route_path(path: &str) -> String {
+    let before_query = path.split('?').next().unwrap_or(path).trim();
+    let route = before_query.trim_end_matches('/');
+    if route.is_empty() {
+        "/".to_string()
+    } else {
+        route.to_string()
+    }
+}
+
+fn project_view_route(route: &str) -> Option<String> {
+    let prefix = "/v1/projects/";
+    let suffix = "/view";
+    route
+        .strip_prefix(prefix)
+        .and_then(|rest| rest.strip_suffix(suffix))
+        .map(|value| value.trim_matches('/').to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn device_revoke_route(route: &str) -> Option<String> {
+    let prefix = "/v1/devices/";
+    let suffix = "/revoke";
+    route
+        .strip_prefix(prefix)
+        .and_then(|rest| rest.strip_suffix(suffix))
+        .map(|value| value.trim_matches('/').to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn pairing_error(error: MobileGatewayPairingError) -> MobileGatewayError {
+    MobileGatewayError::new(error.message, error.status_code)
 }
 
 fn utc_now() -> String {
