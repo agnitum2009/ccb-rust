@@ -48,13 +48,13 @@
 
 ## Acceptance Criteria
 
-- [ ] 产出设计文档，说明 Python latest → ccb-legacy Rust module → optional ccbr intake 的升级顺序。
-- [ ] 列出第一批 Rust 替代候选及明确优先级，其中第一目标必须覆盖 Python 高 CPU runtime loop。
-- [ ] 第一 milestone 拆为：sidecar 协议壳 + fallback + baseline，Slice A Codex hot loop，Slice B ccbd maintenance hot loop。
-- [ ] baseline 包含 2 Codex smoke 与 4+ Codex n14-like 压力场景，CPU 验收以 4+ 场景为准。
-- [ ] 列出哪些性能问题先用 Python 小修，不急于 Rust 替代。
-- [ ] 定义 golden test / compatibility gate，确保 Rust 模块替代首先服务 `ccb-legacy` 的 Python-compatible 目标。
-- [ ] 定义 `ccbr` 的可选 intake 策略：仅在 `ccb-legacy` 证明后吸收共享 crate/设计，并保留 ccbr 已验证的单进程/active-only 架构优势。
+- [x] 产出设计文档，说明 Python latest → ccb-legacy Rust module → optional ccbr intake 的升级顺序。
+- [x] 列出第一批 Rust 替代候选及明确优先级，其中第一目标必须覆盖 Python 高 CPU runtime loop。
+- [x] 第一 milestone 拆为：sidecar 协议壳 + fallback + baseline，Slice A Codex hot loop，Slice B ccbd maintenance hot loop。
+- [x] baseline 包含 2 Codex smoke 与 4+ Codex n14-like 压力场景，CPU 验收以 4+ 场景为准。
+- [x] 列出哪些性能问题先用 Python 小修，不急于 Rust 替代。
+- [x] 定义 golden test / compatibility gate，确保 Rust 模块替代首先服务 `ccb-legacy` 的 Python-compatible 目标。
+- [x] 定义 `ccbr` 的可选 intake 策略：仅在 `ccb-legacy` 证明后吸收共享 crate/设计，并保留 ccbr 已验证的单进程/active-only 架构优势。
 
 ## Decision Log
 
@@ -70,3 +70,9 @@
 ## Open Question
 
 - 规划是否批准进入 Phase 2 实现 Slice 0？
+
+## Closure Status — 2026-06-27
+
+- Trellis acceptance is closed for this planning/implementation slice: design, priority, milestone split, baseline shape, Python-cheap-fix boundary, legacy compatibility gate, and optional ccbr intake strategy are recorded in `design.md` and `implement.md`.
+- Live ccbr-style validation has evidence for Codex/Kimi/Claude provider acceptance, active burst receipt, rolepack receipt, dispatcher panic-to-error fix, and resource cleanup.
+- Remaining work is outside this Trellis acceptance slice: push/PR hygiene and a production-style ccbr run on the user's target environment. The latter means `ccbr`, not Python `ccb`.
