@@ -67,11 +67,20 @@ fn parse_project_view(result: serde_json::Value) -> Result<ProjectView, String> 
     })
 }
 
-/// Show project status / project view.
-pub fn status(client: &dyn DaemonClient) -> Result<String, String> {
+fn render_project_view_from_daemon(client: &dyn DaemonClient) -> Result<String, String> {
     let result = client.call("project_view", serde_json::json!({"schema_version": 1}))?;
     let view: ProjectView = parse_project_view(result)?;
     Ok(render_project_view(&view))
+}
+
+/// Show project status.
+pub fn status(client: &dyn DaemonClient) -> Result<String, String> {
+    render_project_view_from_daemon(client)
+}
+
+/// Show the daemon project view used by sidebar/project status.
+pub fn project_view(client: &dyn DaemonClient) -> Result<String, String> {
+    render_project_view_from_daemon(client)
 }
 
 /// Show compact agent status (`ps`).
@@ -976,11 +985,36 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push((method.to_string(), params));
+            if method == "project_view" {
+                return Ok(serde_json::json!({
+                    "view": {
+                        "namespace": {
+                            "project_root": "/tmp/ccbr-project",
+                            "project_slug": "ccbr-project",
+                            "daemon_status": "running"
+                        },
+                        "agents": []
+                    }
+                }));
+            }
             Ok(serde_json::json!({
                 "job_id": "job_test",
                 "status": "accepted"
             }))
         }
+    }
+
+    #[test]
+    fn project_view_uses_project_view_rpc_contract() {
+        let client = RecordingClient::default();
+
+        let rendered = project_view(&client).unwrap();
+
+        let calls = client.calls.lock().unwrap();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].0, "project_view");
+        assert_eq!(calls[0].1["schema_version"], 1);
+        assert!(rendered.contains("Project:"));
     }
 
     #[test]

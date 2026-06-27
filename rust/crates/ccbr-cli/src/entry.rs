@@ -58,7 +58,7 @@ fn dispatch(cmd: ParsedCommand) -> i32 {
         ParsedCommand::Stop(stop) => commands::stop(&client, stop.force),
         ParsedCommand::StopAll(stop) => commands::stop(&client, stop.force),
         ParsedCommand::Status(_) => commands::status(&client),
-        ParsedCommand::ProjectView(_) => commands::status(&client),
+        ParsedCommand::ProjectView(_) => commands::project_view(&client),
         ParsedCommand::Ps(ps) => commands::ps(&client, ps.alive_only),
         ParsedCommand::Attach(attach) => {
             commands::attach(&client, &attach.agent_name, &project_root)

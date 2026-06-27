@@ -264,3 +264,22 @@ Remaining non-mobile gates are live/evidence gates, not obvious code gaps from t
 2. live `ccbr start` sidebar pane materialization smoke in tmux;
 3. live A→B→A ask/inbox smoke with Codex hooks enabled;
 4. ccb-legacy performance acceptance evidence: active-vs-idle split, bridge CPU source split, before/after Slice A/B CPU proof, and residue cleanup proof.
+
+## 2026-06-27 non-mobile live smoke continuation
+
+Mobile remains paused. Live smoke used isolated root `.trellis/workspace/luck/live-smoke/ccbr-nonmobile-codex`; Codex hooks were not disabled.
+
+Findings fixed:
+- `ccbr project-view` now dispatches through an explicit `commands::project_view()` path instead of borrowing `status()` dispatch. The command still renders the daemon ProjectView in the existing human-readable style, but the RPC contract is now covered by a targeted test.
+- `ccbr start` with no explicit agents no longer falls back to a literal `default` agent when no project config exists. It now uses built-in default agents: `agent1`, `agent2`, `agent3`, `ccbr_self`.
+
+Live evidence:
+- `ccbr --project <smoke-root> ping ccbrd` returned `pong`.
+- `ccbr --project <smoke-root> start` returned `Started agents: agent1, agent2, agent3, ccbr_self`.
+- Project private tmux socket showed four panes: `%0/%1/%2/%3` with CCBR pane titles.
+- `ccbr ask agent2 --from agent1 <message>` returned an accepted job and `inbox agent2 --detail` showed the pending item.
+
+Remaining non-mobile gaps:
+- `inbox agent2` rendered `pending=0` while listing a pending job; mailbox count rendering needs follow-up.
+- `queue agent2 --detail` rendered `(no agents)` immediately after accepted submit; queue rendering/target filtering needs follow-up.
+- Provider execution parity still needs real provider hook-enabled smoke, not just shell-pane/default-agent materialization.

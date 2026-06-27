@@ -73,8 +73,7 @@ fn terminal_size_from_payload(payload: &Value) -> Option<(u32, u32)> {
 /// Returns all unique agent names referenced in the windows config.
 fn derive_agent_names_from_config(app: &CcbdApp) -> Vec<String> {
     let Some(config) = &app.current_config else {
-        // No config available, fall back to default
-        return vec!["default".to_string()];
+        return ccbr_agents::config::build_default_project_config().default_agents;
     };
 
     let Some(windows) = &config.windows else {
@@ -107,4 +106,27 @@ fn derive_agent_names_from_config(app: &CcbdApp) -> Vec<String> {
     let mut sorted: Vec<_> = agent_names.into_iter().collect();
     sorted.sort();
     sorted
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::CcbdApp;
+    use crate::start_flow::service::StartFlowService;
+    use crate::stop_flow::service::StopFlowService;
+
+    #[test]
+    fn derive_agent_names_uses_builtin_defaults_when_config_is_absent() {
+        let dir = tempfile::tempdir().unwrap();
+        let app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+
+        assert_eq!(
+            derive_agent_names_from_config(&app),
+            vec!["agent1", "agent2", "agent3", "ccbr_self"]
+        );
+    }
 }
