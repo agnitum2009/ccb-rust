@@ -230,3 +230,37 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Tests lock Python-compatible reason/status boundaries for replay, missing/stale resume cursor, closed terminal, invalid token, and device-revoked terminal access.
 - This still does not implement target validation, terminal route payloads, websocket framing, tmux session I/O, terminal history, or relay.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.
+
+## 2026-06-27 non-mobile parity checkpoint
+
+Mobile intake is paused by user direction. Current focus returns to the remaining non-mobile alignment gates.
+
+Static / targeted verification completed in `/home/agnitum/ccb`:
+
+- ProjectView/sidebar schema and click receipts:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon project_view_response_matches_python_sidebar_shape -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon sidebar_click_resolves_window_and_agent_rows -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli --test sidebar_click_tests -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli --test sidebar_resize_sync_tests -- --test-threads=1`
+- Python-style mailbox wait receipts:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli --test cli_wait_tests -- --test-threads=1`
+- Ask/callback continuation receipts:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test callbacks_tests -- --test-threads=1`
+- Rolepack/current-store receipts:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-agents --test rolepack_tests -- --test-threads=1`
+- Provider execution / launcher / readback receipts:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers --tests -- --test-threads=1`
+- Start/sidebar materialization-adjacent receipts:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test start_flow_launch_context_tests -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test start_runtime_layout_tests -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test start_preparation_tests -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli --test smoke_test -- --test-threads=1`
+
+All commands above completed successfully.
+
+Remaining non-mobile gates are live/evidence gates, not obvious code gaps from the targeted suite:
+
+1. live Python/sidebar client RPC against `ccbrd` with real ProjectView rendering;
+2. live `ccbr start` sidebar pane materialization smoke in tmux;
+3. live A→B→A ask/inbox smoke with Codex hooks enabled;
+4. ccb-legacy performance acceptance evidence: active-vs-idle split, bridge CPU source split, before/after Slice A/B CPU proof, and residue cleanup proof.
