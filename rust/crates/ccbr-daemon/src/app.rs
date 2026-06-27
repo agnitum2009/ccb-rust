@@ -52,7 +52,15 @@ fn load_agent_registry(
         config.default_agents.clone()
     };
     let mut registry = AgentRegistry::new();
-    for name in &names {
+
+    // The dispatcher may still use `default_agents` as the default target set,
+    // but the runtime registry must contain every configured agent.  Topology
+    // start derives agent panes from all configured windows; if we only register
+    // default agents, non-entry windows get bash panes but provider launch is
+    // skipped because their provider lookup is empty.
+    let mut registry_names: Vec<String> = config.agents.keys().cloned().collect();
+    registry_names.sort();
+    for name in &registry_names {
         let spec = config.agents.get(name);
         let workspace_path = spec
             .and_then(|s| s.workspace_path.clone())
@@ -452,7 +460,11 @@ impl CcbdApp {
         let running_jobs_path = self.layout.ccbrd_dir().join("running-jobs.json");
         let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
 
-        let result = self.stop_all(true, "shutdown");
+        let mut result = self.stop_all(true, "shutdown");
+        let cleaned = cleanup_project_processes(self.layout.project_root.as_str());
+        result
+            .actions_taken
+            .push(format!("cleanup_project_processes:{cleaned}"));
         let report = CcbdShutdownReport {
             project_id: self.project_id().to_string(),
             generated_at: chrono::Utc::now().to_rfc3339(),
@@ -1217,6 +1229,75 @@ impl CcbdApp {
             self.execution.feed_runtime_state(&job_id, patch);
         }
     }
+}
+
+#[cfg(unix)]
+fn cleanup_project_processes(project_root: &str) -> usize {
+    use std::io::Read;
+    let project_root = project_root.trim();
+    if project_root.is_empty() || project_root == "/" {
+        return 0;
+    }
+    let self_pid = std::process::id() as i32;
+    let mut targets = Vec::new();
+    let Ok(entries) = std::fs::read_dir("/proc") else {
+        return 0;
+    };
+    for entry in entries.flatten() {
+        let Ok(pid) = entry.file_name().to_string_lossy().parse::<i32>() else {
+            continue;
+        };
+        if pid == self_pid {
+            continue;
+        }
+        let base = entry.path();
+        let comm = std::fs::read_to_string(base.join("comm"))
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if matches!(comm.as_str(), "bash" | "sh" | "zsh" | "fish") {
+            continue;
+        }
+        let cwd = std::fs::read_link(base.join("cwd"))
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let mut raw = Vec::new();
+        let cmd = std::fs::File::open(base.join("cmdline"))
+            .and_then(|mut f| f.read_to_end(&mut raw).map(|_| raw))
+            .ok()
+            .map(|bytes| {
+                String::from_utf8_lossy(&bytes)
+                    .replace('\0', " ")
+                    .trim()
+                    .to_string()
+            })
+            .unwrap_or_default();
+        if cwd.starts_with(project_root) || cmd.contains(project_root) {
+            targets.push(pid);
+        }
+    }
+    for pid in &targets {
+        unsafe {
+            libc::kill(*pid, libc::SIGTERM);
+        }
+    }
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let mut signaled = 0;
+    for pid in &targets {
+        unsafe {
+            if libc::kill(*pid, 0) == 0 {
+                libc::kill(*pid, libc::SIGKILL);
+            }
+        }
+        signaled += 1;
+    }
+    signaled
+}
+
+#[cfg(not(unix))]
+fn cleanup_project_processes(_project_root: &str) -> usize {
+    0
 }
 
 pub(crate) fn map_completion_status(

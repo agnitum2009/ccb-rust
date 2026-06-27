@@ -81,7 +81,13 @@ impl StopFlowService {
                         let backend =
                             ccbr_terminal::TmuxBackend::new(None, Some(socket.to_string()));
                         if let Some(session) = session_name {
-                            if let Err(e) = backend.kill_pane(session) {
+                            if let Err(e) = backend.tmux_run(
+                                &["kill-session", "-t", session],
+                                false,
+                                false,
+                                None,
+                                None,
+                            ) {
                                 errors.push(e.to_string());
                                 for pane in &killed_panes {
                                     if let Err(e) = backend.kill_pane(pane) {

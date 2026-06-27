@@ -11,20 +11,20 @@ use crossterm::event::{
 };
 use crossterm::execute;
 use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::prelude::{Color, Frame, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph};
+use ratatui::Terminal;
 
 use crate::args::Args;
 use crate::client::CcbdClient;
 use crate::model::{
-    AgentView, CommsItem, ProjectView, ProjectViewResponse, RowTarget, SidebarViewInfo, WindowView,
-    row_targets,
+    row_targets, AgentView, CommsItem, ProjectView, ProjectViewResponse, RowTarget,
+    SidebarViewInfo, WindowView,
 };
 use crate::status::{activity_color, activity_symbol};
 
@@ -123,12 +123,26 @@ enum ExitAction {
 fn run_ccb_kill(project_root: &Path) -> io::Result<()> {
     // Detect ccbr workspace (.ccbr/) vs ccb workspace (.ccb/) → use matching CLI.
     // This ensures the sidebar's X button (KillProject) calls the correct daemon.
-    let program = if project_root.join(".ccbr").exists() {
-        PathBuf::from("ccbr")
-    } else {
-        ccb_program()
-    };
-    run_ccb_kill_with_program(program, project_root)
+    if project_root.join(".ccbr").exists() {
+        return run_ccbr_kill_with_program(PathBuf::from("ccbr"), project_root);
+    }
+    run_ccb_kill_with_program(ccb_program(), project_root)
+}
+
+fn run_ccbr_kill_with_program(program: PathBuf, project_root: &Path) -> io::Result<()> {
+    let status = Command::new(program)
+        .arg("--project")
+        .arg(project_root)
+        .arg("shutdown")
+        .env("CCBR_SOURCE_RUNTIME_OK", "1")
+        .current_dir(project_root)
+        .status()?;
+    if status.success() {
+        return Ok(());
+    }
+    Err(io::Error::other(format!(
+        "ccbr shutdown failed with status {status}"
+    )))
 }
 
 fn run_ccb_kill_with_program(program: PathBuf, project_root: &Path) -> io::Result<()> {
@@ -1037,7 +1051,11 @@ fn draw_tips(frame: &mut Frame<'_>, area: Rect, app: &SidebarApp) {
 }
 
 fn empty_dash(value: &str) -> &str {
-    if value.trim().is_empty() { "-" } else { value }
+    if value.trim().is_empty() {
+        "-"
+    } else {
+        value
+    }
 }
 
 #[cfg(test)]
@@ -1259,9 +1277,9 @@ fn recover_reply_delivery_job_id(item: &CommsItem) -> Option<&str> {
 mod tests {
     use super::*;
     use crate::model::{NamespaceInfo, ProjectInfo};
-    use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::style::Color;
+    use ratatui::Terminal;
     use serde_json::json;
     #[cfg(unix)]
     use std::io::{BufRead, BufReader, Write};
@@ -1548,6 +1566,49 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(&marker).unwrap(),
             format!("{}|shutdown\n", project_root.display())
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn ccbr_kill_passes_project_root_to_shutdown() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = std::env::temp_dir().join(format!(
+            "ccb-agent-sidebar-ccbr-kill-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let project_root = dir.join("repo");
+        let bin_dir = dir.join("bin");
+        std::fs::create_dir_all(project_root.join(".ccbr")).unwrap();
+        std::fs::create_dir_all(&bin_dir).unwrap();
+        let marker = dir.join("marker");
+        let ccbr = bin_dir.join("ccbr");
+        std::fs::write(
+            &ccbr,
+            format!(
+                "#!/bin/sh\nprintf '%s|%s|%s|%s\n' \"$PWD\" \"$1\" \"$2\" \"$3\" > {}\n",
+                marker.display()
+            ),
+        )
+        .unwrap();
+        let mut permissions = std::fs::metadata(&ccbr).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&ccbr, permissions).unwrap();
+
+        run_ccbr_kill_with_program(ccbr, &project_root).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&marker).unwrap(),
+            format!(
+                "{}|--project|{}|shutdown\n",
+                project_root.display(),
+                project_root.display()
+            )
         );
         let _ = std::fs::remove_dir_all(dir);
     }

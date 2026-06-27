@@ -166,6 +166,57 @@ target = "agent1"
 }
 
 #[test]
+fn test_registry_registers_non_default_window_agents_for_provider_launch() {
+    let dir = TempDir::new().unwrap();
+    let ccbr_dir = dir.path().join(".ccbr");
+    std::fs::create_dir_all(&ccbr_dir).unwrap();
+    std::fs::write(
+        ccbr_dir.join("ccbr.config"),
+        r#"version = 2
+entry_window = "main"
+default_agents = ["main_a"]
+
+[windows]
+main = "main_a:codex"
+archi = "archi:codex;mother:codex"
+
+[agents.main_a]
+provider = "codex"
+target = "main_a"
+
+[agents.archi]
+provider = "codex"
+target = "archi"
+
+[agents.mother]
+provider = "codex"
+target = "mother"
+"#,
+    )
+    .unwrap();
+
+    let app = CcbdApp::with_backend(
+        dir.path(),
+        StartFlowService::with_stub(),
+        StopFlowService::with_stub(),
+    );
+
+    assert_eq!(
+        app.registry.get("main_a").map(|e| e.provider.as_str()),
+        Some("codex")
+    );
+    assert_eq!(
+        app.registry.get("archi").map(|e| e.provider.as_str()),
+        Some("codex"),
+        "non-default agents referenced by windows must be registered so topology start can launch their provider"
+    );
+    assert_eq!(
+        app.registry.get("mother").map(|e| e.provider.as_str()),
+        Some("codex")
+    );
+}
+
+#[test]
 fn test_handle_rpc_ping() {
     let dir = TempDir::new().unwrap();
     let mut app = CcbdApp::with_backend(
