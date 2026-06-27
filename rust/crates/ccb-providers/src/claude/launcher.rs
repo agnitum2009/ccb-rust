@@ -49,7 +49,7 @@ pub fn build_start_cmd(
     let home_overrides = prepare_claude_home_overrides(
         runtime_dir,
         profile.as_ref(),
-        false,
+        true,
         command.auto_permission,
         Some(&project_root),
         Some(&spec.name),

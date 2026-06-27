@@ -118,7 +118,8 @@ fn run_ccb_kill(project_root: &Path) -> io::Result<()> {
 
 fn run_ccb_kill_with_program(program: PathBuf, project_root: &Path) -> io::Result<()> {
     let status = Command::new(program)
-        .arg("kill")
+        .arg("shutdown")
+        .env("CCBR_SOURCE_RUNTIME_OK", "1")
         .current_dir(project_root)
         .status()?;
     if status.success() {
@@ -1535,7 +1536,7 @@ mod tests {
 
         assert_eq!(
             std::fs::read_to_string(&marker).unwrap(),
-            format!("{}|kill\n", project_root.display())
+            format!("{}|shutdown\n", project_root.display())
         );
         let _ = std::fs::remove_dir_all(dir);
     }

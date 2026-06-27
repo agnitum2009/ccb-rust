@@ -46,7 +46,12 @@ fn load_agent_registry(
         config.default_agents.clone()
     };
     let mut registry = AgentRegistry::new();
-    for name in &names {
+
+    // Dispatcher defaults can stay scoped to `default_agents`, but provider
+    // launch needs every configured window agent registered.
+    let mut registry_names: Vec<String> = config.agents.keys().cloned().collect();
+    registry_names.sort();
+    for name in &registry_names {
         let spec = config.agents.get(name);
         let workspace_path = spec
             .and_then(|s| s.workspace_path.clone())
@@ -425,12 +430,16 @@ impl CcbdApp {
     pub fn shutdown(&mut self) -> crate::Result<()> {
         // Persist running/non-terminal jobs *before* trying to stop agents so
         // that a slow or stuck stop flow never loses in-flight job memory.
-        // Graceful shutdown leaves provider panes running so a restarted daemon
-        // can adopt them and continue driving in-flight jobs (S3.3 continuity).
+        // User-facing shutdown is a full workspace exit: sidebar close / CLI
+        // shutdown must not leave orphaned provider panes behind.
         let running_jobs_path = self.layout.ccbd_dir().join("running-jobs.json");
         let _ = self.dispatcher.persist_running_jobs(&running_jobs_path);
 
-        let result = self.stop_all(false, "shutdown");
+        let mut result = self.stop_all(true, "shutdown");
+        let cleaned = cleanup_project_processes(self.layout.project_root.as_str());
+        result
+            .actions_taken
+            .push(format!("cleanup_project_processes:{cleaned}"));
         let report = CcbdShutdownReport {
             project_id: self.project_id().to_string(),
             generated_at: chrono::Utc::now().to_rfc3339(),
@@ -960,6 +969,75 @@ impl CcbdApp {
     }
 }
 
+#[cfg(unix)]
+fn cleanup_project_processes(project_root: &str) -> usize {
+    use std::io::Read;
+    let project_root = project_root.trim();
+    if project_root.is_empty() || project_root == "/" {
+        return 0;
+    }
+    let self_pid = std::process::id() as i32;
+    let mut targets = Vec::new();
+    let Ok(entries) = std::fs::read_dir("/proc") else {
+        return 0;
+    };
+    for entry in entries.flatten() {
+        let Ok(pid) = entry.file_name().to_string_lossy().parse::<i32>() else {
+            continue;
+        };
+        if pid == self_pid {
+            continue;
+        }
+        let base = entry.path();
+        let comm = std::fs::read_to_string(base.join("comm"))
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if matches!(comm.as_str(), "bash" | "sh" | "zsh" | "fish") {
+            continue;
+        }
+        let cwd = std::fs::read_link(base.join("cwd"))
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let mut raw = Vec::new();
+        let cmd = std::fs::File::open(base.join("cmdline"))
+            .and_then(|mut f| f.read_to_end(&mut raw).map(|_| raw))
+            .ok()
+            .map(|bytes| {
+                String::from_utf8_lossy(&bytes)
+                    .replace('\0', " ")
+                    .trim()
+                    .to_string()
+            })
+            .unwrap_or_default();
+        if cwd.starts_with(project_root) || cmd.contains(project_root) {
+            targets.push(pid);
+        }
+    }
+    for pid in &targets {
+        unsafe {
+            libc::kill(*pid, libc::SIGTERM);
+        }
+    }
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let mut signaled = 0;
+    for pid in &targets {
+        unsafe {
+            if libc::kill(*pid, 0) == 0 {
+                libc::kill(*pid, libc::SIGKILL);
+            }
+        }
+        signaled += 1;
+    }
+    signaled
+}
+
+#[cfg(not(unix))]
+fn cleanup_project_processes(_project_root: &str) -> usize {
+    0
+}
+
 pub(crate) fn map_completion_status(
     status: CompletionStatus,
 ) -> crate::models::api_models::common::JobStatus {
@@ -1076,6 +1154,58 @@ main = "agent1:codex"
             .expect("agent1 should be registered");
         assert_eq!(entry.provider, "codex");
         assert_eq!(app.dispatcher.agent_names, vec!["agent1"]);
+    }
+
+    #[test]
+    fn test_registry_registers_non_default_window_agents_for_provider_launch() {
+        let dir = TempDir::new().unwrap();
+        let ccb_dir = dir.path().join(".ccb");
+        std::fs::create_dir_all(&ccb_dir).unwrap();
+        std::fs::write(
+            ccb_dir.join("ccb.config"),
+            r#"version = 2
+entry_window = "main"
+default_agents = ["main_a"]
+
+[windows]
+main = "main_a:codex"
+archi = "archi:codex;mother:codex"
+
+[agents.main_a]
+provider = "codex"
+target = "main_a"
+
+[agents.archi]
+provider = "codex"
+target = "archi"
+
+[agents.mother]
+provider = "codex"
+target = "mother"
+"#,
+        )
+        .unwrap();
+
+        let app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+
+        assert_eq!(
+            app.registry.get("main_a").map(|e| e.provider.as_str()),
+            Some("codex")
+        );
+        assert_eq!(
+            app.registry.get("archi").map(|e| e.provider.as_str()),
+            Some("codex"),
+            "non-default agents referenced by windows must be registered so topology start can launch their provider"
+        );
+        assert_eq!(
+            app.registry.get("mother").map(|e| e.provider.as_str()),
+            Some("codex")
+        );
+        assert_eq!(app.dispatcher.agent_names, vec!["main_a"]);
     }
 
     #[test]

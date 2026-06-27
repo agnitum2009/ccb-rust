@@ -56,6 +56,7 @@ impl StopFlowService {
         let stopped_agents: Vec<String> = agent_names.to_vec();
         let mut killed_panes = Vec::new();
         let mut errors = Vec::new();
+        let mut actions_taken = vec!["stop_flow_executed".to_string()];
 
         if let Some(socket) = socket_path {
             for agent_name in agent_names {
@@ -69,20 +70,31 @@ impl StopFlowService {
             // Only terminate provider panes on forced stops. Graceful shutdown
             // preserves panes so a restarted daemon can adopt running jobs.
             if force {
+                if let Some(session) = session_name {
+                    actions_taken.push(format!("kill_session:{session}"));
+                }
                 match self.mode {
                     StopFlowMode::Tmux => {
                         let backend =
                             ccb_terminal::TmuxBackend::new(None, Some(socket.to_string()));
-                        for pane in &killed_panes {
-                            if let Err(e) = backend.kill_pane(pane) {
+                        if let Some(session) = session_name {
+                            if let Err(e) = backend.tmux_run(
+                                &["kill-session", "-t", session],
+                                false,
+                                false,
+                                None,
+                                None,
+                            ) {
                                 errors.push(e.to_string());
+                                for pane in &killed_panes {
+                                    if let Err(e) = backend.kill_pane(pane) {
+                                        errors.push(e.to_string());
+                                    }
+                                }
                             }
-                        }
-                        // Fallback: if no pane ids were tracked but a session exists,
-                        // tear down the whole session.
-                        if killed_panes.is_empty() {
-                            if let Some(session) = session_name {
-                                if let Err(e) = backend.kill_pane(session) {
+                        } else {
+                            for pane in &killed_panes {
+                                if let Err(e) = backend.kill_pane(pane) {
                                     errors.push(e.to_string());
                                 }
                             }
@@ -95,7 +107,6 @@ impl StopFlowService {
             }
         }
 
-        let mut actions_taken = vec!["stop_flow_executed".to_string()];
         if force {
             actions_taken.push("forced_cleanup".to_string());
         }
