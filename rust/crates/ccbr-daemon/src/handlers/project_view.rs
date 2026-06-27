@@ -314,6 +314,47 @@ fn push_unique(names: &mut Vec<String>, value: &str) {
     }
 }
 
+#[cfg(test)]
+mod schema_tests {
+    use super::*;
+    use crate::start_flow::service::StartFlowService;
+    use crate::stop_flow::service::StopFlowService;
+    use tempfile::TempDir;
+
+    #[test]
+    fn project_view_response_matches_python_sidebar_shape() {
+        let dir = TempDir::new().unwrap();
+        let mut app = CcbdApp::with_backend(
+            dir.path(),
+            StartFlowService::with_stub(),
+            StopFlowService::with_stub(),
+        );
+        app.current_config = Some(ccbr_agents::config::build_default_project_config());
+
+        let response = handle_project_view(&mut app, &json!({"schema_version": 1})).unwrap();
+        let view = response.get("view").and_then(|v| v.as_object()).unwrap();
+        let cache = response.get("cache").and_then(|v| v.as_object()).unwrap();
+
+        assert_eq!(response["schema_version"], 1);
+        for key in ["project", "ccbd", "namespace", "windows", "agents", "comms"] {
+            assert!(view.contains_key(key), "missing ProjectView key: {key}");
+        }
+        assert!(cache.contains_key("generated_at"));
+        assert!(cache.contains_key("ttl_ms"));
+        assert!(cache.contains_key("sequence"));
+
+        let namespace = view["namespace"].as_object().unwrap();
+        assert!(namespace.contains_key("epoch"));
+        assert!(namespace.contains_key("active_window"));
+        assert!(namespace.contains_key("entry_window"));
+        assert!(namespace.contains_key("sidebar"));
+
+        assert!(view["windows"].as_array().is_some());
+        assert!(view["agents"].as_array().is_some());
+        assert!(view["comms"].as_array().is_some());
+    }
+}
+
 fn agent_view(
     app: &CcbdApp,
     config: Option<&ProjectConfig>,

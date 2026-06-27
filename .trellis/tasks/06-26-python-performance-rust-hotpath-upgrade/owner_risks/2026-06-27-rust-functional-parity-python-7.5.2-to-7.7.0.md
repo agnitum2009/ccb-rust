@@ -76,3 +76,10 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Rust CodeGraph still has no `zai` or `mobile` symbols; those remain separate 7.7.0 intake surfaces.
 
 - Slice 1 verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli test_cli_doctor_config_validate_and_pend -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli test_wait_for_replies -- --test-threads=1`.
+
+## Slice 2 ProjectView/sidebar schema receipt
+
+- Python 7.7.0 ProjectView response contract is `{view, cache}` where `view` contains `project`, `ccbd`, `namespace`, `windows`, `agents`, and `comms`; `cache` contains `generated_at`, `ttl_ms`, and `sequence`.
+- Rust daemon now has a targeted schema receipt test for those sidebar-consumed fields plus the existing sidebar row-resolution test.
+- This is a schema/test receipt only; live tmux click smoke remains separate.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon project_view_response_matches_python_sidebar_shape -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon sidebar_click_resolves_window_and_agent_rows -- --test-threads=1`.
