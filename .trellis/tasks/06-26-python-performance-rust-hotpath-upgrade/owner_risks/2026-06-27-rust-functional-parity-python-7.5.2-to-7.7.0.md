@@ -117,3 +117,25 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
   - `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers --lib test_default -- --test-threads=1`
   - `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers --test provider_zai_tests -- --test-threads=1`
   - `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`
+
+## Slice 5 mobile gateway owner classification
+
+- Python 7.7.0 `mobile_gateway` is not a small CLI alias. It is a separate runtime/API surface:
+  - CLI service entrypoints: `prepare_mobile_gateway`, `prepare_server_mobile_gateway`, `mobile_devices_status`, `revoke_mobile_device`.
+  - HTTP endpoints include `/v1/health`, `/v1/projects`, `/v1/projects/{project_id}/view`, `/v1/pairing/claim`, `/v1/devices/me`, `/v1/devices/{device_id}/revoke`, lifecycle/focus endpoints, and terminal endpoints.
+  - State owners include `MobileGatewayPairingStore`, `MobileGatewayProjectRegistry`, host state directory, pairing payloads, device revocation, and local relay harness.
+  - It calls into the existing `ccbd` ProjectView/focus/lifecycle/terminal operations rather than owning those facts itself.
+- Rust `ccbr` currently has no equivalent `mobile` CLI command, gateway service, pairing store, project registry, or terminal relay module.
+- Owner classification:
+  - Command owner: CLI `mobile` command surface.
+  - Runtime/API owner: mobile gateway HTTP server.
+  - Readback owner: daemon ProjectView/lifecycle/focus/terminal APIs, not mobile gateway.
+  - Credential/device owner: mobile pairing store and device revocation records.
+  - Relay owner: local relay harness / outbound relay client.
+- Minimum safe Rust intake should be split into separate commits:
+  1. parser/model receipt for `ccbr mobile serve|devices|revoke` command shapes;
+  2. pure state module for pairing/device store with Python fixture tests;
+  3. read-only gateway service for health/projects/view against existing daemon client;
+  4. focus/lifecycle/terminal mutation endpoints after read-only contract is green;
+  5. relay harness last.
+- Non-claim: this slice does not implement mobile gateway. It prevents a fake partial implementation by naming the real owner surfaces first.
