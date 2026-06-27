@@ -150,3 +150,21 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - `crate::models::ParsedCommand` also has a `Mobile(ParsedMobileCommand)` variant for Python dataclass parity.
 - Runtime service remains intentionally unimplemented and returns `Command not yet implemented: mobile gateway`; gateway state/API work remains in later slices.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli test_cli_mobile_parser_receipts -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`.
+
+## Slice 7 mobile pairing/device store receipt
+
+- Rust daemon now has a pure `mobile_gateway::pairing` state owner that mirrors Python 7.7.0 mobile pairing storage names and public shapes:
+  - `gateway.json`
+  - `pairing-tokens.jsonl`
+  - `devices.json`
+  - `audit.jsonl`
+- Covered operations match the first Python mobile state slice:
+  - write gateway state;
+  - create pairing payload with `pairing_code`, `claim_endpoint`, scopes, and expiry;
+  - claim a pairing into a stored device with hashed bearer token;
+  - authenticate a bearer token and update `last_seen_at`;
+  - list public device payloads;
+  - host-side revoke with Python-compatible `status`, `device`, and `revoked_terminal_count` fields.
+- Error receipts preserve Python reason/status pairs for missing/invalid pairing codes, already claimed pairings, duplicate devices, missing device IDs, invalid tokens, and missing devices.
+- This remains a state module only; HTTP routes, project registry, terminal handles, and relay behavior remain later slices.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.

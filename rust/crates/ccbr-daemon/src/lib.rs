@@ -6,6 +6,7 @@ pub mod client_runtime;
 pub mod fault_injection;
 pub mod handlers;
 pub mod health_runtime;
+pub mod mobile_gateway;
 pub mod models;
 pub mod patch_validation_targets;
 pub mod polling;
