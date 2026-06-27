@@ -201,3 +201,19 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Lifecycle routes preserve Python effects: `wake -> already_running`, `open -> opened`, `close -> mobile_view_closed`, `stop -> ccbd_stop_requested`; all keep `tmux_kill_server=false`.
 - Scope boundaries remain explicit: this slice does not implement terminal opening, message/file routes, relay, or actual HTTP socket binding.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.
+
+## Slice 11 mobile terminal owner classification
+
+- Python 7.7.0 mobile terminal is a separate owner surface, not a small extension of focus/lifecycle routes.
+- Terminal owner surfaces found by CodeGraph:
+  - terminal handle state owner: `MobileGatewayPairingStore.create_terminal_handle`, `authenticate_terminal_token`, `record_terminal_input_sequence`, terminal close/disconnect/revoke state in `terminal-tokens.jsonl`;
+  - terminal target validation owner: ProjectView namespace epoch, target agent/window/pane summary, geometry, and stale epoch rejection;
+  - terminal readback owner: `terminal_history_payload` with `TerminalHistoryTarget`, tmux scrollback source, generated/stale/block fields;
+  - websocket stream owner: open frame validation, resume cursor, output pump, input/paste/resize frames, close/disconnect semantics;
+  - transport owner: HTTP upgrade/websocket framing and safe close/error frames.
+- Safe Rust intake order for terminal parity:
+  1. add terminal token state methods to the pairing store with Python fixture tests;
+  2. add pure target validation and terminal-history payload contract tests against fake ProjectView/history provider;
+  3. add `POST /v1/projects/{project_id}/terminals` dispatch contract returning terminal handle + websocket URL;
+  4. only then add websocket transport/session adapter, because it owns live tmux I/O and replay/resume semantics.
+- Non-claim: focus/lifecycle parity does not imply terminal parity. Terminal must remain blocked until the above owner gates are green.
