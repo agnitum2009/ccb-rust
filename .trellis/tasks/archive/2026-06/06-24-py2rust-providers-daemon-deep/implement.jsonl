@@ -1,7 +1,0 @@
-{"file": ".trellis/spec/migration-roadmap.md", "reason": "Defines Wave 3 stub-reduction targets for ccb-providers and ccb-daemon."}
-{"file": "plans/rust-python-test-parity-matrix.md", "reason": "Tracks providers and daemon_lifecycle cluster parity and stub baseline."}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Provider adapters, dispatcher, namespace, reload, and supervision cross multiple crates."}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse patterns for provider execution adapters and daemon service wiring."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/design.md", "reason": "Parent Wave 3 design decisions for provider and daemon deep stub reduction."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/prd.md", "reason": "Parent scope and acceptance criteria for the overall parity migration."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/implement.md", "reason": "Parent execution order and validation commands for all waves."}

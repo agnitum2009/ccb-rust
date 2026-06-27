@@ -1,5 +1,0 @@
-{"file": ".trellis/spec/migration-roadmap.md", "reason": "Check Wave 3 stub-count targets and dependency gate before Wave 4."}
-{"file": "plans/rust-python-test-parity-matrix.md", "reason": "Verify providers and daemon_lifecycle cluster status and test mappings."}
-{"file": ".trellis/spec/guides/quality-guidelines.md", "reason": "Quality gate checklist for tests, clippy, formatting."}
-{"file": ".trellis/spec/guides/index.md", "reason": "Entry point to all spec guidelines for final review."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/prd.md", "reason": "Re-read parent acceptance criteria before closing Wave 3."}

@@ -1,3 +1,0 @@
-{"check": "cargo test -p ccb-memory", "status": "passed"}
-{"check": "cargo fmt --all -- --check", "status": "passed"}
-{"check": "cargo clippy -p ccb-memory -p ccb-storage --tests", "status": "passed"}

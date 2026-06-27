@@ -1,7 +1,0 @@
-{"file": ".trellis/spec/migration-roadmap.md", "reason": "Defines the 4-wave dependency order and Phase2Services architecture gap that Wave 1 must close."}
-{"file": "plans/rust-python-test-parity-matrix.md", "reason": "Maps Python CLI tests to Rust tests and tracks cli_entrypoint parity status."}
-{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Phase2Services is the CLI/daemon contract layer; cross-layer changes must be synchronized."}
-{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Reuse patterns for render/handler/service wiring across CLI commands."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/design.md", "reason": "Parent design with Wave 1 key decisions on Phase2Services impl location and dispatch entry."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/prd.md", "reason": "Parent scope, acceptance criteria, and references for the overall parity migration."}
-{"file": ".trellis/tasks/06-24-py2rust-remaining-parity/implement.md", "reason": "Parent execution order and validation commands for all waves."}
