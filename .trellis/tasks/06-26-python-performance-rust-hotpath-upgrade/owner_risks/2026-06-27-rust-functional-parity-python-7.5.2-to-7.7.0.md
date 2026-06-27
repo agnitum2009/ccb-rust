@@ -356,3 +356,23 @@ A corrected smoke copied the repository `.codex` hook files into the isolated ro
 - Smoke runtime was reclaimed with `scripts/ccbr-test-cleanup.sh`; no production ccb runtime was touched.
 
 Provider execution parity status for this slice: passed for single Codex provider submit -> hook -> reply -> trace terminal path. Multi-agent callback/order scenarios remain separate gates.
+
+## 2026-06-27 Provider scope correction after owner decision
+
+User decision for non-mobile 7.7.0 intake:
+
+- P1 provider live acceptance is limited to `codex`, `kimi`, and `claude`.
+- Other providers are not current production acceptance blockers because they are not used locally.
+- `zai` is explicitly sealed because the upstream source admitted an unofficial/shanzhai provider by mistake; Rust must not advertise it by default.
+- Claude token is restored, so Claude can re-enter live acceptance after Codex/Kimi.
+
+Implementation consequence:
+
+- Keep existing ZAI source/tests as archived code only; do not delete them in this slice.
+- Remove ZAI from default optional provider discovery, default runtime/client spec maps, and default provider execution/backend registries.
+- Do not run ZAI live tests or treat ZAI as a 7.7.0 parity blocker unless a later owner decision explicitly unseals it.
+
+P2 decision:
+
+- Python 7.7.0 helper/runtime-accelerator family is classified as covered by ccbr native Rust daemon architecture unless a helper exposes a user-visible contract not already covered.
+- Do not import Python `.ccb` runtime accelerator sidecar into ccbr. Share only narrow parser/observer logic later if a measured gap appears.

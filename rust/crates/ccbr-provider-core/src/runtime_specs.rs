@@ -312,7 +312,6 @@ pub static RUNTIME_SPECS_BY_PROVIDER: LazyLock<HashMap<&'static str, ProviderRun
         map.insert("copilot", COPILOT_RUNTIME_SPEC.clone());
         map.insert("codebuddy", CODEBUDDY_RUNTIME_SPEC.clone());
         map.insert("qwen", QWEN_RUNTIME_SPEC.clone());
-        map.insert("zai", ZAI_RUNTIME_SPEC.clone());
         map.insert("cursor", CURSOR_RUNTIME_SPEC.clone());
         map.insert("crush", CRUSH_RUNTIME_SPEC.clone());
         map.insert("kiro", KIRO_RUNTIME_SPEC.clone());
@@ -336,7 +335,6 @@ pub static CLIENT_SPECS_BY_PROVIDER: LazyLock<HashMap<&'static str, ProviderClie
         map.insert("copilot", COPILOT_CLIENT_SPEC.clone());
         map.insert("codebuddy", CODEBUDDY_CLIENT_SPEC.clone());
         map.insert("qwen", QWEN_CLIENT_SPEC.clone());
-        map.insert("zai", ZAI_CLIENT_SPEC.clone());
         map.insert("cursor", CURSOR_CLIENT_SPEC.clone());
         map.insert("crush", CRUSH_CLIENT_SPEC.clone());
         map.insert("kiro", KIRO_CLIENT_SPEC.clone());
@@ -480,11 +478,11 @@ mod tests {
             CLIENT_SPECS_BY_PROVIDER.keys().copied().collect();
         assert!(runtime_keys.contains("kimi"));
         assert!(runtime_keys.contains("cursor"));
-        assert!(runtime_keys.contains("zai"));
+        assert!(!runtime_keys.contains("zai"));
         assert!(client_keys.contains("kimi"));
         assert!(client_keys.contains("pi"));
-        assert!(client_keys.contains("zai"));
-        assert_eq!(runtime_keys.len(), 17);
-        assert_eq!(client_keys.len(), 17);
+        assert!(!client_keys.contains("zai"));
+        assert_eq!(runtime_keys.len(), 16);
+        assert_eq!(client_keys.len(), 16);
     }
 }

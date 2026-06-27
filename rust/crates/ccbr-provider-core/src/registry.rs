@@ -13,8 +13,7 @@ pub const CORE_PROVIDER_NAMES: &[&str] = &["claude", "codex", "gemini"];
 
 /// Provider names that are optionally included.
 /// Mirrors Python `provider_core.registry_runtime.OPTIONAL_PROVIDER_NAMES`.
-pub const OPTIONAL_PROVIDER_NAMES: &[&str] =
-    &["opencode", "droid", "agy", "kimi", "deepseek", "zai"];
+pub const OPTIONAL_PROVIDER_NAMES: &[&str] = &["opencode", "droid", "agy", "kimi", "deepseek"];
 
 /// Additional Rust-only optional providers kept for backward compatibility.
 pub const EXTRA_PROVIDER_NAMES: &[&str] = &[

@@ -132,3 +132,58 @@ if bundle_root now has required entries: remove(tmp); success
 else try rename(tmp, bundle_root)
 if rename loses the race: re-check bundle_root before any remove
 ```
+
+## Scenario: sealed providers stay out of default registries
+
+### 1. Scope / Trigger
+
+- Trigger: any provider is explicitly sealed by owner decision after upstream/source intake.
+- Owner: default provider discovery and execution registries.
+
+### 2. Signatures
+
+- Default catalog: `OPTIONAL_PROVIDER_NAMES`.
+- Default execution/backend registries: `build_default_execution_registry()` and `build_default_backend_registry()`.
+- Runtime/client maps: `RUNTIME_SPECS_BY_PROVIDER` and `CLIENT_SPECS_BY_PROVIDER`.
+
+### 3. Contracts
+
+- A sealed provider may keep archived source/tests for rollback, but must not appear in default provider discovery, runtime/client spec maps, or execution/backend registries.
+- Sealed providers are not live-acceptance blockers until explicitly unsealed by owner decision.
+- Current sealed provider: `zai`.
+- Current non-mobile live provider acceptance scope: `codex`, `kimi`, and `claude`.
+
+### 4. Validation & Error Matrix
+
+| Condition | Expected behavior |
+|-----------|-------------------|
+| Default optional provider discovery runs | `zai` is absent |
+| Default runtime/client spec maps are queried | `zai` is absent |
+| Default execution/backend registries are built | `zai` is absent |
+| Archived ZAI module tests exist | They may remain, but do not imply default support |
+
+### 5. Good / Base / Bad Cases
+
+- Good: Codex/Kimi/Claude are accepted; ZAI is absent from defaults.
+- Base: ZAI code remains for future unseal/rollback.
+- Bad: default registry advertises ZAI after owner sealed it.
+
+### 6. Tests Required
+
+- Unit: provider-core registry tests assert sealed providers are absent from defaults.
+- Unit: provider runtime/client map tests assert sealed providers are absent from default maps.
+- Unit: provider execution/backend registry tests assert sealed providers are absent from defaults.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```text
+Upstream has provider_backends/zai, so ccbr defaults advertise zai.
+```
+
+#### Correct
+
+```text
+Owner sealed zai; source may remain archived, but default registries omit it.
+```

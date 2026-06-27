@@ -330,3 +330,19 @@ Focused validation:
 - In `ccb-legacy`: `python -m compileall -q lib/runtime_accelerator lib/ccbd/app_runtime lib/cli/services/runtime_launch_runtime test/test_runtime_accelerator_lifecycle.py test/test_v2_runtime_launch_session_files.py` -> pass.
 - In `ccb-legacy`: `git diff --check` -> pass.
 - Resource cleanup: `/mnt/d/dapro-ass/.ccbr/ccbr.config` restored to the original 2 Codex + 1 Claude config; `/run/user/0/ccbr-runtime` has no test socket residue; no matching `/mnt/d/dapro-ass` ccbrd/tmux residue remained after filtering out the check command itself.
+
+## 2026-06-27 ZAI seal and provider acceptance scope
+
+Owner decision narrowed non-mobile P1 provider live acceptance to `codex`, `kimi`, and `claude`; all other providers are ignored for current local 7.7.0 acceptance. `zai` is sealed because the upstream Python source admitted an unofficial/shanzhai provider by mistake.
+
+Rust change:
+
+- ZAI source remains in-tree as archived code, but it is no longer exposed through default optional provider discovery, default runtime/client spec maps, or default provider execution/backend registries.
+- Existing ZAI module code is not deleted to avoid a noisy rollback-unfriendly diff.
+
+Verification:
+
+- `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`
+- `cargo test --manifest-path rust/Cargo.toml -p ccbr-provider-core --test registry_tests -- --test-threads=1` -> `6 passed`
+- `cargo test --manifest-path rust/Cargo.toml -p ccbr-provider-core test_specs_by_provider_include_all_providers -- --test-threads=1` -> `1 passed`
+- `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers test_default -- --test-threads=1` -> `2 passed`

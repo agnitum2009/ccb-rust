@@ -10,7 +10,7 @@ use ccbr_provider_core::registry::{
 
 const CORE_PROVIDERS: &[&str] = &["codex", "claude", "gemini"];
 const ALL_PROVIDERS: &[&str] = &[
-    "codex", "claude", "gemini", "opencode", "droid", "agy", "kimi", "deepseek", "zai",
+    "codex", "claude", "gemini", "opencode", "droid", "agy", "kimi", "deepseek",
 ];
 
 fn provider_set(slice: &[&str]) -> HashSet<String> {
@@ -34,7 +34,7 @@ fn test_default_session_binding_map_uses_backend_owned_entries() {
         bindings["deepseek"].session_path_attr,
         "deepseek_session_path"
     );
-    assert_eq!(bindings["zai"].session_path_attr, "zai_session_path");
+    assert!(!bindings.contains_key("zai"));
 
     // All entries should be self-consistent.
     for (provider, binding) in &bindings {
@@ -58,7 +58,7 @@ fn test_default_runtime_launcher_map_uses_backend_owned_entries() {
     assert_eq!(launchers["agy"].launch_mode, LaunchMode::SimpleTmux);
     assert_eq!(launchers["kimi"].launch_mode, LaunchMode::SimpleTmux);
     assert_eq!(launchers["deepseek"].launch_mode, LaunchMode::SimpleTmux);
-    assert_eq!(launchers["zai"].launch_mode, LaunchMode::SimpleTmux);
+    assert!(!launchers.contains_key("zai"));
 
     for (provider, launcher) in &launchers {
         assert_eq!(&launcher.provider, provider);
@@ -121,10 +121,7 @@ fn test_default_manifests_assign_expected_completion_families() {
         pane_manifest("deepseek").completion_family,
         CompletionFamily::SessionBoundary
     );
-    assert_eq!(
-        pane_manifest("zai").completion_family,
-        CompletionFamily::StructuredResult
-    );
+    assert!(!by_provider.contains_key("zai"));
 
     assert_eq!(
         pane_manifest("codex").completion_source_kind,
@@ -137,10 +134,6 @@ fn test_default_manifests_assign_expected_completion_families() {
     assert_eq!(
         pane_manifest("deepseek").completion_source_kind,
         CompletionSourceKind::SessionSnapshot
-    );
-    assert_eq!(
-        pane_manifest("zai").completion_source_kind,
-        CompletionSourceKind::StructuredResultStream
     );
 
     assert!(pane_manifest("codex").supports_exact_completion);
