@@ -10,7 +10,7 @@ use ccbr_provider_core::registry::{
 
 const CORE_PROVIDERS: &[&str] = &["codex", "claude", "gemini"];
 const ALL_PROVIDERS: &[&str] = &[
-    "codex", "claude", "gemini", "opencode", "droid", "agy", "kimi", "deepseek",
+    "codex", "claude", "gemini", "opencode", "droid", "agy", "kimi", "deepseek", "zai",
 ];
 
 fn provider_set(slice: &[&str]) -> HashSet<String> {
@@ -34,6 +34,7 @@ fn test_default_session_binding_map_uses_backend_owned_entries() {
         bindings["deepseek"].session_path_attr,
         "deepseek_session_path"
     );
+    assert_eq!(bindings["zai"].session_path_attr, "zai_session_path");
 
     // All entries should be self-consistent.
     for (provider, binding) in &bindings {
@@ -57,6 +58,7 @@ fn test_default_runtime_launcher_map_uses_backend_owned_entries() {
     assert_eq!(launchers["agy"].launch_mode, LaunchMode::SimpleTmux);
     assert_eq!(launchers["kimi"].launch_mode, LaunchMode::SimpleTmux);
     assert_eq!(launchers["deepseek"].launch_mode, LaunchMode::SimpleTmux);
+    assert_eq!(launchers["zai"].launch_mode, LaunchMode::SimpleTmux);
 
     for (provider, launcher) in &launchers {
         assert_eq!(&launcher.provider, provider);
@@ -119,6 +121,10 @@ fn test_default_manifests_assign_expected_completion_families() {
         pane_manifest("deepseek").completion_family,
         CompletionFamily::SessionBoundary
     );
+    assert_eq!(
+        pane_manifest("zai").completion_family,
+        CompletionFamily::StructuredResult
+    );
 
     assert_eq!(
         pane_manifest("codex").completion_source_kind,
@@ -131,6 +137,10 @@ fn test_default_manifests_assign_expected_completion_families() {
     assert_eq!(
         pane_manifest("deepseek").completion_source_kind,
         CompletionSourceKind::SessionSnapshot
+    );
+    assert_eq!(
+        pane_manifest("zai").completion_source_kind,
+        CompletionSourceKind::StructuredResultStream
     );
 
     assert!(pane_manifest("codex").supports_exact_completion);
@@ -163,5 +173,9 @@ fn test_session_filename_for_agent_follows_agent_first_naming() {
     assert_eq!(
         session_filename_for_agent("deepseek", "coder").unwrap(),
         ".deepseek-coder-session"
+    );
+    assert_eq!(
+        session_filename_for_agent("zai", "agent").unwrap(),
+        ".zai-agent-session"
     );
 }

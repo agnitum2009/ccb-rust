@@ -20,6 +20,7 @@ const PROVIDER_START_ENV_VARS: &[(&str, &str)] = &[
     ("kimi", "KIMI_START_CMD"),
     ("deepseek", "DEEPSEEK_START_CMD"),
     ("mimo", "MIMO_START_CMD"),
+    ("zai", "ZAI_START_CMD"),
 ];
 
 const PROVIDER_DEFAULT_EXECUTABLES: &[(&str, &str)] = &[("deepseek", "deepcode"), ("mimo", "mimo")];

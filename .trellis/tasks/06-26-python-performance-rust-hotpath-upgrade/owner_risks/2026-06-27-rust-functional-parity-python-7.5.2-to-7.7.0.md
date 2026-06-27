@@ -97,3 +97,23 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Existing callback tests also cover plain nested ask rejection without callback/silence, silence allowance, one callback chain flow, nested callback chain waiting, child failure continuation, timeout, repair, artifact spill, cycle rejection, and depth rejection.
 - This is a unit/integration receipt only; live ask/inbox smoke with real providers and Codex hooks enabled remains separate.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test callbacks_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`.
+
+## Slice 4 ZAI provider intake receipt
+
+- Python 7.7.0 adds `provider_backends/zai` as a native-cli provider:
+  - manifest via `build_native_cli_manifest(provider="zai", supports_subagents=True)`
+  - session file `.zai-session`
+  - session attrs `zai_session_id` / `zai_session_path`
+  - execution command `zai --directory <work_dir> --no-color --prompt <prompt>`
+  - env state through `HOME=<zai_home>`
+  - output observer reads JSONL assistant/model events, skips progress text, reports error events, and falls back to raw stdout when no JSON appears.
+- Rust provider-core now includes `zai` in optional provider discovery, session filename resolution, start env (`ZAI_START_CMD`), and runtime/client spec maps.
+- Rust provider-core manifest enums now include the native-cli contract values `StructuredResultStream` and `StructuredResult`, used by `zai`.
+- Rust providers now register `providers::zai` in default execution/backend registries with a native-cli execution adapter, session binding, launcher, and observer tests.
+- This is provider capability intake only; live `zai` CLI availability and end-to-end runtime launch remain environment-dependent smoke tests.
+- Verification:
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-provider-core --lib -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-provider-core --test registry_tests -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers --lib test_default -- --test-threads=1`
+  - `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers --test provider_zai_tests -- --test-threads=1`
+  - `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`

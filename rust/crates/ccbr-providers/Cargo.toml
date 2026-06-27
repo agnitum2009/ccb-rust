@@ -73,6 +73,10 @@ name = "provider_qwen_tests"
 path = "tests/provider_qwen_tests.rs"
 
 [[test]]
+name = "provider_zai_tests"
+path = "tests/provider_zai_tests.rs"
+
+[[test]]
 name = "native_cli_tests"
 path = "tests/native_cli_tests.rs"
 

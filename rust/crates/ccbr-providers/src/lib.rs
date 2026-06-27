@@ -33,6 +33,7 @@ pub fn build_default_execution_registry() -> execution::ProviderExecutionRegistr
     registry.register(Box::new(providers::crush::build_execution_adapter()));
     registry.register(Box::new(providers::kiro::build_execution_adapter()));
     registry.register(Box::new(providers::pi::build_execution_adapter()));
+    registry.register(Box::new(providers::zai::build_execution_adapter()));
     for adapter in providers::fake::execution_adapters() {
         registry.register(Box::new(adapter));
     }
@@ -58,6 +59,7 @@ pub fn build_default_backend_registry() -> ccbr_provider_core::registry::Provide
     registry.register(providers::crush::backend());
     registry.register(providers::kiro::backend());
     registry.register(providers::pi::backend());
+    registry.register(providers::zai::backend());
     for backend in providers::fake::backends() {
         registry.register(backend);
     }
@@ -99,6 +101,7 @@ mod tests {
         assert!(registry.get("crush").is_some());
         assert!(registry.get("kiro").is_some());
         assert!(registry.get("pi").is_some());
+        assert!(registry.get("zai").is_some());
         for name in providers::fake::TEST_DOUBLE_PROVIDER_NAMES {
             assert!(
                 registry.get(name).is_some(),
@@ -120,6 +123,7 @@ mod tests {
         assert!(registry.get("crush").is_some());
         assert!(registry.get("kiro").is_some());
         assert!(registry.get("pi").is_some());
+        assert!(registry.get("zai").is_some());
         for name in providers::fake::TEST_DOUBLE_PROVIDER_NAMES {
             assert!(
                 registry.get(name).is_some(),

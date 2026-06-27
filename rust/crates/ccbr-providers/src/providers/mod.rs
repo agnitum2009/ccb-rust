@@ -15,6 +15,7 @@ pub mod mimo;
 pub mod opencode;
 pub mod pi;
 pub mod qwen;
+pub mod zai;
 
 use ccbr_provider_core::contracts::ProviderBackend;
 use ccbr_provider_core::manifest::{CompletionManifest, ProviderManifest, RuntimeMode};

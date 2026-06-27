@@ -22,6 +22,7 @@ pub fn provider_session_filenames() -> HashMap<String, String> {
         ("kimi", ".kimi-session"),
         ("deepseek", ".deepseek-session"),
         ("mimo", ".mimo-session"),
+        ("zai", ".zai-session"),
     ]
     .iter()
     .map(|(k, v)| (k.to_string(), v.to_string()))

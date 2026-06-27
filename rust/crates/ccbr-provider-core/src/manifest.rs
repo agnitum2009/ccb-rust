@@ -31,6 +31,7 @@ pub enum CompletionSourceKind {
     ProtocolEventStream,
     SessionEventLog,
     SessionSnapshot,
+    StructuredResultStream,
 }
 
 /// Selector family mirrors Python `completion.models.SelectorFamily`.
@@ -39,6 +40,7 @@ pub enum CompletionSourceKind {
 pub enum SelectorFamily {
     #[default]
     FinalMessage,
+    StructuredResult,
 }
 
 /// Completion profile for a specific runtime mode.

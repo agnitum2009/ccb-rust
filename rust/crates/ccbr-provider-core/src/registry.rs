@@ -13,7 +13,8 @@ pub const CORE_PROVIDER_NAMES: &[&str] = &["claude", "codex", "gemini"];
 
 /// Provider names that are optionally included.
 /// Mirrors Python `provider_core.registry_runtime.OPTIONAL_PROVIDER_NAMES`.
-pub const OPTIONAL_PROVIDER_NAMES: &[&str] = &["opencode", "droid", "agy", "kimi", "deepseek"];
+pub const OPTIONAL_PROVIDER_NAMES: &[&str] =
+    &["opencode", "droid", "agy", "kimi", "deepseek", "zai"];
 
 /// Additional Rust-only optional providers kept for backward compatibility.
 pub const EXTRA_PROVIDER_NAMES: &[&str] = &[
@@ -212,7 +213,7 @@ fn session_binding_for_provider(provider: &str) -> Option<ProviderSessionBinding
             "opencode_session_id".to_string(),
             "session_file".to_string(),
         ),
-        "codex" | "claude" | "gemini" | "droid" | "agy" | "kimi" | "deepseek" => (
+        "codex" | "claude" | "gemini" | "droid" | "agy" | "kimi" | "deepseek" | "zai" => (
             format!("{}_session_id", provider),
             format!("{}_session_path", provider),
         ),
@@ -231,7 +232,7 @@ fn runtime_launcher_for_provider(provider: &str) -> Option<ProviderRuntimeLaunch
     }
     let launch_mode = match provider.as_str() {
         "codex" => LaunchMode::CodexTmux,
-        "claude" | "gemini" | "opencode" | "droid" | "agy" | "kimi" | "deepseek" => {
+        "claude" | "gemini" | "opencode" | "droid" | "agy" | "kimi" | "deepseek" | "zai" => {
             LaunchMode::SimpleTmux
         }
         _ => return None,
@@ -309,6 +310,12 @@ fn default_manifest(provider: &str) -> ProviderManifest {
             true,
             true,
         ),
+        "zai" => (
+            CompletionFamily::StructuredResult,
+            CompletionSourceKind::StructuredResultStream,
+            true,
+            true,
+        ),
         "fake" => (
             CompletionFamily::StructuredResult,
             CompletionSourceKind::ProtocolEventStream,
@@ -347,7 +354,20 @@ fn default_manifest(provider: &str) -> ProviderManifest {
             selector_family: SelectorFamily::FinalMessage,
         },
     );
-    ProviderManifest::new(&provider, true, false, false, false, false, profiles)
+    let (supports_resume, supports_subagents, supports_workspace_attach) = if provider == "zai" {
+        (false, true, true)
+    } else {
+        (true, false, false)
+    };
+    ProviderManifest::new(
+        &provider,
+        supports_resume,
+        false,
+        false,
+        supports_subagents,
+        supports_workspace_attach,
+        profiles,
+    )
 }
 
 #[cfg(test)]

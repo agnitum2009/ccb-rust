@@ -164,6 +164,12 @@ pub fn qwen_runtime_spec() -> ProviderRuntimeSpec {
 }
 define_runtime_spec!(QWEN_RUNTIME_SPEC, "qwen");
 
+/// Runtime spec for ZAI.
+pub fn zai_runtime_spec() -> ProviderRuntimeSpec {
+    build_runtime_spec("zai")
+}
+define_runtime_spec!(ZAI_RUNTIME_SPEC, "zai");
+
 /// Runtime spec for Cursor.
 pub fn cursor_runtime_spec() -> ProviderRuntimeSpec {
     build_runtime_spec("cursor")
@@ -260,6 +266,12 @@ pub fn qwen_client_spec() -> ProviderClientSpec {
 }
 define_client_spec!(QWEN_CLIENT_SPEC, "qwen", ".qwen-session");
 
+/// Client spec for ZAI.
+pub fn zai_client_spec() -> ProviderClientSpec {
+    build_client_spec("zai", ".zai-session")
+}
+define_client_spec!(ZAI_CLIENT_SPEC, "zai", ".zai-session");
+
 /// Client spec for Cursor.
 pub fn cursor_client_spec() -> ProviderClientSpec {
     build_client_spec("cursor", ".cursor-session")
@@ -300,6 +312,7 @@ pub static RUNTIME_SPECS_BY_PROVIDER: LazyLock<HashMap<&'static str, ProviderRun
         map.insert("copilot", COPILOT_RUNTIME_SPEC.clone());
         map.insert("codebuddy", CODEBUDDY_RUNTIME_SPEC.clone());
         map.insert("qwen", QWEN_RUNTIME_SPEC.clone());
+        map.insert("zai", ZAI_RUNTIME_SPEC.clone());
         map.insert("cursor", CURSOR_RUNTIME_SPEC.clone());
         map.insert("crush", CRUSH_RUNTIME_SPEC.clone());
         map.insert("kiro", KIRO_RUNTIME_SPEC.clone());
@@ -323,6 +336,7 @@ pub static CLIENT_SPECS_BY_PROVIDER: LazyLock<HashMap<&'static str, ProviderClie
         map.insert("copilot", COPILOT_CLIENT_SPEC.clone());
         map.insert("codebuddy", CODEBUDDY_CLIENT_SPEC.clone());
         map.insert("qwen", QWEN_CLIENT_SPEC.clone());
+        map.insert("zai", ZAI_CLIENT_SPEC.clone());
         map.insert("cursor", CURSOR_CLIENT_SPEC.clone());
         map.insert("crush", CRUSH_CLIENT_SPEC.clone());
         map.insert("kiro", KIRO_CLIENT_SPEC.clone());
@@ -466,9 +480,11 @@ mod tests {
             CLIENT_SPECS_BY_PROVIDER.keys().copied().collect();
         assert!(runtime_keys.contains("kimi"));
         assert!(runtime_keys.contains("cursor"));
+        assert!(runtime_keys.contains("zai"));
         assert!(client_keys.contains("kimi"));
         assert!(client_keys.contains("pi"));
-        assert_eq!(runtime_keys.len(), 16);
-        assert_eq!(client_keys.len(), 16);
+        assert!(client_keys.contains("zai"));
+        assert_eq!(runtime_keys.len(), 17);
+        assert_eq!(client_keys.len(), 17);
     }
 }
