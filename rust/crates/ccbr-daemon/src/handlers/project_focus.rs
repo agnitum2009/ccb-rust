@@ -28,6 +28,41 @@ pub fn handle_project_focus_agent(app: &mut CcbdApp, payload: &Value) -> Result<
     Ok(focus_response(&plan))
 }
 
+pub fn handle_project_sidebar_click(app: &mut CcbdApp, payload: &Value) -> Result<Value, String> {
+    let schema_version = payload
+        .get("schema_version")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1);
+    let view_payload = crate::handlers::project_view::handle_project_view(
+        app,
+        &json!({"schema_version": schema_version}),
+    )?;
+    let Some(view) = view_payload.get("view") else {
+        return Ok(json!({"focused": false, "target": null}));
+    };
+    let mouse_y = int_field(payload, "mouse_y");
+    let pane_top = int_field(payload, "pane_top");
+    let pane_height = int_field(payload, "pane_height");
+    let Some((kind, name)) = resolve_sidebar_click_target(view, mouse_y, pane_top, pane_height)
+    else {
+        return Ok(json!({"focused": false, "target": null}));
+    };
+    let namespace_epoch = view
+        .get("namespace")
+        .and_then(|v| v.as_object())
+        .and_then(|ns| ns.get("epoch"))
+        .and_then(|v| v.as_u64());
+    let plan = if kind == "window" {
+        focus_window_plan(app, &name, namespace_epoch)?
+    } else {
+        focus_agent_plan(app, &name, namespace_epoch)?
+    };
+    execute_focus_plan(app, &plan)?;
+    let mut response = focus_response(&plan);
+    response["target"] = json!(format!("{kind}:{name}"));
+    Ok(response)
+}
+
 fn focus_window_plan(
     app: &CcbdApp,
     window: &str,
@@ -250,6 +285,83 @@ fn focus_response(plan: &FocusPlan) -> Value {
     })
 }
 
+fn resolve_sidebar_click_target(
+    view: &Value,
+    mouse_y: i64,
+    pane_top: i64,
+    pane_height: i64,
+) -> Option<(String, String)> {
+    let relative_y = relative_coordinate(mouse_y, pane_top, pane_height);
+    if relative_y <= 0 || relative_y >= std::cmp::max(1, pane_height - 1) {
+        return None;
+    }
+    let row_index = (relative_y - 1) as usize;
+    sidebar_tree_targets(view).get(row_index).cloned()
+}
+
+fn sidebar_tree_targets(view: &Value) -> Vec<(String, String)> {
+    let mut targets = Vec::new();
+    let windows = view
+        .get("windows")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten();
+    let agents: Vec<&Value> = view
+        .get("agents")
+        .and_then(|v| v.as_array())
+        .map(|items| items.iter().collect())
+        .unwrap_or_default();
+    for window in windows {
+        let window_name = window
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        if window_name.is_empty() {
+            continue;
+        }
+        targets.push(("window".to_string(), window_name.to_string()));
+        for agent in &agents {
+            if agent
+                .get("window")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                != window_name
+            {
+                continue;
+            }
+            let agent_name = agent
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            if !agent_name.is_empty() {
+                targets.push(("agent".to_string(), agent_name.to_string()));
+            }
+        }
+    }
+    targets
+}
+
+fn relative_coordinate(value: i64, pane_start: i64, pane_size: i64) -> i64 {
+    if value >= pane_size && value >= pane_start {
+        value - pane_start
+    } else {
+        value
+    }
+}
+
+fn int_field(payload: &Value, key: &str) -> i64 {
+    payload
+        .get(key)
+        .and_then(|v| {
+            v.as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        })
+        .unwrap_or(0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -345,5 +457,26 @@ mod tests {
         let err = focus_agent_plan(&app, "agent1", Some(3)).unwrap_err();
 
         assert!(err.contains("stale_view"));
+    }
+
+    #[test]
+    fn sidebar_click_resolves_window_and_agent_rows() {
+        let view = json!({
+            "windows": [{"name": "main"}, {"name": "tools"}],
+            "agents": [
+                {"name": "agent1", "window": "main"},
+                {"name": "agent2", "window": "main"}
+            ],
+        });
+
+        assert_eq!(
+            resolve_sidebar_click_target(&view, 1, 0, 10),
+            Some(("window".to_string(), "main".to_string()))
+        );
+        assert_eq!(
+            resolve_sidebar_click_target(&view, 2, 0, 10),
+            Some(("agent".to_string(), "agent1".to_string()))
+        );
+        assert_eq!(resolve_sidebar_click_target(&view, 0, 0, 10), None);
     }
 }

@@ -2,7 +2,7 @@
 
 ## Phase 0 — Baseline measurement, no code changes
 
-- [x] Use `/home/agnitum/ccb-git` at HEAD `06cbdc3` as Python latest baseline.
+- [x] Use `/home/agnitum/ccb-git` at tag `v7.7.0` / HEAD `fdd11024` as Python latest baseline.
 - [x] Use `/home/agnitum/ccb/ccb-legacy` `ccb-legacy` as the Rust replacement implementation worktree.
 - [x] Reproduce 2-Codex smoke baseline for repeatability.
 - [x] Reproduce 4+ Codex n14-like baseline for CPU acceptance.

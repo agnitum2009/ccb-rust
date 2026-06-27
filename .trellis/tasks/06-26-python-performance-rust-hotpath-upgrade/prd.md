@@ -2,7 +2,7 @@
 
 ## Goal
 
-在 `/home/agnitum/ccb-git` 这条已更新到 Python upstream `v7.6.18` 的源码线上，识别可被 Rust 局部模块替代的性能热点，并设计一条不会破坏现有 Rust 血系的升级路线：
+在 `/home/agnitum/ccb-git` 这条已更新到 Python upstream `v7.7.0` 的源码线上，识别可被 Rust 局部模块替代的性能热点，并设计一条不会破坏现有 Rust 血系的升级路线：
 
 - Python `ccb` 最新版继续作为最新能力与性能优化需求来源。
 - `ccb-legacy` 作为 Python-compatible Rust 血系，保持对 Python `ccb` 的 100% 兼容验证载体。
@@ -10,8 +10,8 @@
 
 ## Confirmed Facts
 
-- `/home/agnitum/ccb-git` 已 fetch `origin` + `upstream` 并 merge `upstream/main` 到当前分支。
-- `/home/agnitum/ccb-git` 当前 HEAD 为 `06cbdc3`，包含 upstream `v7.6.18`；未跟踪 `.codegraph/`、`o13-ccb-ops-unit/` 保留未动。
+- `/home/agnitum/ccb-git` 已 fetch `origin` + `upstream` tags，并 fast-forward 到 upstream tag `v7.7.0`。
+- `/home/agnitum/ccb-git` 当前 HEAD 为 `fdd11024`，`VERSION=7.7.0`，`git describe=v7.7.0`；未跟踪 `.codegraph/`、`o13-ccb-ops-unit/` 保留未动。
 - `/home/agnitum/ccb` Rust 主线 `python-rust/rolepacks-versioning-translation` 已完成 7.5.2 线协议/sidebar/ask live smoke，并已 push 到 `agnitum/ccb-rust`。
 - `/home/agnitum/ccb/ccb-legacy` 的 `ccb-legacy` 已同步等价 provider cache 修复并 push 到 `agnitum/ccb-rust`。
 - 本任务实现工作树固定为 `/home/agnitum/ccb/ccb-legacy`；`/home/agnitum/ccb` 的 `ccbr` 只作为后续可选 intake 目标，不作为本轮替代实现线。

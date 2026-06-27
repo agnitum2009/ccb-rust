@@ -104,6 +104,10 @@ pub fn build_registry() -> HandlerRegistry {
         Box::new(project_focus::handle_project_focus_agent),
     );
     reg.register(
+        "project_sidebar_click",
+        Box::new(project_focus::handle_project_sidebar_click),
+    );
+    reg.register(
         "project_restart_agent",
         Box::new(project_restart::handle_project_restart_agent),
     );
