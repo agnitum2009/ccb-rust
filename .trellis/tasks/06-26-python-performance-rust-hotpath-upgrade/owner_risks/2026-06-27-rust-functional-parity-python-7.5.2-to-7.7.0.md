@@ -283,3 +283,19 @@ Remaining non-mobile gaps:
 - `inbox agent2` rendered `pending=0` while listing a pending job; mailbox count rendering needs follow-up.
 - `queue agent2 --detail` rendered `(no agents)` immediately after accepted submit; queue rendering/target filtering needs follow-up.
 - Provider execution parity still needs real provider hook-enabled smoke, not just shell-pane/default-agent materialization.
+
+## 2026-06-27 mailbox render follow-up
+
+Follow-up fixed the remaining shell-pane ask observer output found in the live smoke:
+- CLI inbox renderer now prefers canonical `item_count`/items over stale summary `pending_reply_count` when rendering daemon mailbox payloads.
+- CLI queue renderer now accepts canonical single-agent `agent` payloads in addition to legacy `agents[]` payloads.
+
+Live evidence after fix, again in isolated smoke root with hooks not disabled:
+- `ccbr ask agent2 --from agent1 <message>` returned an accepted job.
+- `ccbr inbox agent2 --detail` rendered `Inbox for agent2 (pending=1)` and showed the pending job.
+- `ccbr queue agent2 --detail` rendered `agent2: depth=1 active=-` instead of `(no agents)`.
+- `scripts/ccbr-test-cleanup.sh` reclaimed the isolated ccbr smoke runtime and did not touch ccb production.
+
+Remaining non-mobile gaps after this slice:
+- Real provider hook-enabled completion smoke is still pending; current live proof covers daemon/start/tmux shell panes plus mailbox observer rendering.
+- ccb-legacy performance acceptance evidence remains a separate bloodline gate.

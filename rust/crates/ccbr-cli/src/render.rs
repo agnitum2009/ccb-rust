@@ -188,11 +188,16 @@ pub fn render_queue(result: &Value) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or("all");
     let mut out = format!("Queue for {}:\n", target);
-    let agents = result
-        .get("agents")
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.as_slice())
-        .unwrap_or(&[]);
+    let canonical_agent = result.get("agent").filter(|v| v.is_object());
+    let synthetic_agents;
+    let agents = if let Some(arr) = result.get("agents").and_then(|v| v.as_array()) {
+        arr.as_slice()
+    } else if let Some(agent) = canonical_agent {
+        synthetic_agents = vec![agent.clone()];
+        synthetic_agents.as_slice()
+    } else {
+        &[]
+    };
     if agents.is_empty() {
         out.push_str("  (no agents)\n");
     }
@@ -281,18 +286,6 @@ pub fn render_inbox(result: &Value) -> String {
         .and_then(|v| v.as_str())
         .or_else(|| result.get("target").and_then(|v| v.as_str()))
         .unwrap_or("-");
-    let pending = result
-        .get("pending_count")
-        .and_then(|v| v.as_u64())
-        .or_else(|| {
-            result
-                .get("agent")
-                .and_then(|a| a.get("pending_reply_count"))
-                .and_then(|v| v.as_u64())
-        })
-        .or_else(|| result.get("item_count").and_then(|v| v.as_u64()))
-        .unwrap_or(0);
-    let mut out = format!("Inbox for {} (pending={}):\n", agent, pending);
     let mut events: Vec<&Value> = result
         .get("events")
         .and_then(|v| v.as_array())
@@ -309,6 +302,25 @@ pub fn render_inbox(result: &Value) -> String {
             events.push(head);
         }
     }
+    let pending = result
+        .get("pending_count")
+        .and_then(|v| v.as_u64())
+        .or_else(|| result.get("item_count").and_then(|v| v.as_u64()))
+        .or_else(|| {
+            if events.is_empty() {
+                None
+            } else {
+                Some(events.len() as u64)
+            }
+        })
+        .or_else(|| {
+            result
+                .get("agent")
+                .and_then(|a| a.get("pending_reply_count"))
+                .and_then(|v| v.as_u64())
+        })
+        .unwrap_or(0);
+    let mut out = format!("Inbox for {} (pending={}):\n", agent, pending);
     if events.is_empty() {
         out.push_str("  (no events)\n");
     }
@@ -786,6 +798,22 @@ mod tests {
     }
 
     #[test]
+    fn test_render_queue_canonical_single_agent_payload() {
+        let value = serde_json::json!({
+            "target": "agent2",
+            "agent": {
+                "agent_name": "agent2",
+                "queue_depth": 1,
+                "active_job_id": "job-2"
+            }
+        });
+        let out = render_queue(&value);
+        assert!(out.contains("Queue for agent2"));
+        assert!(out.contains("agent2: depth=1 active=job-2"));
+        assert!(!out.contains("(no agents)"));
+    }
+
+    #[test]
     fn test_render_queue() {
         let value = serde_json::json!({
             "target": "claude",
@@ -880,6 +908,29 @@ mod tests {
             "missing job_id in formatted output: {}",
             out
         );
+    }
+
+    #[test]
+    fn test_render_inbox_prefers_canonical_item_count_over_stale_summary_count() {
+        let value = serde_json::json!({
+            "target": "agent2",
+            "agent": {
+                "agent_name": "agent2",
+                "pending_reply_count": 0
+            },
+            "item_count": 1,
+            "head": null,
+            "items": [
+                {
+                    "source_actor": "agent1",
+                    "job_id": "job-live",
+                    "reply_terminal_status": "pending"
+                }
+            ]
+        });
+        let out = render_inbox(&value);
+        assert!(out.contains("Inbox for agent2 (pending=1)"));
+        assert!(out.contains("job-live"));
     }
 
     #[test]
