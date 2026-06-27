@@ -9,6 +9,9 @@ use tempfile::TempDir;
 struct FakeClient {
     ping: Result<Value, String>,
     view: Result<Value, String>,
+    focus_agent: Result<Value, String>,
+    focus_window: Result<Value, String>,
+    stop: Result<Value, String>,
 }
 
 impl MobileGatewayProjectClient for FakeClient {
@@ -18,6 +21,34 @@ impl MobileGatewayProjectClient for FakeClient {
 
     fn project_view(&self) -> Result<Value, String> {
         self.view.clone()
+    }
+
+    fn project_focus_agent(
+        &self,
+        agent: &str,
+        namespace_epoch: Option<i64>,
+    ) -> Result<Value, String> {
+        let mut payload = self.focus_agent.clone()?;
+        payload["agent"] = json!(agent);
+        payload["namespace_epoch"] = json!(namespace_epoch);
+        Ok(payload)
+    }
+
+    fn project_focus_window(
+        &self,
+        window: &str,
+        namespace_epoch: Option<i64>,
+    ) -> Result<Value, String> {
+        let mut payload = self.focus_window.clone()?;
+        payload["window"] = json!(window);
+        payload["namespace_epoch"] = json!(namespace_epoch);
+        Ok(payload)
+    }
+
+    fn stop_all(&self, force: bool) -> Result<Value, String> {
+        let mut payload = self.stop.clone()?;
+        payload["force"] = json!(force);
+        Ok(payload)
     }
 }
 
@@ -42,6 +73,9 @@ fn ok_client() -> FakeClient {
             },
             "cache": {"ttl_ms": 1000}
         })),
+        focus_agent: Ok(json!({"focused": true, "target": "agent"})),
+        focus_window: Ok(json!({"focused": true, "target": "window"})),
+        stop: Ok(json!({"stopped": true})),
     }
 }
 
@@ -65,6 +99,9 @@ fn mobile_gateway_health_matches_python_ok_and_degraded_shapes() {
     let bad = FakeClient {
         ping: Err("socket down".to_string()),
         view: Ok(json!({})),
+        focus_agent: Ok(json!({})),
+        focus_window: Ok(json!({})),
+        stop: Ok(json!({})),
     };
     let degraded = MobileGatewayService::current_project("proj-1", tmp.path(), bad, None)
         .unwrap()
@@ -86,6 +123,9 @@ fn mobile_gateway_projects_payload_reports_registry_health() {
             FakeClient {
                 ping: Err("no daemon".to_string()),
                 view: Ok(json!({})),
+                focus_agent: Ok(json!({})),
+                focus_window: Ok(json!({})),
+                stop: Ok(json!({})),
             },
         )
         .unwrap(),
@@ -213,4 +253,129 @@ fn mobile_gateway_dispatch_self_revoke_preserves_python_error_boundary() {
         .unwrap_err();
     assert_eq!(revoked_token.status_code, 401);
     assert_eq!(revoked_token.message, "device token revoked");
+}
+
+#[test]
+fn mobile_gateway_dispatch_focus_routes_require_focus_scope_and_return_redacted_view() {
+    let tmp = TempDir::new().unwrap();
+    let service =
+        MobileGatewayService::current_project("proj-1", tmp.path(), ok_client(), Some(tmp.path()))
+            .unwrap();
+    let pairing = service
+        .create_pairing_payload(
+            "http://127.0.0.1:8787",
+            Some("lan"),
+            ["view", "focus"],
+            Some(600),
+        )
+        .unwrap();
+    let (_, claimed) = service
+        .dispatch_post(
+            "/v1/pairing/claim",
+            &json!({"pairing_code": pairing["pairing_code"], "device_name": "Phone"}),
+            None,
+        )
+        .unwrap();
+    let token = claimed["device_token"].as_str().unwrap();
+
+    let (status, payload) = service
+        .dispatch_post(
+            "/v1/projects/proj-1/focus-agent",
+            &json!({"agent": "codex", "namespace_epoch": 7}),
+            Some(token),
+        )
+        .unwrap();
+    assert_eq!(status, 200);
+    assert_eq!(payload["focus"]["agent"], "codex");
+    assert_eq!(payload["focus"]["namespace_epoch"], 7);
+    assert!(!payload["view"]["namespace"]
+        .as_object()
+        .unwrap()
+        .contains_key("socket_path"));
+
+    let (status, payload) = service
+        .dispatch_post(
+            "/v1/projects/proj-1/focus-window",
+            &json!({"window": "main", "namespace_epoch": 7}),
+            Some(token),
+        )
+        .unwrap();
+    assert_eq!(status, 200);
+    assert_eq!(payload["focus"]["window"], "main");
+
+    let missing_agent = service
+        .dispatch_post(
+            "/v1/projects/proj-1/focus-agent",
+            &json!({"agent": ""}),
+            Some(token),
+        )
+        .unwrap_err();
+    assert_eq!(missing_agent.status_code, 400);
+    assert_eq!(missing_agent.message, "agent is required");
+}
+
+#[test]
+fn mobile_gateway_dispatch_lifecycle_matches_python_effects() {
+    let tmp = TempDir::new().unwrap();
+    let service =
+        MobileGatewayService::current_project("proj-1", tmp.path(), ok_client(), Some(tmp.path()))
+            .unwrap();
+    let pairing = service
+        .create_pairing_payload(
+            "http://127.0.0.1:8787",
+            Some("lan"),
+            ["view", "lifecycle"],
+            Some(600),
+        )
+        .unwrap();
+    let (_, claimed) = service
+        .dispatch_post(
+            "/v1/pairing/claim",
+            &json!({"pairing_code": pairing["pairing_code"], "device_name": "Phone"}),
+            None,
+        )
+        .unwrap();
+    let token = claimed["device_token"].as_str().unwrap();
+
+    let (_, wake) = service
+        .dispatch_post(
+            "/v1/projects/proj-1/lifecycle",
+            &json!({"action": "wake", "project_id": "proj-1"}),
+            Some(token),
+        )
+        .unwrap();
+    assert_eq!(wake["status"], "ok");
+    assert_eq!(wake["lifecycle"]["state"], "running");
+    assert_eq!(wake["lifecycle"]["effect"], "already_running");
+    assert_eq!(wake["lifecycle"]["tmux_kill_server"], false);
+
+    let (_, close) = service
+        .dispatch_post(
+            "/v1/projects/proj-1/lifecycle",
+            &json!({"action": "close"}),
+            Some(token),
+        )
+        .unwrap();
+    assert_eq!(close["lifecycle"]["effect"], "mobile_view_closed");
+
+    let (_, stop) = service
+        .dispatch_post(
+            "/v1/projects/proj-1/lifecycle",
+            &json!({"action": "stop"}),
+            Some(token),
+        )
+        .unwrap();
+    assert_eq!(stop["lifecycle"]["state"], "stopping");
+    assert_eq!(stop["lifecycle"]["result"]["stopped"], true);
+    assert_eq!(stop["lifecycle"]["result"]["force"], false);
+
+    let mismatch = service
+        .dispatch_post(
+            "/v1/projects/proj-1/lifecycle",
+            &json!({"action": "wake", "project_id": "other"}),
+            Some(token),
+        )
+        .unwrap_err();
+    assert_eq!(mismatch.status_code, 400);
+    assert_eq!(mismatch.message, "request project_id does not match route");
 }

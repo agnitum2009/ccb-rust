@@ -190,3 +190,14 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Pairing store now supports Python-compatible device self-revoke (`self_revoked`) and rejects cross-device revoke with status 403 / message `device can only revoke itself in G2`.
 - This still does not bind an HTTP socket and does not implement lifecycle/focus/terminal/message/file/relay mutation routes.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.
+
+## Slice 10 mobile focus/lifecycle mutation receipt
+
+- Rust mobile gateway service now has Python 7.7.0 route contract coverage for daemon-backed mutation dispatch without binding a real HTTP server:
+  - bearer-authenticated `POST /v1/projects/{project_id}/focus-agent`;
+  - bearer-authenticated `POST /v1/projects/{project_id}/focus-window`;
+  - bearer-authenticated `POST /v1/projects/{project_id}/lifecycle` for `wake`, `open`, `close`, and `stop`.
+- Focus routes call the project client focus owner, then return a redacted ProjectView plus `focus` payload like Python.
+- Lifecycle routes preserve Python effects: `wake -> already_running`, `open -> opened`, `close -> mobile_view_closed`, `stop -> ccbd_stop_requested`; all keep `tmux_kill_server=false`.
+- Scope boundaries remain explicit: this slice does not implement terminal opening, message/file routes, relay, or actual HTTP socket binding.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.

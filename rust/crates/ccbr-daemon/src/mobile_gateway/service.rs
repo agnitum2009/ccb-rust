@@ -42,6 +42,26 @@ pub type Result<T> = std::result::Result<T, MobileGatewayError>;
 pub trait MobileGatewayProjectClient: Clone {
     fn ping(&self) -> std::result::Result<Value, String>;
     fn project_view(&self) -> std::result::Result<Value, String>;
+
+    fn project_focus_agent(
+        &self,
+        _agent: &str,
+        _namespace_epoch: Option<i64>,
+    ) -> std::result::Result<Value, String> {
+        Err("project_focus_agent is not implemented".to_string())
+    }
+
+    fn project_focus_window(
+        &self,
+        _window: &str,
+        _namespace_epoch: Option<i64>,
+    ) -> std::result::Result<Value, String> {
+        Err("project_focus_window is not implemented".to_string())
+    }
+
+    fn stop_all(&self, _force: bool) -> std::result::Result<Value, String> {
+        Err("stop_all is not implemented".to_string())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -356,6 +376,25 @@ impl<C: MobileGatewayProjectClient> MobileGatewayService<C> {
                 .map_err(pairing_error)?;
             return Ok((201, result));
         }
+        if let Some((project_id, action)) = project_action_route(&route) {
+            let payload = match action.as_str() {
+                "focus-agent" => self.focus_agent(
+                    &project_id,
+                    body_text(body, "agent"),
+                    body_i64(body, "namespace_epoch"),
+                    bearer_token,
+                )?,
+                "focus-window" => self.focus_window(
+                    &project_id,
+                    body_text(body, "window"),
+                    body_i64(body, "namespace_epoch"),
+                    bearer_token,
+                )?,
+                "lifecycle" => self.project_lifecycle(&project_id, body, bearer_token)?,
+                _ => return Err(MobileGatewayError::new("not found", 404)),
+            };
+            return Ok((200, payload));
+        }
         if let Some(device_id) = device_revoke_route(&route) {
             let result = self
                 .require_pairing_store()?
@@ -364,6 +403,111 @@ impl<C: MobileGatewayProjectClient> MobileGatewayService<C> {
             return Ok((200, result));
         }
         Err(MobileGatewayError::new("not found", 404))
+    }
+
+    fn focus_agent(
+        &self,
+        project_id: &str,
+        agent: String,
+        namespace_epoch: Option<i64>,
+        bearer_token: Option<&str>,
+    ) -> Result<Value> {
+        let project = self.require_project(project_id)?;
+        self.authenticate(bearer_token, ["focus"])?;
+        if agent.trim().is_empty() {
+            return Err(MobileGatewayError::new("agent is required", 400));
+        }
+        let focus = project
+            .client
+            .project_focus_agent(&agent, namespace_epoch)
+            .map_err(|error| MobileGatewayError::new(error_text(&error), 503))?;
+        self.focused_project_view_payload(project, &focus)
+    }
+
+    fn focus_window(
+        &self,
+        project_id: &str,
+        window: String,
+        namespace_epoch: Option<i64>,
+        bearer_token: Option<&str>,
+    ) -> Result<Value> {
+        let project = self.require_project(project_id)?;
+        self.authenticate(bearer_token, ["focus"])?;
+        if window.trim().is_empty() {
+            return Err(MobileGatewayError::new("window is required", 400));
+        }
+        let focus = project
+            .client
+            .project_focus_window(&window, namespace_epoch)
+            .map_err(|error| MobileGatewayError::new(error_text(&error), 503))?;
+        self.focused_project_view_payload(project, &focus)
+    }
+
+    fn project_lifecycle(
+        &self,
+        project_id: &str,
+        body: &Value,
+        bearer_token: Option<&str>,
+    ) -> Result<Value> {
+        let project = self.require_project(project_id)?;
+        self.authenticate(bearer_token, ["lifecycle"])?;
+        let body_project_id = body_text(body, "project_id");
+        if !body_project_id.is_empty() && body_project_id != project.project_id {
+            return Err(MobileGatewayError::new(
+                "request project_id does not match route",
+                400,
+            ));
+        }
+        let action = body_text(body, "action").to_ascii_lowercase();
+        if !matches!(action.as_str(), "wake" | "open" | "close" | "stop") {
+            return Err(MobileGatewayError::new("unsupported lifecycle action", 400));
+        }
+        if action == "wake" || action == "open" {
+            let mut response = self.project_view_payload(&project.project_id)?;
+            response["schema_version"] = json!(SCHEMA_VERSION);
+            response["status"] = json!("ok");
+            response["project_id"] = json!(project.project_id);
+            response["lifecycle"] = lifecycle_result(
+                &action,
+                "running",
+                if action == "wake" {
+                    "already_running"
+                } else {
+                    "opened"
+                },
+                false,
+                None,
+            );
+            return Ok(response);
+        }
+        if action == "close" {
+            return Ok(json!({
+                "schema_version": SCHEMA_VERSION,
+                "status": "ok",
+                "project_id": project.project_id,
+                "lifecycle": lifecycle_result("close", "running", "mobile_view_closed", false, None),
+            }));
+        }
+        let stop_result = project
+            .client
+            .stop_all(false)
+            .map_err(|error| MobileGatewayError::new(error_text(&error), 503))?;
+        Ok(json!({
+            "schema_version": SCHEMA_VERSION,
+            "status": "ok",
+            "project_id": project.project_id,
+            "lifecycle": lifecycle_result("stop", "stopping", "ccbd_stop_requested", false, Some(stop_result)),
+        }))
+    }
+
+    fn focused_project_view_payload(
+        &self,
+        project: &MobileGatewayProject<C>,
+        focus: &Value,
+    ) -> Result<Value> {
+        let mut payload = self.project_view_payload(&project.project_id)?;
+        payload["focus"] = focus.clone();
+        Ok(payload)
     }
 
     fn authenticate(
@@ -440,6 +584,58 @@ fn project_view_route(route: &str) -> Option<String> {
         .and_then(|rest| rest.strip_suffix(suffix))
         .map(|value| value.trim_matches('/').to_string())
         .filter(|value| !value.is_empty())
+}
+
+fn project_action_route(route: &str) -> Option<(String, String)> {
+    let prefix = "/v1/projects/";
+    let rest = route.strip_prefix(prefix)?.trim_matches('/');
+    let parts = rest.split('/').collect::<Vec<_>>();
+    if parts.len() != 2 {
+        return None;
+    }
+    let action = parts[1].to_string();
+    if !matches!(
+        action.as_str(),
+        "focus-agent" | "focus-window" | "lifecycle" | "terminals"
+    ) {
+        return None;
+    }
+    let project_id = parts[0].trim().to_string();
+    (!project_id.is_empty()).then_some((project_id, action))
+}
+
+fn body_text(body: &Value, key: &str) -> String {
+    body.get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn body_i64(body: &Value, key: &str) -> Option<i64> {
+    body.get(key).and_then(Value::as_i64)
+}
+
+fn lifecycle_result(
+    action: &str,
+    state: &str,
+    effect: &str,
+    forced: bool,
+    result: Option<Value>,
+) -> Value {
+    let mut payload = json!({
+        "action": action,
+        "state": state,
+        "effect": effect,
+        "forced": forced,
+        "ccb_authority": true,
+        "tmux_kill_server": false,
+        "updated_at": utc_now(),
+    });
+    if let Some(result) = result {
+        payload["result"] = result;
+    }
+    payload
 }
 
 fn device_revoke_route(route: &str) -> Option<String> {
