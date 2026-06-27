@@ -146,6 +146,21 @@ User direction paused mobile development and narrowed this session to non-mobile
 3. ccb-legacy performance/hotpath gate: partial pass. Rust accelerator tests and Python hotpath compatibility suites pass; read-only `/home/agnitum/o13` resample shows accelerator `0.000%`, `ccbd/main.py` around `1.800%`, and bridges idle except `mn_c` around `0.800%`. Controlled active ask-storm before/after proof is still pending.
 4. Bloodline gate: pass for this slice. `ccb-legacy` commits remain isolated on the legacy branch; ccbr changes stay in `.ccbr`/Rust mainline docs and tests; no hook disabling was used.
 
+
+## 2026-06-27 `/mnt/d/dapro-ass` live smoke
+
+User requested that the live test use `/mnt/d/dapro-ass`. Result:
+
+- Real project config validated: 2 Codex agents + 1 Claude agent.
+- `ccbr start` materialized all three panes.
+- First ask smoke reproduced a provider readback bug: Codex pane fallback marked a job completed from startup/TUI warning text because it only required the `›` ready prompt.
+- Fix landed in `ccbr-providers`: pane fallback now requires the current `request_anchor` to be present before accepting a ready prompt as a turn boundary.
+- Regression test: `test_pane_text_completion_waits_for_request_anchor`.
+- After-fix smoke no longer falsely completed; the job stayed `running`, then was cancelled and resources were reclaimed.
+- Remaining gap: full Codex reply delivery on `/mnt/d/dapro-ass` still did not complete with the requested token inside the bounded observation window.
+
+Evidence summary: `evidence/dapro-ass-live-smoke-summary.md`.
+
 ## Slice 0 validation evidence
 
 - `cargo fmt --check -p ccb-runtime-accelerator`

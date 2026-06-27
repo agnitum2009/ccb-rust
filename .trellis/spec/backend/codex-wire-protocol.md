@@ -26,7 +26,7 @@
 - `event_msg` with `payload.type = "user_message"` confirms anchor delivery when the text contains the exact `request_anchor`.
 - `event_msg` with `payload.type = "agent_message"` or `response_item` assistant messages may supply reply text.
 - `event_msg` with `payload.type = "task_complete"` is the terminal boundary; prefer `last_agent_message` for the final reply.
-- Pane text fallback is allowed only when no structured Codex JSONL file exists.
+- Pane text fallback is allowed only when no structured Codex JSONL file exists and the pane buffer contains the current job `request_anchor`; a ready prompt without the anchor is startup/TUI noise, not turn completion.
 
 ### 4. Validation & Error Matrix
 
@@ -39,7 +39,8 @@
 | provider start records `prompt_sent=true` | Rust-only `ask` reports delivered without duplicate pane send |
 | JSONL exists but has no new terminal event | keep job running; do not complete from pane text |
 | JSONL contains `task_complete.last_agent_message` | complete job and store that text in sender inbox |
-| No JSONL file exists | pane fallback may detect a ready prompt as best-effort completion |
+| No JSONL file exists and pane contains current `request_anchor` | pane fallback may detect a ready prompt as best-effort completion |
+| Pane shows ready prompt but lacks current `request_anchor` | keep job running; do not deliver TUI/startup text as the reply |
 
 ### 5. Good / Base / Bad Cases
 
@@ -54,6 +55,7 @@
 - Unit: daemon `submit` + heartbeat sends the wrapped prompt through provider execution.
 - Unit: request anchor matching accepts the actual `<<BEGIN:req-...>>` text.
 - Unit: when JSONL exists, pane fallback must not complete before `task_complete`.
+- Unit: pane fallback with Codex startup warning and `›` ready prompt but no current `request_anchor` returns incomplete.
 - Live smoke: `ccbr ask agent2 --from agent1 "Reply exactly: TOKEN"` then `ccbr inbox --detail agent1` contains `TOKEN`.
 - Live smoke: for real Codex provider completion, assert the pane shows `UserPromptSubmit hook (completed)`, `ccbr trace <job>` shows `completed`, and `inbox <agent> --detail` returns `pending=0`.
 
@@ -77,8 +79,20 @@ If Codex JSONL exists, wait for `task_complete` and use structured final-answer 
 Create an isolated smoke root without `.codex/hooks`, then accept a blocked `UserPromptSubmit` run as provider evidence.
 ```
 
+#### Wrong
+
+```text
+Pane contains `›`, so deliver the whole pane buffer as the reply even though the current request anchor never appeared.
+```
+
 #### Correct
 
 ```text
 Copy or otherwise preserve `.codex/hooks` in the smoke root, then require `UserPromptSubmit hook (completed)` plus trace/inbox proof.
+```
+
+#### Correct
+
+```text
+Pane fallback waits for the current `request_anchor` before treating `›` as this turn boundary.
 ```

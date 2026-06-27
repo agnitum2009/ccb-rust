@@ -587,6 +587,11 @@ fn poll_pane_text_completion_codex(
         return None;
     }
 
+    let request_anchor = get_str(&submission.runtime_state, "request_anchor");
+    if !request_anchor.is_empty() && !buffer.contains(&request_anchor) {
+        return None;
+    }
+
     // Dismiss codex startup dialogs (trust prompt) before checking completion.
     let lowered = buffer.to_lowercase();
     if lowered.contains("do you trust") || lowered.contains("press enter to continue") {
@@ -2874,6 +2879,37 @@ mod tests {
             delivery_failure_kind(&state, &submission, "2026-04-04T10:00:05Z"),
             Some("delivery_shutdown".to_string())
         );
+    }
+
+    #[test]
+    fn test_pane_text_completion_waits_for_request_anchor() {
+        let mut state = HashMap::new();
+        state.insert(
+            "request_anchor".to_string(),
+            Value::String("req-anchor".to_string()),
+        );
+        state.insert(
+            "pane_text_buffer".to_string(),
+            Value::String(
+                "⚠ `--dangerously-bypass-hook-trust` is enabled.\n› Use /skills".to_string(),
+            ),
+        );
+        let submission = ProviderSubmission {
+            job_id: "j1".to_string(),
+            agent_name: "agent1".to_string(),
+            provider: "codex".to_string(),
+            accepted_at: "2026-04-04T10:00:00Z".to_string(),
+            ready_at: "2026-04-04T10:00:00Z".to_string(),
+            source_kind: ccbr_completion::models::CompletionSourceKind::TerminalText,
+            reply: String::new(),
+            status: CompletionStatus::Incomplete,
+            reason: "in_progress".to_string(),
+            confidence: CompletionConfidence::Observed,
+            diagnostics: None,
+            runtime_state: state,
+        };
+
+        assert!(poll_pane_text_completion_codex(&submission, "2026-04-04T10:00:05Z").is_none());
     }
 
     fn snapshot_map(content: &str) -> HashMap<String, Value> {
