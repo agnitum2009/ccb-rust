@@ -342,3 +342,17 @@ Cleanup finding and fix:
 - The completion smoke exposed that test tmux sockets can be created under `/run/user/0/ccbr-runtime`, and a live debug `ccbrd` can recreate tmux after the cleanup script's first tmux sweep.
 - `scripts/ccbr-test-cleanup.sh` now kills leaked debug `ccbrd` processes before a second tmux sweep, then removes runtime sockets.
 - Verification: `bash -n scripts/ccbr-test-cleanup.sh`; `bash scripts/ccbr-test-cleanup.sh`; `/run/user/0/ccbr-runtime` had no remaining tmux sockets afterward.
+
+## 2026-06-27 hook-enabled provider completion proof
+
+The earlier provider completion attempt used an isolated root without `.codex/hooks`, so Codex blocked `UserPromptSubmit`. That evidence was rejected for completion acceptance because hooks must remain enabled and functional.
+
+A corrected smoke copied the repository `.codex` hook files into the isolated root before launch. Evidence retained under `evidence/ccbr-provider-completion-hooks/`:
+
+- `ccbr ask codex --from ccbr_self "Reply exactly: <token>"` returned accepted job `job_d689f3f98d77`.
+- `ccbr trace job_d689f3f98d77` rendered `job_d689f3f98d77 [codex] completed`.
+- `ccbr inbox codex --detail` rendered `pending=0`.
+- Captured Codex pane showed `UserPromptSubmit hook (completed)` and the exact provider reply token `CCBR_PROVIDER_HOOK_SMOKE_1782545229`.
+- Smoke runtime was reclaimed with `scripts/ccbr-test-cleanup.sh`; no production ccb runtime was touched.
+
+Provider execution parity status for this slice: passed for single Codex provider submit -> hook -> reply -> trace terminal path. Multi-agent callback/order scenarios remain separate gates.

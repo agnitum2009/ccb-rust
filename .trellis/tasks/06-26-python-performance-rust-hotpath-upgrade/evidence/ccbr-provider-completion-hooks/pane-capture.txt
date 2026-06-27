@@ -1,0 +1,51 @@
+
+
+╭──────────────────────────────────────────────────────────╮
+│ >_ OpenAI Codex (v0.142.3)                               │
+│                                                          │
+│ model:       gpt-5.5 medium   fast   /model to change    │
+│ directory:   …smoke/ccbr-provider-completion-codex-hooks │
+│ permissions: YOLO mode                                   │
+╰──────────────────────────────────────────────────────────╯
+
+  Tip: When the composer is empty, press Esc to step back and edit your last message; Enter confirms.
+
+⚠ `--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation.
+
+• You have 1 usage limit reset available. Run /usage to use one.
+
+⚠ Heads up, you have less than 25% of your weekly limit left. Run /status for a breakdown.
+
+
+› <<BEGIN:req-ecd5bc7d>>
+  Reply exactly: CCBR_PROVIDER_HOOK_SMOKE_1782545229
+
+
+• UserPromptSubmit hook (completed)
+  hook context: <codex-mode>inline: the main session implements/checks directly; do not dispatch implement/check sub-agents.</codex-mode>
+
+    <workflow-state>
+    Task: python-performance-rust-hotpath-upgrade (in_progress)
+    Flow: `trellis-before-dev` -> edit -> `trellis-check` -> validation -> `trellis-update-spec` -> commit (Phase 3.4) -> `/trellis:finish-work`.
+    Do not dispatch implement/check sub-agents in inline mode.
+    Read context: `prd.md` -> `design.md if present` -> `implement.md if present`, plus relevant spec/research loaded by skills.
+    </workflow-state>
+
+• UserPromptSubmit hook (completed)
+  hook context: <codex-mode>inline: the main session implements/checks directly; do not dispatch implement/check sub-agents.</codex-mode>
+
+    <workflow-state>
+    Task: python-performance-rust-hotpath-upgrade (in_progress)
+    Flow: `trellis-before-dev` -> edit -> `trellis-check` -> validation -> `trellis-update-spec` -> commit (Phase 3.4) -> `/trellis:finish-work`.
+    Do not dispatch implement/check sub-agents in inline mode.
+    Read context: `prd.md` -> `design.md if present` -> `implement.md if present`, plus relevant spec/research loaded by skills.
+    </workflow-state>
+
+• CCBR_PROVIDER_HOOK_SMOKE_1782545229
+
+
+› Implement {feature}
+
+  gpt-5.5 medium fast · /home/agnitum/ccb/.trellis/workspace/luck/live-smoke/ccbr-provider-completion-codex-hooks · 5h 91% left · weekly 15% left · 0.142.3 · 2…
+
+
