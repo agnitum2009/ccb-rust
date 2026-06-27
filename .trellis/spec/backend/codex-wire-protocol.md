@@ -11,6 +11,7 @@
 
 - CLI: `ccbr ask <target> --from <sender> <message>`
 - Session files: `.ccbr/.codex-<agent>-session` for named Codex agents; do not fall back to `.ccbr/.codex-session` for named agents.
+- Isolated live-smoke roots that launch real Codex must carry the project `.codex/hooks` files; a smoke without hooks is invalid evidence, not a successful hook-enabled provider proof.
 - Prompt state key consumed by daemon ask delivery: `runtime_state["prompt_text"]`.
 - Prompt dispatch owner for Python-style `submit`: Codex provider execution `start`, not the Rust-only `ask` handler.
 - Provider state keys: `session_path`, `state.log_path`, `state.offset`, `request_anchor`, `anchor_seen`, `reply_buffer`, `last_agent_message`.
@@ -32,6 +33,7 @@
 | Condition | Expected behavior |
 |-----------|-------------------|
 | Named agent session file missing | submission stays unavailable/error; no primary-session fallback |
+| Isolated smoke root lacks `.codex/hooks` | reject the smoke as invalid; do not treat hook-blocked output as provider parity evidence |
 | `prompt_text` missing | daemon cannot deliver wrapped prompt; treat as protocol bug |
 | `submit` heartbeat starts Codex job | provider start sends one wrapped prompt to the target pane |
 | provider start records `prompt_sent=true` | Rust-only `ask` reports delivered without duplicate pane send |
@@ -53,6 +55,7 @@
 - Unit: request anchor matching accepts the actual `<<BEGIN:req-...>>` text.
 - Unit: when JSONL exists, pane fallback must not complete before `task_complete`.
 - Live smoke: `ccbr ask agent2 --from agent1 "Reply exactly: TOKEN"` then `ccbr inbox --detail agent1` contains `TOKEN`.
+- Live smoke: for real Codex provider completion, assert the pane shows `UserPromptSubmit hook (completed)`, `ccbr trace <job>` shows `completed`, and `inbox <agent> --detail` returns `pending=0`.
 
 ### 7. Wrong vs Correct
 
@@ -66,4 +69,16 @@ Codex pane shows a ready prompt, so complete the job from captured pane text.
 
 ```text
 If Codex JSONL exists, wait for `task_complete` and use structured final-answer text.
+```
+
+#### Wrong
+
+```text
+Create an isolated smoke root without `.codex/hooks`, then accept a blocked `UserPromptSubmit` run as provider evidence.
+```
+
+#### Correct
+
+```text
+Copy or otherwise preserve `.codex/hooks` in the smoke root, then require `UserPromptSubmit hook (completed)` plus trace/inbox proof.
 ```
