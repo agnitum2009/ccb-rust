@@ -302,3 +302,31 @@ Still pending for the broader milestone:
 - Live result: `/mnt/d/dapro-ass`, temporary `agent1=codex` + `kimi1=kimi`, job `job_ad27c98bf192` completed with pane token `CCBR_KIMI_PANE_FALLBACK_1782565201`.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers kimi -- --test-threads=1`; `cargo build --manifest-path rust/Cargo.toml -p ccbr-cli -p ccbr-daemon --bins`.
 - Evidence: `evidence/2026-06-27-codex-kimi-live-summary.md`.
+
+## 2026-06-27 non-mobile 1-5 closure checkpoint
+
+User narrowed validation to non-mobile gates 1-2-3-4-5 and requested multi-agent testing only with Codex + Kimi. Claude traffic was not used.
+
+1. Live ask matrix: passed on `/mnt/d/dapro-ass` with temporary Codex+Kimi config.
+   - `codex_to_kimi`: `job_48bfd2dce620 [kimi1] completed`
+   - `kimi_to_codex`: `job_b63f991a390a [agent1] completed`
+   - queued Codex asks completed in order: `job_3834d4dcabee`, `job_d2edd1eef669`
+   - idle-first Codex ask completed: `job_911e9ae7e931`
+   - cancel path completed: `job_d5b94b2dfddf [agent1] cancelled`
+   - Evidence: `evidence/2026-06-27-codex-kimi-matrix/summary.md`.
+2. Codex provider matrix: single and queued Codex deliveries no longer false-complete on startup warning; live Codex replies landed in target inboxes during the matrix.
+3. Active performance profile: 4 simultaneous Codex active jobs all completed. Evidence uses simple `ps %CPU` sampling, so it proves active-path behavior but should not be treated as a normalized benchmark.
+   - `job_f369f83c133c [agent1] completed`
+   - `job_bbbd4d3ac202 [agent2] completed`
+   - `job_b5a686694399 [agent3] completed`
+   - `job_357ee012caa3 [agent4] completed`
+   - Evidence: `evidence/2026-06-27-active-codex-storm/summary.md`.
+4. Accelerator robustness: `ccb-legacy` now restarts an owned crashed runtime accelerator from the ccbd heartbeat path, while preserving fallback behavior when disabled or missing.
+5. Legacy bloodline sync: Kimi session socket handling was checked against the legacy shared session writer. No Kimi launcher code change is needed because the shared writer injects `tmux_socket_path` after pane launch and Kimi provider payload does not overwrite it. Added a regression test to lock this behavior.
+
+Focused validation:
+
+- In `ccb-legacy`: `PYTHONPATH=lib uv run --with pytest pytest -q test/test_runtime_accelerator_lifecycle.py test/test_runtime_accelerator_client.py test/test_codex_runtime_accelerator_polling.py test/test_v2_runtime_launch_session_files.py` -> `18 passed`.
+- In `ccb-legacy`: `python -m compileall -q lib/runtime_accelerator lib/ccbd/app_runtime lib/cli/services/runtime_launch_runtime test/test_runtime_accelerator_lifecycle.py test/test_v2_runtime_launch_session_files.py` -> pass.
+- In `ccb-legacy`: `git diff --check` -> pass.
+- Resource cleanup: `/mnt/d/dapro-ass/.ccbr/ccbr.config` restored to the original 2 Codex + 1 Claude config; `/run/user/0/ccbr-runtime` has no test socket residue; no matching `/mnt/d/dapro-ass` ccbrd/tmux residue remained after filtering out the check command itself.

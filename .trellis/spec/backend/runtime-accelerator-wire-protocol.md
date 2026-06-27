@@ -44,6 +44,7 @@
 - Python `ccbd` starts the sidecar by default unless `CCB_RUNTIME_ACCELERATOR_CODEX` is explicitly disabled.
 - Sidecar lifecycle startup failure is non-fatal: `ccbd` continues and provider polling uses Python fallback.
 - `ccbd` may unlink the accelerator socket only for a sidecar process it started. Missing-binary/fallback handles must not delete a manually supplied socket.
+- If an owned sidecar process later exits, `ccbd` heartbeat may stop the stale handle and start a replacement sidecar. Disabled handles and fallback handles without a process remain unchanged.
 - Python `ccbd` idle heartbeat refreshes the lease but skips full health/supervision/dispatcher maintenance until active work appears or the idle full-maintenance interval elapses.
 - Python `ccbd` must still validate the current lease holder on every heartbeat tick, but may skip rewriting the lease file until the heartbeat write interval elapses.
 - Python keeper must not rewrite `lifecycle.json` for an already-mounted lifecycle when owner/socket/config/namespace fields are unchanged.
@@ -79,6 +80,8 @@
 | Sidecar binary missing at ccbd startup | startup continues; report action contains `runtime_accelerator_fallback:missing_binary` |
 | ccbd started sidecar and shuts down | terminate sidecar and remove owned socket |
 | ccbd did not start sidecar | do not remove socket path |
+| ccbd-owned sidecar exits after startup | next heartbeat restarts the sidecar |
+| disabled or missing-binary fallback handle exists | heartbeat does not repeatedly restart |
 | Observation has per-job `error` | Python uses existing reader path |
 | Successful observation with no changes | Python returns no provider update and does not invoke reader fallback |
 | Idle `ccbd` heartbeat before idle interval | refresh lease only; skip full agent maintenance |
@@ -118,6 +121,7 @@
 - Unit: sidecar lifecycle explicit-disable does not spawn a process.
 - Unit: missing sidecar binary preserves fallback and does not remove a manually supplied socket.
 - Unit: owned sidecar shutdown terminates the process and removes the owned socket.
+- Unit: crashed owned sidecar is restarted from heartbeat/lifecycle without changing disabled or fallback handles.
 - Unit: idle `ccbd` heartbeat skips heavy maintenance between full ticks.
 - Unit: active execution still runs heavy maintenance.
 - Unit: ProjectView cache invalidates immediately when dispatcher job/event revision changes, even if TTL has not expired.
