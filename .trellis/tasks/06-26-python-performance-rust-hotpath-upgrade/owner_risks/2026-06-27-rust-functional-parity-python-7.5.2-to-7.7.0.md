@@ -299,3 +299,29 @@ Live evidence after fix, again in isolated smoke root with hooks not disabled:
 Remaining non-mobile gaps after this slice:
 - Real provider hook-enabled completion smoke is still pending; current live proof covers daemon/start/tmux shell panes plus mailbox observer rendering.
 - ccb-legacy performance acceptance evidence remains a separate bloodline gate.
+
+## 2026-06-27 provider-config launch smoke
+
+Provider execution parity gate was advanced with an isolated real provider configuration, still with mobile paused and without disabling Codex hooks:
+
+```toml
+version = 2
+default_agents = ["codex"]
+
+[agents.codex]
+provider = "codex"
+target = "codex"
+
+[windows]
+main = "codex:codex"
+```
+
+Evidence:
+- `ccbr config validate` loaded `.ccbr/ccbr.config` as `project_config` with one default `codex` agent.
+- `ccbr start codex` returned `Started agents: codex`.
+- `ccbr project-view` rendered `codex [idle] codex (%1)`, proving provider identity reached ProjectView.
+- Private tmux pane showed a `node` command for the codex provider process.
+- Test smoke roots and private tmux/socket/process residues were reclaimed after the run; production ccb under `/home/agnitum/o13` was not touched.
+
+Boundary:
+- This proves provider-config launch/materialization, not full provider completion/reply loop. Full hook-enabled completion remains the next parity gate.
