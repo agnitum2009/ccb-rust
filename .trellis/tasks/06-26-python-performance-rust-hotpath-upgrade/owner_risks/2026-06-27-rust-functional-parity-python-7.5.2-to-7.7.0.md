@@ -325,3 +325,20 @@ Evidence:
 
 Boundary:
 - This proves provider-config launch/materialization, not full provider completion/reply loop. Full hook-enabled completion remains the next parity gate.
+
+## 2026-06-27 provider completion smoke attempt and cleanup repair
+
+Attempted a hook-enabled single Codex provider completion smoke in an isolated root:
+- `ccbr start codex` succeeded.
+- `ccbr ask codex --from ccbr_self "Reply exactly: <token>"` returned an accepted job.
+- `ccbr wait codex --timeout 60` reported readiness, not job completion.
+- `ccbr inbox codex --detail` still showed the job pending with no reply.
+
+Conclusion:
+- Provider launch/materialization parity is proven for the configured Codex provider path.
+- Provider completion/reply parity is not proven yet; the next gate must wait/trace a concrete job id or observe terminal reply delivery.
+
+Cleanup finding and fix:
+- The completion smoke exposed that test tmux sockets can be created under `/run/user/0/ccbr-runtime`, and a live debug `ccbrd` can recreate tmux after the cleanup script's first tmux sweep.
+- `scripts/ccbr-test-cleanup.sh` now kills leaked debug `ccbrd` processes before a second tmux sweep, then removes runtime sockets.
+- Verification: `bash -n scripts/ccbr-test-cleanup.sh`; `bash scripts/ccbr-test-cleanup.sh`; `/run/user/0/ccbr-runtime` had no remaining tmux sockets afterward.

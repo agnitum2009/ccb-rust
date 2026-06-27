@@ -20,6 +20,19 @@ done
 for pid in $(ps -eo pid=,comm=,args= | awk '$2 == "ccbrd" && $0 ~ /target\/debug\/ccbrd/ {print $1}'); do
   kill "$pid" 2>/dev/null || true
 done
+sleep 0.2
+for pid in $(ps -eo pid=,comm=,args= | awk '$2 == "ccbrd" && $0 ~ /target\/debug\/ccbrd/ {print $1}'); do
+  kill -9 "$pid" 2>/dev/null || true
+done
+# A live daemon can recreate its tmux server after the first pass.  Sweep tmux
+# again after daemon shutdown so smoke roots do not leave /run/user ccbr-runtime
+# sockets behind.
+for runtime in "${RUNTIMES[@]}"; do
+  for s in "$runtime"/tmux-*.sock; do [ -S "$s" ] && tmux -S "$s" kill-server 2>/dev/null; done
+done
+for pid in $(ps -eo pid=,comm=,args= | awk '$2 == "tmux" && $0 ~ /\/ccbr-runtime\/tmux-/ {print $1}'); do
+  kill "$pid" 2>/dev/null || true
+done
 # 2. 删死 ccbrd / tmux socket 文件
 for runtime in "${RUNTIMES[@]}"; do
   rm -f "$runtime"/ccbrd-*.sock "$runtime"/tmux-*.sock 2>/dev/null
