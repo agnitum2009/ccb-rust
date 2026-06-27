@@ -168,10 +168,36 @@ fn callback_routes_child_result_as_parent_continuation() {
     let continuation_job = dispatcher
         .get(edge.continuation_job_id.as_ref().unwrap())
         .unwrap();
+    assert_eq!(continuation_job.agent_name, "codex");
+    assert_eq!(continuation_job.request.to_agent, "codex");
     assert_eq!(continuation_job.request.from_actor, "user");
+    assert_eq!(
+        continuation_job.request.task_id.as_deref(),
+        Some("task-callback")
+    );
+    assert_eq!(
+        continuation_job.request.reply_to.as_deref(),
+        Some(edge.parent_message_id.as_str())
+    );
     assert_eq!(
         continuation_job.request.message_type,
         "callback_continuation"
+    );
+    assert_eq!(
+        continuation_job.request.route_options["callback_edge_id"],
+        edge.edge_id
+    );
+    assert_eq!(
+        continuation_job.request.route_options["callback_parent_job_id"],
+        parent_job_id
+    );
+    assert_eq!(
+        continuation_job.request.route_options["callback_child_job_id"],
+        child_job_id
+    );
+    assert_eq!(
+        continuation_job.request.route_options["callback_child_message_id"],
+        edge.child_message_id
     );
     assert!(continuation_job.request.body.contains("evidence found"));
 

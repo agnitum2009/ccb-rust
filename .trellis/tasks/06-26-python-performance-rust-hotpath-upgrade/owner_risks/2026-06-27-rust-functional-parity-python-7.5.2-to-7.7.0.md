@@ -83,3 +83,17 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Rust daemon now has a targeted schema receipt test for those sidebar-consumed fields plus the existing sidebar row-resolution test.
 - This is a schema/test receipt only; live tmux click smoke remains separate.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon project_view_response_matches_python_sidebar_shape -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon sidebar_click_resolves_window_and_agent_rows -- --test-threads=1`.
+
+## Slice 3 ask/callback continuation receipt
+
+- Python 7.7.0 callback continuation contract preserves the original caller and parent task context when a child callback completes:
+  - `to_agent = edge.callback_target_agent`
+  - `from_actor = edge.original_caller`
+  - `task_id = edge.original_task_id`
+  - `reply_to = edge.parent_message_id`
+  - `message_type = callback_continuation`
+  - `route_options` include `callback_edge_id`, `callback_parent_job_id`, `callback_child_job_id`, and `callback_child_message_id`.
+- Rust daemon production logic already matched this Python 7.7.0 contract; this slice adds a regression receipt to lock those fields in `callbacks_tests.rs`.
+- Existing callback tests also cover plain nested ask rejection without callback/silence, silence allowance, one callback chain flow, nested callback chain waiting, child failure continuation, timeout, repair, artifact spill, cycle rejection, and depth rejection.
+- This is a unit/integration receipt only; live ask/inbox smoke with real providers and Codex hooks enabled remains separate.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test callbacks_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`.
