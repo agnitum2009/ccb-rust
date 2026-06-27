@@ -59,7 +59,7 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 1. Reproduce/capture Python client RPC against `ccbrd` and fix the exact ProjectView/sidebar payload mismatch.
 2. Close sidebar pane materialization live smoke.
 3. Close inter-agent ask/inbox live smoke with Codex hooks enabled.
-4. Add Python-style `wait-any/all/quorum` only by routing to the existing Phase2 mailbox reply wait service; do not alias them to readiness `wait`.
+4. Add Python-style `wait-any/all/quorum` only by routing to the existing Phase2 mailbox reply wait service; do not alias them to readiness `wait`. — closed in Rust CLI Slice 1.
 5. Run provider and rolepack parity gates.
 
 ## Non-claims
@@ -72,5 +72,7 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 ## 2026-06-27 CodeGraph upgrade notes
 
 - Python 7.7.0 registers `project_sidebar_click` as a daemon RPC. Rust had CLI-side sidebar click support but no same-name daemon op. Added the daemon op by reusing existing ProjectView + focus planning behavior.
-- Python 7.7.0 `wait-any`, `wait-all`, and `wait-quorum` are mailbox reply waits. Rust has an existing Phase2 mailbox wait implementation, but the active CLI `wait` command is readiness-oriented. Therefore these commands must be wired to Phase2 mailbox wait, not treated as aliases for readiness `wait`.
+- Python 7.7.0 `wait-any`, `wait-all`, and `wait-quorum` are mailbox reply waits. Rust has an existing Phase2 mailbox wait implementation, while active CLI `wait` is readiness-oriented. Slice 1 wires the Python-style commands to Phase2 mailbox wait and preserves readiness `wait`.
 - Rust CodeGraph still has no `zai` or `mobile` symbols; those remain separate 7.7.0 intake surfaces.
+
+- Slice 1 verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli test_cli_doctor_config_validate_and_pend -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-cli test_wait_for_replies -- --test-threads=1`.

@@ -72,6 +72,7 @@ fn dispatch(cmd: ParsedCommand) -> i32 {
         ParsedCommand::Ping(ping) => commands::ping(&client, &ping.target),
         ParsedCommand::Shutdown(_) => commands::shutdown(&client),
         ParsedCommand::Wait(wait) => commands::wait(&client, &wait),
+        ParsedCommand::WaitReplies(wait) => dispatch_phase2_wait(wait, &cwd),
         ParsedCommand::Watch(watch) => commands::watch(&client, &watch),
         ParsedCommand::Cancel(cancel) => commands::cancel(&client, &cancel),
         ParsedCommand::Clear(clear) => commands::clear(&client, &clear),
@@ -133,6 +134,7 @@ fn project_for(cmd: &ParsedCommand) -> &Option<String> {
         ParsedCommand::Start(c) => &c.project,
         ParsedCommand::Ask(c) => &c.project,
         ParsedCommand::Wait(c) => &c.project,
+        ParsedCommand::WaitReplies(c) => &c.project,
         ParsedCommand::Watch(c) => &c.project,
         ParsedCommand::Ps(c) => &c.project,
         ParsedCommand::Ping(c) => &c.project,
@@ -205,6 +207,9 @@ fn parse_args(argv: &[String]) -> Result<ParsedCommand, String> {
     match first {
         "ask" => parse_ask(&filtered[1..], project),
         "wait" => parse_wait(&filtered[1..], project),
+        "wait-any" | "wait-all" | "wait-quorum" => {
+            parse_wait_replies(first, &filtered[1..], project)
+        }
         "watch" => Ok(ParsedCommand::Watch(ParsedWatch {
             project,
             target: get(1, &filtered),
@@ -443,6 +448,101 @@ fn parse_wait(args: &[&String], project: Option<String>) -> Result<ParsedCommand
         quorum: None,
         timeout_s: None,
     }))
+}
+
+fn parse_wait_replies(
+    command_name: &str,
+    args: &[&String],
+    project: Option<String>,
+) -> Result<ParsedCommand, String> {
+    let mut timeout_s: Option<f64> = None;
+    let mut positional: Vec<&String> = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--timeout" => {
+                let value = args
+                    .get(i + 1)
+                    .ok_or_else(|| "--timeout requires a value".to_string())?;
+                timeout_s = Some(parse_positive_float(value, "wait timeout")?);
+                i += 2;
+            }
+            token if token.starts_with("--timeout=") => {
+                timeout_s = Some(parse_positive_float(
+                    token.trim_start_matches("--timeout="),
+                    "wait timeout",
+                )?);
+                i += 1;
+            }
+            _ => {
+                positional.push(args[i]);
+                i += 1;
+            }
+        }
+    }
+
+    let (mode, quorum, target) = match command_name {
+        "wait-any" => ("any", None, positional.first()),
+        "wait-all" => ("all", None, positional.first()),
+        "wait-quorum" => {
+            let quorum = positional
+                .first()
+                .ok_or_else(|| "wait-quorum requires <quorum> <target>".to_string())?
+                .parse::<i64>()
+                .map_err(|_| "wait quorum must be an integer".to_string())?;
+            if quorum <= 0 {
+                return Err("wait quorum must be positive".to_string());
+            }
+            ("quorum", Some(quorum), positional.get(1))
+        }
+        _ => unreachable!(),
+    };
+    let target = target
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| format!("{command_name} requires a target"))?;
+    Ok(ParsedCommand::WaitReplies(
+        crate::models::ParsedWaitCommand {
+            project,
+            mode: mode.to_string(),
+            target,
+            quorum,
+            timeout_s,
+            kind: "wait".to_string(),
+        },
+    ))
+}
+
+fn parse_positive_float(value: &str, label: &str) -> Result<f64, String> {
+    let parsed = value
+        .parse::<f64>()
+        .map_err(|_| format!("{label} must be a number"))?;
+    if parsed <= 0.0 {
+        return Err(format!("{label} must be positive"));
+    }
+    Ok(parsed)
+}
+
+fn dispatch_phase2_wait(
+    command: crate::models::ParsedWaitCommand,
+    cwd: &std::path::Path,
+) -> Result<String, String> {
+    let context_command = crate::models::ParsedCommand::Wait(command.clone());
+    let context = crate::context::CliContextBuilder::new(context_command)
+        .cwd(cwd.to_path_buf())
+        .build()
+        .map_err(|e| e.to_string())?;
+    let services = crate::phase2_services::DaemonPhase2Services::from_context(&context);
+    let command_value = serde_json::to_value(command).map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    let code =
+        crate::phase2_runtime::dispatch::dispatch(&context, &command_value, &mut out, &services);
+    let output = String::from_utf8_lossy(&out).trim_end().to_string();
+    if code == 0 {
+        Ok(output)
+    } else {
+        Err(output)
+    }
 }
 
 fn parse_pend(args: &[&String], project: Option<String>) -> Result<ParsedCommand, String> {

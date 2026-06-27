@@ -243,6 +243,7 @@ pub enum ParsedCommand {
     Start(ParsedStart),
     Ask(ParsedAsk),
     Wait(ParsedWait),
+    WaitReplies(crate::models::ParsedWaitCommand),
     Watch(ParsedWatch),
     Ps(ParsedPs),
     Ping(ParsedPing),

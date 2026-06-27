@@ -55,6 +55,28 @@ fn test_cli_doctor_config_validate_and_pend() {
         0,
         "pend --queue should succeed"
     );
+    assert_eq!(
+        run(&["--project", project, "wait-any", "--timeout=0.01", "msg-1"]),
+        0,
+        "wait-any should use mailbox wait"
+    );
+    assert_eq!(
+        run(&["--project", project, "wait-all", "--timeout=0.01", "msg-1"]),
+        0,
+        "wait-all should use mailbox wait"
+    );
+    assert_eq!(
+        run(&[
+            "--project",
+            project,
+            "wait-quorum",
+            "--timeout=0.01",
+            "1",
+            "msg-1",
+        ]),
+        0,
+        "wait-quorum should use mailbox wait"
+    );
 
     server.shutdown();
     handle.join().unwrap();
