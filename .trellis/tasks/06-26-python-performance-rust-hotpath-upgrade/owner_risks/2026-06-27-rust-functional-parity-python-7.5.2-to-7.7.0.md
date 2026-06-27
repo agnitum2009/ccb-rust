@@ -217,3 +217,16 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
   3. add `POST /v1/projects/{project_id}/terminals` dispatch contract returning terminal handle + websocket URL;
   4. only then add websocket transport/session adapter, because it owns live tmux I/O and replay/resume semantics.
 - Non-claim: focus/lifecycle parity does not imply terminal parity. Terminal must remain blocked until the above owner gates are green.
+
+## Slice 12 mobile terminal token state receipt
+
+- Rust pairing store now covers the Python 7.7.0 terminal token state owner without websocket/tmux transport:
+  - `create_terminal_handle` appends `terminal-tokens.jsonl` and returns terminal token, expiry, epoch, and target summary;
+  - `authenticate_terminal_token` validates token, closed/revoked/expired/device-revoked state, and resume cursor rules;
+  - `record_terminal_input_sequence` rejects replayed input sequences;
+  - `record_terminal_output_sequence` advances output cursor monotonically;
+  - `mark_terminal_disconnected` records disconnect reason/time;
+  - `close_terminal_handle` records close reason/time.
+- Tests lock Python-compatible reason/status boundaries for replay, missing/stale resume cursor, closed terminal, invalid token, and device-revoked terminal access.
+- This still does not implement target validation, terminal route payloads, websocket framing, tmux session I/O, terminal history, or relay.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.

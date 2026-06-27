@@ -11,7 +11,9 @@ use uuid::Uuid;
 const SCHEMA_VERSION: i64 = 1;
 const PAIRING_HASH_PREFIX: &str = "ccb-mobile-pairing-v1:";
 const DEVICE_HASH_PREFIX: &str = "ccb-mobile-device-v1:";
+const TERMINAL_HASH_PREFIX: &str = "ccb-mobile-terminal-v1:";
 const DEFAULT_PAIRING_EXPIRES_SECONDS: i64 = 10 * 60;
+const DEFAULT_TERMINAL_EXPIRES_SECONDS: i64 = 5 * 60;
 const DEFAULT_DEVICE_SCOPE: &str = "view";
 
 #[derive(Debug, Error)]
@@ -405,6 +407,227 @@ impl MobileGatewayPairingStore {
             .collect::<Vec<_>>()
     }
 
+    pub fn create_terminal_handle(
+        &self,
+        project_id: &str,
+        device_id: &str,
+        target_epoch: i64,
+        target_summary: Value,
+        geometry: Value,
+        expires_seconds: Option<i64>,
+    ) -> Result<Value> {
+        let now = Utc::now();
+        let expires_at = now
+            + Duration::seconds(
+                expires_seconds
+                    .unwrap_or(DEFAULT_TERMINAL_EXPIRES_SECONDS)
+                    .max(1),
+            );
+        let terminal_id = random_id("term");
+        let terminal_token = token_urlsafe(32);
+        let record = json!({
+            "schema_version": SCHEMA_VERSION,
+            "terminal_id": terminal_id,
+            "project_id": project_id,
+            "device_id": device_id,
+            "token_hash": token_hash(TERMINAL_HASH_PREFIX, &terminal_token),
+            "created_at": iso(now),
+            "expires_at": iso(expires_at),
+            "target_epoch": target_epoch,
+            "target_summary": object_or_empty(target_summary),
+            "geometry": object_or_empty(geometry),
+            "last_input_seq": 0,
+            "last_output_seq": 0,
+            "disconnected_at": Value::Null,
+            "closed_at": Value::Null,
+            "revoked_at": Value::Null,
+        });
+        append_jsonl(&self.terminal_tokens_path(), &record)?;
+        self.append_audit(json!({
+            "event": "terminal_token_created",
+            "result": "ok",
+            "project_id": project_id,
+            "device_id": device_id,
+            "terminal_id": terminal_id,
+            "target_epoch": target_epoch,
+        }))?;
+        Ok(json!({
+            "schema_version": SCHEMA_VERSION,
+            "terminal_id": terminal_id,
+            "terminal_token": terminal_token,
+            "expires_at": iso(expires_at),
+            "target_epoch": target_epoch,
+            "target_summary": record.get("target_summary").cloned().unwrap_or_else(|| json!({})),
+        }))
+    }
+
+    pub fn authenticate_terminal_token(
+        &self,
+        terminal_id: &str,
+        terminal_token: &str,
+        resume_cursor: Option<i64>,
+    ) -> Result<Value> {
+        let requested = terminal_id.trim();
+        let token = terminal_token.trim();
+        if requested.is_empty() || token.is_empty() {
+            return Err(MobileGatewayPairingError::new(
+                "terminal token is required",
+                401,
+                "missing_terminal_token",
+            ));
+        }
+        let token_hash = token_hash(TERMINAL_HASH_PREFIX, token);
+        let record = self.terminal_state_by_id()?.remove(requested);
+        let Some(record) = record else {
+            self.append_audit(json!({"event": "terminal_auth_denied", "result": "denied", "terminal_id": requested, "reason": "invalid_token"}))?;
+            return Err(MobileGatewayPairingError::new(
+                "invalid terminal token",
+                401,
+                "invalid_token",
+            ));
+        };
+        if value_str(&record, "token_hash") != token_hash {
+            self.append_audit(json!({"event": "terminal_auth_denied", "result": "denied", "terminal_id": requested, "reason": "invalid_token"}))?;
+            return Err(MobileGatewayPairingError::new(
+                "invalid terminal token",
+                401,
+                "invalid_token",
+            ));
+        }
+        self.validate_terminal_record(&record)?;
+        let record = self.validate_resume_cursor(record, resume_cursor)?;
+        self.append_audit(json!({
+            "event": "terminal_auth_ok",
+            "result": "ok",
+            "project_id": value_str(&record, "project_id"),
+            "device_id": value_str(&record, "device_id"),
+            "terminal_id": requested,
+            "resume_cursor": resume_cursor,
+        }))?;
+        Ok(record)
+    }
+
+    pub fn record_terminal_input_sequence(
+        &self,
+        terminal_id: &str,
+        terminal_token: &str,
+        sequence: i64,
+    ) -> Result<Value> {
+        let record =
+            self.require_terminal_record(terminal_id, terminal_token, "terminal_input_denied")?;
+        self.validate_terminal_record(&record)?;
+        let last_seq = value_i64(record.get("last_input_seq"), 0);
+        if sequence <= last_seq {
+            self.append_audit(json!({
+                "event": "terminal_input_denied",
+                "result": "denied",
+                "project_id": value_str(&record, "project_id"),
+                "device_id": value_str(&record, "device_id"),
+                "terminal_id": terminal_id,
+                "reason": "replayed_sequence",
+                "last_input_seq": last_seq,
+                "sequence": sequence,
+            }))?;
+            return Err(MobileGatewayPairingError::new(
+                "terminal input sequence replayed",
+                409,
+                "replayed_sequence",
+            ));
+        }
+        let updated = with_field(record, "last_input_seq", json!(sequence));
+        append_jsonl(&self.terminal_tokens_path(), &updated)?;
+        self.append_audit(json!({
+            "event": "terminal_input_accepted",
+            "result": "ok",
+            "project_id": value_str(&updated, "project_id"),
+            "device_id": value_str(&updated, "device_id"),
+            "terminal_id": terminal_id,
+            "sequence": sequence,
+        }))?;
+        Ok(updated)
+    }
+
+    pub fn record_terminal_output_sequence(
+        &self,
+        terminal_id: &str,
+        terminal_token: &str,
+        sequence: i64,
+    ) -> Result<Value> {
+        let record =
+            self.require_terminal_record(terminal_id, terminal_token, "terminal_output_denied")?;
+        self.validate_terminal_record(&record)?;
+        let last_seq = value_i64(record.get("last_output_seq"), 0);
+        if sequence <= last_seq {
+            return Ok(record);
+        }
+        let updated = with_field(record, "last_output_seq", json!(sequence));
+        append_jsonl(&self.terminal_tokens_path(), &updated)?;
+        Ok(updated)
+    }
+
+    pub fn mark_terminal_disconnected(
+        &self,
+        terminal_id: &str,
+        terminal_token: &str,
+        reason: Option<&str>,
+    ) -> Result<Value> {
+        let record = self.require_terminal_record(
+            terminal_id,
+            terminal_token,
+            "terminal_disconnect_denied",
+        )?;
+        self.validate_terminal_record(&record)?;
+        let reason = reason.unwrap_or("transport_disconnected");
+        let updated = with_fields(
+            record,
+            [
+                ("disconnected_at", json!(iso_now())),
+                ("disconnected_reason", json!(reason)),
+            ],
+        );
+        append_jsonl(&self.terminal_tokens_path(), &updated)?;
+        self.append_audit(json!({
+            "event": "terminal_disconnected",
+            "result": "ok",
+            "project_id": value_str(&updated, "project_id"),
+            "device_id": value_str(&updated, "device_id"),
+            "terminal_id": terminal_id,
+            "reason": reason,
+        }))?;
+        Ok(updated)
+    }
+
+    pub fn close_terminal_handle(
+        &self,
+        terminal_id: &str,
+        terminal_token: &str,
+        reason: Option<&str>,
+    ) -> Result<Value> {
+        let record =
+            self.require_terminal_record(terminal_id, terminal_token, "terminal_close_denied")?;
+        if value_present(record.get("closed_at")) {
+            return Ok(record);
+        }
+        let reason = reason.unwrap_or("client_closed");
+        let updated = with_fields(
+            record,
+            [
+                ("closed_at", json!(iso_now())),
+                ("closed_reason", json!(reason)),
+            ],
+        );
+        append_jsonl(&self.terminal_tokens_path(), &updated)?;
+        self.append_audit(json!({
+            "event": "terminal_closed",
+            "result": "ok",
+            "project_id": value_str(&updated, "project_id"),
+            "device_id": value_str(&updated, "device_id"),
+            "terminal_id": terminal_id,
+            "reason": reason,
+        }))?;
+        Ok(updated)
+    }
+
     pub fn revoke_device_locally(&self, device_id: &str, reason: Option<&str>) -> Result<Value> {
         let requested = clean_id(device_id);
         if requested.is_empty() {
@@ -492,6 +715,171 @@ impl MobileGatewayPairingStore {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()
+    }
+
+    fn terminal_state_by_id(&self) -> Result<HashMap<String, Value>> {
+        let mut result = HashMap::new();
+        for record in read_jsonl(&self.terminal_tokens_path())? {
+            let terminal_id = value_str(&record, "terminal_id");
+            if !terminal_id.is_empty() {
+                result.insert(terminal_id, record);
+            }
+        }
+        Ok(result)
+    }
+
+    fn require_terminal_record(
+        &self,
+        terminal_id: &str,
+        terminal_token: &str,
+        denied_event: &str,
+    ) -> Result<Value> {
+        let requested = terminal_id.trim();
+        let token_hash = token_hash(TERMINAL_HASH_PREFIX, terminal_token.trim());
+        let record = self.terminal_state_by_id()?.remove(requested);
+        let Some(record) = record else {
+            self.append_audit(json!({"event": denied_event, "result": "denied", "terminal_id": requested, "reason": "invalid_token"}))?;
+            return Err(MobileGatewayPairingError::new(
+                "invalid terminal token",
+                401,
+                "invalid_token",
+            ));
+        };
+        if value_str(&record, "token_hash") != token_hash {
+            self.append_audit(json!({"event": denied_event, "result": "denied", "terminal_id": requested, "reason": "invalid_token"}))?;
+            return Err(MobileGatewayPairingError::new(
+                "invalid terminal token",
+                401,
+                "invalid_token",
+            ));
+        }
+        Ok(record)
+    }
+
+    fn validate_terminal_record(&self, record: &Value) -> Result<()> {
+        let terminal_id = value_str(record, "terminal_id");
+        let project_id = value_str(record, "project_id");
+        let device_id = value_str(record, "device_id");
+        if value_present(record.get("revoked_at")) {
+            self.audit_terminal_denied(&project_id, &device_id, &terminal_id, "revoked")?;
+            return Err(MobileGatewayPairingError::new(
+                "terminal token revoked",
+                401,
+                "revoked",
+            ));
+        }
+        if self.is_device_revoked(&device_id) {
+            self.audit_terminal_denied(&project_id, &device_id, &terminal_id, "device_revoked")?;
+            return Err(MobileGatewayPairingError::new(
+                "terminal device revoked",
+                401,
+                "device_revoked",
+            ));
+        }
+        if value_present(record.get("closed_at")) {
+            self.audit_terminal_denied(&project_id, &device_id, &terminal_id, "closed")?;
+            return Err(MobileGatewayPairingError::new(
+                "terminal already closed",
+                410,
+                "closed",
+            ));
+        }
+        if parse_utc(record.get("expires_at")).is_some_and(|expires_at| Utc::now() > expires_at) {
+            self.audit_terminal_denied(&project_id, &device_id, &terminal_id, "expired")?;
+            return Err(MobileGatewayPairingError::new(
+                "terminal token expired",
+                410,
+                "expired",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_resume_cursor(&self, record: Value, resume_cursor: Option<i64>) -> Result<Value> {
+        let disconnected = value_present(record.get("disconnected_at"));
+        let last_output_seq = value_i64(record.get("last_output_seq"), 0);
+        let terminal_id = value_str(&record, "terminal_id");
+        let project_id = value_str(&record, "project_id");
+        let device_id = value_str(&record, "device_id");
+        if disconnected && resume_cursor.is_none() {
+            self.append_audit(json!({
+                "event": "terminal_resume_denied",
+                "result": "denied",
+                "project_id": project_id,
+                "device_id": device_id,
+                "terminal_id": terminal_id,
+                "reason": "missing_resume_cursor",
+                "last_output_seq": last_output_seq,
+            }))?;
+            return Err(MobileGatewayPairingError::new(
+                "resume_cursor is required after terminal disconnect",
+                409,
+                "missing_resume_cursor",
+            ));
+        }
+        if let Some(cursor) = resume_cursor {
+            if cursor != last_output_seq {
+                self.append_audit(json!({
+                    "event": "terminal_resume_denied",
+                    "result": "denied",
+                    "project_id": project_id,
+                    "device_id": device_id,
+                    "terminal_id": terminal_id,
+                    "reason": "stale_resume_cursor",
+                    "last_output_seq": last_output_seq,
+                    "resume_cursor": cursor,
+                }))?;
+                return Err(MobileGatewayPairingError::new(
+                    "terminal resume cursor is stale",
+                    409,
+                    "stale_resume_cursor",
+                ));
+            }
+            let updated = with_fields(
+                record,
+                [
+                    ("disconnected_at", Value::Null),
+                    ("resumed_at", json!(iso_now())),
+                    ("last_resume_cursor", json!(cursor)),
+                ],
+            );
+            append_jsonl(&self.terminal_tokens_path(), &updated)?;
+            self.append_audit(json!({
+                "event": "terminal_resume_ok",
+                "result": "ok",
+                "project_id": project_id,
+                "device_id": device_id,
+                "terminal_id": terminal_id,
+                "resume_cursor": cursor,
+            }))?;
+            return Ok(updated);
+        }
+        Ok(record)
+    }
+
+    fn is_device_revoked(&self, device_id: &str) -> bool {
+        !device_id.is_empty()
+            && self.read_devices().iter().any(|record| {
+                value_str(record, "device_id") == device_id
+                    && value_present(record.get("revoked_at"))
+            })
+    }
+
+    fn audit_terminal_denied(
+        &self,
+        project_id: &str,
+        device_id: &str,
+        terminal_id: &str,
+        reason: &str,
+    ) -> Result<()> {
+        self.append_audit(json!({
+            "event": "terminal_auth_denied",
+            "result": "denied",
+            "project_id": project_id,
+            "device_id": device_id,
+            "terminal_id": terminal_id,
+            "reason": reason,
+        }))
     }
 
     fn audit_denied_pairing(&self, project_id: &str, pairing_id: &str, reason: &str) -> Result<()> {
@@ -631,6 +1019,34 @@ fn clean_id(value: &str) -> String {
         .chars()
         .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_' || *ch == '-')
         .collect()
+}
+
+fn object_or_empty(value: Value) -> Value {
+    if value.is_object() {
+        value
+    } else {
+        json!({})
+    }
+}
+
+fn with_field(mut record: Value, key: &str, value: Value) -> Value {
+    if let Some(obj) = record.as_object_mut() {
+        obj.insert(key.to_string(), value);
+    }
+    record
+}
+
+fn with_fields<'a>(mut record: Value, fields: impl IntoIterator<Item = (&'a str, Value)>) -> Value {
+    if let Some(obj) = record.as_object_mut() {
+        for (key, value) in fields {
+            obj.insert(key.to_string(), value);
+        }
+    }
+    record
+}
+
+fn value_i64(value: Option<&Value>, fallback: i64) -> i64 {
+    value.and_then(Value::as_i64).unwrap_or(fallback)
 }
 
 fn value_str(record: &Value, key: &str) -> String {
