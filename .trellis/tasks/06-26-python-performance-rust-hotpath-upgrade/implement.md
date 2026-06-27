@@ -292,3 +292,13 @@ Still pending for the broader milestone:
 - Do not delete Python bridge code in first slice.
 - Do not change public socket payloads in first slice.
 - Do not change provider hook configuration.
+
+## 2026-06-27 Codex+Kimi provider live closure
+
+- Constraint honored: multi-agent live validation used Codex + Kimi only; Claude was not launched for traffic.
+- Root cause: Kimi session payload missed `tmux_socket_path`, so Rust provider prompt/capture did not target the ccbr tmux server.
+- Additional parity gap: Python Kimi provider had pane fallback; Rust only used native turn log. Kimi 0.20.1 live turns can omit the CCBR request anchor from native logs while the pane shows request/reply.
+- Fix: persist Kimi tmux socket path, recognize/stabilize Kimi 0.20.1 boxed prompt, and add pane fallback extraction from the visible request line.
+- Live result: `/mnt/d/dapro-ass`, temporary `agent1=codex` + `kimi1=kimi`, job `job_ad27c98bf192` completed with pane token `CCBR_KIMI_PANE_FALLBACK_1782565201`.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-providers kimi -- --test-threads=1`; `cargo build --manifest-path rust/Cargo.toml -p ccbr-cli -p ccbr-daemon --bins`.
+- Evidence: `evidence/2026-06-27-codex-kimi-live-summary.md`.

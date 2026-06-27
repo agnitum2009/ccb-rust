@@ -17,6 +17,7 @@ use crate::execution::{
 };
 use crate::kimi::{
     build_runtime_launcher, build_session_binding, load_project_session, observe_kimi_turn,
+    KimiTurnObservation,
 };
 use crate::native_cli_support::wrap_native_prompt;
 
@@ -27,6 +28,7 @@ const DEFAULT_TIMEOUT_MS: u64 = 300_000;
 const MAX_WAIT_SECS: f64 = 300.0;
 const ANCHOR_WAIT_SECS: f64 = 120.0;
 const READY_WAIT_SECS: f64 = 60.0;
+const NEW_BOX_READY_STABLE_SECS: f64 = 3.0;
 const PANE_LINES_DEFAULT: usize = 2000;
 
 /// Build the Kimi provider manifest.
@@ -175,10 +177,24 @@ fn start_native_submission(
     let req_id = protocol::request_anchor_for_job(&job.job_id);
     let prompt = wrap_native_prompt(&job.request.body, &req_id);
 
-    let initial_content = target
+    let mut initial_content = target
         .get_pane_content(&pane_id, PANE_LINES_DEFAULT)
         .unwrap_or_default();
-    let prompt_deferred_until_ready = !pane_ready_for_input(&initial_content);
+    let mut new_box_prompt = pane_has_new_box_prompt(&initial_content);
+    let mut new_box_stabilized = false;
+    if new_box_prompt && !pane_has_legacy_prompt(&initial_content) {
+        let stable_secs = new_box_ready_stable_secs();
+        if stable_secs > 0.0 {
+            std::thread::sleep(std::time::Duration::from_secs_f64(stable_secs));
+            initial_content = target
+                .get_pane_content(&pane_id, PANE_LINES_DEFAULT)
+                .unwrap_or_default();
+            new_box_prompt = pane_has_new_box_prompt(&initial_content);
+            new_box_stabilized = new_box_prompt;
+        }
+    }
+    let prompt_deferred_until_ready = !pane_ready_for_input(&initial_content)
+        || new_box_prompt && !pane_has_legacy_prompt(&initial_content) && !new_box_stabilized;
 
     let mut send_error: Option<String> = None;
     let mut prompt_sent = false;
@@ -226,6 +242,12 @@ fn start_native_submission(
         "prompt_deferred_until_ready".to_string(),
         Value::Bool(prompt_deferred_until_ready),
     );
+    if new_box_prompt {
+        runtime_state.insert(
+            "ready_candidate_seen_at".to_string(),
+            Value::String(now.to_string()),
+        );
+    }
     if let Some(err) = send_error {
         runtime_state.insert("send_error".to_string(), Value::String(err));
     }
@@ -326,7 +348,23 @@ fn poll_submission(submission: &ProviderSubmission, now: &str) -> Option<Provide
     );
 
     let work_dir_path = PathBuf::from(work_dir);
-    let observation = observe_kimi_turn(&work_dir_path, &req_id, None);
+    let mut observation = observe_kimi_turn(&work_dir_path, &req_id, None);
+    let pane_observation = observe_kimi_pane_turn(
+        &*target,
+        &pane_id,
+        &req_id,
+        &runtime_str(&state, "pending_prompt"),
+    );
+    if let Some(pane_observation) = pane_observation {
+        let use_pane = observation
+            .as_ref()
+            .map(|native| pane_observation.completed && !native.completed)
+            .unwrap_or(true);
+        if use_pane {
+            observation = Some(pane_observation);
+            state.insert("pane_fallback_observed".to_string(), Value::Bool(true));
+        }
+    }
 
     if observation.is_none() {
         if total_secs >= ANCHOR_WAIT_SECS {
@@ -630,6 +668,27 @@ fn poll_deferred_prompt(
         .get_pane_content(pane_id, PANE_LINES_DEFAULT)
         .unwrap_or_default();
     if pane_ready_for_input(&content) {
+        if pane_has_new_box_prompt(&content) && !pane_has_legacy_prompt(&content) {
+            let seen_at = runtime_str(state, "ready_candidate_seen_at");
+            if seen_at.is_empty() {
+                state.insert(
+                    "ready_candidate_seen_at".to_string(),
+                    Value::String(now.to_string()),
+                );
+                state.insert("last_poll_at".to_string(), Value::String(now.to_string()));
+                next_seq(state);
+                let mut updated = submission.clone();
+                updated.runtime_state = state.clone();
+                return Some(ProviderPollResult::new(updated, vec![], None));
+            }
+            if seconds_between(&seen_at, now) < new_box_ready_stable_secs() {
+                state.insert("last_poll_at".to_string(), Value::String(now.to_string()));
+                next_seq(state);
+                let mut updated = submission.clone();
+                updated.runtime_state = state.clone();
+                return Some(ProviderPollResult::new(updated, vec![], None));
+            }
+        }
         let pending_prompt = runtime_str(state, "pending_prompt");
         if pending_prompt.is_empty() {
             return Some(terminal_result(
@@ -766,7 +825,174 @@ fn send_prompt(target: &dyn PromptTarget, pane_id: &str, prompt: &str) -> Option
 }
 
 fn pane_ready_for_input(content: &str) -> bool {
+    pane_has_legacy_prompt(content) || pane_has_new_box_prompt(content)
+}
+
+fn pane_has_legacy_prompt(content: &str) -> bool {
     content.contains("── input") && content.contains("agent (")
+}
+
+fn pane_has_new_box_prompt(content: &str) -> bool {
+    content.lines().any(|line| {
+        let trimmed = line.trim();
+        trimmed.starts_with('│') && trimmed.contains('>') && trimmed.ends_with('│')
+    })
+}
+
+fn observe_kimi_pane_turn(
+    target: &dyn PromptTarget,
+    pane_id: &str,
+    req_id: &str,
+    pending_prompt: &str,
+) -> Option<KimiTurnObservation> {
+    let content = target
+        .get_pane_content(pane_id, PANE_LINES_DEFAULT)
+        .unwrap_or_default();
+    if content.trim().is_empty() {
+        return None;
+    }
+    let anchor = if !req_id.is_empty() && content.contains(req_id) {
+        req_id.to_string()
+    } else {
+        pane_request_anchor_from_prompt(pending_prompt)
+            .filter(|anchor| content.contains(anchor))
+            .unwrap_or_default()
+    };
+    if anchor.is_empty() {
+        return None;
+    }
+    let completed = pane_ready_for_input(&content);
+    let reply = if completed {
+        extract_kimi_pane_reply(&content, &anchor)
+    } else {
+        String::new()
+    };
+    Some(KimiTurnObservation {
+        request_seen: true,
+        completed: completed && !reply.is_empty(),
+        reply,
+        session_id: Some(pane_id.to_string()),
+        session_path: Some(PathBuf::from(format!("pane:{pane_id}"))),
+        provider_turn_ref: Some(format!("pane:{pane_id}:{req_id}")),
+        line_count: content.lines().count(),
+        native_started_at: None,
+        native_completed_at: None,
+    })
+}
+
+fn pane_request_anchor_from_prompt(prompt: &str) -> Option<String> {
+    let mut lines = prompt
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty());
+    while let Some(line) = lines.next() {
+        if line.starts_with(protocol::REQ_ID_PREFIX) {
+            return lines.next().map(str::to_string).filter(|s| !s.is_empty());
+        }
+    }
+    None
+}
+
+fn extract_kimi_pane_reply(content: &str, anchor: &str) -> String {
+    let tail = content.split(anchor).last().unwrap_or("");
+    let lines: Vec<&str> = tail.lines().collect();
+    let mut answer_start: Option<(usize, String)> = None;
+    for (index, line) in lines.iter().enumerate() {
+        let stripped = line.trim();
+        if !stripped.starts_with(['●', '•']) {
+            continue;
+        }
+        let candidate = stripped.trim_start_matches(['●', '•']).trim().to_string();
+        if candidate.is_empty() || looks_like_kimi_non_answer(&candidate) {
+            continue;
+        }
+        answer_start = Some((index, candidate));
+        break;
+    }
+    let Some((index, first)) = answer_start else {
+        return String::new();
+    };
+    let mut reply_lines = vec![first];
+    for line in lines.iter().skip(index + 1) {
+        let stripped = line.trim();
+        if looks_like_kimi_input_box_line(stripped) {
+            break;
+        }
+        if stripped.starts_with(['●', '•'])
+            && looks_like_kimi_non_answer(stripped.trim_start_matches(['●', '•']).trim())
+        {
+            break;
+        }
+        reply_lines.push(line.trim_end().to_string());
+    }
+    clean_kimi_pane_reply(&reply_lines.join("\n"))
+}
+
+fn clean_kimi_pane_reply(text: &str) -> String {
+    let mut lines: Vec<String> = text
+        .lines()
+        .map(|line| line.trim_end().to_string())
+        .collect();
+    while lines
+        .first()
+        .map(|line| line.trim().is_empty())
+        .unwrap_or(false)
+    {
+        lines.remove(0);
+    }
+    while lines
+        .last()
+        .map(|line| line.trim().is_empty())
+        .unwrap_or(false)
+    {
+        lines.pop();
+    }
+    if let Some(first) = lines.first_mut() {
+        if first.trim().starts_with(['●', '•']) {
+            *first = first
+                .trim()
+                .trim_start_matches(['●', '•'])
+                .trim()
+                .to_string();
+        }
+    }
+    lines.join("\n").trim().to_string()
+}
+
+fn looks_like_kimi_input_box_line(stripped: &str) -> bool {
+    !stripped.is_empty()
+        && (stripped.starts_with('╭')
+            || stripped.starts_with('╰')
+            || stripped.starts_with("│ >")
+            || stripped.contains("K2.7 Code") && stripped.contains("context:"))
+}
+
+fn looks_like_kimi_non_answer(text: &str) -> bool {
+    let stripped = text.trim();
+    let lowered = stripped.to_lowercase();
+    if stripped.is_empty() {
+        return true;
+    }
+    lowered.starts_with("the user ")
+        || lowered.starts_with("user ")
+        || lowered.starts_with("i should ")
+        || lowered.starts_with("i need ")
+        || lowered.starts_with("i'll ")
+        || lowered.starts_with("i will ")
+        || lowered.starts_with("let me ")
+        || lowered.starts_with("thinking")
+        || lowered.starts_with("using ")
+        || lowered.starts_with("used ")
+        || lowered.starts_with("running ")
+        || lowered.starts_with("reading ")
+}
+
+fn new_box_ready_stable_secs() -> f64 {
+    std::env::var("CCBR_KIMI_NEW_BOX_READY_STABLE_SECS")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(NEW_BOX_READY_STABLE_SECS)
+        .max(0.0)
 }
 
 fn resolve_work_dir(job: &JobRecord, context: Option<&ProviderRuntimeContext>) -> Option<PathBuf> {
@@ -1114,5 +1340,112 @@ mod tests {
                 .and_then(|v| v.as_bool())
                 .unwrap()
         }));
+    }
+
+    #[test]
+    fn test_pane_ready_for_new_kimi_box_prompt() {
+        let content = "\
+╭────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                          │
+╰────────────────────────────────────────────────────────────────────────────╯
+yolo  K2.7 Code  /mnt/d/dapro-ass";
+
+        assert!(pane_ready_for_input(content));
+    }
+
+    #[test]
+    fn test_pane_ready_when_new_kimi_status_mentions_thinking() {
+        let content = "\
+╭────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                          │
+╰────────────────────────────────────────────────────────────────────────────╯
+yolo  K2.7 Code thinking  /mnt/d/dapro-ass /init: generate AGENTS.md";
+
+        assert!(pane_ready_for_input(content));
+    }
+
+    #[test]
+    fn test_start_submission_defers_new_box_prompt_until_stable() {
+        std::env::set_var("CCBR_KIMI_NEW_BOX_READY_STABLE_SECS", "0");
+        let tmp = TempDir::new().unwrap();
+        let work_dir = tmp.path().join("workspace");
+        std::fs::create_dir(&work_dir).unwrap();
+        write_json(
+            &work_dir,
+            ".kimi-session",
+            serde_json::json!({
+                "pane_id": "%1",
+                "work_dir": work_dir.to_string_lossy().to_string(),
+            }),
+        );
+
+        let target = RecordingTarget::default();
+        *target.content.lock().unwrap() = "\
+╭────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                          │
+╰────────────────────────────────────────────────────────────────────────────╯
+yolo  K2.7 Code thinking  /tmp/workspace"
+            .to_string();
+        let target = Arc::new(target);
+
+        let result = with_prompt_target_override(target.clone(), || {
+            let job = JobRecord::new("j1", "agent1", PROVIDER_NAME);
+            let adapter = KimiExecutionAdapter;
+            let ctx = ProviderRuntimeContext {
+                workspace_path: Some(work_dir.to_string_lossy().to_string()),
+                ..Default::default()
+            };
+            adapter.start(&job, Some(&ctx), "2025-01-01T00:00:00Z")
+        });
+        std::env::remove_var("CCBR_KIMI_NEW_BOX_READY_STABLE_SECS");
+
+        assert_eq!(target.sent_count(), 0);
+        assert!(!result
+            .runtime_state
+            .get("prompt_sent")
+            .and_then(|v| v.as_bool())
+            .unwrap());
+        assert_eq!(
+            result
+                .runtime_state
+                .get("ready_candidate_seen_at")
+                .and_then(|v| v.as_str()),
+            Some("2025-01-01T00:00:00Z")
+        );
+    }
+
+    #[test]
+    fn test_extract_kimi_pane_reply_skips_reasoning_bullet() {
+        let content = "\
+✨ Reply exactly: CCBR_KIMI_SOCKET_LIVE_1782564301
+
+● The user wants an exact reply with the literal string. I should output
+  exactly that.
+
+● CCBR_KIMI_SOCKET_LIVE_1782564301
+╭────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                          │
+╰────────────────────────────────────────────────────────────────────────────╯";
+
+        assert_eq!(
+            extract_kimi_pane_reply(content, "Reply exactly: CCBR_KIMI_SOCKET_LIVE_1782564301"),
+            "CCBR_KIMI_SOCKET_LIVE_1782564301"
+        );
+    }
+
+    #[test]
+    fn test_pane_request_anchor_from_prompt_uses_user_request_line() {
+        let prompt = "\
+req- req-123
+
+Reply exactly: TOKEN
+
+CCBR reply guidance:
+- Answer directly";
+
+        assert_eq!(
+            pane_request_anchor_from_prompt(prompt).as_deref(),
+            Some("Reply exactly: TOKEN")
+        );
     }
 }

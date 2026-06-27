@@ -284,6 +284,7 @@ fn build_kimi_launch(ctx: &LaunchContext) -> Result<LaunchResult, String> {
         &runtime_dir,
         workspace_path,
         ctx.pane_id,
+        ctx.socket_path,
         &pane_title_marker,
         &command,
         &launch_session_id,

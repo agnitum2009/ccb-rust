@@ -81,6 +81,7 @@ pub fn build_session_payload(
     runtime_dir: &Path,
     run_cwd: &Path,
     pane_id: &str,
+    tmux_socket_path: &str,
     pane_title_marker: &str,
     start_cmd: &str,
     launch_session_id: &str,
@@ -107,6 +108,12 @@ pub fn build_session_payload(
         Value::String(runtime_dir.join("completion").to_string_lossy().to_string()),
     );
     payload.insert("terminal".to_string(), Value::String("tmux".to_string()));
+    if !tmux_socket_path.trim().is_empty() {
+        payload.insert(
+            "tmux_socket_path".to_string(),
+            Value::String(tmux_socket_path.to_string()),
+        );
+    }
     payload.insert(
         "tmux_session".to_string(),
         Value::String(pane_id.to_string()),
@@ -258,12 +265,17 @@ mod tests {
             tmp.path(),
             Path::new("/run"),
             "%1",
+            "/run/user/0/ccbr-runtime/tmux-test.sock",
             "CCBR-agent1-proj",
             "kimi",
             "launch-1",
         );
         assert_eq!(payload.get("agent_name").unwrap(), "agent1");
         assert_eq!(payload.get("pane_id").unwrap(), "%1");
+        assert_eq!(
+            payload.get("tmux_socket_path").unwrap(),
+            "/run/user/0/ccbr-runtime/tmux-test.sock"
+        );
         assert_eq!(payload.get("ccbr_session_id").unwrap(), "launch-1");
     }
 }
