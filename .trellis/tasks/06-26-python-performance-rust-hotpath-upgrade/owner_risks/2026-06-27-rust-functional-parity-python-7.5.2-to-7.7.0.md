@@ -168,3 +168,13 @@ These were not 7.5.2 parity gaps, but they must now be classified for the 7.7.0 
 - Error receipts preserve Python reason/status pairs for missing/invalid pairing codes, already claimed pairings, duplicate devices, missing device IDs, invalid tokens, and missing devices.
 - This remains a state module only; HTTP routes, project registry, terminal handles, and relay behavior remain later slices.
 - Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.
+
+## Slice 8 mobile read-only gateway service receipt
+
+- Rust daemon now has a read-only `mobile_gateway::service` contract for the Python 7.7.0 mobile gateway owner surface without starting an HTTP server:
+  - `health_payload()` mirrors `/v1/health` ok/degraded shape and ccbd health summary fields;
+  - `projects_payload()` mirrors `/v1/projects` registry projection including unreachable project fallback;
+  - `project_view_payload(project_id)` calls a project client and redacts private namespace fields (`socket_path`, `session_name`) like Python.
+- Service capabilities preserve Python capability split: base `http_json`/`project_view`, plus pairing/device/lifecycle/focus/terminal/file capabilities only when a pairing store is configured.
+- This is still service-contract only; HTTP server binding, bearer auth dispatch, mutation routes, terminal routes, and relay remain later slices.
+- Verification: `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_service_tests -- --test-threads=1`; `cargo test --manifest-path rust/Cargo.toml -p ccbr-daemon --test mobile_gateway_pairing_tests -- --test-threads=1`; `cargo fmt --manifest-path rust/Cargo.toml --all -- --check`; `git diff --check`.
