@@ -1,0 +1,10 @@
+summary
+accelerator		avg=0.000	max=0.000	n=5
+ccbd-keeper		avg=0.700	max=0.700	n=5
+ccbd-main		avg=1.800	max=1.800	n=5
+codex-bridge	archi	avg=0.000	max=0.000	n=5
+codex-bridge	ccb_self	avg=0.000	max=0.000	n=5
+codex-bridge	coder	avg=0.000	max=0.000	n=5
+codex-bridge	mn_c	avg=0.800	max=0.800	n=5
+codex-bridge	mother	avg=0.000	max=0.000	n=5
+sidebar		avg=0.100	max=0.100	n=25

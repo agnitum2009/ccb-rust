@@ -76,3 +76,30 @@ Accepted:
 Still pending:
 - Capture before/after benchmark under a controlled idle/active workload, not only a live production snapshot.
 - Verify `mn_c` nonzero bridge CPU source if it persists under repeated samples.
+
+## 2026-06-27 o13 read-only CPU resample
+
+Files:
+- `.benchmarks/2026-06-27-o13-cpu-resample.tsv`
+- `.benchmarks/2026-06-27-o13-cpu-resample-summary.txt`
+
+Method: five read-only `ps` samples, five seconds apart, exact-match filtered to `/root/.local/share/codex-dual` production CCB processes for `/home/agnitum/o13`.
+
+Summary:
+
+```text
+accelerator                 avg=0.000 max=0.000 n=5
+ccbd-keeper                 avg=0.700 max=0.700 n=5
+ccbd-main                   avg=1.800 max=1.800 n=5
+codex-bridge archi          avg=0.000 max=0.000 n=5
+codex-bridge ccb_self       avg=0.000 max=0.000 n=5
+codex-bridge coder          avg=0.000 max=0.000 n=5
+codex-bridge mn_c           avg=0.800 max=0.800 n=5
+codex-bridge mother         avg=0.000 max=0.000 n=5
+sidebar                     avg=0.100 max=0.100 n=25
+```
+
+Interpretation:
+- The earlier all-bridge hot-loop pattern is not present in this resample.
+- `mn_c` remains the only bridge with stable nonzero CPU in this window; it needs targeted source attribution if it matters operationally.
+- This is still a production read-only snapshot, not a controlled before/after benchmark.
