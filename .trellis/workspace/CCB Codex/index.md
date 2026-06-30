@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 1
+- **Total Sessions**: 2
 - **Last Active**: 2026-07-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~40 | Active |
+| `journal-1.md` | ~73 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 2 | 2026-07-01 | Heartbeat PyO3 production PoC approved and pushed | `4ae5bc66` | `python-rust/rolepacks-versioning-translation` |
 | 1 | 2026-07-01 | Backport v8.0.4 Codex bridge gaps to ccb-legacy Rust | `008b2bcb` | `python-rust/rolepacks-versioning-translation` |
 <!-- @@@/auto:session-history -->
 
