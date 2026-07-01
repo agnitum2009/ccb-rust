@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Empty-Reply Diagnostics Split
+
+- **Completion Reason Disambiguation**: `ProtocolTurnDetector` and
+  `SessionBoundaryDetector` now split the generic
+  `incomplete/task_complete_empty_reply` reason into three explicit cases:
+  - `model_empty_output` — the provider saw the request anchor and returned a
+    turn boundary, but the model produced no assistant text.
+  - `delivery_late_empty` — the turn boundary arrived before the request anchor
+    was observed, indicating the prompt was not delivered or the reader was
+    bound to stale history.
+  - `api_empty_after_error` — the provider reported an API error during the
+    turn and then completed without assistant reply text.
+  Diagnostics include `empty_reply_reason` and a diagnosis tailored to the case.
+- **Codex API-Error Propagation**: the Codex provider now tracks `api_error`
+  events across polls and surfaces `api_error_seen: true` in the
+  `TURN_BOUNDARY` payload, enabling the detector to classify the empty-reply
+  cause correctly.
+
 ## v7.5.1 (2026-06-13)
 
 ### Rust CLI Command Completion And Version Alignment
