@@ -251,3 +251,165 @@ def test_delivery_acceptance_guard_suppressed_when_current_log_not_drained(
     result = _delivery_acceptance_guard(submission, now=now)
 
     assert result is None
+
+
+
+def test_refresh_reader_switches_to_anchor_target_log_despite_unread_stale_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stale_binding
+) -> None:
+    """When the current reader is bound to stale history with unread data,
+    _refresh_reader_for_current_session_binding should still jump directly to
+    the unique log that contains the current request anchor."""
+    from provider_backends.codex import execution as execution_module
+    from provider_backends.codex.execution import _refresh_reader_for_current_session_binding
+
+    session, old_log, new_log = stale_binding
+    work_dir = Path(session.data["work_dir"])  # type: ignore[arg-type]
+
+    monkeypatch.setattr(execution_module, "_load_session", lambda _wd, _agent: session)
+
+    reader = CodexLogReader(
+        root=Path(session.data["codex_session_root"]),  # type: ignore[arg-type]
+        log_path=old_log,
+        session_id_filter=OLD_ID,
+        work_dir=work_dir,
+        follow_workspace_sessions=False,
+    )
+    runtime_state: dict[str, object] = {
+        "mode": "active",
+        # offset=0 means the stale log still has unread data. The old code would
+        # not scan for a fallback log in this situation.
+        "state": {"log_path": str(old_log), "offset": 0, "last_rescan": 0.0},
+        "reader": reader,
+        "request_anchor": JOB_ID,
+        "anchor_seen": False,
+        "delivery_state": "pending_anchor",
+        "workspace_path": str(work_dir),
+        "session_path": str(old_log),
+        "delivery_target_session_path": str(old_log),
+    }
+    submission = ProviderSubmission(
+        job_id=JOB_ID,
+        agent_name="agent1",
+        provider="codex",
+        accepted_at="",
+        ready_at="",
+        source_kind=CompletionSourceKind.PROTOCOL_EVENT_STREAM,
+        reply="",
+        runtime_state=runtime_state,
+    )
+
+    updated = _refresh_reader_for_current_session_binding(submission)
+
+    updated_state = updated.runtime_state["state"]
+    assert Path(updated_state["log_path"]) == new_log  # type: ignore[arg-type]
+    assert updated_state["offset"] == 0
+    updated_reader = updated.runtime_state["reader"]
+    assert updated_reader._session_id_filter == NEW_ID
+    assert updated.runtime_state["session_path"] == str(new_log)
+    assert updated.runtime_state["delivery_target_session_path"] == str(new_log)
+
+
+def test_anchor_target_log_returns_none_when_no_match(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If no log contains the current request anchor, do not switch readers."""
+    from provider_backends.codex import execution as execution_module
+    from provider_backends.codex.execution import _anchor_target_log
+
+    session = _make_session(tmp_path, "agent1")
+    sessions = Path(session.data["codex_session_root"])  # type: ignore[arg-type]
+    work_dir = Path(session.data["work_dir"])  # type: ignore[arg-type]
+
+    old_log = sessions / f"rollout-{OLD_ID}.jsonl"
+    _write_log(
+        old_log,
+        [
+            {
+                "type": "session_meta",
+                "payload": {"cwd": str(tmp_path / "repo"), "session_id": OLD_ID},
+            },
+            {
+                "type": "event_msg",
+                "payload": {"type": "user_message", "message": "no anchor here"},
+            },
+        ],
+    )
+
+    monkeypatch.setattr(execution_module, "_load_session", lambda _wd, _agent: session)
+
+    runtime_state: dict[str, object] = {
+        "mode": "active",
+        "state": {"log_path": str(old_log), "offset": 0, "last_rescan": 0.0},
+        "request_anchor": JOB_ID,
+        "anchor_seen": False,
+        "workspace_path": str(work_dir),
+    }
+    submission = ProviderSubmission(
+        job_id=JOB_ID,
+        agent_name="agent1",
+        provider="codex",
+        accepted_at="",
+        ready_at="",
+        source_kind=CompletionSourceKind.PROTOCOL_EVENT_STREAM,
+        reply="",
+        runtime_state=runtime_state,
+    )
+
+    result = _anchor_target_log(submission, state=runtime_state, session=session, work_dir=work_dir)
+    assert result is None
+
+
+def test_anchor_target_log_returns_none_when_multiple_matches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If more than one log contains the same request anchor, refuse to switch
+    to avoid picking the wrong session."""
+    from provider_backends.codex import execution as execution_module
+    from provider_backends.codex.execution import _anchor_target_log
+
+    session = _make_session(tmp_path, "agent1")
+    sessions = Path(session.data["codex_session_root"])  # type: ignore[arg-type]
+    work_dir = Path(session.data["work_dir"])  # type: ignore[arg-type]
+
+    for sid in (OLD_ID, NEW_ID):
+        log = sessions / f"rollout-{sid}.jsonl"
+        _write_log(
+            log,
+            [
+                {
+                    "type": "session_meta",
+                    "payload": {"cwd": str(tmp_path / "repo"), "session_id": sid},
+                },
+                {
+                    "type": "event_msg",
+                    "payload": {
+                        "type": "user_message",
+                        "message": f"CCB_REQ_ID: {JOB_ID}\n\nhello",
+                    },
+                },
+            ],
+        )
+
+    monkeypatch.setattr(execution_module, "_load_session", lambda _wd, _agent: session)
+
+    runtime_state: dict[str, object] = {
+        "mode": "active",
+        "state": {"log_path": str(sessions / f"rollout-{OLD_ID}.jsonl"), "offset": 0, "last_rescan": 0.0},
+        "request_anchor": JOB_ID,
+        "anchor_seen": False,
+        "workspace_path": str(work_dir),
+    }
+    submission = ProviderSubmission(
+        job_id=JOB_ID,
+        agent_name="agent1",
+        provider="codex",
+        accepted_at="",
+        ready_at="",
+        source_kind=CompletionSourceKind.PROTOCOL_EVENT_STREAM,
+        reply="",
+        runtime_state=runtime_state,
+    )
+
+    result = _anchor_target_log(submission, state=runtime_state, session=session, work_dir=work_dir)
+    assert result is None

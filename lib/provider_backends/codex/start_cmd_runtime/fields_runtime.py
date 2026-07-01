@@ -11,6 +11,8 @@ def effective_start_cmd(data: Mapping[str, object]) -> str:
         return ""
     start_cmd = stored_start_cmd(data)
     codex_start_cmd = stored_codex_start_cmd(data)
+    if _restore_mode_is_fresh(data):
+        return codex_start_cmd or start_cmd
     session_id = resolved_session_id(data, start_cmd=start_cmd, codex_start_cmd=codex_start_cmd)
     if should_rebuild_resume_command(session_id=session_id, start_cmd=start_cmd, codex_start_cmd=codex_start_cmd):
         return build_resume_start_cmd(start_cmd, session_id)
@@ -19,6 +21,8 @@ def effective_start_cmd(data: Mapping[str, object]) -> str:
 
 def persist_resume_start_cmd_fields(data: dict[str, object], session_id: object) -> str | None:
     if not isinstance(data, dict):
+        return None
+    if _restore_mode_is_fresh(data):
         return None
     normalized_session_id = normalized_session_value(session_id)
     if not normalized_session_id:
@@ -70,6 +74,10 @@ def should_rebuild_resume_command(*, session_id: str, start_cmd: str, codex_star
         and start_cmd
         and (not codex_start_cmd or looks_like_bare_resume_cmd(codex_start_cmd))
     )
+
+
+def _restore_mode_is_fresh(data: Mapping[str, object]) -> bool:
+    return str(data.get("codex_restore_mode") or "").strip().lower() == "fresh"
 
 
 __all__ = ["effective_start_cmd", "persist_resume_start_cmd_fields", "resume_template_command"]

@@ -99,6 +99,7 @@ def build_session_payload(
         'codex_start_cmd': start_cmd,
         'start_cmd': start_cmd,
     }
+    payload['codex_restore_mode'] = spec.restore_default.value
     payload['codex_session_root'] = str(layout.session_root)
     if layout.codex_home is not None:
         payload['codex_home'] = str(layout.codex_home)
