@@ -135,6 +135,55 @@ def _locked_reader_for_log(session, log_path: Path, *, work_dir: Path) -> CodexL
     return CodexLogReader(**kwargs)
 
 
+def _anchor_target_log(
+    submission: ProviderSubmission,
+    *,
+    state: dict[str, object],
+    session,
+    work_dir: Path,
+) -> Path | None:
+    """Scan the session root for the unique log that contains the current request anchor.
+
+    Returns the matching log path if exactly one log contains the anchor and matches
+    the target work dir. This allows the provider to jump directly to a new session
+    log after a daemon restart even when the current reader is still bound to stale
+    history.
+    """
+    if _active_anchor_fallback_log(state) is not None:
+        return None
+    if bool(state.get('anchor_seen') or state.get('no_wrap')):
+        return None
+    request_anchor = request_anchor_from_runtime_state(state, fallback=submission.job_id)
+    if not request_anchor:
+        return None
+    root = codex_session_root_path(getattr(session, "data", None))
+    if root is None or not root.is_dir():
+        return None
+    target_work_dir = normalize_work_dir(work_dir)
+    if not target_work_dir:
+        return None
+
+    matches: list[Path] = []
+    try:
+        candidates = sorted(root.glob('**/*.jsonl'))
+    except OSError:
+        return None
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        if not _log_matches_work_dir(candidate, target_work_dir):
+            continue
+        if not extract_session_id(candidate):
+            continue
+        if _log_contains_request_anchor(candidate, request_anchor):
+            matches.append(candidate)
+            if len(matches) > 1:
+                return None
+    if len(matches) != 1:
+        return None
+    return matches[0]
+
+
 def _refresh_reader_for_current_session_binding(submission: ProviderSubmission) -> ProviderSubmission:
     state = dict(submission.runtime_state)
     if str(state.get('mode') or '').strip().lower() != 'active':
@@ -156,6 +205,27 @@ def _refresh_reader_for_current_session_binding(submission: ProviderSubmission) 
     reader_log_str = _normalized_path_string(getattr(reader, '_preferred_log', None))
     reader_filter = str(getattr(reader, '_session_id_filter', '') or '').strip()
     current_filter = str(getattr(session, 'codex_session_id', '') or '').strip()
+
+    anchor_target = _anchor_target_log(submission, state=state, session=session, work_dir=work_dir)
+    if anchor_target is not None:
+        target_str = _normalized_path_string(anchor_target)
+        if target_str != reader_log_str:
+            updated = _submission_with_locked_reader(
+                submission,
+                state=state,
+                poll_state=poll_state,
+                session=session,
+                work_dir=work_dir,
+                log_path=anchor_target,
+                fallback=True,
+            )
+            if updated is not None:
+                updated_state = {
+                    **updated.runtime_state,
+                    'session_path': target_str,
+                    'delivery_target_session_path': target_str,
+                }
+                return replace(updated, runtime_state=updated_state)
 
     fallback_log = _active_anchor_fallback_log(state)
     if fallback_log is not None:
