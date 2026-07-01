@@ -47,13 +47,14 @@ impl ProtocolTurnDetector {
         if !reply.is_empty() {
             self.base.record_reply(item, &reply, true, None);
         } else if !self.base.state().reply_started {
+            let reason = self.classify_empty_boundary(item);
             self.base.set_terminal(
                 CompletionStatus::Incomplete,
-                "task_complete_empty_reply",
+                &reason,
                 CompletionConfidence::Exact,
                 &item.timestamp,
                 "",
-                Some(self.empty_boundary_diagnostics(item)),
+                Some(self.empty_boundary_diagnostics(item, &reason)),
             );
             return;
         }
@@ -68,12 +69,39 @@ impl ProtocolTurnDetector {
         );
     }
 
+    fn classify_empty_boundary(&self, item: &CompletionItem) -> String {
+        if self.api_error_seen(item) {
+            return "api_empty_after_error".into();
+        }
+        if !self.base.state().anchor_seen {
+            return "delivery_late_empty".into();
+        }
+        "model_empty_output".into()
+    }
+
+    fn api_error_seen(&self, item: &CompletionItem) -> bool {
+        for key in &["api_error_seen", "error_seen"] {
+            match item.payload.get(*key) {
+                Some(serde_json::Value::Bool(true)) => return true,
+                Some(serde_json::Value::String(value)) => {
+                    let trimmed = value.trim().to_lowercase();
+                    if !trimmed.is_empty() && trimmed != "false" && trimmed != "0" {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
     fn empty_boundary_diagnostics(
         &self,
         item: &CompletionItem,
+        reason: &str,
     ) -> serde_json::Map<String, serde_json::Value> {
         let mut diagnostics = BaseDetector::terminal_diagnostics_from_item(item);
-        let diagnosis = "Provider protocol reported task_complete without assistant reply text; inspect the protocol session log, pane state, and authentication/API output.";
+        let diagnosis = self.empty_boundary_diagnosis(reason);
         diagnostics
             .entry("provider_terminal_reason")
             .or_insert_with(|| {
@@ -86,15 +114,26 @@ impl ProtocolTurnDetector {
             .entry("empty_reply")
             .or_insert(serde_json::Value::Bool(true));
         diagnostics
+            .entry("empty_reply_reason")
+            .or_insert(serde_json::Value::String(reason.into()));
+        diagnostics
             .entry("error_type")
             .or_insert(serde_json::Value::String("empty_provider_reply".into()));
         diagnostics
             .entry("message")
-            .or_insert(serde_json::Value::String(diagnosis.into()));
+            .or_insert(serde_json::Value::String(diagnosis.clone().into()));
         diagnostics
             .entry("diagnosis")
             .or_insert(serde_json::Value::String(diagnosis.into()));
         diagnostics
+    }
+
+    fn empty_boundary_diagnosis(&self, reason: &str) -> String {
+        match reason {
+            "api_empty_after_error" => "Provider reported an API error during the turn and then completed without assistant reply text; inspect the protocol session log and authentication/API output.".into(),
+            "delivery_late_empty" => "Provider turn boundary arrived before the request anchor was observed; the prompt may not have been delivered or the reader was bound to stale history.".into(),
+            _ => "Provider protocol reported task_complete without assistant reply text; inspect the protocol session log, pane state, and authentication/API output.".into(),
+        }
     }
 
     fn complete_from_abort(&mut self, item: &CompletionItem) {

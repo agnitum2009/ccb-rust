@@ -620,6 +620,18 @@ v7 highlights:
 </details>
 
 <details>
+<summary><b>Unreleased</b> - Empty-Reply Diagnostics Split</summary>
+
+- Splits the generic `incomplete/task_complete_empty_reply` completion reason
+  into `model_empty_output`, `delivery_late_empty`, and `api_empty_after_error`
+  so senders can see why the recipient produced no reply.
+- Adds `empty_reply_reason` diagnostics to the empty-reply decision payload.
+- Surfaces `api_error_seen` in Codex `TURN_BOUNDARY` payloads when an `api_error`
+  event is observed during the turn.
+
+</details>
+
+<details>
 <summary><b>v7.5.0</b> - Native CLI Providers And Homepage Sync</summary>
 
 - Adds managed native CLI provider support for Kimi plus broader native CLI

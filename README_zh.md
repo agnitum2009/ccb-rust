@@ -608,6 +608,19 @@ v7 线重点：
 </details>
 
 <details>
+<summary><b>Unreleased</b> - 空回复诊断细化</summary>
+
+- 将泛化的 `incomplete/task_complete_empty_reply` 完成原因拆分为
+  `model_empty_output`（模型无输出）、`delivery_late_empty`（未看到请求
+  anchor 就收到 turn boundary，说明 prompt 未投递或 reader 绑定到旧日志）、
+  `api_empty_after_error`（turn 内出现 api_error 后空完成）。
+- 在空回复决策的 diagnostics 中新增 `empty_reply_reason`。
+- Codex provider 在 turn 内观察到 `api_error` 事件时，会在
+  `TURN_BOUNDARY` payload 中带上 `api_error_seen: true`。
+
+</details>
+
+<details>
 <summary><b>v7.5.0</b> - 原生 CLI Provider 与首页同步</summary>
 
 - 新增 Kimi managed native CLI provider 支持，并补齐更通用的 native CLI
