@@ -191,7 +191,7 @@ fn protocol_turn_detector_completes_on_boundary() {
 }
 
 #[test]
-fn protocol_turn_detector_empty_boundary_is_incomplete() {
+fn protocol_turn_detector_empty_boundary_without_anchor_is_delivery_late_empty() {
     let mut detector = ProtocolTurnDetector::default();
     detector.bind(
         CompletionRequestContext::new("job-1", "agent1", "claude", 60.0).unwrap(),
@@ -200,6 +200,68 @@ fn protocol_turn_detector_empty_boundary_is_incomplete() {
     detector.ingest(&make_item(CompletionItemKind::TurnBoundary));
     assert!(detector.decision().terminal);
     assert_eq!(detector.decision().status, CompletionStatus::Incomplete);
+    assert_eq!(
+        detector.decision().reason.as_deref(),
+        Some("delivery_late_empty")
+    );
+    let diagnostics = &detector.decision().diagnostics;
+    assert_eq!(
+        diagnostics
+            .get("empty_reply_reason")
+            .and_then(|v| v.as_str()),
+        Some("delivery_late_empty")
+    );
+    assert!(diagnostics
+        .get("diagnosis")
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .contains("before the request anchor was observed"));
+}
+
+#[test]
+fn protocol_turn_detector_empty_boundary_with_anchor_is_model_empty_output() {
+    let mut detector = ProtocolTurnDetector::default();
+    detector.bind(
+        CompletionRequestContext::new("job-1", "agent1", "claude", 60.0).unwrap(),
+        cursor(),
+    );
+    detector.ingest(&make_item(CompletionItemKind::AnchorSeen));
+    detector.ingest(&make_item(CompletionItemKind::TurnBoundary));
+    assert!(detector.decision().terminal);
+    assert_eq!(detector.decision().status, CompletionStatus::Incomplete);
+    assert_eq!(
+        detector.decision().reason.as_deref(),
+        Some("model_empty_output")
+    );
+    assert_eq!(
+        detector
+            .decision()
+            .diagnostics
+            .get("empty_reply_reason")
+            .and_then(|v| v.as_str()),
+        Some("model_empty_output")
+    );
+}
+
+#[test]
+fn protocol_turn_detector_empty_boundary_after_api_error_is_api_empty_after_error() {
+    let mut detector = ProtocolTurnDetector::default();
+    detector.bind(
+        CompletionRequestContext::new("job-1", "agent1", "claude", 60.0).unwrap(),
+        cursor(),
+    );
+    detector.ingest(&make_item(CompletionItemKind::AnchorSeen));
+    let mut boundary = make_item(CompletionItemKind::TurnBoundary);
+    boundary
+        .payload
+        .insert("api_error_seen".into(), true.into());
+    detector.ingest(&boundary);
+    assert!(detector.decision().terminal);
+    assert_eq!(detector.decision().status, CompletionStatus::Incomplete);
+    assert_eq!(
+        detector.decision().reason.as_deref(),
+        Some("api_empty_after_error")
+    );
 }
 
 #[test]
