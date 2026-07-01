@@ -243,16 +243,11 @@ def _delivery_acceptance_guard(submission: ProviderSubmission, *, now: str) -> P
     poll_state = dict(state.get('state') or {})
     if not _current_log_is_drained(current_log, poll_state.get('offset')):
         return None
+    # Only suppress the delivery failure if we have already switched to an
+    # active fallback log in a previous poll. A mere candidate fallback log is
+    # not enough: if the poll loop never switches to it, the timeout would be
+    # deferred forever and the job hangs in pending_anchor.
     if _active_anchor_fallback_log(state) is not None:
-        return None
-    if _anchor_fallback_log(
-        submission,
-        state=state,
-        poll_state=poll_state,
-        session=session,
-        work_dir=work_dir,
-        current_log=current_log,
-    ) is not None:
         return None
 
     return _delivery_failure_result(
